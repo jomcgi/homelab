@@ -1843,3 +1843,179 @@ func TestDeleteChannel_InState(t *testing.T) {
 		t.Error("expected channel state entry to be removed")
 	}
 }
+
+// ============================================================================
+// serveMetrics health endpoint tests
+// ============================================================================
+
+func TestServeMetrics_HealthzEndpoint(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/healthz")
+	if err != nil {
+		t.Fatalf("GET /healthz failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body failed: %v", err)
+	}
+	if string(body) != "ok" {
+		t.Errorf("body = %q, want %q", string(body), "ok")
+	}
+}
+
+func TestServeMetrics_ReadyzEndpoint(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/readyz")
+	if err != nil {
+		t.Fatalf("GET /readyz failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body failed: %v", err)
+	}
+	if string(body) != "ok" {
+		t.Errorf("body = %q, want %q", string(body), "ok")
+	}
+}
+
+// ============================================================================
+// reconcileAll tests
+// ============================================================================
+
+func TestReconcileAll_SyncsConfigMaps(t *testing.T) {
+	putCount := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			putCount++
+			w.WriteHeader(http.StatusOK)
+		case http.MethodPost:
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"status":"success","data":{"uuid":"some-uuid","data":{}}}`)
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+	})
+	s, _ := newSidecarWithServer(t, handler)
+
+	cm1 := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "dash-one",
+			Namespace: "default",
+			UID:       types.UID("uid-reconcile-1"),
+			Labels:    map[string]string{dashboardLabel: "true"},
+		},
+		Data: map[string]string{"dashboard.json": `{"title":"Dashboard One"}`},
+	}
+	cm2 := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "dash-two",
+			Namespace: "default",
+			UID:       types.UID("uid-reconcile-2"),
+			Labels:    map[string]string{dashboardLabel: "true"},
+		},
+		Data: map[string]string{"dashboard.json": `{"title":"Dashboard Two"}`},
+	}
+	s.clientset = fake.NewClientset(cm1, cm2)
+
+	// Pre-populate state so syncDashboard issues PUTs (update path)
+	s.state["uid-reconcile-1"] = DashboardState{
+		UUID:        "uuid-reconcile-1",
+		ContentHash: "old-hash-1",
+		Name:        cm1.Name,
+		Namespace:   cm1.Namespace,
+	}
+	s.state["uid-reconcile-2"] = DashboardState{
+		UUID:        "uuid-reconcile-2",
+		ContentHash: "old-hash-2",
+		Name:        cm2.Name,
+		Namespace:   cm2.Namespace,
+	}
+
+	if err := s.reconcileAll(context.Background()); err != nil {
+		t.Fatalf("reconcileAll failed: %v", err)
+	}
+
+	if putCount < 2 {
+		t.Errorf("expected at least 2 PUT calls (one per ConfigMap), got %d", putCount)
+	}
+}
+
+func TestReconcileAll_CleansOrphanedDashboard(t *testing.T) {
+	deleteCount := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			deleteCount++
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	s, _ := newSidecarWithServer(t, handler)
+
+	// No ConfigMaps in the fake clientset — all state entries are orphaned
+	s.clientset = fake.NewClientset()
+
+	// Pre-populate state with an orphaned dashboard
+	s.state["uid-orphan-dash"] = DashboardState{
+		UUID:      "orphan-uuid",
+		Name:      "orphaned-dashboard",
+		Namespace: "default",
+	}
+
+	if err := s.reconcileAll(context.Background()); err != nil {
+		t.Fatalf("reconcileAll failed: %v", err)
+	}
+
+	if deleteCount == 0 {
+		t.Error("expected DELETE call for orphaned dashboard, got none")
+	}
+
+	s.stateMu.RLock()
+	defer s.stateMu.RUnlock()
+	if _, ok := s.state["uid-orphan-dash"]; ok {
+		t.Error("expected orphaned state entry to be removed after deletion")
+	}
+}
+
+func TestReconcileAll_NoConfigMaps(t *testing.T) {
+	apiCallCount := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiCallCount++
+		w.WriteHeader(http.StatusOK)
+	})
+	s, _ := newSidecarWithServer(t, handler)
+	s.clientset = fake.NewClientset()
+
+	if err := s.reconcileAll(context.Background()); err != nil {
+		t.Fatalf("reconcileAll with no ConfigMaps failed: %v", err)
+	}
+	// No dashboards, alerts, or channels — no API calls expected
+	if apiCallCount != 0 {
+		t.Errorf("expected 0 API calls for empty cluster, got %d", apiCallCount)
+	}
+}
