@@ -200,8 +200,9 @@ function PipelineFlow({ plan, activeStep, onStepClick }) {
         display: "flex",
         alignItems: "center",
         gap: 0,
-        overflow: "hidden",
+        overflowX: "auto",
         minWidth: 0,
+        paddingBottom: 2,
       }}
     >
       {plan.map((step, i) => {
@@ -217,7 +218,7 @@ function PipelineFlow({ plan, activeStep, onStepClick }) {
               alignItems: "center",
               gap: 0,
               minWidth: 0,
-              flexShrink: i === plan.length - 1 ? 1 : 0,
+              flexShrink: 0,
             }}
           >
             {/* Connector */}

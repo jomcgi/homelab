@@ -383,6 +383,7 @@ func (c *Consumer) flushProgress(ctx context.Context, jobID string, buf *syncBuf
 		output = output[len(output)-maxOutputBytes:]
 	}
 	last := &current.Attempts[len(current.Attempts)-1]
+	output = cleanOutput(output)
 	last.Output = output
 	last.Truncated = truncated
 

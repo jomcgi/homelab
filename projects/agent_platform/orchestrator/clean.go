@@ -30,6 +30,29 @@ func cleanOutput(raw string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	s = strings.ReplaceAll(s, "\r", "\n")
 
+	// Strip recipe loading preambles ("Loading recipe: ..." through next blank line).
+	// These appear before each goose banner in pipeline jobs.
+	const recipeMarker = "Loading recipe:"
+	for {
+		idx := strings.Index(s, recipeMarker)
+		if idx == -1 {
+			break
+		}
+		lineStart := strings.LastIndex(s[:idx], "\n")
+		if lineStart == -1 {
+			lineStart = 0
+		} else {
+			lineStart++
+		}
+		endIdx := strings.Index(s[idx:], "\n\n")
+		if endIdx == -1 {
+			s = s[:lineStart]
+		} else {
+			after := idx + endIdx + 2
+			s = s[:lineStart] + s[after:]
+		}
+	}
+
 	// Strip all Goose startup banners (ASCII art + "goose is ready").
 	// Pipeline jobs spawn a new goose process per step, so there may be
 	// multiple banners in the output.
