@@ -5,11 +5,15 @@ export interface Job {
 }
 
 export interface JobOutput {
+  attempt: number;
+  exit_code: number | null;
   output: string;
+  truncated: boolean;
   result?: {
+    type?: string;
+    url?: string;
     summary?: string;
   };
-  status: string;
 }
 
 export class OrchestratorClient {
@@ -20,6 +24,7 @@ export class OrchestratorClient {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ task, source: "discord" }),
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok)
       throw new Error(`Orchestrator error: ${res.status} ${await res.text()}`);
@@ -27,7 +32,9 @@ export class OrchestratorClient {
   }
 
   async getJobOutput(jobId: string): Promise<JobOutput> {
-    const res = await fetch(`${this.baseUrl}/jobs/${jobId}/output`);
+    const res = await fetch(`${this.baseUrl}/jobs/${jobId}/output`, {
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!res.ok) throw new Error(`Orchestrator error: ${res.status}`);
     return res.json() as Promise<JobOutput>;
   }

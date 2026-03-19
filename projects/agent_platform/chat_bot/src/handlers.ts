@@ -2,20 +2,17 @@ import type { Thread, Message, MentionHandler } from "chat";
 import type { Config } from "./config.js";
 import type { OrchestratorClient } from "./orchestrator.js";
 import type { LlmClient } from "./llm.js";
-import type { GistClient } from "./gist.js";
 import type { NatsClient } from "./nats.js";
 
 export interface HandlerDeps {
   config: Config;
   orchestrator: OrchestratorClient;
   llm: LlmClient;
-  gist: GistClient;
   nats: NatsClient;
 }
 
 const POLL_INTERVAL_MS = 5_000;
 const MAX_POLL_ATTEMPTS = 120; // 10 minutes at 5s intervals
-const GIST_THRESHOLD = 500;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,28 +80,28 @@ async function pollForResult(
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     await sleep(POLL_INTERVAL_MS);
 
-    const output = await deps.orchestrator.getJobOutput(jobId);
+    let output;
+    try {
+      output = await deps.orchestrator.getJobOutput(jobId);
+    } catch {
+      // 404 = no attempts yet, keep polling
+      continue;
+    }
 
-    if (output.status === "completed") {
-      const summary = output.result?.summary ?? output.output;
-      const fullOutput = output.output;
+    // exit_code is null while the attempt is still running
+    if (output.exit_code === null) continue;
 
-      if (fullOutput.length > GIST_THRESHOLD) {
-        const gistUrl = await deps.gist.create(
-          `Job ${jobId} output`,
-          fullOutput,
-        );
-        await thread.post(`${summary}\n\nFull output: ${gistUrl}`);
-      } else {
-        await thread.post(summary);
-      }
+    if (output.exit_code === 0) {
+      const summary = output.result?.summary ?? "Job completed.";
+      const url = output.result?.url;
+      const reply = url ? `${summary}\n\n${url}` : summary;
+      await thread.post(reply);
       return;
     }
 
-    if (output.status === "failed") {
-      await thread.post(`Job failed: ${output.output || "unknown error"}`);
-      return;
-    }
+    // Non-zero exit code = failure
+    await thread.post(`Job failed: ${output.output || "unknown error"}`);
+    return;
   }
 
   await thread.post(
