@@ -2,7 +2,7 @@ apiVersion: v2
 name: chat-bot
 description: Discord chat bot with AI-powered interactions
 type: application
-version: 0.3.6
+version: 0.3.7
 appVersion: "0.1.0"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
