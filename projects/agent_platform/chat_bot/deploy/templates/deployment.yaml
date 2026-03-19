@@ -44,17 +44,17 @@ spec:
         - name: DISCORD_BOT_TOKEN
           valueFrom:
             secretKeyRef:
-              name: discord-bot-credentials
+              name: discord-bot
               key: DISCORD_BOT_TOKEN
         - name: DISCORD_PUBLIC_KEY
           valueFrom:
             secretKeyRef:
-              name: discord-bot-credentials
+              name: discord-bot
               key: DISCORD_PUBLIC_KEY
         - name: DISCORD_APPLICATION_ID
           valueFrom:
             secretKeyRef:
-              name: discord-bot-credentials
+              name: discord-bot
               key: DISCORD_APPLICATION_ID
         - name: GITHUB_TOKEN
           valueFrom:
@@ -64,7 +64,7 @@ spec:
         - name: OWNER_DISCORD_USER_ID
           valueFrom:
             secretKeyRef:
-              name: discord-bot-credentials
+              name: discord-bot
               key: OWNER_DISCORD_USER_ID
         - name: ORCHESTRATOR_URL
           value: {{ .Values.config.orchestratorUrl | quote }}
@@ -75,7 +75,7 @@ spec:
         - name: NOTIFICATION_CHANNEL_MAP
           valueFrom:
             secretKeyRef:
-              name: discord-bot-credentials
+              name: discord-bot
               key: NOTIFICATION_CHANNEL_MAP
         - name: HTTP_PORT
           value: {{ .Values.config.httpPort | quote }}
