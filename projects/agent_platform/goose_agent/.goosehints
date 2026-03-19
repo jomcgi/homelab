@@ -27,3 +27,8 @@
 - Services live in projects/<service>/deploy/ with application.yaml + values.yaml
 - To change cluster state: edit values.yaml → commit → push → ArgoCD auto-syncs
 - NEVER use kubectl apply/patch/edit/scale/delete
+
+## Output Formatting
+Your output is rendered as markdown in a dashboard UI. Use markdown formatting
+(headers, lists, code blocks) for clarity. Do not include raw terminal output
+like progress bars or spinner characters.
