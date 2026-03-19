@@ -78,9 +78,9 @@ func reconcileOrphanedJobs(ctx context.Context, store Store, dynClient dynamic.I
 									output = output[len(output)-maxOutputBytes:]
 									last.Truncated = true
 								}
+								last.Result = parseGooseResult(output)
 								output = cleanOutput(output)
 								last.Output = output
-								last.Result = parseGooseResult(output)
 							} else if err != nil {
 								jlog.Warn("reconcile: failed to fetch output from runner", "error", err)
 							}
@@ -105,9 +105,9 @@ func reconcileOrphanedJobs(ctx context.Context, store Store, dynClient dynamic.I
 									output = output[len(output)-maxOutputBytes:]
 									last.Truncated = true
 								}
+								last.Result = parseGooseResult(output)
 								output = cleanOutput(output)
 								last.Output = output
-								last.Result = parseGooseResult(output)
 							} else if err != nil {
 								jlog.Warn("reconcile: failed to fetch output from runner", "error", err)
 							}

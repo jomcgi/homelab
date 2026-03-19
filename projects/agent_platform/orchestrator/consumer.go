@@ -236,9 +236,9 @@ loop:
 			output = output[len(output)-maxOutputBytes:]
 			job.Attempts[idx].Truncated = true
 		}
+		job.Attempts[idx].Result = parseGooseResult(output)
 		output = cleanOutput(output)
 		job.Attempts[idx].Output = output
-		job.Attempts[idx].Result = parseGooseResult(output)
 		if len(result.Plan) > 0 {
 			job.Plan = result.Plan
 			// Derive current step from plan statuses.
