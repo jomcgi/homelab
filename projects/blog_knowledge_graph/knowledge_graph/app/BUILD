@@ -18,6 +18,7 @@ load("//bazel/tools/pytest:defs.bzl", "py_test")
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders //projects/blog_knowledge_graph/knowledge_graph/app/embedders
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini //projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama //projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama
+# gazelle:exclude test_core.py
 
 py_library(
     name = "models",
@@ -192,7 +193,7 @@ py_venv_binary(
 )
 
 py_test(
-    name = "core_test",
+    name = "core_test",  # keep
     srcs = ["test_core.py"],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
@@ -203,6 +204,7 @@ py_test(
         "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama",
         "@pip//httpx",
         "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
     ],
 )
 
@@ -278,17 +280,3 @@ semgrep_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
-py_test(
-    name = "test_core",
-    srcs = ["test_core.py"],
-    deps = [
-        "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
-        "//projects/blog_knowledge_graph/knowledge_graph/app:config",
-        "//projects/blog_knowledge_graph/knowledge_graph/app:models",
-        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders",
-        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini",
-        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama",
-        "@pip//httpx",
-        "@pip//pytest",
-    ],
-)
