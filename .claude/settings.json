@@ -43,6 +43,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-copyright-year.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-stale-repo-paths.sh",
+            "timeout": 5
           }
         ]
       }
