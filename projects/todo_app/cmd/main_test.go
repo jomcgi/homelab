@@ -553,3 +553,309 @@ func TestCollectDatesAlwaysAppendsTodayEvenWithNoFiles(t *testing.T) {
 		t.Errorf("last date: got %q, want today %q", last, today)
 	}
 }
+
+// --- getEnv ---
+
+func TestGetEnvReturnsFallbackWhenUnset(t *testing.T) {
+	key := "TEST_GETENV_UNSET_XYZ"
+	os.Unsetenv(key)
+	got := getEnv(key, "default_value")
+	if got != "default_value" {
+		t.Errorf("expected fallback %q, got %q", "default_value", got)
+	}
+}
+
+func TestGetEnvReturnsEnvVarWhenSet(t *testing.T) {
+	key := "TEST_GETENV_SET_XYZ"
+	t.Setenv(key, "from_env")
+	got := getEnv(key, "default_value")
+	if got != "from_env" {
+		t.Errorf("expected %q, got %q", "from_env", got)
+	}
+}
+
+func TestGetEnvReturnsFallbackWhenSetToEmpty(t *testing.T) {
+	key := "TEST_GETENV_EMPTY_XYZ"
+	t.Setenv(key, "")
+	got := getEnv(key, "fallback")
+	if got != "fallback" {
+		t.Errorf("empty env var should return fallback, got %q", got)
+	}
+}
+
+// --- rebuildSite ---
+
+func TestRebuildSiteReplacesPlaceholderAndWritesOutput(t *testing.T) {
+	dataD, _ := setupDirs(t)
+
+	if err := rebuildSite(); err != nil {
+		t.Fatalf("rebuildSite: %v", err)
+	}
+
+	outPath := filepath.Join(dataD, "public", "index.html")
+	contents, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read output index.html: %v", err)
+	}
+
+	body := string(contents)
+	// Placeholder must be gone
+	if strings.Contains(body, "DATES_PLACEHOLDER") {
+		t.Error("DATES_PLACEHOLDER should have been replaced")
+	}
+	// Must still be valid HTML with the wrapper tags
+	if !strings.Contains(body, "<html>") {
+		t.Error("expected <html> tag in output")
+	}
+	// Today's date must be injected
+	today := time.Now().Format("2006-01-02")
+	if !strings.Contains(body, today) {
+		t.Errorf("expected today %s in rebuilt index.html, got:\n%s", today, body)
+	}
+}
+
+func TestRebuildSiteCopiesDataJSON(t *testing.T) {
+	dataD, _ := setupDirs(t)
+
+	want := TodoData{
+		Weekly: Task{Task: "copy test", Done: false},
+		Daily:  []Task{{Task: "d1", Done: true}, {}, {}},
+	}
+	writeTodoData(t, dataD, want)
+
+	if err := rebuildSite(); err != nil {
+		t.Fatalf("rebuildSite: %v", err)
+	}
+
+	outPath := filepath.Join(dataD, "public", "data.json")
+	raw, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read public/data.json: %v", err)
+	}
+
+	var got TodoData
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("unmarshal public/data.json: %v", err)
+	}
+	if got.Weekly.Task != want.Weekly.Task {
+		t.Errorf("weekly task: got %q, want %q", got.Weekly.Task, want.Weekly.Task)
+	}
+}
+
+func TestRebuildSiteErrorWhenIndexHTMLMissing(t *testing.T) {
+	dataD := t.TempDir()
+	staticD := t.TempDir() // no index.html written
+
+	origData := dataDir
+	origStatic := staticDir
+	dataDir = dataD
+	staticDir = staticD
+	defer func() {
+		dataDir = origData
+		staticDir = origStatic
+	}()
+
+	if err := rebuildSite(); err == nil {
+		t.Error("expected error when index.html is missing, got nil")
+	}
+}
+
+func TestRebuildSiteCopiesMarkdownFilesWithinWindow(t *testing.T) {
+	dataD, _ := setupDirs(t)
+	origWindow := rollingWindowDays
+	rollingWindowDays = 14
+	defer func() { rollingWindowDays = origWindow }()
+
+	// Write a recent markdown file (3 days ago)
+	recent := time.Now().AddDate(0, 0, -3)
+	recentDir := filepath.Join(dataD, recent.Format("2006"), recent.Format("01"))
+	if err := os.MkdirAll(recentDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	recentFile := filepath.Join(recentDir, fmt.Sprintf("%d.md", recent.Day()))
+	if err := os.WriteFile(recentFile, []byte("# recent\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write an old markdown file (20 days ago) — outside rolling window
+	old := time.Now().AddDate(0, 0, -20)
+	oldDir := filepath.Join(dataD, old.Format("2006"), old.Format("01"))
+	if err := os.MkdirAll(oldDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldFile := filepath.Join(oldDir, fmt.Sprintf("%d.md", old.Day()))
+	if err := os.WriteFile(oldFile, []byte("# old\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := rebuildSite(); err != nil {
+		t.Fatalf("rebuildSite: %v", err)
+	}
+
+	// Recent file should be in public/
+	recentRel := fmt.Sprintf("%s/%s/%d.md", recent.Format("2006"), recent.Format("01"), recent.Day())
+	recentPub := filepath.Join(dataD, "public", recentRel)
+	if _, err := os.Stat(recentPub); err != nil {
+		t.Errorf("recent md not copied to public: %v", err)
+	}
+
+	// Old file must NOT be in public/
+	oldRel := fmt.Sprintf("%s/%s/%d.md", old.Format("2006"), old.Format("01"), old.Day())
+	oldPub := filepath.Join(dataD, "public", oldRel)
+	if _, err := os.Stat(oldPub); err == nil {
+		t.Errorf("old md outside rolling window should not be in public/")
+	}
+}
+
+// --- resetDaily ---
+
+func TestResetDailyArchivesAndClearsDailyTasks(t *testing.T) {
+	dataD, _ := setupDirs(t)
+
+	initial := TodoData{
+		Weekly: Task{Task: "weekly objective", Done: false},
+		Daily: []Task{
+			{Task: "task A", Done: true},
+			{Task: "task B", Done: false},
+			{Task: "task C", Done: false},
+		},
+	}
+	writeTodoData(t, dataD, initial)
+
+	if err := resetDaily(); err != nil {
+		t.Fatalf("resetDaily: %v", err)
+	}
+
+	// data.json should have 3 empty daily slots
+	loaded, err := loadData()
+	if err != nil {
+		t.Fatalf("loadData after resetDaily: %v", err)
+	}
+	if len(loaded.Daily) != 3 {
+		t.Errorf("expected 3 daily tasks, got %d", len(loaded.Daily))
+	}
+	for i, task := range loaded.Daily {
+		if task.Task != "" || task.Done {
+			t.Errorf("daily[%d] should be empty after reset, got %+v", i, task)
+		}
+	}
+
+	// Weekly goal is preserved
+	if loaded.Weekly.Task != initial.Weekly.Task {
+		t.Errorf("weekly task should be preserved: got %q, want %q", loaded.Weekly.Task, initial.Weekly.Task)
+	}
+}
+
+func TestResetDailyCreatesArchiveFile(t *testing.T) {
+	dataD, _ := setupDirs(t)
+
+	writeTodoData(t, dataD, TodoData{
+		Weekly: Task{Task: "weekly", Done: false},
+		Daily:  []Task{{Task: "d1", Done: true}, {Task: "d2", Done: false}, {}},
+	})
+
+	if err := resetDaily(); err != nil {
+		t.Fatalf("resetDaily: %v", err)
+	}
+
+	// An archive markdown file for today must exist
+	now := time.Now()
+	archivePath := filepath.Join(dataD, now.Format("2006"), now.Format("01"), fmt.Sprintf("%d.md", now.Day()))
+	if _, err := os.Stat(archivePath); err != nil {
+		t.Errorf("archive file not found at %s: %v", archivePath, err)
+	}
+}
+
+func TestResetDailyRebuildsSite(t *testing.T) {
+	dataD, _ := setupDirs(t)
+	writeTodoData(t, dataD, TodoData{
+		Weekly: Task{Task: "w", Done: false},
+		Daily:  []Task{{Task: "d1", Done: false}, {}, {}},
+	})
+
+	if err := resetDaily(); err != nil {
+		t.Fatalf("resetDaily: %v", err)
+	}
+
+	// public/index.html must exist (site was rebuilt)
+	pubIndex := filepath.Join(dataD, "public", "index.html")
+	if _, err := os.Stat(pubIndex); err != nil {
+		t.Errorf("public/index.html not found after resetDaily: %v", err)
+	}
+}
+
+// --- resetWeekly ---
+
+func TestResetWeeklyArchivesAndClearsAll(t *testing.T) {
+	dataD, _ := setupDirs(t)
+
+	initial := TodoData{
+		Weekly: Task{Task: "big weekly goal", Done: true},
+		Daily: []Task{
+			{Task: "day task 1", Done: true},
+			{Task: "day task 2", Done: false},
+			{},
+		},
+	}
+	writeTodoData(t, dataD, initial)
+
+	if err := resetWeekly(); err != nil {
+		t.Fatalf("resetWeekly: %v", err)
+	}
+
+	loaded, err := loadData()
+	if err != nil {
+		t.Fatalf("loadData after resetWeekly: %v", err)
+	}
+
+	// Weekly task must be cleared
+	if loaded.Weekly.Task != "" || loaded.Weekly.Done {
+		t.Errorf("weekly should be cleared after resetWeekly, got %+v", loaded.Weekly)
+	}
+
+	// Daily must be 3 empty slots
+	if len(loaded.Daily) != 3 {
+		t.Errorf("expected 3 daily tasks, got %d", len(loaded.Daily))
+	}
+	for i, task := range loaded.Daily {
+		if task.Task != "" || task.Done {
+			t.Errorf("daily[%d] should be empty after weekly reset, got %+v", i, task)
+		}
+	}
+}
+
+func TestResetWeeklyCreatesArchiveFile(t *testing.T) {
+	dataD, _ := setupDirs(t)
+
+	writeTodoData(t, dataD, TodoData{
+		Weekly: Task{Task: "finish sprint", Done: true},
+		Daily:  []Task{{Task: "d1", Done: true}, {Task: "d2", Done: false}, {}},
+	})
+
+	if err := resetWeekly(); err != nil {
+		t.Fatalf("resetWeekly: %v", err)
+	}
+
+	now := time.Now()
+	archivePath := filepath.Join(dataD, now.Format("2006"), now.Format("01"), fmt.Sprintf("%d.md", now.Day()))
+	if _, err := os.Stat(archivePath); err != nil {
+		t.Errorf("archive file not found at %s: %v", archivePath, err)
+	}
+}
+
+func TestResetWeeklyRebuildsSite(t *testing.T) {
+	dataD, _ := setupDirs(t)
+	writeTodoData(t, dataD, TodoData{
+		Weekly: Task{Task: "sprint goal", Done: false},
+		Daily:  []Task{{Task: "d1", Done: false}, {}, {}},
+	})
+
+	if err := resetWeekly(); err != nil {
+		t.Fatalf("resetWeekly: %v", err)
+	}
+
+	pubIndex := filepath.Join(dataD, "public", "index.html")
+	if _, err := os.Stat(pubIndex); err != nil {
+		t.Errorf("public/index.html not found after resetWeekly: %v", err)
+	}
+}
