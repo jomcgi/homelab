@@ -17,4 +17,4 @@ rules:
       description: fetch() missing AbortSignal.timeout() — will hang indefinitely on unresponsive upstreams
     patterns:
       - pattern: fetch(...)
-      - pattern-not: fetch(..., {signal: ..., ...})
+      - pattern-not: "fetch(..., {signal: ..., ...})"
