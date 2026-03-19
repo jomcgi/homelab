@@ -30,6 +30,10 @@ type JobRecord struct {
 	DebugMode      bool   `json:"debug_mode,omitempty"`
 	FailureSummary string `json:"failure_summary,omitempty"`
 
+	// LLM-generated summary fields, populated by the backend summarizer.
+	Title   string `json:"title,omitempty"`
+	Summary string `json:"summary,omitempty"`
+
 	// Autonomous plan fields.
 	Plan        []PlanStep `json:"plan,omitempty"`
 	CurrentStep int        `json:"current_step"`
@@ -91,10 +95,4 @@ type OutputResponse struct {
 	Output    string       `json:"output"`
 	Truncated bool         `json:"truncated"`
 	Result    *GooseResult `json:"result,omitempty"`
-}
-
-// SummarizeResponse is returned by POST /jobs/{id}/summarize.
-type SummarizeResponse struct {
-	Title   string `json:"title"`
-	Summary string `json:"summary"`
 }
