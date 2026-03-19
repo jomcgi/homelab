@@ -70,3 +70,21 @@ func TestCleanOutput_MultipleBanners(t *testing.T) {
 		t.Errorf("cleanOutput() = %q, want %q", got, want)
 	}
 }
+
+func TestCleanOutput_StripsGooseResult(t *testing.T) {
+	raw := "Some analysis here\n\n```goose-result\ntype: pr\nurl: https://github.com/jomcgi/homelab/pull/42\nsummary: Fixed the thing\n```\n"
+	got := cleanOutput(raw)
+	want := "Some analysis here\n"
+	if got != want {
+		t.Errorf("cleanOutput() = %q, want %q", got, want)
+	}
+}
+
+func TestCleanOutput_StripsMultipleGooseResults(t *testing.T) {
+	raw := "Step 0\n```goose-result\ntype: gist\nurl: https://gist.github.com/abc\nsummary: Research\n```\n\n--- pipeline step 0: research ---\nStep 1\n```goose-result\ntype: pr\nurl: https://github.com/jomcgi/homelab/pull/1\nsummary: Fix\n```\n"
+	got := cleanOutput(raw)
+	want := "Step 0\n\n--- pipeline step 0: research ---\nStep 1\n"
+	if got != want {
+		t.Errorf("cleanOutput() = %q, want %q", got, want)
+	}
+}

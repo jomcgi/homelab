@@ -20,8 +20,9 @@ func isBannerLine(line string) bool {
 		strings.Contains(trimmed, "L L")
 }
 
-// cleanOutput strips ANSI escape codes, all Goose startup banners, and
-// normalizes carriage returns so output renders cleanly in the UI.
+// cleanOutput strips ANSI escape codes, all Goose startup banners,
+// goose-result fenced blocks, and normalizes carriage returns so output
+// renders cleanly in the UI.
 func cleanOutput(raw string) string {
 	s := ansiRE.ReplaceAllString(raw, "")
 
@@ -76,5 +77,31 @@ func cleanOutput(raw string) string {
 		s = s[:bannerStart] + s[after:]
 	}
 
-	return strings.TrimLeft(s, "\n")
+	// Strip goose-result fenced blocks. These are already parsed and stored
+	// in Attempt.Result, so they should not appear in the display output.
+	const resultStart = "```goose-result\n"
+	const resultEnd = "\n```"
+	for {
+		idx := strings.Index(s, resultStart)
+		if idx == -1 {
+			break
+		}
+		endContent := s[idx+len(resultStart):]
+		endIdx := strings.Index(endContent, resultEnd)
+		if endIdx == -1 {
+			break
+		}
+		after := idx + len(resultStart) + endIdx + len(resultEnd)
+		if after < len(s) && s[after] == '\n' {
+			after++
+		}
+		s = s[:idx] + s[after:]
+	}
+
+	s = strings.TrimLeft(s, "\n")
+	s = strings.TrimRight(s, "\n")
+	if s != "" {
+		s += "\n"
+	}
+	return s
 }
