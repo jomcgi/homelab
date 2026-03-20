@@ -55,6 +55,16 @@ var workDir = func() string {
 // is truncated to the last maxOutputBytes bytes (keeping the tail).
 const maxOutputBytes = 50 * 1024 * 1024 // 50MB
 
+// stepOutputCap is the maximum bytes kept from each upstream pipeline step's
+// output before it is appended to the accumulated context. The tail is kept
+// because the goose-result block always appears at the end of output.
+const stepOutputCap = 6000
+
+// upstreamContextCap is the maximum total upstream context bytes injected into
+// subsequent pipeline step tasks. The tail is kept so the most recent steps
+// have highest fidelity.
+const upstreamContextCap = 16000
+
 // RunRequest is the JSON body for POST /run.
 type RunRequest struct {
 	Task              string `json:"task"`
@@ -273,6 +283,45 @@ func buildGooseCmd(body RunRequest) []string {
 		}
 	}
 	return []string{"goose", "run", "--text", body.Task}
+}
+
+// capStepOutput caps a single pipeline step's raw output to stepOutputCap bytes.
+// If the output exceeds the cap, the tail is kept (most recent bytes), which
+// ensures the goose-result block — always emitted last — is preserved.
+func capStepOutput(output string) string {
+	if len(output) <= stepOutputCap {
+		return output
+	}
+	return output[len(output)-stepOutputCap:]
+}
+
+// buildStepTask augments a step's task description with accumulated upstream
+// pipeline output from all prior steps.
+//
+// When upstreamOutputs is empty (first step in the pipeline), the raw stepTask
+// is returned unchanged so the first agent receives no extra context.
+//
+// When prior steps have run, their labelled outputs are joined with a separator,
+// the combined context is capped at upstreamContextCap bytes (tail kept), and
+// the result is formatted as:
+//
+//	## Upstream Pipeline Output (from N prior step(s))
+//	<combined context>
+//
+//	## Your Task
+//	<stepTask>
+func buildStepTask(upstreamOutputs []string, stepTask string) string {
+	if len(upstreamOutputs) == 0 {
+		return stepTask
+	}
+	combined := strings.Join(upstreamOutputs, "\n\n---\n\n")
+	if len(combined) > upstreamContextCap {
+		combined = combined[len(combined)-upstreamContextCap:]
+	}
+	return fmt.Sprintf(
+		"## Upstream Pipeline Output (from %d prior step(s))\n%s\n\n## Your Task\n%s",
+		len(upstreamOutputs), combined, stepTask,
+	)
 }
 
 // runSession spawns a single goose process with the given args, captures output,
@@ -508,16 +557,7 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 		r.mu.Unlock()
 
 		// Build task with accumulated upstream context from all prior steps.
-		task := step.Task
-		if len(upstreamOutputs) > 0 {
-			context := strings.Join(upstreamOutputs, "\n\n---\n\n")
-			// Cap total upstream context to keep it manageable.
-			const maxContextBytes = 16000
-			if len(context) > maxContextBytes {
-				context = context[len(context)-maxContextBytes:]
-			}
-			task = fmt.Sprintf("## Upstream Pipeline Output (from %d prior step(s))\n%s\n\n## Your Task\n%s", len(upstreamOutputs), context, step.Task)
-		}
+		task := buildStepTask(upstreamOutputs, step.Task)
 
 		stepArgs := buildGooseCmdFromFile(recipePath, task, "")
 		lastExitCode, lastErr = r.runSession(ctx, stepArgs, inactivityTimeout)
@@ -525,12 +565,7 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 		// Capture this step's output and add to accumulated upstream context.
 		r.mu.RLock()
 		if outputBefore < len(r.output) {
-			stepOutput := string(r.output[outputBefore:])
-			// Keep the tail of each step's output (goose-result is always at the end).
-			const maxStepBytes = 6000
-			if len(stepOutput) > maxStepBytes {
-				stepOutput = stepOutput[len(stepOutput)-maxStepBytes:]
-			}
+			stepOutput := capStepOutput(string(r.output[outputBefore:]))
 			upstreamOutputs = append(upstreamOutputs, fmt.Sprintf("### Step %d: %s\n%s", i, step.Agent, stepOutput))
 		}
 		r.mu.RUnlock()
