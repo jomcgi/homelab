@@ -95,4 +95,5 @@ type OutputResponse struct {
 	Output    string       `json:"output"`
 	Truncated bool         `json:"truncated"`
 	Result    *GooseResult `json:"result,omitempty"`
+	Status    JobStatus    `json:"status"`
 }

@@ -88,10 +88,12 @@ async function pollForResult(
       continue;
     }
 
-    // exit_code is null while the attempt is still running
-    if (output.exit_code === null) continue;
+    // Keep polling while the job is still active (PENDING/RUNNING).
+    // A failed attempt with exit_code set does NOT mean the job is done —
+    // the orchestrator may retry, setting status back to PENDING.
+    if (output.status === "PENDING" || output.status === "RUNNING") continue;
 
-    if (output.exit_code === 0) {
+    if (output.status === "SUCCEEDED") {
       const summary = output.result?.summary ?? "Job completed.";
       const url = output.result?.url;
       const reply = url ? `${summary}\n\n${url}` : summary;
@@ -99,7 +101,7 @@ async function pollForResult(
       return;
     }
 
-    // Non-zero exit code = failure
+    // Terminal failure (FAILED or CANCELLED)
     await thread.post(`Job failed: ${output.output || "unknown error"}`);
     return;
   }
