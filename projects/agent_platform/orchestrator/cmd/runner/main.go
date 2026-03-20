@@ -461,9 +461,10 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 
 	log.Printf("deep-plan produced %d pipeline steps, executing sequentially", len(steps))
 
-	// Execute each step sequentially.
+	// Execute each step sequentially, passing upstream output as context.
 	var lastExitCode int
 	var lastErr error
+	var prevStepOutput string
 	for i, step := range steps {
 		// Check context cancellation.
 		if ctx.Err() != nil {
@@ -503,10 +504,29 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 		separator := fmt.Sprintf("\n--- pipeline step %d: %s ---\n", i, step.Agent)
 		r.mu.Lock()
 		r.output = append(r.output, []byte(separator)...)
+		outputBefore := len(r.output)
 		r.mu.Unlock()
 
-		stepArgs := buildGooseCmdFromFile(recipePath, step.Task, "")
+		// Build task with upstream context from the previous step.
+		task := step.Task
+		if prevStepOutput != "" {
+			task = fmt.Sprintf("## Upstream Output (from previous pipeline step)\n%s\n\n## Your Task\n%s", prevStepOutput, step.Task)
+		}
+
+		stepArgs := buildGooseCmdFromFile(recipePath, task, "")
 		lastExitCode, lastErr = r.runSession(ctx, stepArgs, inactivityTimeout)
+
+		// Capture this step's output for downstream context.
+		r.mu.RLock()
+		if outputBefore < len(r.output) {
+			prevStepOutput = string(r.output[outputBefore:])
+			// Limit context size to avoid overwhelming downstream steps.
+			const maxContextBytes = 8000
+			if len(prevStepOutput) > maxContextBytes {
+				prevStepOutput = prevStepOutput[len(prevStepOutput)-maxContextBytes:]
+			}
+		}
+		r.mu.RUnlock()
 
 		// Update status based on result.
 		r.mu.Lock()
