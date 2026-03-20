@@ -5,7 +5,6 @@ instructions: |
   Fix the described issue in the homelab repo.
   Run bazel test //... to verify your changes.
   Commit using conventional commits format and create a PR.
-  You do NOT have access to cluster tools.
 
   ## Output Format (REQUIRED)
   When you are COMPLETELY finished, emit your result as the LAST thing you
@@ -33,6 +32,10 @@ parameters:
 extensions:
   - type: builtin
     name: developer
+  - type: streamable_http
+    name: context-forge
+    uri: http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp/
+    timeout: 300
 settings:
   max_turns: 50
   max_tool_repetitions: 5
