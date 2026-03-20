@@ -448,18 +448,11 @@ View in SigNoz: https://signoz.jomcgi.dev
 
 ### Logs
 
-Structured JSON logs via `logging.structlog`:
+Standard Python logging:
 
-```json
-{
-  "timestamp": "2024-01-15T12:00:00Z",
-  "level": "info",
-  "event": "point_added",
-  "point_id": "abc123def456",
-  "lat": 49.2827,
-  "lng": -123.1207,
-  "source": "gopro"
-}
+```
+INFO:trips_api:Catchup complete. 1523 points loaded.
+INFO:trips_api:WebSocket client connected. Total: 1
 ```
 
 ## Related Services

@@ -11,7 +11,7 @@ Interactive trip viewer for exploring travel routes and photos.
 
 ## Tech Stack
 
-- React 18 + TypeScript
+- React 19
 - Vite for bundling
 - MapLibre GL for maps
 - TailwindCSS for styling
