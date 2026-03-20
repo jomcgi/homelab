@@ -103,12 +103,14 @@ async function pollForResult(
     }
 
     if (output.status === "SUCCEEDED") {
-      const summary = output.result?.summary;
+      // Prefer reply (user-facing answer) over summary (internal tracking).
+      const message =
+        (output.result?.reply ??
+          output.result?.summary ??
+          truncate(output.output, 1800)) ||
+        "Job completed.";
       const url = output.result?.url;
-      // Prefer structured result summary, fall back to raw output (truncated).
-      const text =
-        (summary ?? truncate(output.output, 1800)) || "Job completed.";
-      const reply = url ? `${text}\n\n${url}` : text;
+      const reply = url ? `${message}\n\n${url}` : message;
       await thread.post(reply);
       return;
     }

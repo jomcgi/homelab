@@ -160,6 +160,7 @@ func TestGooseResult_RoundTrip(t *testing.T) {
 		Type:    "pr",
 		URL:     "https://github.com/example/pull/1",
 		Summary: "fix it",
+		Reply:   "Fixed the healthcheck port. PR is ready for review.",
 	}
 
 	data, err := json.Marshal(result)
@@ -180,6 +181,27 @@ func TestGooseResult_RoundTrip(t *testing.T) {
 	}
 	if got.Summary != result.Summary {
 		t.Errorf("Summary: got %q, want %q", got.Summary, result.Summary)
+	}
+	if got.Reply != result.Reply {
+		t.Errorf("Reply: got %q, want %q", got.Reply, result.Reply)
+	}
+}
+
+// TestGooseResult_ReplyOmittedWhenEmpty verifies reply is omitted when empty.
+func TestGooseResult_ReplyOmittedWhenEmpty(t *testing.T) {
+	result := GooseResult{
+		Type:    "gist",
+		URL:     "https://gist.github.com/example/123",
+		Summary: "research findings",
+	}
+
+	data, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	if strings.Contains(string(data), `"reply"`) {
+		t.Errorf("expected reply to be omitted when empty, got %s", data)
 	}
 }
 

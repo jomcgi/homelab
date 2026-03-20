@@ -47,11 +47,19 @@ instructions: |
   type: pr | gist | issue
   url: <final artifact URL>
   summary: <1-2 sentences: what you delivered and the outcome>
+  reply: <direct answer to the original question, written for the person who asked it>
   ```
 
-  The summary must describe the FINAL DELIVERABLE, not your process.
-  Good: "Polished research gist on Glasgow police corruption. Corrected 2 sourcing issues flagged by critic."
+  **summary** describes the deliverable for internal tracking:
+  Good: "Research gist covering Police Scotland controversies across 13 themes with sourced analysis."
   Bad: "I reviewed the upstream outputs and made some corrections..."
+
+  **reply** is the user-facing answer that will be posted back to the platform
+  (e.g. Discord) where the question was asked. Write it as a direct, concise
+  response to the original question — as if you are replying in conversation.
+  Keep it under 1800 characters. Include the key takeaway, not the process.
+  Good: "Glasgow police aren't uniquely 'corrupt' in the traditional sense, but Police Scotland has a well-documented history of institutional dysfunction — including admitted institutional racism, unlawful surveillance of journalists, and two Chief Constables resigning under pressure within 5 years. The full breakdown is in the gist."
+  Bad: "Polished and corrected the research gist. Fixed two critical errors flagged by the critic."
 prompt: |
   {{ task_description | indent(2) }}
 parameters:

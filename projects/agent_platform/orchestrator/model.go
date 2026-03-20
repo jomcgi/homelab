@@ -58,6 +58,7 @@ type GooseResult struct {
 	Type    string `json:"type"`
 	URL     string `json:"url"`
 	Summary string `json:"summary"`
+	Reply   string `json:"reply,omitempty"`
 }
 
 // SubmitRequest is the JSON body for POST /jobs.
