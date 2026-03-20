@@ -87,33 +87,43 @@ func (f *inMemKV) ListKeys(_ context.Context, _ ...jetstream.WatchOpt) (jetstrea
 func (f *inMemKV) GetRevision(_ context.Context, _ string, _ uint64) (jetstream.KeyValueEntry, error) {
 	panic("not implemented")
 }
+
 func (f *inMemKV) PutString(_ context.Context, _ string, _ string) (uint64, error) {
 	panic("not implemented")
 }
+
 func (f *inMemKV) Create(_ context.Context, _ string, _ []byte, _ ...jetstream.KVCreateOpt) (uint64, error) {
 	panic("not implemented")
 }
+
 func (f *inMemKV) Update(_ context.Context, _ string, _ []byte, _ uint64) (uint64, error) {
 	panic("not implemented")
 }
+
 func (f *inMemKV) Purge(_ context.Context, _ string, _ ...jetstream.KVDeleteOpt) error {
 	panic("not implemented")
 }
+
 func (f *inMemKV) Watch(_ context.Context, _ string, _ ...jetstream.WatchOpt) (jetstream.KeyWatcher, error) {
 	panic("not implemented")
 }
+
 func (f *inMemKV) WatchAll(_ context.Context, _ ...jetstream.WatchOpt) (jetstream.KeyWatcher, error) {
 	panic("not implemented")
 }
+
 func (f *inMemKV) WatchFiltered(_ context.Context, _ []string, _ ...jetstream.WatchOpt) (jetstream.KeyWatcher, error) {
 	panic("not implemented")
 }
+
 func (f *inMemKV) Keys(_ context.Context, _ ...jetstream.WatchOpt) ([]string, error) {
 	panic("not implemented")
 }
+
 func (f *inMemKV) ListKeysFiltered(_ context.Context, _ ...string) (jetstream.KeyLister, error) {
 	panic("not implemented")
 }
+
 func (f *inMemKV) History(_ context.Context, _ string, _ ...jetstream.WatchOpt) ([]jetstream.KeyValueEntry, error) {
 	panic("not implemented")
 }
@@ -121,6 +131,7 @@ func (f *inMemKV) Bucket() string { return "test-bucket" }
 func (f *inMemKV) PurgeDeletes(_ context.Context, _ ...jetstream.KVPurgeOpt) error {
 	panic("not implemented")
 }
+
 func (f *inMemKV) Status(_ context.Context) (jetstream.KeyValueStatus, error) {
 	panic("not implemented")
 }
@@ -134,13 +145,13 @@ type inMemEntry struct {
 	value []byte
 }
 
-func (e *inMemEntry) Bucket() string                    { return "test-bucket" }
-func (e *inMemEntry) Key() string                       { return e.key }
-func (e *inMemEntry) Value() []byte                     { return e.value }
-func (e *inMemEntry) Revision() uint64                  { return 1 }
-func (e *inMemEntry) Created() time.Time                { return time.Time{} }
-func (e *inMemEntry) Delta() uint64                     { return 0 }
-func (e *inMemEntry) Operation() jetstream.KeyValueOp  { return jetstream.KeyValuePut }
+func (e *inMemEntry) Bucket() string                  { return "test-bucket" }
+func (e *inMemEntry) Key() string                     { return e.key }
+func (e *inMemEntry) Value() []byte                   { return e.value }
+func (e *inMemEntry) Revision() uint64                { return 1 }
+func (e *inMemEntry) Created() time.Time              { return time.Time{} }
+func (e *inMemEntry) Delta() uint64                   { return 0 }
+func (e *inMemEntry) Operation() jetstream.KeyValueOp { return jetstream.KeyValuePut }
 
 // ---------------------------------------------------------------------------
 // chanLister implements jetstream.KeyLister via a pre-populated channel.
