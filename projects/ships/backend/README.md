@@ -465,7 +465,7 @@ View in SigNoz: https://signoz.jomcgi.dev
 
 ### Logs
 
-Standard Python logging with f-string messages:
+Standard Python logging:
 
 ```
 2024-01-15 12:00:00 - ships_api - INFO - Catchup complete. 18392 positions loaded.
