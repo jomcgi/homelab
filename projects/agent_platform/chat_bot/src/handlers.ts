@@ -12,7 +12,7 @@ export interface HandlerDeps {
 }
 
 const POLL_INTERVAL_MS = 5_000;
-const MAX_POLL_ATTEMPTS = 120; // 10 minutes at 5s intervals
+const MAX_STALE_POLLS = 120; // give up after 10 minutes of no reachable status
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -82,21 +82,25 @@ async function pollForResult(
   jobId: string,
   deps: HandlerDeps,
 ): Promise<void> {
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+  let stalePollCount = 0;
+
+  while (stalePollCount < MAX_STALE_POLLS) {
     await sleep(POLL_INTERVAL_MS);
 
     let output;
     try {
       output = await deps.orchestrator.getJobOutput(jobId);
     } catch {
-      // 404 = no attempts yet, keep polling
+      // 404 = no attempts yet, count toward stale timeout
+      stalePollCount++;
       continue;
     }
 
-    // Keep polling while the job is still active (PENDING/RUNNING).
-    // A failed attempt with exit_code set does NOT mean the job is done —
-    // the orchestrator may retry, setting status back to PENDING.
-    if (output.status === "PENDING" || output.status === "RUNNING") continue;
+    // Job is still active — reset stale counter and keep polling.
+    if (output.status === "PENDING" || output.status === "RUNNING") {
+      stalePollCount = 0;
+      continue;
+    }
 
     if (output.status === "SUCCEEDED") {
       const summary = output.result?.summary;
@@ -115,6 +119,6 @@ async function pollForResult(
   }
 
   await thread.post(
-    `Job ${jobId} timed out after ${(MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 60_000} minutes. Check status manually.`,
+    `Job ${jobId} timed out after ${(MAX_STALE_POLLS * POLL_INTERVAL_MS) / 60_000} minutes of inactivity. Check status manually.`,
   );
 }
