@@ -4,7 +4,7 @@ Custom Resource Definitions for Kubernetes-native management of SigNoz monitorin
 
 ## Overview
 
-The SigNoz Operator provides CRDs that let you define HTTP health checks, alerting rules, and notification channels as Kubernetes resources. A separate controller (in `operators/`) reconciles these CRDs against the SigNoz API, enabling co-location of monitoring configuration alongside application deployments.
+The SigNoz Operator provides CRDs that let you define HTTP health checks, alerting rules, and notification channels as Kubernetes resources. Defining monitoring config as CRs enables co-location of monitoring configuration alongside application deployments.
 
 ```mermaid
 flowchart LR
@@ -19,10 +19,6 @@ flowchart LR
     CRDs --> HC
     CRDs --> AL
     CRDs --> NC
-    HC -->|reconcile| Controller[SigNoz Operator]
-    AL -->|reconcile| Controller
-    NC -->|reconcile| Controller
-    Controller -->|sync| SigNoz[SigNoz API]
 ```
 
 ## Architecture

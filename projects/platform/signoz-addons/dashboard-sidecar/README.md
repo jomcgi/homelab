@@ -20,7 +20,7 @@ flowchart LR
 The chart deploys a single-replica Deployment plus bundled dashboard ConfigMaps:
 
 - **Dashboard Sidecar** - A Go controller that watches ConfigMaps across all namespaces (or a specific namespace), detects dashboard JSON, and syncs it to SigNoz via the query-service API. Runs a reconciliation loop every 5 minutes to correct drift.
-- **Dashboard ConfigMaps** - Bundled Kubernetes infrastructure dashboards (cluster metrics, pod metrics, node metrics, PVC metrics, host metrics, SigNoz ingestion analysis) deployed as labeled ConfigMaps
+- **Dashboard ConfigMaps** - Bundled Kubernetes infrastructure dashboards (cluster metrics, pod metrics overall + detailed, node metrics overall + detailed, PVC metrics, host metrics, SigNoz ingestion analysis) deployed as labeled ConfigMaps
 
 State is tracked in a ConfigMap within the release namespace to detect which dashboards need creation vs. update.
 
