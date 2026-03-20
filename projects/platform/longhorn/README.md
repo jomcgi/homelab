@@ -111,14 +111,14 @@ spec:
 
 ## Replica Configuration
 
-### Default Replica Count (3)
+### Default Replica Count
 
 ```yaml
 # Implicit in all PVCs using longhorn StorageClass
 kind: PersistentVolumeClaim
 spec:
   storageClassName: longhorn
-  # Inherits numberOfReplicas: 3 from StorageClass
+  # Inherits numberOfReplicas from StorageClass (homelab uses 1 via values-prod.yaml)
 ```
 
 **Tolerance:** Can lose 2 nodes before data loss
@@ -457,7 +457,7 @@ kubectl -n longhorn-system delete replica <replica-name>
 | Value                                               | Description                 | Default  |
 | --------------------------------------------------- | --------------------------- | -------- |
 | `defaultSettings.backupTarget`                      | S3 bucket URL for backups   | `""`     |
-| `defaultSettings.defaultReplicaCount`               | Default replica count       | `3`      |
+| `defaultSettings.defaultReplicaCount`               | Default replica count       | `1`      |
 | `defaultSettings.storageMinimalAvailablePercentage` | Min free space %            | `25`     |
 | `defaultSettings.upgradeChecker`                    | Check for updates           | `true`   |
 | `persistence.defaultClass`                          | Set as default StorageClass | `true`   |

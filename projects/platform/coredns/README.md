@@ -26,7 +26,7 @@ See `values.yaml` for all configuration options.
 
 ### Custom DNS Configuration
 
-To customize DNS settings, override values in `overlays/cluster-critical/coredns/values.yaml`:
+To customize DNS settings, override values in `projects/platform/coredns/values.yaml`:
 
 ```yaml
 # Use different DNS forwarders
@@ -70,9 +70,8 @@ curl http://localhost:9153/metrics
 kubectl get configmap coredns -n kube-system -o yaml
 
 # Render the Helm chart locally
-helm template coredns charts/coredns/ \
-  --values charts/coredns/values.yaml \
-  --values overlays/cluster-critical/coredns/values.yaml
+helm template coredns projects/platform/coredns/ \
+  --values projects/platform/coredns/values.yaml
 ```
 
 ## References
