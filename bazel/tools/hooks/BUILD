@@ -45,3 +45,9 @@ sh_test(
     srcs = ["check-hardcoded-svc-url_test.sh"],
     data = [":check-hardcoded-svc-url.sh"],
 )
+
+sh_test(
+    name = "check_sub_chart_version_sync_test",
+    srcs = ["check-sub-chart-version-sync_test.sh"],
+    data = [":check-sub-chart-version-sync.sh"],
+)
