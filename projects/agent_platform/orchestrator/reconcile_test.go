@@ -426,6 +426,73 @@ func TestReconcileOrphanedJobs_RunnerUnreachableFallsBack(t *testing.T) {
 	}
 }
 
+// TestReconcileOrphanedJobs_GracePeriodSkipsRecentAttempt verifies that the
+// reconciler does not touch jobs whose latest attempt started less than 2
+// minutes ago. This prevents a race where the reconciler sees a freshly-
+// created sandbox as "idle" (goose hasn't launched yet) and deletes the
+// SandboxClaim before the consumer can use it.
+func TestReconcileOrphanedJobs_GracePeriodSkipsRecentAttempt(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	// Job with an attempt that just started (30 seconds ago).
+	store.Put(ctx, &JobRecord{
+		ID:         "job-fresh",
+		Task:       "just started task",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-30 * time.Second),
+		MaxRetries: 2,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-fresh-1",
+			StartedAt:        time.Now().Add(-30 * time.Second),
+		}},
+	})
+
+	// Job with an old attempt (1 hour ago) — should still be reconciled.
+	store.Put(ctx, &JobRecord{
+		ID:         "job-old",
+		Task:       "stale task",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-1 * time.Hour),
+		MaxRetries: 2,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-old-1",
+			StartedAt:        time.Now().Add(-1 * time.Hour),
+		}},
+	})
+
+	// Runner reports "idle" for both — without the grace period, both would
+	// be reset to PENDING with their sandbox claims deleted.
+	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
+		return "idle", 0, nil
+	}
+
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
+
+	// Fresh job should be untouched — still RUNNING with no FinishedAt.
+	fresh, err := store.Get(ctx, "job-fresh")
+	if err != nil {
+		t.Fatalf("Get(job-fresh): %v", err)
+	}
+	if fresh.Status != JobRunning {
+		t.Errorf("job-fresh: status = %s, want RUNNING (grace period should skip it)", fresh.Status)
+	}
+	if fresh.Attempts[0].FinishedAt != nil {
+		t.Error("job-fresh: FinishedAt should be nil (attempt not interrupted)")
+	}
+
+	// Old job should be reset to PENDING.
+	old, err := store.Get(ctx, "job-old")
+	if err != nil {
+		t.Fatalf("Get(job-old): %v", err)
+	}
+	if old.Status != JobPending {
+		t.Errorf("job-old: status = %s, want PENDING", old.Status)
+	}
+}
+
 // TestParseGooseResult_OnRawOutputBeforeClean documents and verifies the
 // intentional call ordering in both reconcile.go and consumer.go:
 //
