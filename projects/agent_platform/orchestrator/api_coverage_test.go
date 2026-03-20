@@ -659,6 +659,95 @@ func TestHandleOutput_StatusFieldIncluded(t *testing.T) {
 	}
 }
 
+// TestHandleOutput_StatusField_Completed verifies that the status field in the
+// output response correctly reflects JobSucceeded for a job that has finished.
+// Clients use this field to know when to stop polling; a missing or incorrect
+// value would cause the chat bot to poll indefinitely or miss a completed job.
+func TestHandleOutput_StatusField_Completed(t *testing.T) {
+	store := newMemStore()
+	now := time.Now().UTC()
+	exitCode := 0
+
+	store.jobs["COMPLETED1"] = &JobRecord{
+		ID:        "COMPLETED1",
+		Task:      "task that finished successfully",
+		Status:    JobSucceeded,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Attempts: []Attempt{
+			{Number: 1, ExitCode: &exitCode, Output: "all done"},
+		},
+	}
+
+	_, mux := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodGet, "/jobs/COMPLETED1/output", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp OutputResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+
+	if resp.Status != JobSucceeded {
+		t.Errorf("status = %q, want %q (terminal: job succeeded)", resp.Status, JobSucceeded)
+	}
+	if resp.ExitCode == nil || *resp.ExitCode != 0 {
+		t.Errorf("exit_code = %v, want 0", resp.ExitCode)
+	}
+}
+
+// TestHandleOutput_StatusField_Failed verifies that the status field in the
+// output response correctly reflects JobFailed when all retries are exhausted.
+// This is the companion to TestHandleOutput_StatusField_Completed: the chat
+// bot must report terminal failure (not keep polling) when status=FAILED.
+func TestHandleOutput_StatusField_Failed(t *testing.T) {
+	store := newMemStore()
+	now := time.Now().UTC()
+	exitCode := 1
+
+	// Job whose retries are fully exhausted — two attempts, MaxRetries=1.
+	store.jobs["FAILED_TERMINAL"] = &JobRecord{
+		ID:         "FAILED_TERMINAL",
+		Task:       "task with exhausted retries",
+		Status:     JobFailed,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+		MaxRetries: 1,
+		Attempts: []Attempt{
+			{Number: 1, ExitCode: &exitCode, Output: "first attempt failed"},
+			{Number: 2, ExitCode: &exitCode, Output: "second attempt also failed"},
+		},
+	}
+
+	_, mux := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodGet, "/jobs/FAILED_TERMINAL/output", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp OutputResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+
+	if resp.Status != JobFailed {
+		t.Errorf("status = %q, want %q (terminal: retries exhausted)", resp.Status, JobFailed)
+	}
+	// The latest (last) attempt is returned.
+	if resp.Attempt != 2 {
+		t.Errorf("attempt = %d, want 2 (latest)", resp.Attempt)
+	}
+	if resp.ExitCode == nil || *resp.ExitCode != 1 {
+		t.Errorf("exit_code = %v, want 1", resp.ExitCode)
+	}
+}
+
 // --- handleHealth additional coverage ---
 
 // TestHandleHealth_Error verifies that when the health check function returns
