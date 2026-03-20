@@ -493,3 +493,248 @@ func TestBuildGooseCmd_YAMLHostileTask(t *testing.T) {
 	}
 	t.Fatal("--params flag not found")
 }
+
+// ---------------------------------------------------------------------------
+// capStepOutput tests
+// ---------------------------------------------------------------------------
+
+func TestCapStepOutput_Empty(t *testing.T) {
+	got := capStepOutput("")
+	if got != "" {
+		t.Fatalf("expected empty string, got %q", got)
+	}
+}
+
+func TestCapStepOutput_UnderCap(t *testing.T) {
+	input := strings.Repeat("x", stepOutputCap-1)
+	got := capStepOutput(input)
+	if got != input {
+		t.Fatalf("expected unchanged output for %d bytes, got len=%d", len(input), len(got))
+	}
+}
+
+func TestCapStepOutput_ExactCap(t *testing.T) {
+	input := strings.Repeat("y", stepOutputCap)
+	got := capStepOutput(input)
+	if got != input {
+		t.Fatalf("expected unchanged output at exactly stepOutputCap bytes")
+	}
+}
+
+func TestCapStepOutput_OverCap(t *testing.T) {
+	// Build a string where we can identify the tail by content.
+	prefix := strings.Repeat("A", stepOutputCap+100)
+	suffix := strings.Repeat("Z", stepOutputCap)
+	input := prefix + suffix
+
+	got := capStepOutput(input)
+
+	if len(got) != stepOutputCap {
+		t.Fatalf("expected len=%d, got len=%d", stepOutputCap, len(got))
+	}
+	// The returned slice must be the tail of the original string.
+	want := input[len(input)-stepOutputCap:]
+	if got != want {
+		t.Fatalf("expected tail of input to be kept")
+	}
+}
+
+func TestCapStepOutput_TailPreserved(t *testing.T) {
+	// Simulate realistic output: large preamble followed by a goose-result block.
+	preamble := strings.Repeat("output line\n", 1000) // ~12 KB
+	tail := "```goose-result\ntype: pr\nurl: https://example.com\n```\n"
+	input := preamble + tail
+
+	got := capStepOutput(input)
+
+	if len(got) > stepOutputCap {
+		t.Fatalf("got len=%d, want <= %d", len(got), stepOutputCap)
+	}
+	// The goose-result block must survive in the tail.
+	if !strings.Contains(got, "```goose-result") {
+		t.Error("goose-result block not preserved in capped output")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// buildStepTask tests
+// ---------------------------------------------------------------------------
+
+func TestBuildStepTask_EmptyUpstream(t *testing.T) {
+	// First step: no upstream outputs — raw task returned unchanged.
+	task := "Fix the auth bug"
+	got := buildStepTask(nil, task)
+	if got != task {
+		t.Fatalf("expected raw task %q, got %q", task, got)
+	}
+}
+
+func TestBuildStepTask_EmptySlice(t *testing.T) {
+	// Explicitly empty (not nil) slice also returns raw task.
+	task := "Write the tests"
+	got := buildStepTask([]string{}, task)
+	if got != task {
+		t.Fatalf("expected raw task %q, got %q", task, got)
+	}
+}
+
+func TestBuildStepTask_SingleUpstream(t *testing.T) {
+	task := "Review the code"
+	upstream := []string{"### Step 0: researcher\nFound 3 issues."}
+
+	got := buildStepTask(upstream, task)
+
+	if !strings.HasPrefix(got, "## Upstream Pipeline Output (from 1 prior step(s))") {
+		t.Errorf("unexpected header: %q", got[:min(len(got), 80)])
+	}
+	if !strings.Contains(got, "Found 3 issues.") {
+		t.Error("upstream content missing from result")
+	}
+	if !strings.Contains(got, "## Your Task\n"+task) {
+		t.Errorf("'## Your Task' section with task not found in result")
+	}
+}
+
+func TestBuildStepTask_MultipleUpstream(t *testing.T) {
+	task := "Ship it"
+	upstream := []string{
+		"### Step 0: researcher\nResearch output.",
+		"### Step 1: coder\nCode output.",
+	}
+
+	got := buildStepTask(upstream, task)
+
+	if !strings.Contains(got, "## Upstream Pipeline Output (from 2 prior step(s))") {
+		t.Error("expected count of 2 prior steps in header")
+	}
+	// Both step outputs must appear.
+	if !strings.Contains(got, "Research output.") {
+		t.Error("step 0 output missing")
+	}
+	if !strings.Contains(got, "Code output.") {
+		t.Error("step 1 output missing")
+	}
+	// Steps must be separated by the '---' separator.
+	if !strings.Contains(got, "\n\n---\n\n") {
+		t.Error("separator between upstream steps missing")
+	}
+	// Task must appear after '## Your Task'.
+	if !strings.Contains(got, "## Your Task\n"+task) {
+		t.Errorf("'## Your Task' section not found")
+	}
+}
+
+func TestBuildStepTask_TotalContextCapped(t *testing.T) {
+	// Each upstream entry is larger than upstreamContextCap / 2 so the combined
+	// total exceeds the cap.
+	big := strings.Repeat("A", upstreamContextCap)
+	upstream := []string{
+		"### Step 0: agent-a\n" + big,
+		"### Step 1: agent-b\n" + big,
+	}
+	task := "Finalize"
+
+	got := buildStepTask(upstream, task)
+
+	// Extract the context section between the header and '## Your Task'.
+	headerEnd := strings.Index(got, "\n")
+	taskStart := strings.LastIndex(got, "\n\n## Your Task\n")
+	if headerEnd == -1 || taskStart == -1 {
+		t.Fatalf("could not find expected sections in output: %q", got[:min(len(got), 200)])
+	}
+	contextSection := got[headerEnd+1 : taskStart]
+	if len(contextSection) > upstreamContextCap {
+		t.Errorf("context section len=%d exceeds cap=%d", len(contextSection), upstreamContextCap)
+	}
+}
+
+func TestBuildStepTask_TotalContextTailKept(t *testing.T) {
+	// Verify that when capping, the TAIL (most recent steps) is preserved.
+	oldStep := strings.Repeat("old-output-", 2000) // well over cap by itself
+	newStep := "VERY_RECENT_UNIQUE_OUTPUT_XYZ"
+	upstream := []string{
+		"### Step 0: old-agent\n" + oldStep,
+		"### Step 1: new-agent\n" + newStep,
+	}
+	task := "Final step"
+
+	got := buildStepTask(upstream, task)
+
+	// The very recent output must survive in the tail.
+	if !strings.Contains(got, newStep) {
+		t.Error("most recent upstream output not preserved in capped context")
+	}
+}
+
+func TestBuildStepTask_CorrectFormat(t *testing.T) {
+	// Verify the exact structure of the built task.
+	upstream := []string{"### Step 0: worker\nsome work done"}
+	task := "Next task"
+
+	got := buildStepTask(upstream, task)
+
+	want := "## Upstream Pipeline Output (from 1 prior step(s))\n" +
+		"### Step 0: worker\nsome work done" +
+		"\n\n## Your Task\n" +
+		task
+	if got != want {
+		t.Fatalf("format mismatch:\ngot:  %q\nwant: %q", got, want)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// outputBefore slicing logic test
+// ---------------------------------------------------------------------------
+
+func TestOutputBeforeSlicing(t *testing.T) {
+	// Simulate the pattern used in runGoose to isolate per-step output:
+	//   1. Record outputBefore = len(r.output) after writing the separator.
+	//   2. Append step output.
+	//   3. Slice r.output[outputBefore:] to get only the step's output.
+	r := newTestRunner()
+
+	// Simulate separator written before the step.
+	separator := "\n--- pipeline step 0: researcher ---\n"
+	r.output = append(r.output, []byte(separator)...)
+	outputBefore := len(r.output)
+
+	// Simulate step output appended after.
+	stepContent := "researcher found 3 issues\n```goose-result\ntype: report\n```\n"
+	r.output = append(r.output, []byte(stepContent)...)
+
+	// Slice exactly as runGoose does.
+	if outputBefore >= len(r.output) {
+		t.Fatal("expected output to grow after step")
+	}
+	got := string(r.output[outputBefore:])
+	if got != stepContent {
+		t.Fatalf("slice mismatch:\ngot:  %q\nwant: %q", got, stepContent)
+	}
+
+	// Also verify capStepOutput applied to this slice behaves correctly.
+	capped := capStepOutput(got)
+	if capped != got {
+		t.Fatalf("short content should not be capped: len=%d", len(got))
+	}
+}
+
+func TestOutputBeforeSlicing_SeparatorNotIncluded(t *testing.T) {
+	// Verify that the separator itself is NOT included in the step output slice.
+	r := newTestRunner()
+
+	separator := "\n--- pipeline step 1: coder ---\n"
+	r.output = append(r.output, []byte("prior output")...)
+	r.output = append(r.output, []byte(separator)...)
+	outputBefore := len(r.output) // capture AFTER separator is written
+
+	stepContent := "coder output here"
+	r.output = append(r.output, []byte(stepContent)...)
+
+	got := string(r.output[outputBefore:])
+	if strings.Contains(got, separator) {
+		t.Error("separator should not appear in the step output slice")
+	}
+	if got != stepContent {
+		t.Fatalf("expected %q, got %q", stepContent, got)
+	}
+}
