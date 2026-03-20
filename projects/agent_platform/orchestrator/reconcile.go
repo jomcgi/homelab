@@ -52,6 +52,19 @@ func reconcileOrphanedJobs(ctx context.Context, store Store, dynClient dynamic.I
 	for _, job := range jobs {
 		jlog := logger.With("jobID", job.ID)
 
+		// Skip jobs whose latest attempt just started — the sandbox may still
+		// be booting and the runner will report "idle" until goose launches.
+		// Without this grace period the reconciler races with the consumer:
+		// it sees "idle", deletes the freshly-created SandboxClaim, and the
+		// consumer's waitPodRunning fails with "not found".
+		if len(job.Attempts) > 0 {
+			lastAttempt := job.Attempts[len(job.Attempts)-1]
+			if time.Since(lastAttempt.StartedAt) < 2*time.Minute {
+				jlog.Info("reconcile: attempt too recent, skipping", "startedAt", lastAttempt.StartedAt)
+				continue
+			}
+		}
+
 		// With HTTP runner, check if goose is still running before resetting.
 		if checkRunner != nil && len(job.Attempts) > 0 {
 			lastAttempt := job.Attempts[len(job.Attempts)-1]
