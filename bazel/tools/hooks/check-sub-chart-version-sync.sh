@@ -30,6 +30,17 @@ if ! echo "$FILE_PATH" | grep -qE '/chart/[^/]+/Chart\.yaml$'; then
 	exit 0
 fi
 
+# Only warn when the version field is actually being modified.
+# Without this check the hook fires on every sub-chart Chart.yaml edit
+# (e.g. changing description) and developers learn to dismiss it.
+CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
+if [[ -z "$CONTENT" ]]; then
+	exit 0
+fi
+if ! echo "$CONTENT" | grep -qE '^version:'; then
+	exit 0
+fi
+
 cat >&2 <<-'EOF'
 	WARNING: You are editing a sub-chart Chart.yaml.
 

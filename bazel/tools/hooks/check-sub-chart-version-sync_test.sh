@@ -34,8 +34,9 @@ fi
 
 # ---------------------------------------------------------------------------
 # Install a minimal jq stub so the hook runs in the hermetic sandbox.
-# The hook uses exactly one expression:
+# The hook uses exactly two expressions:
 #   jq -r '.tool_input.file_path // empty'
+#   jq -r '.tool_input.content // .tool_input.new_string // empty'
 # ---------------------------------------------------------------------------
 mkdir -p "${TEST_TMPDIR}/bin"
 cat >"${TEST_TMPDIR}/bin/jq" <<'JQ_STUB'
@@ -145,22 +146,32 @@ run_test "top_level_chart_yaml_not_flagged" \
 	'{"tool_input":{"file_path":"/projects/myservice/chart/Chart.yaml"}}' \
 	0 ""
 
-# 4. Sub-chart Chart.yaml → WARNING on stderr
+# 4. Sub-chart Chart.yaml with version field being written → WARNING on stderr
 run_test "sub_chart_chart_yaml_warns" \
-	'{"tool_input":{"file_path":"/projects/myservice/chart/mysubchart/Chart.yaml"}}' \
+	'{"tool_input":{"file_path":"/projects/myservice/chart/mysubchart/Chart.yaml","content":"apiVersion: v2\nversion: 1.2.0\nname: mysubchart"}}' \
 	0 "WARNING:"
 
-# 5. Another sub-chart path → WARNING on stderr
+# 5. Another sub-chart path (Edit tool, new_string contains version) → WARNING on stderr
 run_test "nested_sub_chart_warns" \
-	'{"tool_input":{"file_path":"/projects/platform/chart/subchart/Chart.yaml"}}' \
+	'{"tool_input":{"file_path":"/projects/platform/chart/subchart/Chart.yaml","new_string":"version: 2.0.0"}}' \
 	0 "WARNING:"
 
-# 6. Sub-chart values.yaml (not Chart.yaml) → no output
-run_test "non_yaml_not_flagged" \
+# 6. Sub-chart Chart.yaml edited but no version field → no output (avoids noise)
+run_test "sub_chart_non_version_edit_no_warning" \
+	'{"tool_input":{"file_path":"/projects/myservice/chart/mysubchart/Chart.yaml","new_string":"description: Updated description for the subchart"}}' \
+	0 ""
+
+# 7. Sub-chart Chart.yaml with no content at all → no output
+run_test "sub_chart_no_content_no_warning" \
+	'{"tool_input":{"file_path":"/projects/myservice/chart/mysubchart/Chart.yaml"}}' \
+	0 ""
+
+# 8. Sub-chart values.yaml (not Chart.yaml) → no output
+run_test "non_chart_yaml_not_flagged" \
 	'{"tool_input":{"file_path":"/projects/myservice/chart/subchart/values.yaml"}}' \
 	0 ""
 
-# 7. Deploy values.yaml (not under chart/) → no output
+# 9. Deploy values.yaml (not under chart/) → no output
 run_test "random_yaml_not_flagged" \
 	'{"tool_input":{"file_path":"/projects/myservice/deploy/values.yaml"}}' \
 	0 ""
