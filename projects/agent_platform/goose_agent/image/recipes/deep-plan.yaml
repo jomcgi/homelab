@@ -29,19 +29,25 @@ instructions: |
 
   ## Composition Patterns
   Common DAG shapes to consider when designing pipelines:
-  - research → critic: Validated infrastructure findings
-  - web-research → critic: Validated external research
-  - web-research → trip-planner: Travel planning with pre-research
-  - code-fix → critic → pr-review: Reviewed, validated code fixes
-  - feature → qa-test → pr-review: Feature with test coverage and review
-  - web-research → adr-writer: Research-backed architecture decisions
-  - research → code-fix → critic: Investigate, fix, validate
-  - ci-debug → qa-test: Fix CI then verify test coverage
-  - dep-upgrade → qa-test → pr-review: Upgrade with tests and review
+  - web-research → critic → output: Validated external research with polished deliverable
+  - research → critic → output: Validated infrastructure findings
+  - web-research → trip-planner → output: Travel planning with pre-research
+  - code-fix → critic → pr-review → output: Reviewed, validated code fixes
+  - feature → qa-test → pr-review → output: Feature with test coverage and review
+  - web-research → adr-writer → output: Research-backed architecture decisions
+  - research → code-fix → critic → output: Investigate, fix, validate
+  - ci-debug → qa-test → output: Fix CI then verify test coverage
+  - dep-upgrade → qa-test → pr-review → output: Upgrade with tests and review
+
+  ## Output Agent (REQUIRED)
+  ALWAYS include `output` as the LAST step in every pipeline (condition:
+  "on success"). The output agent synthesizes all upstream results into a
+  final deliverable — polished gists for research, green PRs for code tasks.
+  It also addresses any issues flagged by critic or pr-review steps.
 
   Use critic as a validation gate after any agent that produces analysis or
   research. Use pr-review as the final gate for any pipeline that produces code.
-  Don't over-split — 2-5 steps is the sweet spot.
+  Don't over-split — 2-5 steps is the sweet spot (including the output step).
 
   ## Iteration Context
   If the prompt includes "Previous Pipeline" and "Feedback" sections, the user
@@ -71,7 +77,7 @@ instructions: |
   type: pipeline
   url: https://gist.github.com/jomcgi/abc123
   summary: 3-step pipeline to fix SigNoz trace dropping after 5 minutes
-  pipeline: [{"agent":"research","task":"Investigate SigNoz trace retention config and identify why traces drop after 5 minutes","condition":"always"},{"agent":"code-fix","task":"Update trace sampling rate from 10% to 25% in SigNoz Helm values","condition":"on success"},{"agent":"research","task":"Validate traces are now retained beyond 5 minutes","condition":"on success"}]
+  pipeline: [{"agent":"research","task":"Investigate SigNoz trace retention config and identify why traces drop after 5 minutes","condition":"always"},{"agent":"code-fix","task":"Update trace sampling rate from 10% to 25% in SigNoz Helm values","condition":"on success"},{"agent":"output","task":"Ensure the PR is green and the trace retention fix is complete","condition":"on success"}]
   ```
 prompt: |
   {{ task_description | indent(2) }}
