@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -463,5 +464,61 @@ func TestPollStatusWithPlanNoPlan(t *testing.T) {
 	}
 	if len(plan) != 0 {
 		t.Errorf("expected empty plan, got %d steps", len(plan))
+	}
+}
+
+// ---- pollUntilDone tests ----------------------------------------------------
+
+// TestPollUntilDone_ZeroMaxPollErrors_FallbackToTen verifies that when
+// maxPollErrors is 0 (zero-value struct field), pollUntilDone applies a
+// defensive default of 10 and does not abort after a single status poll
+// failure.
+//
+// Without the fallback, a zero threshold would evaluate
+// consecutiveErrors(1) >= maxErrors(0) as true on the very first error,
+// causing pollUntilDone to give up on any transient network hiccup. The
+// fallback of 10 means the function tolerates bursts of errors and only
+// terminates after 10 consecutive failures.
+//
+// The test uses a context that expires shortly after the initial 5-second
+// timer fires. With a working fallback the first failure leaves
+// consecutiveErrors=1<10, the loop continues, and the context eventually
+// expires → DeadlineExceeded. A broken implementation with maxErrors=0 would
+// instead return "unreachable after 0 consecutive poll failures" before the
+// context expires.
+//
+// Note: this test takes ~6 seconds because pollUntilDone's initial timer is
+// hardcoded to 5 seconds.
+func TestPollUntilDone_ZeroMaxPollErrors_FallbackToTen(t *testing.T) {
+	// Server: output always OK; status always returns 500 to simulate a
+	// persistent, transient outage.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/output":
+			w.Header().Set("X-Output-Offset", "0")
+			w.WriteHeader(http.StatusOK)
+		default: // /status
+			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		}
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	s.maxPollErrors = 0 // zero-value struct field — defensive fallback must apply (10)
+
+	// Timeout long enough for one poll cycle (initial timer fires at 5 s) but
+	// far shorter than ten failures (5 s + 9×30 s = 275 s). This verifies the
+	// effective threshold is NOT 0 or 1 without waiting for all 10 failures.
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+
+	outputBuf := newSyncBuffer(0)
+	_, err := s.pollUntilDone(ctx, srv.URL, "test-claim", func() bool { return false }, outputBuf, nil)
+
+	// With fallback maxErrors=10: after the first failure at ~5 s,
+	// consecutiveErrors=1 which is less than 10, so the loop continues and
+	// waits for the next ticker. The context expires at 6 s → DeadlineExceeded.
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("got %v, want context.DeadlineExceeded (fallback=10 not yet reached after 1 failure)", err)
 	}
 }

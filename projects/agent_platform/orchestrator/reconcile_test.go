@@ -493,6 +493,47 @@ func TestReconcileOrphanedJobs_GracePeriodSkipsRecentAttempt(t *testing.T) {
 	}
 }
 
+// TestReconcileOrphanedJobs_ZeroAttemptsSkipsGracePeriod verifies that a
+// RUNNING job with an empty Attempts slice is not incorrectly skipped by the
+// grace period guard and is still reconciled back to PENDING.
+//
+// The grace period check is guarded by `if len(job.Attempts) > 0`, so a job
+// with zero attempts (e.g., one that was marked RUNNING before the consumer
+// could record its first attempt) must fall straight through to the retry
+// logic and be reset to PENDING for NATS redelivery.
+func TestReconcileOrphanedJobs_ZeroAttemptsSkipsGracePeriod(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	// RUNNING job with no attempt records at all. This can happen when the
+	// orchestrator marks a job RUNNING but crashes before the consumer appends
+	// the first Attempt. Without the empty-slice guard the reconciler would
+	// panic or silently skip the job.
+	store.Put(ctx, &JobRecord{
+		ID:         "job-no-attempts",
+		Task:       "orphaned before first attempt",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-1 * time.Hour),
+		MaxRetries: 2,
+		Attempts:   []Attempt{}, // explicitly empty — no grace period to check
+	})
+
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
+
+	job, err := store.Get(ctx, "job-no-attempts")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	// retriesRemaining = MaxRetries(2) - len(Attempts)(0) = 2 > 0 → PENDING.
+	if job.Status != JobPending {
+		t.Errorf("status = %s, want PENDING (zero attempts: grace period skipped, retries available)", job.Status)
+	}
+	// The reconciler must not synthesise attempt records for a zero-attempt job.
+	if len(job.Attempts) != 0 {
+		t.Errorf("expected 0 attempts after reconcile, got %d", len(job.Attempts))
+	}
+}
+
 // TestParseGooseResult_OnRawOutputBeforeClean documents and verifies the
 // intentional call ordering in both reconcile.go and consumer.go:
 //
