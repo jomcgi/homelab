@@ -226,8 +226,19 @@ func TestRunSession_ContextCancellation(t *testing.T) {
 		r.runSession(ctx, []string{"sleep", "60"}, 30*time.Second)
 	}()
 
-	// Allow process to start before cancelling.
-	time.Sleep(100 * time.Millisecond)
+	// Poll until the process has started (r.pid is set after cmd.Start returns).
+	// This is more robust than a fixed sleep since it unblocks as soon as the
+	// PID is recorded rather than relying on wall-clock timing.
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		r.mu.RLock()
+		pid := r.pid
+		r.mu.RUnlock()
+		if pid != 0 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 	cancel()
 
 	select {
@@ -702,9 +713,14 @@ func TestRunGoose_DeepPlan_StepOutputInBuffer(t *testing.T) {
 
 func TestRunGoose_DeepPlan_ContextCancelled_DoesNotHang(t *testing.T) {
 	recipesDir := t.TempDir()
+	// Create the recipe file so the test is isolated to context-cancellation
+	// behaviour and does not accidentally pass due to a missing-recipe failure.
+	makeRecipeFiles(t, recipesDir, "code-fix")
 	pipelineJSON := `[{"agent":"code-fix","task":"do it","condition":"always"}]`
 	dpOutput := gooseResultBlock("type: pipeline\npipeline: " + pipelineJSON)
-	setupFakeGoosePipeline(t, recipesDir, dpOutput, nil)
+	setupFakeGoosePipeline(t, recipesDir, dpOutput, map[string]fakeStepConfig{
+		"code-fix": {output: "should not run", exitCode: 0},
+	})
 	overrideWorkDir(t, recipesDir)
 	t.Setenv("DEEP_PLAN_RECIPE", "/fake/deep-plan.yaml")
 	t.Setenv("RECIPES_DIR", recipesDir)
