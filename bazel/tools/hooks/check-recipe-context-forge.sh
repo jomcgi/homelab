@@ -21,6 +21,16 @@ if ! echo "$FILE_PATH" | grep -qE '/recipes/[^/]+\.yaml$'; then
 	exit 0
 fi
 
+# For Edit tool on an existing file: if the file on disk already contains
+# type: streamable_http, the edit is not removing it — skip to avoid false
+# positives where new_string only holds the replacement fragment, not the full file.
+TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty')
+if [[ "$TOOL" == "Edit" && -f "$FILE_PATH" ]]; then
+	if grep -q 'type: streamable_http' "$FILE_PATH"; then
+		exit 0
+	fi
+fi
+
 # Extract content from Write tool (content field) or Edit tool (new_string field)
 CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
 
@@ -28,7 +38,7 @@ if [[ -z "$CONTENT" ]]; then
 	exit 0
 fi
 
-# Warn if the recipe declares a builtin extension but has no streamable_http extension
+# Warn if the content declares a builtin extension but has no streamable_http extension
 if echo "$CONTENT" | grep -q 'type: builtin' && ! echo "$CONTENT" | grep -q 'type: streamable_http'; then
 	cat >&2 <<-EOF
 		WARNING: Recipe YAML contains a 'type: builtin' extension but no 'type: streamable_http' extension.

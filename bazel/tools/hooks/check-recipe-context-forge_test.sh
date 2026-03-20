@@ -34,8 +34,9 @@ fi
 
 # ---------------------------------------------------------------------------
 # Install a minimal jq stub so the hook runs in the hermetic sandbox.
-# The hook uses exactly two expressions:
+# The hook uses exactly three expressions:
 #   jq -r '.tool_input.file_path // empty'
+#   jq -r '.tool_name // empty'
 #   jq -r '.tool_input.content // .tool_input.new_string // empty'
 # ---------------------------------------------------------------------------
 mkdir -p "${TEST_TMPDIR}/bin"
@@ -174,6 +175,31 @@ run_test "edit_tool_builtin_without_streamable_http_warns" \
 run_test "no_content_field" \
 	'{"tool_input":{"file_path":"projects/foo/recipes/my-recipe.yaml"}}' \
 	0 ""
+
+# 10. Edit tool: file on disk already has streamable_http, new_string only has builtin
+#     fragment → NO warning (avoids false positive on partial edits)
+RECIPE_WITH_HTTP="${TEST_TMPDIR}/existing-recipe.yaml"
+cat >"$RECIPE_WITH_HTTP" <<'RECIPE'
+name: my-recipe
+extensions:
+  - type: builtin
+    name: computer_use
+  - type: streamable_http
+    url: http://context-forge
+RECIPE
+run_test "edit_tool_existing_file_has_streamable_http_no_warning" \
+	'{"tool_name":"Edit","tool_input":{"file_path":"'"$RECIPE_WITH_HTTP"'","old_string":"name: my-recipe","new_string":"name: updated-recipe"}}' \
+	0 ""
+
+# 11. Edit tool: file on disk has NO streamable_http, new_string adds builtin → WARNING
+RECIPE_WITHOUT_HTTP="${TEST_TMPDIR}/no-http-recipe.yaml"
+cat >"$RECIPE_WITHOUT_HTTP" <<'RECIPE'
+name: my-recipe
+extensions: []
+RECIPE
+run_test "edit_tool_existing_file_missing_streamable_http_new_string_adds_builtin_warns" \
+	'{"tool_name":"Edit","tool_input":{"file_path":"'"$RECIPE_WITHOUT_HTTP"'","old_string":"extensions: []","new_string":"extensions:\n  - type: builtin\n    name: computer_use"}}' \
+	0 "WARNING"
 
 # ---------------------------------------------------------------------------
 # Summary
