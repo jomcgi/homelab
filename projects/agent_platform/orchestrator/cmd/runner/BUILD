@@ -15,6 +15,9 @@ go_binary(
 
 go_test(
     name = "runner_test",
-    srcs = ["main_test.go"],
+    srcs = [
+        "main_test.go",
+        "runner_session_test.go",
+    ],
     embed = [":runner_lib"],
 )
