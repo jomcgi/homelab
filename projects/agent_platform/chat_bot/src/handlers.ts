@@ -18,6 +18,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function truncate(text: string, max: number): string {
+  if (!text || text.length <= max) return text;
+  return text.slice(0, max) + "\n\n…(truncated)";
+}
+
 export function createMentionHandler(deps: HandlerDeps): MentionHandler {
   return async (thread: Thread, message: Message) => {
     const text = message.text?.trim();
@@ -94,9 +99,12 @@ async function pollForResult(
     if (output.status === "PENDING" || output.status === "RUNNING") continue;
 
     if (output.status === "SUCCEEDED") {
-      const summary = output.result?.summary ?? "Job completed.";
+      const summary = output.result?.summary;
       const url = output.result?.url;
-      const reply = url ? `${summary}\n\n${url}` : summary;
+      // Prefer structured result summary, fall back to raw output (truncated).
+      const text =
+        (summary ?? truncate(output.output, 1800)) || "Job completed.";
+      const reply = url ? `${text}\n\n${url}` : text;
       await thread.post(reply);
       return;
     }
