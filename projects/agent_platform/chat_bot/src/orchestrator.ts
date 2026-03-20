@@ -14,6 +14,7 @@ export interface JobOutput {
     type?: string;
     url?: string;
     summary?: string;
+    reply?: string;
   };
 }
 

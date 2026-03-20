@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestParseGooseResult_Valid(t *testing.T) {
-	raw := "lots of goose output here\n```goose-result\ntype: pr\nurl: https://github.com/jomcgi/homelab/pull/42\nsummary: Fixed healthcheck port in values.yaml. CI passes.\n```\n"
+	raw := "lots of goose output here\n```goose-result\ntype: pr\nurl: https://github.com/jomcgi/homelab/pull/42\nsummary: Fixed healthcheck port in values.yaml. CI passes.\nreply: The healthcheck port was wrong in values.yaml. Fixed it and CI is green.\n```\n"
 
 	r := parseGooseResult(raw)
 	if r == nil {
@@ -17,6 +17,9 @@ func TestParseGooseResult_Valid(t *testing.T) {
 	}
 	if r.Summary != "Fixed healthcheck port in values.yaml. CI passes." {
 		t.Errorf("summary = %q", r.Summary)
+	}
+	if r.Reply != "The healthcheck port was wrong in values.yaml. Fixed it and CI is green." {
+		t.Errorf("reply = %q", r.Reply)
 	}
 }
 
@@ -73,6 +76,9 @@ func TestParseGooseResult_PartialFields(t *testing.T) {
 	}
 	if r.Summary != "Research findings on logging." {
 		t.Errorf("summary = %q", r.Summary)
+	}
+	if r.Reply != "" {
+		t.Errorf("reply should be empty when omitted, got %q", r.Reply)
 	}
 }
 

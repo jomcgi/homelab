@@ -36,6 +36,8 @@ func parseGooseResult(raw string) *GooseResult {
 			result.URL = strings.TrimSpace(val)
 		case "summary":
 			result.Summary = strings.TrimSpace(val)
+		case "reply":
+			result.Reply = strings.TrimSpace(val)
 		}
 	}
 	return result
