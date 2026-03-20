@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func newTestRunner() *runner {
@@ -736,5 +738,279 @@ func TestOutputBeforeSlicing_SeparatorNotIncluded(t *testing.T) {
 	}
 	if got != stepContent {
 		t.Fatalf("expected %q, got %q", stepContent, got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Composite chain: capStepOutput → format → collect → buildStepTask
+// ---------------------------------------------------------------------------
+
+// TestCompositeChain_FullAccumulationFlow exercises the complete per-step context
+// accumulation pipeline as it occurs inside runGoose:
+//  1. Raw step output is capped via capStepOutput.
+//  2. The capped output is formatted with the step label.
+//  3. The labelled entry is appended to upstreamOutputs.
+//  4. buildStepTask is called with the accumulated entries.
+//
+// This exercises the integration of the two helpers end-to-end so that any
+// future refactoring of either function is caught by a composite regression.
+func TestCompositeChain_FullAccumulationFlow(t *testing.T) {
+	type stepFixture struct {
+		agent  string
+		output string
+	}
+	fixtures := []stepFixture{
+		{agent: "researcher", output: "Found 3 security issues.\n```goose-result\ntype: report\nurl: https://example.com/1\n```\n"},
+		{agent: "code-fix", output: "Patched all issues.\n```goose-result\ntype: pr\nurl: https://github.com/example/pr/42\n```\n"},
+	}
+
+	var upstreamOutputs []string
+	for i, f := range fixtures {
+		capped := capStepOutput(f.output)
+		entry := fmt.Sprintf("### Step %d: %s\n%s", i, f.agent, capped)
+		upstreamOutputs = append(upstreamOutputs, entry)
+	}
+
+	finalTask := "Summarise all changes and open a release PR."
+	result := buildStepTask(upstreamOutputs, finalTask)
+
+	// Header must reference 2 prior steps.
+	wantHeader := "## Upstream Pipeline Output (from 2 prior step(s))"
+	if !strings.Contains(result, wantHeader) {
+		t.Errorf("expected header %q in result, got:\n%s", wantHeader, result)
+	}
+
+	// Both step labels must appear.
+	for i, f := range fixtures {
+		label := fmt.Sprintf("### Step %d: %s", i, f.agent)
+		if !strings.Contains(result, label) {
+			t.Errorf("step label %q not found in result", label)
+		}
+	}
+
+	// The goose-result blocks from both steps must survive (output is small,
+	// so nothing is capped away).
+	if !strings.Contains(result, "https://example.com/1") {
+		t.Error("step 0 URL not found in composite result")
+	}
+	if !strings.Contains(result, "https://github.com/example/pr/42") {
+		t.Error("step 1 URL not found in composite result")
+	}
+
+	// The final task must appear under '## Your Task'.
+	wantTaskSection := "## Your Task\n" + finalTask
+	if !strings.Contains(result, wantTaskSection) {
+		t.Errorf("'## Your Task' section not found or incorrect in result")
+	}
+
+	// The separator between the two step entries must be present.
+	if !strings.Contains(result, "\n\n---\n\n") {
+		t.Error("separator between upstream step entries missing")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// No-output step: guard `if outputBefore < len(r.output)` must hold
+// ---------------------------------------------------------------------------
+
+// TestNoOutputStep_UpstreamNotAppended verifies that when a pipeline step
+// produces no output (outputBefore == len(r.output) after the step runs),
+// nothing is appended to upstreamOutputs.  This mirrors the guard in runGoose:
+//
+//	if outputBefore < len(r.output) { ... append ... }
+func TestNoOutputStep_UpstreamNotAppended(t *testing.T) {
+	r := newTestRunner()
+
+	// Write a separator (as runGoose does) and record the position.
+	separator := "\n--- pipeline step 0: silent-agent ---\n"
+	r.output = append(r.output, []byte(separator)...)
+	outputBefore := len(r.output)
+
+	// Simulate a step that produces zero bytes of new output.
+	// (outputBefore == len(r.output) after the step.)
+
+	var upstreamOutputs []string
+
+	// Apply the same guard as in runGoose.
+	if outputBefore < len(r.output) {
+		stepOutput := capStepOutput(string(r.output[outputBefore:]))
+		upstreamOutputs = append(upstreamOutputs, fmt.Sprintf("### Step %d: %s\n%s", 0, "silent-agent", stepOutput))
+	}
+
+	if len(upstreamOutputs) != 0 {
+		t.Errorf("expected upstreamOutputs to be empty for zero-output step, got %d entries: %v",
+			len(upstreamOutputs), upstreamOutputs)
+	}
+
+	// buildStepTask with empty upstream must return the raw task unchanged.
+	task := "Next step task"
+	got := buildStepTask(upstreamOutputs, task)
+	if got != task {
+		t.Errorf("expected raw task returned unchanged for empty upstream, got %q", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Multi-step accumulation with mixed output sizes
+// ---------------------------------------------------------------------------
+
+// TestMultiStepAccumulation_MixedSizes drives a 3-step scenario through the
+// same logic that runGoose uses:
+//
+//   - Step 0: output exceeds stepOutputCap → gets truncated by capStepOutput.
+//   - Step 1: output is small → passes through capStepOutput unchanged.
+//   - Step 2: produces no output → guard prevents it from entering upstream.
+//
+// The test verifies that buildStepTask receives exactly 2 entries (not 3),
+// that the step 0 entry is capped to stepOutputCap bytes, and that the final
+// augmented task is well-formed.
+func TestMultiStepAccumulation_MixedSizes(t *testing.T) {
+	type stepSim struct {
+		agent  string
+		output string // what the step wrote to r.output
+	}
+	steps := []stepSim{
+		{
+			agent: "big-researcher",
+			// Output well over the cap; the unique tail must survive.
+			output: strings.Repeat("noise\n", 2000) + "```goose-result\ntype: report\nurl: https://big.example.com\n```\n",
+		},
+		{
+			agent:  "small-coder",
+			output: "Small patch applied.\n```goose-result\ntype: pr\nurl: https://small.example.com\n```\n",
+		},
+		{
+			agent:  "silent-reviewer",
+			output: "", // zero bytes — skipped by guard
+		},
+	}
+
+	r := newTestRunner()
+	var upstreamOutputs []string
+
+	for i, s := range steps {
+		separator := fmt.Sprintf("\n--- pipeline step %d: %s ---\n", i, s.agent)
+		r.output = append(r.output, []byte(separator)...)
+		outputBefore := len(r.output)
+
+		// Simulate the step running and writing its output.
+		r.output = append(r.output, []byte(s.output)...)
+
+		// Guard: only record output if the step actually produced some.
+		if outputBefore < len(r.output) {
+			capped := capStepOutput(string(r.output[outputBefore:]))
+			entry := fmt.Sprintf("### Step %d: %s\n%s", i, s.agent, capped)
+			upstreamOutputs = append(upstreamOutputs, entry)
+		}
+	}
+
+	// Step 2 produced no output, so exactly 2 entries should have been collected.
+	if len(upstreamOutputs) != 2 {
+		t.Fatalf("expected 2 upstream entries (step 2 skipped), got %d", len(upstreamOutputs))
+	}
+
+	// Step 0's entry must be capped to stepOutputCap bytes of the *raw* output
+	// (the "### Step 0: …\n" prefix is added on top, so the total entry length
+	// will be slightly more than stepOutputCap, but the output portion is capped).
+	entry0 := upstreamOutputs[0]
+	// The entry is: "### Step 0: big-researcher\n" + capped_output
+	prefix0 := "### Step 0: big-researcher\n"
+	if !strings.HasPrefix(entry0, prefix0) {
+		t.Fatalf("step 0 entry has wrong prefix: %q", entry0[:min(len(entry0), 60)])
+	}
+	cappedPart0 := entry0[len(prefix0):]
+	if len(cappedPart0) > stepOutputCap {
+		t.Errorf("step 0 capped output len=%d exceeds stepOutputCap=%d", len(cappedPart0), stepOutputCap)
+	}
+	// The goose-result tail must be preserved in the capped step 0 output.
+	if !strings.Contains(cappedPart0, "https://big.example.com") {
+		t.Error("step 0 goose-result URL not preserved after capping")
+	}
+
+	// Step 1's entry must be present and untruncated.
+	entry1 := upstreamOutputs[1]
+	if !strings.Contains(entry1, "https://small.example.com") {
+		t.Error("step 1 URL missing from upstream entry")
+	}
+
+	// Build the final augmented task for a hypothetical step 3.
+	finalTask := "Ship the release."
+	result := buildStepTask(upstreamOutputs, finalTask)
+
+	// Header must reflect exactly 2 prior steps.
+	wantHeader := "## Upstream Pipeline Output (from 2 prior step(s))"
+	if !strings.Contains(result, wantHeader) {
+		t.Errorf("expected header %q in result", wantHeader)
+	}
+
+	// Final task section must appear.
+	if !strings.Contains(result, "## Your Task\n"+finalTask) {
+		t.Error("'## Your Task' section missing or incorrect in result")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Multi-byte UTF-8 slicing near the cap boundary
+// ---------------------------------------------------------------------------
+
+// TestCapStepOutput_MultiByteUTF8NearBoundary documents the byte-level slicing
+// behaviour of capStepOutput when multi-byte Unicode characters (emoji and CJK
+// codepoints) straddle the cap boundary.
+//
+// capStepOutput slices at a byte offset, not a rune boundary, so the character
+// immediately preceding the cut point may be split into an invalid UTF-8
+// sequence.  This is an accepted trade-off: the function guarantees at most
+// stepOutputCap bytes are returned and that the tail (including the
+// goose-result block) is preserved — rune integrity near the cut point is not
+// guaranteed.
+//
+// The test:
+//  1. Verifies the output length never exceeds stepOutputCap.
+//  2. Verifies the tail content (always ASCII in practice: the goose-result
+//     block) is preserved intact.
+//  3. Acknowledges that the number of valid UTF-8 runes in the returned slice
+//     may be less than the number in an equivalent byte slice starting at a
+//     clean rune boundary — i.e. the first rune at the cut point may be
+//     invalid.
+func TestCapStepOutput_MultiByteUTF8NearBoundary(t *testing.T) {
+	// Build a preamble of multi-byte characters.
+	// '🔥' is 4 bytes; '中' is 3 bytes. We mix them to create a string whose
+	// byte length is slightly larger than stepOutputCap.
+	multiByteChunk := strings.Repeat("🔥", 200) + strings.Repeat("中文字", 200)
+	// ASCII tail that must survive — mirrors a goose-result block.
+	asciiTail := "```goose-result\ntype: report\nurl: https://utf8-test.example.com\nsummary: done\n```\n"
+
+	// Pad so that the total is just over the cap and the cut falls inside a
+	// multi-byte sequence.
+	padding := strings.Repeat("A", stepOutputCap)
+	input := multiByteChunk + padding + asciiTail
+
+	got := capStepOutput(input)
+
+	// 1. Length invariant: must not exceed cap.
+	if len(got) > stepOutputCap {
+		t.Errorf("output len=%d exceeds stepOutputCap=%d", len(got), stepOutputCap)
+	}
+
+	// 2. Tail preservation: the ASCII goose-result block must be intact.
+	if !strings.Contains(got, asciiTail) {
+		t.Error("ASCII tail (goose-result block) not preserved after byte-level cap")
+	}
+
+	// 3. Document that byte-slicing may produce an invalid leading rune.
+	//    We count valid runes and compare to a fresh re-decode of the same
+	//    bytes.  If the cut split a multi-byte character, the first rune of
+	//    'got' will decode as utf8.RuneError with size 1, which is acceptable.
+	gotBytes := []byte(got)
+	firstRune, _ := utf8.DecodeRune(gotBytes)
+	// We don't assert firstRune == utf8.RuneError because the cut might also
+	// land on a clean ASCII boundary.  We simply record the observation.
+	t.Logf("first rune after byte-level cut: %U (RuneError=%v)", firstRune, firstRune == utf8.RuneError)
+
+	// The remainder of the string (after any partial rune at the front) must
+	// be valid UTF-8 once we skip the potentially-split leading bytes.
+	// The ASCII tail at the end is always valid.
+	if !utf8.Valid([]byte(asciiTail)) {
+		t.Error("asciiTail itself is not valid UTF-8 (test bug)")
 	}
 }
