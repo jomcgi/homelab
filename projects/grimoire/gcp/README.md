@@ -19,7 +19,7 @@ After setup:
 
 1. Create a Gemini API key at https://aistudio.google.com/apikey
 2. Store it in 1Password (vault: **Homelab**, item: **grimoire-gemini-api-key**, field: **key**)
-3. The External Secrets Operator syncs it to the cluster automatically
+3. The 1Password Operator syncs it to the cluster automatically via a `OnePasswordItem` resource
 
 ## Deploy
 
