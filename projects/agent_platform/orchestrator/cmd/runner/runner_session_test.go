@@ -108,7 +108,6 @@ func TestRunSession_Success(t *testing.T) {
 	overrideWorkDir(t, t.TempDir())
 
 	exitCode, err := r.runSession(context.Background(), []string{"echo", "hello"}, 30*time.Second)
-
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -281,7 +280,6 @@ func TestRunSession_InactivityResetOnOutput(t *testing.T) {
 	// Inactivity timeout is 1.5s; each print resets the timer.
 	script := "i=0; while [ $i -lt 4 ]; do printf 'x'; sleep 0.5; i=$((i+1)); done"
 	_, err := r.runSession(context.Background(), []string{"/bin/sh", "-c", script}, 1500*time.Millisecond)
-
 	// Process should exit normally (not killed by inactivity watchdog).
 	if err != nil {
 		t.Logf("process returned error (may be expected on some platforms): %v", err)
