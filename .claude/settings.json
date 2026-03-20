@@ -166,6 +166,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-hardcoded-svc-url.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-recipe-context-forge.sh",
+            "timeout": 5
           }
         ]
       }
