@@ -9,6 +9,7 @@ export interface JobOutput {
   exit_code: number | null;
   output: string;
   truncated: boolean;
+  status: string;
   result?: {
     type?: string;
     url?: string;

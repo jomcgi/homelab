@@ -211,6 +211,7 @@ func (a *API) handleOutput(w http.ResponseWriter, r *http.Request) {
 		Output:    latest.Output,
 		Truncated: latest.Truncated,
 		Result:    latest.Result,
+		Status:    job.Status,
 	})
 }
 

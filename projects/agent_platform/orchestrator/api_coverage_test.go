@@ -616,6 +616,49 @@ func TestHandleOutput_LatestAttempt(t *testing.T) {
 	}
 }
 
+// TestHandleOutput_StatusFieldIncluded verifies that the job status is included
+// in the output response. This is critical for the chat bot: when an attempt
+// fails but the job is retrying (status=PENDING), the bot must keep polling
+// instead of reporting "Job failed".
+func TestHandleOutput_StatusFieldIncluded(t *testing.T) {
+	store := newMemStore()
+	now := time.Now().UTC()
+	exitFail := -1
+
+	// Job with a failed attempt but still retrying (PENDING).
+	store.jobs["RETRYING"] = &JobRecord{
+		ID:         "RETRYING",
+		Task:       "retrying task",
+		Status:     JobPending,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+		MaxRetries: 3,
+		Attempts: []Attempt{
+			{Number: 1, ExitCode: &exitFail, Output: "sandbox gone"},
+		},
+	}
+
+	_, mux := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodGet, "/jobs/RETRYING/output", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var resp OutputResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+
+	if resp.Status != JobPending {
+		t.Errorf("status = %q, want %q (job is retrying, not terminal)", resp.Status, JobPending)
+	}
+	if resp.ExitCode == nil || *resp.ExitCode != -1 {
+		t.Errorf("exit_code = %v, want -1 (last attempt failed)", resp.ExitCode)
+	}
+}
+
 // --- handleHealth additional coverage ---
 
 // TestHandleHealth_Error verifies that when the health check function returns
