@@ -461,10 +461,10 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 
 	log.Printf("deep-plan produced %d pipeline steps, executing sequentially", len(steps))
 
-	// Execute each step sequentially, passing upstream output as context.
+	// Execute each step sequentially, passing accumulated upstream output as context.
 	var lastExitCode int
 	var lastErr error
-	var prevStepOutput string
+	var upstreamOutputs []string
 	for i, step := range steps {
 		// Check context cancellation.
 		if ctx.Err() != nil {
@@ -507,24 +507,31 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 		outputBefore := len(r.output)
 		r.mu.Unlock()
 
-		// Build task with upstream context from the previous step.
+		// Build task with accumulated upstream context from all prior steps.
 		task := step.Task
-		if prevStepOutput != "" {
-			task = fmt.Sprintf("## Upstream Output (from previous pipeline step)\n%s\n\n## Your Task\n%s", prevStepOutput, step.Task)
+		if len(upstreamOutputs) > 0 {
+			context := strings.Join(upstreamOutputs, "\n\n---\n\n")
+			// Cap total upstream context to keep it manageable.
+			const maxContextBytes = 16000
+			if len(context) > maxContextBytes {
+				context = context[len(context)-maxContextBytes:]
+			}
+			task = fmt.Sprintf("## Upstream Pipeline Output (from %d prior step(s))\n%s\n\n## Your Task\n%s", len(upstreamOutputs), context, step.Task)
 		}
 
 		stepArgs := buildGooseCmdFromFile(recipePath, task, "")
 		lastExitCode, lastErr = r.runSession(ctx, stepArgs, inactivityTimeout)
 
-		// Capture this step's output for downstream context.
+		// Capture this step's output and add to accumulated upstream context.
 		r.mu.RLock()
 		if outputBefore < len(r.output) {
-			prevStepOutput = string(r.output[outputBefore:])
-			// Limit context size to avoid overwhelming downstream steps.
-			const maxContextBytes = 8000
-			if len(prevStepOutput) > maxContextBytes {
-				prevStepOutput = prevStepOutput[len(prevStepOutput)-maxContextBytes:]
+			stepOutput := string(r.output[outputBefore:])
+			// Keep the tail of each step's output (goose-result is always at the end).
+			const maxStepBytes = 6000
+			if len(stepOutput) > maxStepBytes {
+				stepOutput = stepOutput[len(stepOutput)-maxStepBytes:]
 			}
+			upstreamOutputs = append(upstreamOutputs, fmt.Sprintf("### Step %d: %s\n%s", i, step.Agent, stepOutput))
 		}
 		r.mu.RUnlock()
 
