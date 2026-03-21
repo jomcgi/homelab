@@ -2,7 +2,7 @@ apiVersion: v2
 name: marine
 description: Marine services - AIS vessel tracking and API
 type: application
-version: 0.2.14
+version: 0.2.15
 appVersion: "0.1.0"
 maintainers:
   - name: homelab
@@ -15,7 +15,7 @@ keywords:
   - api
 dependencies:
   - name: homelab-library
-    version: "0.1.0"
+    version: "0.2.0"
     repository: "file://../../shared/helm/homelab-library/chart"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
