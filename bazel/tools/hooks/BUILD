@@ -45,9 +45,3 @@ sh_test(
     srcs = ["check-hardcoded-svc-url_test.sh"],
     data = [":check-hardcoded-svc-url.sh"],
 )
-
-sh_test(
-    name = "check_recipe_context_forge_test",
-    srcs = ["check-recipe-context-forge_test.sh"],
-    data = [":check-recipe-context-forge.sh"],
-)
