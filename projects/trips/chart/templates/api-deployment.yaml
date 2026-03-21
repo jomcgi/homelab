@@ -1,105 +1,17 @@
 {{- if .Values.api.enabled }}
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "trips.fullname" . }}-api
-  labels:
-    {{- include "trips.labels" . | nindent 4 }}
-    app.kubernetes.io/component: api
-spec:
-  replicas: {{ .Values.api.replicas | default 1 }}
-  selector:
-    matchLabels:
-      {{- include "trips.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: api
-  template:
-    metadata:
-      labels:
-        {{- include "trips.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: api
-      annotations:
-        # Mark NATS port as opaque for Linkerd
-        config.linkerd.io/opaque-ports: "4222"
-        {{- with .Values.api.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-    spec:
-      {{- if .Values.imagePullSecret.enabled }}
-      imagePullSecrets:
-        - name: ghcr-imagepull-secret
-      {{- end }}
-      {{- if gt (int (.Values.api.replicas | default 1)) 1 }}
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    {{- include "trips.selectorLabels" . | nindent 20 }}
-                    app.kubernetes.io/component: api
-                topologyKey: kubernetes.io/hostname
-      {{- end }}
-      securityContext:
-        # Known limitation: runs as root because aspect_rules_py venv writes
-        # to the installation directory at runtime
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: api
-          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
-          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
-          securityContext:
-            # Note: readOnlyRootFilesystem disabled because aspect_rules_py
-            # creates a virtualenv at runtime (by design)
-            readOnlyRootFilesystem: false
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          ports:
-            - name: http
-              containerPort: 8000
-              protocol: TCP
-          env:
-            # UV/Python needs writable directories
-            - name: HOME
-              value: /tmp
-            - name: UV_CACHE_DIR
-              value: /tmp/.uv-cache
-            - name: NATS_URL
-              value: {{ .Values.nats.url | quote }}
-            - name: S3_ENDPOINT
-              value: {{ .Values.seaweedfs.endpoint | quote }}
-            - name: S3_BUCKET
-              value: {{ .Values.bucket | quote }}
-            - name: TRIP_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.api.auth.secretName }}
-                  key: {{ .Values.api.auth.secretKey }}
-                  optional: true
-            # CORS origins
-            - name: CORS_ORIGINS
-              value: {{ .Values.api.corsOrigins | quote }}
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          resources:
-            {{- toYaml .Values.api.resources | nindent 12 }}
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}
+{{- $_ := set .Values.api "podAnnotations" (merge (dict "config.linkerd.io/opaque-ports" "4222") (.Values.api.podAnnotations | default dict)) }}
+{{- $_ := set .Values.api "env" (list
+  (dict "name" "HOME" "value" "/tmp")
+  (dict "name" "UV_CACHE_DIR" "value" "/tmp/.uv-cache")
+  (dict "name" "NATS_URL" "value" .Values.nats.url)
+  (dict "name" "S3_ENDPOINT" "value" .Values.seaweedfs.endpoint)
+  (dict "name" "S3_BUCKET" "value" .Values.bucket)
+  (dict "name" "TRIP_API_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" .Values.api.auth.secretName "key" .Values.api.auth.secretKey "optional" true)))
+  (dict "name" "CORS_ORIGINS" "value" .Values.api.corsOrigins)
+) }}
+{{- if gt (int (.Values.api.replicas | default 1)) 1 }}
+{{- $antiAffinity := dict "podAntiAffinity" (dict "preferredDuringSchedulingIgnoredDuringExecution" (list (dict "weight" 100 "podAffinityTerm" (dict "labelSelector" (dict "matchLabels" (fromYaml (include "homelab.componentSelectorLabels" (dict "context" . "component" "api")))) "topologyKey" "kubernetes.io/hostname")))) }}
+{{- $_ := set .Values "affinity" $antiAffinity }}
+{{- end }}
+{{- include "homelab.deployment" (dict "context" . "component" "api") }}
 {{- end }}

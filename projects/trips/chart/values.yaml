@@ -123,13 +123,32 @@ api:
   enabled: true
   # Number of replicas (2+ enables anti-affinity and PDB)
   replicas: 1
+  containerPort: 8000
   # CORS allowed origins (comma-separated)
   corsOrigins: "https://trips.jomcgi.dev,http://localhost:5173,http://localhost:3000"
   image:
     repository: ghcr.io/jomcgi/homelab/projects/trips/backend
     tag: "latest"
     pullPolicy: Always
-
+  # Known limitation: runs as root because aspect_rules_py venv writes to the installation directory at runtime
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 10
+      periodSeconds: 10
+    readiness:
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 5
   resources:
     requests:
       cpu: 10m
@@ -137,7 +156,6 @@ api:
     limits:
       cpu: 250m
       memory: 256Mi
-
   # Upload API authentication (from 1Password secret)
   auth:
     secretName: trips-api-key
