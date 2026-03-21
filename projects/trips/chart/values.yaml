@@ -27,6 +27,9 @@ imgproxy:
   enabled: true
   replicas: 2
   containerPort: 8080
+  service:
+    type: ClusterIP
+    port: 8080
   image:
     repository: darthsim/imgproxy
     tag: "v3.25.0"
@@ -85,6 +88,9 @@ nginx:
   enabled: true
   replicas: 1
   containerPort: 8080
+  service:
+    type: ClusterIP
+    port: 80
   image:
     repository: nginx
     tag: "1.27-alpine"
@@ -124,6 +130,9 @@ api:
   # Number of replicas (2+ enables anti-affinity and PDB)
   replicas: 1
   containerPort: 8000
+  service:
+    type: ClusterIP
+    port: 8000
   # CORS allowed origins (comma-separated)
   corsOrigins: "https://trips.jomcgi.dev,http://localhost:5173,http://localhost:3000"
   image:
