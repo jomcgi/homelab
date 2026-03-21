@@ -672,3 +672,241 @@ func TestReconcileOrphanedJobs_NonStaleJobStillChecksRunner(t *testing.T) {
 		t.Errorf("status = %s, want RUNNING (within maxDuration, runner alive)", job.Status)
 	}
 }
+
+// TestReconcileOrphanedJobs_StaleJobAlreadyFinished verifies that when the last
+// attempt already has FinishedAt set, the reconciler does NOT overwrite the
+// existing FinishedAt, ExitCode, or Output — but still marks the job FAILED.
+func TestReconcileOrphanedJobs_StaleJobAlreadyFinished(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	maxDuration := 2 * time.Hour
+
+	existingFinishedAt := time.Now().Add(-1 * time.Hour)
+	existingExitCode := 42
+	existingOutput := "some prior output"
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-already-finished",
+		Task:       "task that already recorded finish",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-4 * time.Hour),
+		MaxRetries: 3,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-already-finished-1",
+			StartedAt:        time.Now().Add(-3 * time.Hour),
+			FinishedAt:       &existingFinishedAt,
+			ExitCode:         &existingExitCode,
+			Output:           existingOutput,
+		}},
+	})
+
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, maxDuration, slog.Default())
+
+	job, err := store.Get(ctx, "job-already-finished")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	// Job must be force-failed regardless.
+	if job.Status != JobFailed {
+		t.Errorf("status = %s, want FAILED (exceeded maxDuration)", job.Status)
+	}
+	last := job.Attempts[len(job.Attempts)-1]
+	// Existing FinishedAt must not be overwritten.
+	if last.FinishedAt == nil || !last.FinishedAt.Equal(existingFinishedAt) {
+		t.Errorf("FinishedAt = %v, want existing value %v", last.FinishedAt, existingFinishedAt)
+	}
+	// Existing ExitCode must not be overwritten.
+	if last.ExitCode == nil || *last.ExitCode != existingExitCode {
+		t.Errorf("ExitCode = %v, want existing value %d", last.ExitCode, existingExitCode)
+	}
+	// Existing Output must not be overwritten.
+	if last.Output != existingOutput {
+		t.Errorf("Output = %q, want existing value %q", last.Output, existingOutput)
+	}
+}
+
+// TestReconcileOrphanedJobs_StaleJobNoSandboxClaim verifies that a stale job
+// with an empty SandboxClaimName is force-failed without panicking. The cleanup
+// path is guarded by `if lastAttempt.SandboxClaimName != ""`.
+func TestReconcileOrphanedJobs_StaleJobNoSandboxClaim(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	maxDuration := 2 * time.Hour
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-no-claim",
+		Task:       "task with no sandbox claim",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-4 * time.Hour),
+		MaxRetries: 3,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "", // empty — no sandbox to clean up
+			StartedAt:        time.Now().Add(-3 * time.Hour),
+		}},
+	})
+
+	// Must not panic even with nil dynClient and empty SandboxClaimName.
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, maxDuration, slog.Default())
+
+	job, err := store.Get(ctx, "job-no-claim")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if job.Status != JobFailed {
+		t.Errorf("status = %s, want FAILED (exceeded maxDuration)", job.Status)
+	}
+	last := job.Attempts[len(job.Attempts)-1]
+	if last.FinishedAt == nil {
+		t.Error("FinishedAt should be set for force-failed job")
+	}
+	if last.ExitCode == nil || *last.ExitCode != -1 {
+		t.Errorf("ExitCode = %v, want -1", last.ExitCode)
+	}
+}
+
+// TestReconcileOrphanedJobs_StaleJobOutputMessage verifies that the force-fail
+// output message contains the expected max-duration substring.
+func TestReconcileOrphanedJobs_StaleJobOutputMessage(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	maxDuration := 2 * time.Hour
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-output-msg",
+		Task:       "task to check output message",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-4 * time.Hour),
+		MaxRetries: 3,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-output-msg-1",
+			StartedAt:        time.Now().Add(-3 * time.Hour),
+		}},
+	})
+
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, maxDuration, slog.Default())
+
+	job, err := store.Get(ctx, "job-output-msg")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	last := job.Attempts[len(job.Attempts)-1]
+	wantSubstr := "[exceeded max duration (2h0m0s)]"
+	if !strings.Contains(last.Output, wantSubstr) {
+		t.Errorf("Output = %q, want substring %q", last.Output, wantSubstr)
+	}
+}
+
+// TestReconcileOrphanedJobs_StaleJobMultipleAttempts verifies that when a job
+// has multiple attempts (first two already finished), only the last attempt is
+// modified when force-failing due to max duration exceeded.
+func TestReconcileOrphanedJobs_StaleJobMultipleAttempts(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	maxDuration := 2 * time.Hour
+
+	t1 := time.Now().Add(-5 * time.Hour)
+	t2 := time.Now().Add(-4 * time.Hour)
+	exitCode1 := 1
+	exitCode2 := 1
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-multi-attempts",
+		Task:       "task with multiple attempts",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-6 * time.Hour),
+		MaxRetries: 3,
+		Attempts: []Attempt{
+			{
+				Number:           1,
+				SandboxClaimName: "orch-job-multi-attempts-1",
+				StartedAt:        time.Now().Add(-6 * time.Hour),
+				FinishedAt:       &t1,
+				ExitCode:         &exitCode1,
+				Output:           "attempt 1 output",
+			},
+			{
+				Number:           2,
+				SandboxClaimName: "orch-job-multi-attempts-2",
+				StartedAt:        time.Now().Add(-5 * time.Hour),
+				FinishedAt:       &t2,
+				ExitCode:         &exitCode2,
+				Output:           "attempt 2 output",
+			},
+			{
+				Number:           3,
+				SandboxClaimName: "orch-job-multi-attempts-3",
+				StartedAt:        time.Now().Add(-3 * time.Hour), // 3h ago — exceeds 2h maxDuration
+			},
+		},
+	})
+
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, maxDuration, slog.Default())
+
+	job, err := store.Get(ctx, "job-multi-attempts")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if job.Status != JobFailed {
+		t.Errorf("status = %s, want FAILED (last attempt exceeded maxDuration)", job.Status)
+	}
+	// First two attempts must be unchanged.
+	if job.Attempts[0].Output != "attempt 1 output" {
+		t.Errorf("attempt 1 output changed: %q", job.Attempts[0].Output)
+	}
+	if job.Attempts[1].Output != "attempt 2 output" {
+		t.Errorf("attempt 2 output changed: %q", job.Attempts[1].Output)
+	}
+	// Last attempt must be force-failed.
+	last := job.Attempts[2]
+	if last.FinishedAt == nil {
+		t.Error("last attempt FinishedAt should be set")
+	}
+	if last.ExitCode == nil || *last.ExitCode != -1 {
+		t.Errorf("last attempt ExitCode = %v, want -1", last.ExitCode)
+	}
+	wantSubstr := "[exceeded max duration (2h0m0s)]"
+	if !strings.Contains(last.Output, wantSubstr) {
+		t.Errorf("last attempt Output = %q, want substring %q", last.Output, wantSubstr)
+	}
+}
+
+// TestReconcileOrphanedJobs_MaxDurationZeroSkipsStaleCheck verifies that when
+// maxDuration is 0, the max-duration force-fail check is skipped entirely
+// (guarded by `if maxDuration > 0`), and the job falls through to normal
+// reconcile logic and is reset to PENDING.
+func TestReconcileOrphanedJobs_MaxDurationZeroSkipsStaleCheck(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-zero-maxduration",
+		Task:       "task running for very long with no max duration",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-11 * time.Hour),
+		MaxRetries: 3,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-zero-maxduration-1",
+			StartedAt:        time.Now().Add(-10 * time.Hour), // 10h ago — would exceed any real limit
+		}},
+	})
+
+	// maxDuration=0 means no limit — the stale check must be skipped.
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, 0, slog.Default())
+
+	job, err := store.Get(ctx, "job-zero-maxduration")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	// Normal reconcile logic: retriesRemaining = 3 - 1 = 2 > 0 → PENDING.
+	if job.Status != JobPending {
+		t.Errorf("status = %s, want PENDING (maxDuration=0 skips stale check, retries available)", job.Status)
+	}
+}
