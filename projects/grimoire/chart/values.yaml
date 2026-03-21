@@ -18,7 +18,8 @@ frontend:
 
 # WebSocket Gateway — Go binary proxying Gemini Live + game relay
 wsGateway:
-  replicaCount: 1
+  replicas: 1
+  containerPort: 8080
   cfAccessTeam: ""
   image:
     repository: ghcr.io/jomcgi/homelab/projects/grimoire/ws-gateway
@@ -27,6 +28,25 @@ wsGateway:
   service:
     type: ClusterIP
     port: 8080
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+  probes:
+    liveness:
+      path: /healthz
+      initialDelaySeconds: 5
+    readiness:
+      path: /readyz
+      initialDelaySeconds: 5
   resources:
     requests:
       cpu: 5m
@@ -34,6 +54,7 @@ wsGateway:
     limits:
       cpu: 5m
       memory: 16Mi
+  podAnnotations: {}
 
 # Redis — ephemeral pub/sub + session state
 redis:

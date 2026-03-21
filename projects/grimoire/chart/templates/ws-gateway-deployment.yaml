@@ -1,76 +1,9 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "grimoire.fullname" . }}-ws-gateway
-  labels:
-    {{- include "grimoire.labels" . | nindent 4 }}
-    app.kubernetes.io/component: ws-gateway
-spec:
-  replicas: {{ .Values.wsGateway.replicaCount }}
-  selector:
-    matchLabels:
-      {{- include "grimoire.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: ws-gateway
-  template:
-    metadata:
-      annotations:
-        config.linkerd.io/skip-outbound-ports: "{{ .Values.redis.service.port }}"
-        {{- with .Values.wsGateway.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      labels:
-        {{- include "grimoire.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: ws-gateway
-    spec:
-      {{- if .Values.imagePullSecret.enabled }}
-      imagePullSecrets:
-        - name: ghcr-imagepull-secret
-      {{- end }}
-      serviceAccountName: {{ include "grimoire.serviceAccountName" . }}
-      securityContext:
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: ws-gateway
-          image: "{{ .Values.wsGateway.image.repository }}:{{ .Values.wsGateway.image.tag }}"
-          imagePullPolicy: {{ .Values.wsGateway.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: 8080
-              protocol: TCP
-          env:
-            - name: CF_ACCESS_TEAM
-              value: {{ .Values.wsGateway.cfAccessTeam | quote }}
-            - name: GOOGLE_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.grimoireSecret.name }}
-                  key: google_api_key
-            - name: REDIS_ADDR
-              value: "{{ include "grimoire.fullname" . }}-redis:{{ .Values.redis.service.port }}"
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.grimoireSecret.name }}
-                  key: redis_password
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 65532
-            runAsGroup: 65532
-            capabilities:
-              drop:
-                - ALL
-            readOnlyRootFilesystem: true
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            initialDelaySeconds: 5
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: http
-            initialDelaySeconds: 5
-          resources:
-            {{- toYaml .Values.wsGateway.resources | nindent 12 }}
+{{- $_ := set .Values.wsGateway "env" (list
+  (dict "name" "CF_ACCESS_TEAM" "value" .Values.wsGateway.cfAccessTeam)
+  (dict "name" "GOOGLE_API_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" .Values.grimoireSecret.name "key" "google_api_key")))
+  (dict "name" "REDIS_ADDR" "value" (printf "%s-redis:%v" (include "homelab.fullname" .) .Values.redis.service.port))
+  (dict "name" "REDIS_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" .Values.grimoireSecret.name "key" "redis_password")))
+) }}
+{{- $annotations := dict "config.linkerd.io/skip-outbound-ports" (toString .Values.redis.service.port) }}
+{{- $_ := set .Values.wsGateway "podAnnotations" (merge (default dict .Values.wsGateway.podAnnotations) $annotations) }}
+{{- include "homelab.deployment" (dict "context" . "component" "wsGateway" "componentName" "ws-gateway") }}
