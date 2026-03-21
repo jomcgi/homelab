@@ -183,8 +183,39 @@ frontend:
   # Single replica
   replicas: 1
 
+  containerPort: 3000
+
   # Directory containing built frontend assets
   publicDir: /app/public/dist
+
+  # Pod security context (overrides global - frontend runs as non-root)
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    fsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+
+  # Container security context
+  securityContext:
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  # Health probes
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 6
+    readiness:
+      path: /ready
+      initialDelaySeconds: 30
+      periodSeconds: 5
+      failureThreshold: 60
 
   # Service configuration
   service:
