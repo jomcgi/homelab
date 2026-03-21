@@ -4,6 +4,6 @@ dependencies:
   version: 1.0.0-RC-1
 - name: homelab-library
   repository: file://../../../shared/helm/homelab-library/chart
-  version: 0.2.0
-digest: sha256:e9d7c167adeb59efaf7bcde2570787a5aacfc4b8f8ac9fff24d1404b98789368
-generated: "2026-03-21T10:34:33.731505-07:00"
+  version: 0.3.0
+digest: sha256:bebf688a03b2874b9b7c1901a9b3ba788da7fbb1681b54f28ae1084937e209d9
+generated: "2026-03-21T11:21:57.383135-07:00"
