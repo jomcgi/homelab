@@ -15,7 +15,7 @@ keywords:
   - api
 dependencies:
   - name: homelab-library
-    version: "0.2.0"
+    version: "0.3.0"
     repository: "file://../../shared/helm/homelab-library/chart"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
