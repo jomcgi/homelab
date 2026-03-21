@@ -77,10 +77,24 @@ ingest:
   # Single replica - no need for HA for data ingestion
   replicas: 1
 
+  containerPort: 8000
+
   # Service configuration for health endpoint
   service:
     type: ClusterIP
     port: 8000
+
+  # Health probes
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 10
+      periodSeconds: 30
+      failureThreshold: 3
+    readiness:
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 10
 
   # Resource limits
   # Increased for global AIS coverage (~300 msg/sec)
