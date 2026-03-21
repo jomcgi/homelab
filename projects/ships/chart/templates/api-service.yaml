@@ -1,17 +1,1 @@
-{{- if .Values.api.enabled }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "marine.fullname" . }}-api
-  labels:
-    {{- include "marine.api.labels" . | nindent 4 }}
-spec:
-  type: {{ .Values.api.service.type }}
-  ports:
-    - port: {{ .Values.api.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
-  selector:
-    {{- include "marine.api.selectorLabels" . | nindent 4 }}
-{{- end }}
+{{- include "homelab.service" (dict "context" . "component" "api") }}
