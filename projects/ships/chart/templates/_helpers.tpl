@@ -1,8 +1,5 @@
-{{- define "marine.name" -}}{{ include "homelab.name" . }}{{- end }}
 {{- define "marine.fullname" -}}{{ include "homelab.fullname" . }}{{- end }}
-{{- define "marine.chart" -}}{{ include "homelab.chart" . }}{{- end }}
 {{- define "marine.labels" -}}{{ include "homelab.labels" . }}{{- end }}
-{{- define "marine.selectorLabels" -}}{{ include "homelab.selectorLabels" . }}{{- end }}
 {{- define "marine.serviceAccountName" -}}{{ include "homelab.serviceAccountName" . }}{{- end }}
 
 {{/*
