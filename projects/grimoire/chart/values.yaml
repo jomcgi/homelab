@@ -66,6 +66,8 @@ redis:
   service:
     type: ClusterIP
     port: 6379
+    portName: redis
+    targetPort: redis
   resources:
     requests:
       cpu: 10m

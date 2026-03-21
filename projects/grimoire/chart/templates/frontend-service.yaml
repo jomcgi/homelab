@@ -1,17 +1,1 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "grimoire.fullname" . }}-frontend
-  labels:
-    {{- include "grimoire.labels" . | nindent 4 }}
-    app.kubernetes.io/component: frontend
-spec:
-  type: {{ .Values.frontend.service.type }}
-  ports:
-    - port: {{ .Values.frontend.service.port }}
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    {{- include "grimoire.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: frontend
+{{- include "homelab.service" (dict "context" . "component" "frontend") }}

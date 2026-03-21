@@ -1,17 +1,1 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "grimoire.fullname" . }}-ws-gateway
-  labels:
-    {{- include "grimoire.labels" . | nindent 4 }}
-    app.kubernetes.io/component: ws-gateway
-spec:
-  type: {{ .Values.wsGateway.service.type }}
-  ports:
-    - port: {{ .Values.wsGateway.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
-  selector:
-    {{- include "grimoire.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: ws-gateway
+{{- include "homelab.service" (dict "context" . "component" "wsGateway" "componentName" "ws-gateway") }}
