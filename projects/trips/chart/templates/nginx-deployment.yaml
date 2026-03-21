@@ -1,74 +1,11 @@
 {{- if .Values.nginx.enabled }}
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "trips.fullname" . }}-nginx
-  labels:
-    {{- include "trips.labels" . | nindent 4 }}
-    app.kubernetes.io/component: nginx
-spec:
-  replicas: {{ .Values.nginx.replicas }}
-  selector:
-    matchLabels:
-      {{- include "trips.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: nginx
-  template:
-    metadata:
-      annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/nginx-configmap.yaml") . | sha256sum }}
-      labels:
-        {{- include "trips.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: nginx
-    spec:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        fsGroup: 65532
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: nginx
-          image: "{{ .Values.nginx.image.repository }}:{{ .Values.nginx.image.tag }}"
-          imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
-          securityContext:
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          ports:
-            - name: http
-              containerPort: 8080
-              protocol: TCP
-          volumeMounts:
-            - name: config
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
-              readOnly: true
-            - name: tmp
-              mountPath: /tmp
-            - name: cache
-              mountPath: /var/cache/nginx
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 2
-            periodSeconds: 5
-          resources:
-            {{- toYaml .Values.nginx.resources | nindent 12 }}
-      volumes:
-        - name: config
-          configMap:
-            name: {{ include "trips.fullname" . }}-nginx-config
-        - name: tmp
-          emptyDir: {}
-        - name: cache
-          emptyDir: {}
+{{- $annotations := dict "checksum/config" (include (print $.Template.BasePath "/nginx-configmap.yaml") . | sha256sum) }}
+{{- $_ := set .Values.nginx "podAnnotations" (merge (default dict .Values.nginx.podAnnotations) $annotations) }}
+{{- $configVol := dict "name" "config" "configMap" (dict "name" (printf "%s-nginx-config" (include "homelab.fullname" .))) }}
+{{- $cacheVol := dict "name" "cache" "emptyDir" (dict) }}
+{{- $_ := set .Values.nginx "volumes" (list $configVol $cacheVol) }}
+{{- $configMount := dict "name" "config" "mountPath" "/etc/nginx/nginx.conf" "subPath" "nginx.conf" "readOnly" true }}
+{{- $cacheMount := dict "name" "cache" "mountPath" "/var/cache/nginx" }}
+{{- $_ := set .Values.nginx "volumeMounts" (list $configMount $cacheMount) }}
+{{- include "homelab.deployment" (dict "context" . "component" "nginx") }}
 {{- end }}
