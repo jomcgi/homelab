@@ -1,97 +1,13 @@
 {{- if .Values.ingest.enabled }}
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "marine.fullname" . }}-ingest
-  labels:
-    {{- include "marine.ingest.labels" . | nindent 4 }}
-spec:
-  replicas: {{ .Values.ingest.replicas }}
-  selector:
-    matchLabels:
-      {{- include "marine.ingest.selectorLabels" . | nindent 6 }}
-  template:
-    metadata:
-      labels:
-        {{- include "marine.ingest.selectorLabels" . | nindent 8 }}
-      annotations:
-        # Mark NATS port as opaque for Linkerd
-        config.linkerd.io/opaque-ports: "4222"
-        {{- with .Values.ingest.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-    spec:
-      {{- if .Values.imagePullSecret.enabled }}
-      imagePullSecrets:
-        - name: ghcr-imagepull-secret
-      {{- else if .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "marine.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      containers:
-        - name: ingest
-          image: "{{ .Values.ingest.image.repository }}:{{ .Values.ingest.image.tag }}"
-          imagePullPolicy: {{ .Values.ingest.image.pullPolicy }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          ports:
-            - name: http
-              containerPort: 8000
-              protocol: TCP
-          env:
-            # UV/Python needs writable directories
-            - name: HOME
-              value: /tmp
-            - name: UV_CACHE_DIR
-              value: /tmp/.uv-cache
-            # Point Python SSL to system CA certificates
-            - name: SSL_CERT_FILE
-              value: /etc/ssl/certs/ca-certificates.crt
-            - name: NATS_URL
-              value: {{ .Values.nats.url | quote }}
-            - name: AISSTREAM_URL
-              value: {{ .Values.aisstream.url | quote }}
-            - name: BOUNDING_BOX
-              value: {{ .Values.aisstream.boundingBox | quote }}
-            - name: AISSTREAM_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: marine
-                  key: ais-stream-api-key
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 30
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          resources:
-            {{- toYaml .Values.ingest.resources | nindent 12 }}
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+{{- $_ := set .Values.ingest "podAnnotations" (merge (default dict .Values.ingest.podAnnotations) (dict "config.linkerd.io/opaque-ports" "4222")) }}
+{{- $_ := set .Values.ingest "env" (list
+  (dict "name" "HOME" "value" "/tmp")
+  (dict "name" "UV_CACHE_DIR" "value" "/tmp/.uv-cache")
+  (dict "name" "SSL_CERT_FILE" "value" "/etc/ssl/certs/ca-certificates.crt")
+  (dict "name" "NATS_URL" "value" .Values.nats.url)
+  (dict "name" "AISSTREAM_URL" "value" .Values.aisstream.url)
+  (dict "name" "BOUNDING_BOX" "value" .Values.aisstream.boundingBox)
+  (dict "name" "AISSTREAM_API_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" "marine" "key" "ais-stream-api-key")))
+) }}
+{{- include "homelab.deployment" (dict "context" . "component" "ingest") }}
 {{- end }}
