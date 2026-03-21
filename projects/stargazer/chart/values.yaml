@@ -92,11 +92,20 @@ api:
   enabled: false
   replicas: 1
   # Nginx image used for serving static API data
-  nginx:
-    image:
-      repository: nginxinc/nginx-unprivileged
-      tag: "alpine"
-      pullPolicy: IfNotPresent
+  image:
+    repository: nginxinc/nginx-unprivileged
+    tag: "alpine"
+    pullPolicy: IfNotPresent
+  containerPort: 8080
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 10
+      periodSeconds: 30
+    readiness:
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 10
   # CORS configuration
   cors:
     # Access-Control-Allow-Origin header value

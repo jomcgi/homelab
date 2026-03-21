@@ -1,108 +1,26 @@
 {{- if .Values.api.enabled }}
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "stargazer.fullname" . }}-api
-  labels:
-    {{- include "stargazer.labels" . | nindent 4 }}
-    app.kubernetes.io/component: api
-spec:
-  replicas: {{ .Values.api.replicas }}
-  selector:
-    matchLabels:
-      {{- include "stargazer.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: api
-  template:
-    metadata:
-      annotations:
-        {{- with .Values.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      labels:
-        {{- include "stargazer.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: api
-    spec:
-      {{- if .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- range .Values.imagePullSecrets }}
-        - name: {{ .name }}
-        {{- end }}
-      {{- end }}
-      serviceAccountName: {{ include "stargazer.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      containers:
-      - name: api
-        securityContext:
-          {{- toYaml .Values.api.securityContext | nindent 10 }}
-        image: "{{ .Values.api.nginx.image.repository }}:{{ .Values.api.nginx.image.tag }}"
-        imagePullPolicy: {{ .Values.api.nginx.image.pullPolicy }}
-        ports:
-        - name: http
-          containerPort: 8080
-          protocol: TCP
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: http
-          initialDelaySeconds: 10
-          periodSeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: http
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        resources:
-          {{- toYaml .Values.api.resources | nindent 10 }}
-        volumeMounts:
-        - name: nginx-config
-          mountPath: /etc/nginx/conf.d/
-          readOnly: true
-        - name: cache
-          mountPath: /var/cache/nginx
-        - name: tmp
-          mountPath: /tmp
-        - name: run
-          mountPath: /var/run
-        {{- if .Values.persistence.enabled }}
-        - name: data
-          mountPath: {{ .Values.config.dataDir }}
-          readOnly: true
-        {{- else if .Values.testData.enabled }}
-        - name: testdata
-          mountPath: {{ .Values.config.dataDir }}/output
-          readOnly: true
-        {{- end }}
-      volumes:
-      - name: nginx-config
-        configMap:
-          name: {{ include "stargazer.fullname" . }}-nginx
-      - name: cache
-        emptyDir: {}
-      - name: tmp
-        emptyDir: {}
-      - name: run
-        emptyDir: {}
-      {{- if .Values.persistence.enabled }}
-      - name: data
-        persistentVolumeClaim:
-          claimName: {{ include "stargazer.fullname" . }}-data
-      {{- else if .Values.testData.enabled }}
-      - name: testdata
-        configMap:
-          name: {{ include "stargazer.fullname" . }}-testdata
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+{{- $fullname := include "homelab.fullname" . }}
+{{- $volumes := list
+  (dict "name" "nginx-config" "configMap" (dict "name" (printf "%s-nginx" $fullname)))
+  (dict "name" "cache" "emptyDir" (dict))
+  (dict "name" "run" "emptyDir" (dict))
+}}
+{{- $mounts := list
+  (dict "name" "nginx-config" "mountPath" "/etc/nginx/conf.d/" "readOnly" true)
+  (dict "name" "cache" "mountPath" "/var/cache/nginx")
+  (dict "name" "run" "mountPath" "/var/run")
+}}
+{{- if .Values.persistence.enabled }}
+  {{- $volumes = append $volumes (dict "name" "data" "persistentVolumeClaim" (dict "claimName" (printf "%s-data" $fullname))) }}
+  {{- $mounts = append $mounts (dict "name" "data" "mountPath" .Values.config.dataDir "readOnly" true) }}
+{{- else if .Values.testData.enabled }}
+  {{- $volumes = append $volumes (dict "name" "testdata" "configMap" (dict "name" (printf "%s-testdata" $fullname))) }}
+  {{- $mounts = append $mounts (dict "name" "testdata" "mountPath" (printf "%s/output" .Values.config.dataDir) "readOnly" true) }}
+{{- end }}
+{{- $_ := set .Values.api "volumes" $volumes }}
+{{- $_ := set .Values.api "volumeMounts" $mounts }}
+{{- if and .Values.podAnnotations (not .Values.api.podAnnotations) }}
+{{- $_ := set .Values.api "podAnnotations" .Values.podAnnotations }}
+{{- end }}
+{{- include "homelab.deployment" (dict "context" . "component" "api") }}
 {{- end }}
