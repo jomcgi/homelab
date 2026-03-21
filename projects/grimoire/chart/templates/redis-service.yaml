@@ -1,18 +1,1 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "grimoire.fullname" . }}-redis
-  labels:
-    {{- include "grimoire.labels" . | nindent 4 }}
-    app.kubernetes.io/component: redis
-  annotations: {}
-spec:
-  type: {{ .Values.redis.service.type }}
-  ports:
-    - port: {{ .Values.redis.service.port }}
-      targetPort: redis
-      protocol: TCP
-      name: redis
-  selector:
-    {{- include "grimoire.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: redis
+{{- include "homelab.service" (dict "context" . "component" "redis") }}
