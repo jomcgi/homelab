@@ -1,5 +1,7 @@
 {{/*
 Common labels for a server.
+Uses homelab.chart from the library for the chart label, but overrides
+app.kubernetes.io/name with the per-server name (since each server is its own Deployment).
 Usage: {{- include "agent-platform-mcp-servers.labels" (dict "name" $name "Chart" $.Chart "Release" $.Release) }}
 */}}
 {{- define "agent-platform-mcp-servers.labels" -}}
@@ -7,7 +9,7 @@ app.kubernetes.io/name: {{ .name }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: mcp-server
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+helm.sh/chart: {{ include "homelab.chart" . }}
 {{- end }}
 
 {{/*
