@@ -1,17 +1,1 @@
-{{- if .Values.frontend.enabled }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "marine.fullname" . }}-frontend
-  labels:
-    {{- include "marine.frontend.labels" . | nindent 4 }}
-spec:
-  type: ClusterIP
-  ports:
-    - port: 80
-      targetPort: http
-      protocol: TCP
-      name: http
-  selector:
-    {{- include "marine.frontend.selectorLabels" . | nindent 4 }}
-{{- end }}
+{{- include "homelab.service" (dict "context" . "component" "frontend") }}
