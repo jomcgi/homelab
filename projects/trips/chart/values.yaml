@@ -84,11 +84,32 @@ imgproxy:
 nginx:
   enabled: true
   replicas: 1
+  containerPort: 8080
   image:
     repository: nginx
     tag: "1.27-alpine"
     pullPolicy: IfNotPresent
-
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    fsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    readiness:
+      path: /health
+      initialDelaySeconds: 2
+      periodSeconds: 5
   resources:
     requests:
       cpu: 5m
