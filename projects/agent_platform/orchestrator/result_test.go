@@ -105,3 +105,18 @@ func TestParseGooseResult_IssueType(t *testing.T) {
 		t.Errorf("type = %q, want %q", r.Type, "issue")
 	}
 }
+
+// TestParseGooseResult_ReplyWhitespaceTrimmed verifies that leading and trailing
+// whitespace in the reply value is trimmed by strings.TrimSpace.
+func TestParseGooseResult_ReplyWhitespaceTrimmed(t *testing.T) {
+	raw := "```goose-result\ntype: pr\nurl: https://github.com/jomcgi/homelab/pull/1\nsummary: did a thing\nreply:   padded reply value   \n```\n"
+
+	r := parseGooseResult(raw)
+	if r == nil {
+		t.Fatal("expected non-nil result")
+	}
+	want := "padded reply value"
+	if r.Reply != want {
+		t.Errorf("Reply = %q, want %q (whitespace should be trimmed)", r.Reply, want)
+	}
+}
