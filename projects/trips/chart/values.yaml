@@ -11,6 +11,10 @@ imagePullSecret:
   onepassword:
     itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
 
+# Service account (required by homelab-library)
+serviceAccount:
+  create: false
+
 # Cross-namespace service URLs
 seaweedfs:
   endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
@@ -22,11 +26,52 @@ nats:
 imgproxy:
   enabled: true
   replicas: 2
+  containerPort: 8080
   image:
     repository: darthsim/imgproxy
     tag: "v3.25.0"
     pullPolicy: IfNotPresent
-
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    fsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  env:
+    - name: IMGPROXY_USE_S3
+      value: "true"
+    - name: IMGPROXY_S3_ENDPOINT
+      value: "http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333"
+    - name: IMGPROXY_S3_REGION
+      value: "us-east-1"
+    - name: AWS_ACCESS_KEY_ID
+      value: "anonymous"
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "anonymous"
+    - name: IMGPROXY_QUALITY
+      value: "90"
+    - name: IMGPROXY_FORMAT_QUALITY
+      value: "webp=92,avif=90,jpeg=90"
+    - name: IMGPROXY_ENABLE_WEBP_DETECTION
+      value: "true"
+    - name: IMGPROXY_ENFORCE_WEBP
+      value: "false"
+    - name: IMGPROXY_CONCURRENCY
+      value: "4"
+    - name: IMGPROXY_MAX_SRC_RESOLUTION
+      value: "50"
+    - name: IMGPROXY_STRIP_METADATA
+      value: "true"
+    - name: IMGPROXY_STRIP_COLOR_PROFILE
+      value: "false"
+    - name: IMGPROXY_ALLOW_INSECURE_URLS
+      value: "true"
   resources:
     requests:
       cpu: 10m
@@ -34,12 +79,6 @@ imgproxy:
     limits:
       cpu: 10m
       memory: 75Mi
-
-  config:
-    quality: "90"
-    formatQuality: "webp=92,avif=90,jpeg=90"
-    concurrency: "4"
-    maxSrcResolution: "50"
 
 # nginx routing configuration
 nginx:
