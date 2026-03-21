@@ -71,7 +71,7 @@ func TestRunPeriodicReconcile_StopsOnContextCancel(t *testing.T) {
 
 	go func() {
 		defer close(done)
-		runPeriodicReconcile(ctx, 10*time.Millisecond, store, sandbox, "test-ns", slog.Default())
+		runPeriodicReconcile(ctx, 10*time.Millisecond, store, sandbox, "test-ns", 0, slog.Default())
 	}()
 
 	// Allow at least one tick to fire before cancelling.
@@ -119,7 +119,7 @@ func TestRunPeriodicReconcile_RunsReconcileOnTick(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		runPeriodicReconcile(ctx, 20*time.Millisecond, store, sandbox, "test-ns", slog.Default())
+		runPeriodicReconcile(ctx, 20*time.Millisecond, store, sandbox, "test-ns", 0, slog.Default())
 	}()
 
 	// Wait for at least one full tick (20ms) with margin.

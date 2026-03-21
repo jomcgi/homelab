@@ -121,7 +121,7 @@ func TestReconcileOrphanedJobs_IdleRunnerResetsJob(t *testing.T) {
 		return "idle", 0, nil // "idle" falls through to the reset path
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-idle-runner")
 	if err != nil {
@@ -160,7 +160,7 @@ func TestReconcileOrphanedJobs_FailedRunnerExhaustsRetries(t *testing.T) {
 		return "failed", 2, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-failed-exhausted")
 	if err != nil {
@@ -200,7 +200,7 @@ func TestReconcileOrphanedJobs_MultipleJobsMixed(t *testing.T) {
 		Status: JobPending,
 	})
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, 0, slog.Default())
 
 	orphan, _ := store.Get(ctx, "job-mixed-orphan")
 	if orphan.Status != JobPending {
@@ -239,7 +239,7 @@ func TestReconcileOrphanedJobs_JobWithNoClaimName(t *testing.T) {
 	})
 
 	// Must not panic.
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-no-claim")
 	if err != nil {
@@ -266,7 +266,7 @@ func TestReconcileOrphanedJobs_JobWithNoAttempts(t *testing.T) {
 	})
 
 	// Must not panic.
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-no-attempts")
 	if err != nil {
