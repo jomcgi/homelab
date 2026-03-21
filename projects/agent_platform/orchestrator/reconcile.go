@@ -27,6 +27,7 @@ type RunnerOutputFunc func(ctx context.Context, sandboxClaimName string) (output
 // blindly resetting jobs.
 //
 // For each RUNNING job:
+//  0. If maxDuration > 0 and the attempt exceeds it → force FAILED (no retry).
 //  1. If checkRunner is provided and the runner is still active:
 //     - "running" → leave as RUNNING (consumer will re-attach)
 //     - "done"    → mark SUCCEEDED, fetch output, clean up sandbox
@@ -35,7 +36,7 @@ type RunnerOutputFunc func(ctx context.Context, sandboxClaimName string) (output
 //     - Clean up stale SandboxClaim
 //     - Reset to PENDING for retry (or FAILED if retries exhausted)
 //     - NATS redelivers the message automatically after AckWait expires
-func reconcileOrphanedJobs(ctx context.Context, store Store, dynClient dynamic.Interface, namespace string, checkRunner RunnerStatusFunc, fetchOutput RunnerOutputFunc, logger *slog.Logger) {
+func reconcileOrphanedJobs(ctx context.Context, store Store, dynClient dynamic.Interface, namespace string, checkRunner RunnerStatusFunc, fetchOutput RunnerOutputFunc, maxDuration time.Duration, logger *slog.Logger) {
 	jobs, _, err := store.List(ctx, []string{string(JobRunning)}, nil, 100, 0)
 	if err != nil {
 		logger.Error("reconcile: failed to list running jobs", "error", err)
@@ -61,6 +62,35 @@ func reconcileOrphanedJobs(ctx context.Context, store Store, dynClient dynamic.I
 			lastAttempt := job.Attempts[len(job.Attempts)-1]
 			if time.Since(lastAttempt.StartedAt) < 2*time.Minute {
 				jlog.Info("reconcile: attempt too recent, skipping", "startedAt", lastAttempt.StartedAt)
+				continue
+			}
+		}
+
+		// Force-fail jobs that have exceeded the maximum allowed runtime.
+		// Retries are intentionally skipped: if the job already ran for the
+		// full max duration, retrying is unlikely to help and would just
+		// consume another maxDuration window.
+		if maxDuration > 0 && len(job.Attempts) > 0 {
+			lastAttempt := job.Attempts[len(job.Attempts)-1]
+			if time.Since(lastAttempt.StartedAt) > maxDuration {
+				jlog.Info("reconcile: job exceeded max duration, force-failing",
+					"startedAt", lastAttempt.StartedAt,
+					"maxDuration", maxDuration)
+				now := time.Now().UTC()
+				last := &job.Attempts[len(job.Attempts)-1]
+				if last.FinishedAt == nil {
+					last.FinishedAt = &now
+					exitCode := -1
+					last.ExitCode = &exitCode
+					last.Output = appendOutput(last.Output, fmt.Sprintf("[exceeded max duration (%s)]", maxDuration))
+				}
+				if lastAttempt.SandboxClaimName != "" {
+					cleanupSandboxClaim(ctx, dynClient, namespace, lastAttempt.SandboxClaimName, jlog)
+				}
+				job.Status = JobFailed
+				if err := store.Put(ctx, &job); err != nil {
+					jlog.Error("reconcile: failed to force-fail stale job", "error", err)
+				}
 				continue
 			}
 		}

@@ -47,7 +47,7 @@ func TestReconcileOrphanedJobs_ResetsRunningJobs(t *testing.T) {
 		CreatedAt: time.Now(),
 	})
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, 0, slog.Default())
 
 	// Both orphaned jobs should be reset to PENDING.
 	// NATS will redeliver the messages automatically after AckWait expires.
@@ -92,7 +92,7 @@ func TestReconcileOrphanedJobs_ExhaustedRetriesMarksFailed(t *testing.T) {
 		},
 	})
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, 0, slog.Default())
 
 	job, _ := store.Get(ctx, "job-exhausted")
 	if job.Status != JobFailed {
@@ -111,7 +111,7 @@ func TestReconcileOrphanedJobs_NoRunningJobs(t *testing.T) {
 	})
 
 	// Should be a no-op.
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, 0, slog.Default())
 }
 
 func TestReconcileOrphanedJobs_ReAttachRunning(t *testing.T) {
@@ -136,7 +136,7 @@ func TestReconcileOrphanedJobs_ReAttachRunning(t *testing.T) {
 		return "running", 0, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-still-running")
 	if err != nil {
@@ -174,7 +174,7 @@ func TestReconcileOrphanedJobs_CollectsDone(t *testing.T) {
 		return "done", 0, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-done-unnoticed")
 	if err != nil {
@@ -219,7 +219,7 @@ func TestReconcileOrphanedJobs_CollectsDoneWithOutput(t *testing.T) {
 		return "Research complete.\n\n```goose-result\ntype: gist\nurl: https://gist.github.com/test/abc123\nsummary: Researched Seattle activities\n```\n", nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-done-with-output")
 	if err != nil {
@@ -273,7 +273,7 @@ func TestReconcileOrphanedJobs_FailedWithOutput(t *testing.T) {
 		return "Error: something went wrong\n", nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-failed-with-output")
 	if err != nil {
@@ -311,7 +311,7 @@ func TestReconcileOrphanedJobs_FailedRunnerRetries(t *testing.T) {
 		return "failed", 1, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-failed-runner")
 	if err != nil {
@@ -367,7 +367,7 @@ func TestReconcileOrphanedJobs_PeriodicCatchesCompletedJob(t *testing.T) {
 	}
 
 	// First pass: should leave job as RUNNING.
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, 0, slog.Default())
 
 	job, _ := store.Get(ctx, "job-late-finish")
 	if job.Status != JobRunning {
@@ -375,7 +375,7 @@ func TestReconcileOrphanedJobs_PeriodicCatchesCompletedJob(t *testing.T) {
 	}
 
 	// Second pass (simulates periodic tick): should mark SUCCEEDED.
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, 0, slog.Default())
 
 	job, _ = store.Get(ctx, "job-late-finish")
 	if job.Status != JobSucceeded {
@@ -409,7 +409,7 @@ func TestReconcileOrphanedJobs_RunnerUnreachableFallsBack(t *testing.T) {
 		return "", -1, fmt.Errorf("connection refused")
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-unreachable")
 	if err != nil {
@@ -469,7 +469,7 @@ func TestReconcileOrphanedJobs_GracePeriodSkipsRecentAttempt(t *testing.T) {
 		return "idle", 0, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, 0, slog.Default())
 
 	// Fresh job should be untouched — still RUNNING with no FinishedAt.
 	fresh, err := store.Get(ctx, "job-fresh")
@@ -518,7 +518,7 @@ func TestReconcileOrphanedJobs_ZeroAttemptsSkipsGracePeriod(t *testing.T) {
 		Attempts:   []Attempt{}, // explicitly empty — no grace period to check
 	})
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, 0, slog.Default())
 
 	job, err := store.Get(ctx, "job-no-attempts")
 	if err != nil {
@@ -590,5 +590,85 @@ func TestParseGooseResult_OnRawOutputBeforeClean(t *testing.T) {
 	// Useful agent output is preserved after cleaning.
 	if !strings.Contains(cleaned, "I investigated the traces") {
 		t.Errorf("cleanOutput must preserve useful agent output; got: %q", cleaned)
+	}
+}
+
+func TestReconcileOrphanedJobs_StaleJobForceFailed(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	maxDuration := 2 * time.Hour
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-stale",
+		Task:       "stale task",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-3 * time.Hour),
+		MaxRetries: 3,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-stale-1",
+			StartedAt:        time.Now().Add(-3 * time.Hour),
+		}},
+	})
+
+	runnerCalled := false
+	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
+		runnerCalled = true
+		return "running", 0, nil
+	}
+
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, maxDuration, slog.Default())
+
+	job, err := store.Get(ctx, "job-stale")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if job.Status != JobFailed {
+		t.Errorf("status = %s, want FAILED (exceeded maxDuration)", job.Status)
+	}
+	last := job.Attempts[len(job.Attempts)-1]
+	if last.FinishedAt == nil {
+		t.Error("FinishedAt should be set for force-failed job")
+	}
+	if last.ExitCode == nil || *last.ExitCode != -1 {
+		t.Errorf("exit code = %v, want -1", last.ExitCode)
+	}
+	if runnerCalled {
+		t.Error("runner should NOT be checked for stale jobs")
+	}
+}
+
+func TestReconcileOrphanedJobs_NonStaleJobStillChecksRunner(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	maxDuration := 4 * time.Hour
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-not-stale",
+		Task:       "active task",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-1 * time.Hour),
+		MaxRetries: 2,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-not-stale-1",
+			StartedAt:        time.Now().Add(-1 * time.Hour),
+		}},
+	})
+
+	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
+		return "running", 0, nil
+	}
+
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, maxDuration, slog.Default())
+
+	job, err := store.Get(ctx, "job-not-stale")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if job.Status != JobRunning {
+		t.Errorf("status = %s, want RUNNING (within maxDuration, runner alive)", job.Status)
 	}
 }

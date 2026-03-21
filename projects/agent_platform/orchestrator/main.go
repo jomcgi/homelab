@@ -135,8 +135,8 @@ func main() {
 	// finishes — without it, completed jobs stay stuck in RUNNING
 	// forever because the consumer only processes PENDING jobs.
 	if sandbox != nil {
-		reconcileOrphanedJobs(ctx, store, sandbox.dynClient, sandboxNamespace, sandbox.CheckRunnerForClaim, sandbox.FetchOutputForClaim, logger)
-		go runPeriodicReconcile(ctx, reconcileInterval, store, sandbox, sandboxNamespace, logger)
+		reconcileOrphanedJobs(ctx, store, sandbox.dynClient, sandboxNamespace, sandbox.CheckRunnerForClaim, sandbox.FetchOutputForClaim, maxDuration, logger)
+		go runPeriodicReconcile(ctx, reconcileInterval, store, sandbox, sandboxNamespace, maxDuration, logger)
 	}
 
 	// Start consumer if sandbox is available.
@@ -245,7 +245,7 @@ func envOr(key, fallback string) string {
 // runPeriodicReconcile runs reconcileOrphanedJobs on a ticker until ctx is
 // cancelled. This catches jobs whose runners finish after the startup
 // reconciliation pass — without it, those jobs stay RUNNING forever.
-func runPeriodicReconcile(ctx context.Context, interval time.Duration, store Store, sandbox *SandboxExecutor, namespace string, logger *slog.Logger) {
+func runPeriodicReconcile(ctx context.Context, interval time.Duration, store Store, sandbox *SandboxExecutor, namespace string, maxDuration time.Duration, logger *slog.Logger) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	logger.Info("periodic reconciler started", "interval", interval)
@@ -255,7 +255,7 @@ func runPeriodicReconcile(ctx context.Context, interval time.Duration, store Sto
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			reconcileOrphanedJobs(ctx, store, sandbox.dynClient, namespace, sandbox.CheckRunnerForClaim, sandbox.FetchOutputForClaim, logger)
+			reconcileOrphanedJobs(ctx, store, sandbox.dynClient, namespace, sandbox.CheckRunnerForClaim, sandbox.FetchOutputForClaim, maxDuration, logger)
 		}
 	}
 }
