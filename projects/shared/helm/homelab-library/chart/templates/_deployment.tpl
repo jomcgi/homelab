@@ -5,6 +5,7 @@ All config is read from .Values.<component> by convention.
 
 Usage:
   {{- include "homelab.deployment" (dict "context" . "component" "api") }}
+  {{- include "homelab.deployment" (dict "context" . "component" "wsGateway" "componentName" "ws-gateway") }}
 
 Required values under .<component>:
   image.repository, image.tag, image.pullPolicy
@@ -15,27 +16,34 @@ Optional values (with defaults):
   env ([]), resources ({}), volumes ([]), volumeMounts ([]),
   podAnnotations ({}), podSecurityContext (falls back to global),
   securityContext (falls back to global)
+
+Optional dict keys:
+  componentName — override the name used in metadata/labels/container
+                  (defaults to component); useful when the values key is
+                  camelCase but the Kubernetes resource name should be
+                  kebab-case.
 */}}
 {{- define "homelab.deployment" -}}
 {{- $ctx := .context -}}
 {{- $component := .component -}}
+{{- $name := default $component .componentName -}}
 {{- $vals := index $ctx.Values $component -}}
 {{- if (default true $vals.enabled) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "homelab.fullname" $ctx }}-{{ $component }}
+  name: {{ include "homelab.fullname" $ctx }}-{{ $name }}
   labels:
-    {{- include "homelab.componentLabels" (dict "context" $ctx "component" $component) | nindent 4 }}
+    {{- include "homelab.componentLabels" (dict "context" $ctx "component" $name) | nindent 4 }}
 spec:
   replicas: {{ $vals.replicas | default 1 }}
   selector:
     matchLabels:
-      {{- include "homelab.componentSelectorLabels" (dict "context" $ctx "component" $component) | nindent 6 }}
+      {{- include "homelab.componentSelectorLabels" (dict "context" $ctx "component" $name) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "homelab.componentSelectorLabels" (dict "context" $ctx "component" $component) | nindent 8 }}
+        {{- include "homelab.componentSelectorLabels" (dict "context" $ctx "component" $name) | nindent 8 }}
       {{- with $vals.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
@@ -53,7 +61,7 @@ spec:
         {{- $podSec := default $ctx.Values.podSecurityContext $vals.podSecurityContext -}}
         {{- toYaml $podSec | nindent 8 }}
       containers:
-        - name: {{ $component }}
+        - name: {{ $name }}
           image: "{{ $vals.image.repository }}:{{ $vals.image.tag }}"
           imagePullPolicy: {{ $vals.image.pullPolicy }}
           securityContext:
