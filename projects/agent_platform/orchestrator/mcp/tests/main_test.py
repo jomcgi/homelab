@@ -358,3 +358,18 @@ class TestGetJobOutput:
         ):
             result = await get_job_output(job_id="01ABC")
         assert "error" in result
+
+
+class TestMain:
+    def test_configures_and_runs(self, monkeypatch):
+        """main() must configure the HTTP client and start the MCP server."""
+        monkeypatch.setenv("ORCHESTRATOR_URL", "http://orchestrator.test:8080")
+        monkeypatch.delenv("ORCHESTRATOR_PORT", raising=False)
+
+        with patch.object(_mod.mcp, "run") as mock_run:
+            from projects.agent_platform.orchestrator.mcp.app.main import main
+
+            main()
+
+        mock_run.assert_called_once_with(transport="http", host="0.0.0.0", port=8000)
+        assert _mod._client is not None
