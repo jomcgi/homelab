@@ -82,6 +82,26 @@ semgrep_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
+semgrep_test(
+    name = "ais_subscription_test_semgrep_test",
+    srcs = ["ais_subscription_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "ais_subscription_test",
+    srcs = ["ais_subscription_test.py"],
+    imports = ["."],
+    deps = [
+        ":ais-ingest",
+        "@pip//certifi",
+        "@pip//nats_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//websockets",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     lockfiles = ["//bazel/requirements:all.txt"],

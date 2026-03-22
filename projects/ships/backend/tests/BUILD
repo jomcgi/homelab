@@ -110,3 +110,24 @@ py_test(
         "@pip//pytest_asyncio",  # keep
     ],
 )
+
+semgrep_test(
+    name = "subscription_websocket_test_semgrep_test",
+    srcs = ["subscription_websocket_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "subscription_websocket_test",
+    srcs = ["subscription_websocket_test.py"],
+    imports = [".."],
+    deps = [
+        ":conftest",
+        "//projects/ships/backend:ships-api",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//nats_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
+    ],
+)
