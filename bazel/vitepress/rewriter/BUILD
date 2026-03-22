@@ -41,7 +41,7 @@ semgrep_target_test(
 )
 
 semgrep_test(
-    name = "test_rewrite_semgrep_test",
-    srcs = ["test_rewrite.py"],
+    name = "rewrite_test_semgrep_test",
+    srcs = ["rewrite_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
