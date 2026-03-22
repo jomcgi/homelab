@@ -12,6 +12,7 @@ Environment:
 """
 
 import json
+import logging
 import subprocess
 import sys
 import uuid
@@ -113,6 +114,7 @@ def main() -> None:
         with open(results_path) as f:
             results = json.load(f)
     except Exception as e:
+        logging.warning("upload.py: failed to read results: %s", e)
         print(f"upload.py: failed to read results: {e}", file=sys.stderr)
         return
 
@@ -171,6 +173,7 @@ def main() -> None:
             )
 
     except Exception as e:
+        logging.warning("upload.py: upload failed (non-fatal): %s", e)
         print(f"upload.py: upload failed (non-fatal): {e}", file=sys.stderr)
 
 

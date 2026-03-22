@@ -8,6 +8,7 @@ uploads to SeaweedFS, and publishes trip points to NATS.
 import asyncio
 import hashlib
 import json
+import logging
 import math
 import os
 import signal
@@ -49,6 +50,8 @@ NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 # Namespace UUID for deterministic image key generation
 # This ensures the same source+timestamp always produces the same key
 IMAGE_KEY_NAMESPACE = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(help="Publish trip images to SeaweedFS and NATS")
 
@@ -465,6 +468,7 @@ def extract_exif(
         return lat, lng, timestamp, optics if has_optics else None
 
     except Exception as e:
+        logger.warning("Could not extract EXIF from %s: %s", image_path.name, e)
         print(f"  Warning: Could not extract EXIF from {image_path.name}: {e}")
         return None, None, None, None
 
@@ -628,6 +632,7 @@ def _rebuild_batch(
 
             return key, lat, lng, timestamp, optics
         except Exception as e:
+            logger.warning("Failed to process %s: %s", key, e)
             print(f"  Warning: Failed to process {key}: {e}")
             return key, None, None, None, None
 
@@ -995,6 +1000,7 @@ async def _run_upload(
 
                     except Exception as e:
                         error_msg = str(e)
+                        logger.exception("Upload failed for %s", record.dest_key)
                         queue.mark_failed(record.id, error_msg)
                         retry_info = (
                             f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
@@ -1205,6 +1211,7 @@ def publish_all(
                         await publish_to_nats(js, record, source)
                         progress.advance(task)
                     except Exception as e:
+                        logger.warning("NATS publish failed for %s: %s", record.dest_key, e)
                         progress.console.print(f"[red][FAIL] {record.dest_key}: {e}")
         finally:
             await nc.close()
@@ -1385,6 +1392,7 @@ def backfill_optics(
                         if from_cache:
                             cache_hits += 1
                     except Exception as e:
+                        logger.warning("Failed to extract EXIF for %s: %s", image_key, e)
                         progress.console.print(f"[red][SKIP] {image_key}: {e}")
                     progress.advance(task)
 
@@ -1495,6 +1503,7 @@ async def _run_rebuild(
                 else:
                     print("NATS stream max_age already unlimited")
             except Exception as e:
+                logger.warning("Could not update stream retention: %s", e)
                 print(f"Warning: Could not update stream retention: {e}")
 
         # Step 3: List all S3 keys

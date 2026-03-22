@@ -18,6 +18,7 @@ Usage:
 
 import asyncio
 import json
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -46,6 +47,7 @@ app = typer.Typer(
     help="Backfill elevation data for trip points", invoke_without_command=True
 )
 console = Console()
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -121,6 +123,7 @@ async def replay_stream(js) -> list[TripPoint]:
                         elif point.id:
                             points[point.id] = point
                     except Exception as e:
+                        logger.warning("Could not parse NATS message: %s", e)
                         console.print(f"[yellow]Warning: Could not parse message: {e}")
             except nats.errors.TimeoutError:
                 break
