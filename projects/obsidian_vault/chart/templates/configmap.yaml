@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "obsidian-vault.fullname" . }}-git-sidecar
+  labels:
+    {{- include "obsidian-vault.labels" . | nindent 4 }}
+data:
+  git-sidecar.sh: |
+    #!/bin/sh
+    set -e
+
+    VAULT_PATH="${VAULT_PATH:-/vault}"
+    REMOTE="${GIT_REMOTE}"
+    BRANCH="${GIT_BRANCH:-main}"
+    DEBOUNCE="${DEBOUNCE_SECONDS:-10}"
+    LOCKFILE="$VAULT_PATH/.git/mcp.lock"
+
+    cd "$VAULT_PATH"
+
+    # Configure SSH if deploy key is provided
+    if [ -n "$SSH_KEY_PATH" ] && [ -f "$SSH_KEY_PATH" ]; then
+        mkdir -p ~/.ssh
+        cp "$SSH_KEY_PATH" ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+        git config --global core.sshCommand "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new"
+    fi
+
+    # Initialize git repo if needed
+    if [ ! -d .git ]; then
+        git init
+        git config user.email "vault-sidecar@homelab.local"
+        git config user.name "vault-sidecar"
+        if [ -n "$REMOTE" ]; then
+            git remote add origin "$REMOTE"
+            # Pull existing history if any
+            git fetch origin "$BRANCH" 2>/dev/null && \
+                git checkout -B "$BRANCH" "origin/$BRANCH" 2>/dev/null || \
+                git checkout -b "$BRANCH"
+        fi
+        # Initial commit of any existing files
+        git add -A
+        git diff --cached --quiet || git commit -m "sync: initial vault state"
+    fi
+
+    echo "Git sidecar started. Watching $VAULT_PATH for changes..."
+
+    while true; do
+        sleep "$DEBOUNCE"
+
+        # Skip if MCP server is mid-operation
+        if [ -f "$LOCKFILE" ]; then
+            continue
+        fi
+
+        # Check for uncommitted changes
+        if ! git diff --quiet || ! git diff --cached --quiet || \
+           [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            git add -A
+            git commit -m "sync: external changes"
+
+            if [ -n "$REMOTE" ]; then
+                git push origin "$BRANCH" 2>/dev/null || \
+                    (git pull --rebase origin "$BRANCH" && git push origin "$BRANCH")
+            fi
+        fi
+    done
