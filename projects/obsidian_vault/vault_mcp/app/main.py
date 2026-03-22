@@ -48,6 +48,16 @@ def _git(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
     )
 
 
+def _validate_path(path: str) -> Path | None:
+    """Validate a note path is safe (no traversal, within vault)."""
+    if os.path.isabs(path):
+        return None
+    resolved = (_vault_path() / path).resolve()
+    if not resolved.is_relative_to(_vault_path().resolve()):
+        return None
+    return resolved
+
+
 @mcp.tool
 async def list_notes(
     folder: str | None = None,
@@ -77,6 +87,50 @@ async def list_notes(
         notes.append(str(rel))
 
     return {"notes": sorted(notes)}
+
+
+@mcp.tool
+async def read_note(path: str) -> dict:
+    """Read the full content of a note.
+
+    Args:
+        path: Relative path to the note (e.g. "daily/2026-03-21.md").
+
+    Returns the note content and path, or an error if not found.
+    """
+    resolved = _validate_path(path)
+    if resolved is None:
+        return {"error": f"Invalid path: {path}"}
+    if not resolved.exists():
+        return {"error": f"Note not found: {path}"}
+    return {"path": path, "content": resolved.read_text()}
+
+
+@mcp.tool
+async def search_notes(query: str) -> dict:
+    """Full-text search across all vault notes.
+
+    Args:
+        query: Text to search for (case-insensitive).
+
+    Returns matching files with the lines containing the query.
+    """
+    vault = _vault_path()
+    matches = []
+    query_lower = query.lower()
+
+    for md in vault.rglob("*.md"):
+        rel = md.relative_to(vault)
+        if any(part.startswith(".") for part in rel.parts):
+            continue
+        content = md.read_text()
+        matching_lines = [
+            line.strip() for line in content.splitlines() if query_lower in line.lower()
+        ]
+        if matching_lines:
+            matches.append({"path": str(rel), "lines": matching_lines})
+
+    return {"matches": matches}
 
 
 def _git_commit(files: list[str], message: str) -> dict:
