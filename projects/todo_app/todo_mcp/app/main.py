@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import httpx
 from fastmcp import FastMCP
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,6 +15,8 @@ class Settings(BaseSettings):
     url: str
     port: int = 8000
 
+
+logger = logging.getLogger(__name__)
 
 mcp = FastMCP("Todo")
 
@@ -39,6 +43,7 @@ async def _request(method: str, path: str, **kwargs) -> dict:
             return {"status": "ok"}
         return resp.json()
     except Exception as e:
+        logger.warning("Todo API request failed: %s", e)
         return {"error": f"Todo API request failed: {e}"}
 
 

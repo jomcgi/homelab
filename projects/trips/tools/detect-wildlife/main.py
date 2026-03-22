@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import signal
 import sqlite3
@@ -23,6 +24,8 @@ OUTPUT_DIR = Path(__file__).parent / "tmp"
 DB_PATH = Path(__file__).parent / "capture_queue.db"
 TEST_CAPTURE_COUNT = 20
 DEFAULT_INTERVAL = 30  # seconds between captures
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(help="GoPro wildlife detection camera control")
 
@@ -354,6 +357,7 @@ async def download_worker(
 
             except Exception as e:
                 error_msg = str(e)
+                logger.exception("Download failed for %s", record.camera_filename)
                 queue.mark_failed(record.id, error_msg)
                 retry_info = f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
                 print(
@@ -503,6 +507,7 @@ async def _run(
                     )
 
                 except Exception as e:
+                    logger.exception("Capture error")
                     print(f"Capture error: {e}")
 
                 # Check stop conditions

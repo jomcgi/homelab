@@ -149,6 +149,7 @@ def scrape_sub_area_links_from_area(
     except requests.exceptions.RequestException as e:
         print(f"Error during requests to {base_url}: {e}")
     except Exception as e:
+        logger.exception("Unexpected error during scraping of %s", base_url)
         print(f"An unexpected error occurred: {e}")
 
     return extracted_links
@@ -221,6 +222,7 @@ def scrape_walks_from_sub_area(
     except requests.exceptions.RequestException as e:
         print(f"Error during requests to {base_url}: {e}")
     except Exception as e:
+        logger.exception("Unexpected error during scraping of %s", base_url)
         print(f"An unexpected error occurred: {e}")
 
     return extracted_links
@@ -372,6 +374,7 @@ def scrape_walk_data_from_file(
                     data["latitude"] = coords.latitude
                     data["longitude"] = coords.longitude
                 except Exception as e:
+                    logger.warning("Could not convert coordinates: %s", e)
                     print(f"Warning: Could not convert coordinates: {e}")
             else:
                 print(
@@ -395,6 +398,7 @@ def scrape_walk_data_from_file(
             return None
 
     except Exception as e:
+        logger.exception("Unexpected error during walk scraping of %s", base_url)
         print(f"An unexpected error occurred during scraping: {e}")
         return None
 
@@ -447,6 +451,7 @@ def scrape_walkhighlands(session: requests.Session = None) -> list[Walk]:
                     area_link=area_link,
                 )
         except Exception as e:
+            logger.exception("Error scraping sub-area %s", area_link)
             error_collector.add_error("scrape_sub_area", e, area_link=area_link)
 
     if not sub_area_links:

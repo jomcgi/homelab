@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import httpx
 from fastmcp import FastMCP
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,6 +15,8 @@ class Settings(BaseSettings):
     url: str
     port: int = 8000
 
+
+logger = logging.getLogger(__name__)
 
 mcp = FastMCP("AgentOrchestrator")
 
@@ -37,6 +41,7 @@ async def _request(method: str, path: str, **kwargs) -> dict:
             return {"error": f"Orchestrator API error: {resp.status_code} {resp.text}"}
         return resp.json()
     except Exception as e:
+        logger.warning("Orchestrator API request failed: %s", e)
         return {"error": f"Orchestrator API request failed: {e}"}
 
 

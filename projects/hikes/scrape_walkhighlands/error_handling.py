@@ -329,6 +329,7 @@ def with_error_collection(
             result = func(error_collector, *args, **kwargs)
             return result, error_collector
         except Exception as e:
+            logger.exception("Error in %s", func.__name__)
             error_collector.add_error(func.__name__, e)
             return None, error_collector
 
