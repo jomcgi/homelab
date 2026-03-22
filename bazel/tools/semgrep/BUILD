@@ -47,7 +47,7 @@ semgrep_target_test(
 )
 
 semgrep_test(
-    name = "test_upload_semgrep_test",
-    srcs = ["test_upload.py"],
+    name = "upload_test_semgrep_test",
+    srcs = ["upload_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
