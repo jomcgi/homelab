@@ -1,6 +1,11 @@
 gitSidecar:
   remote: ""
 
+gateway:
+  url: "http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80"
+  secret:
+    itemPath: "vaults/k8s-homelab/items/context-forge"
+
 secrets:
   obsidian:
     itemPath: ""

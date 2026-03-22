@@ -62,4 +62,14 @@ resources:
     limits:
       memory: "128Mi"
 
+gateway:
+  url: ""
+  image:
+    repository: ghcr.io/ibm/mcp-context-forge
+    tag: v1.0.0-RC1
+    pullPolicy: IfNotPresent
+  secret:
+    name: context-forge-gateway
+    itemPath: ""
+
 podAnnotations: {}
