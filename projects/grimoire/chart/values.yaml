@@ -1,10 +1,63 @@
 # Frontend — Nginx serving static React build
 frontend:
-  replicaCount: 1
+  replicas: 1
   image:
     repository: ghcr.io/jomcgi/homelab/projects/grimoire/frontend
     tag: main
     pullPolicy: Always
+  containerPort: 8080
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+  probes:
+    liveness:
+      path: /
+      initialDelaySeconds: 5
+    readiness:
+      path: /
+      initialDelaySeconds: 5
+  volumeMounts:
+    - name: nginx-main-config
+      mountPath: /etc/nginx/nginx.conf
+      subPath: nginx.conf
+      readOnly: true
+    - name: nginx-site-config
+      mountPath: /etc/nginx/conf.d
+      readOnly: true
+    - name: nginx-cache
+      mountPath: /var/cache/nginx
+    - name: nginx-run
+      mountPath: /var/run
+    - name: nginx-lib
+      mountPath: /var/lib/nginx
+  volumes:
+    - name: nginx-main-config
+      configMap:
+        name: grimoire-nginx
+        items:
+          - key: nginx.conf
+            path: nginx.conf
+    - name: nginx-site-config
+      configMap:
+        name: grimoire-nginx
+        items:
+          - key: default.conf
+            path: default.conf
+    - name: nginx-cache
+      emptyDir: {}
+    - name: nginx-run
+      emptyDir: {}
+    - name: nginx-lib
+      emptyDir: {}
   service:
     type: ClusterIP
     port: 8080
