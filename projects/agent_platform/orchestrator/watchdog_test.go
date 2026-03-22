@@ -92,7 +92,7 @@ func TestSyncBuffer_Write_TruncationKeepsTail(t *testing.T) {
 
 	// Write 2*maxRetain+1 bytes with distinguishable head and tail.
 	head := strings.Repeat("a", 2*maxRetain) // "aaaaaaaaaa"
-	tail := "BBBBB"                           // last 5 bytes
+	tail := "BBBBB"                          // last 5 bytes
 	buf.Write([]byte(head + tail))
 
 	got := buf.String()
