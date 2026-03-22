@@ -14,6 +14,8 @@ from projects.obsidian_vault.vault_mcp.app.main import (
     Settings,
     configure,
     list_notes,
+    read_note,
+    search_notes,
 )
 
 
@@ -89,3 +91,61 @@ class TestListNotes:
         (tmp_path / "real.md").write_text("# Real note")
         result = await list_notes()
         assert result["notes"] == ["real.md"]
+
+
+class TestReadNote:
+    async def test_reads_content(self, tmp_path):
+        (tmp_path / "hello.md").write_text("# Hello\n\nWorld")
+        result = await read_note(path="hello.md")
+        assert result["content"] == "# Hello\n\nWorld"
+        assert result["path"] == "hello.md"
+
+    async def test_reads_nested_note(self, tmp_path):
+        (tmp_path / "daily").mkdir()
+        (tmp_path / "daily" / "today.md").write_text("# Today")
+        result = await read_note(path="daily/today.md")
+        assert result["content"] == "# Today"
+
+    async def test_not_found(self, tmp_path):
+        result = await read_note(path="missing.md")
+        assert "error" in result
+
+    async def test_rejects_path_traversal(self, tmp_path):
+        result = await read_note(path="../../../etc/passwd")
+        assert "error" in result
+
+    async def test_rejects_absolute_path(self, tmp_path):
+        result = await read_note(path="/etc/passwd")
+        assert "error" in result
+
+
+class TestSearchNotes:
+    async def test_finds_matching_content(self, tmp_path):
+        (tmp_path / "a.md").write_text("# Homelab\n\nKubernetes cluster")
+        (tmp_path / "b.md").write_text("# Recipes\n\nChocolate cake")
+        result = await search_notes(query="kubernetes")
+        assert len(result["matches"]) == 1
+        assert result["matches"][0]["path"] == "a.md"
+
+    async def test_case_insensitive(self, tmp_path):
+        (tmp_path / "a.md").write_text("KUBERNETES is great")
+        result = await search_notes(query="kubernetes")
+        assert len(result["matches"]) == 1
+
+    async def test_no_matches(self, tmp_path):
+        (tmp_path / "a.md").write_text("# Nothing relevant")
+        result = await search_notes(query="zyxwvu")
+        assert result["matches"] == []
+
+    async def test_returns_matching_lines(self, tmp_path):
+        (tmp_path / "a.md").write_text("line1\nfound here\nline3")
+        result = await search_notes(query="found")
+        assert "found here" in result["matches"][0]["lines"][0]
+
+    async def test_ignores_dotfiles(self, tmp_path):
+        (tmp_path / ".obsidian").mkdir()
+        (tmp_path / ".obsidian" / "config.md").write_text("query match")
+        (tmp_path / "real.md").write_text("query match")
+        result = await search_notes(query="query match")
+        assert len(result["matches"]) == 1
+        assert result["matches"][0]["path"] == "real.md"
