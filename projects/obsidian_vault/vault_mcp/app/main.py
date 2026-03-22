@@ -48,6 +48,37 @@ def _git(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
     )
 
 
+@mcp.tool
+async def list_notes(
+    folder: str | None = None,
+    pattern: str | None = None,
+) -> dict:
+    """List markdown files in the vault.
+
+    Args:
+        folder: Optional subfolder to list (e.g. "daily", "projects").
+        pattern: Optional glob pattern to filter filenames (e.g. "note-*").
+
+    Returns a list of relative paths to all matching .md files.
+    """
+    vault = _vault_path()
+    base = vault / folder if folder else vault
+    if not base.exists():
+        return {"notes": []}
+
+    notes = []
+    for md in base.rglob("*.md"):
+        rel = md.relative_to(vault)
+        # Skip dotfiles/directories (.git, .obsidian, etc.)
+        if any(part.startswith(".") for part in rel.parts):
+            continue
+        if pattern and not fnmatch.fnmatch(rel.name, pattern):
+            continue
+        notes.append(str(rel))
+
+    return {"notes": sorted(notes)}
+
+
 def _git_commit(files: list[str], message: str) -> dict:
     """Stage files and commit with the given message."""
     for f in files:
