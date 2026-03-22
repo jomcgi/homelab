@@ -487,9 +487,7 @@ class TestScrapeLogging:
         mock_logger.exception.assert_called()
         assert result == []
 
-    def test_scrape_walks_unexpected_error_logs_exception(
-        self, mock_session, headers
-    ):
+    def test_scrape_walks_unexpected_error_logs_exception(self, mock_session, headers):
         """logger.exception is called when a non-RequestException occurs in scrape_walks_from_sub_area."""
         mock_session.get.side_effect = ValueError("unexpected parse error")
 
