@@ -234,9 +234,7 @@ class TestMain:
     def test_invalid_json_prints_error(self, monkeypatch, capsys):
         monkeypatch.setenv("SEMGREP_APP_TOKEN", "tok")
         monkeypatch.setenv("SEMGREP_REPO", "org/repo")
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("not valid json {{")
             path = f.name
         try:
@@ -255,16 +253,16 @@ class TestMain:
         monkeypatch.setenv("SEMGREP_ENGINE_VERSION", "1.0.0")
 
         results = {"results": [], "errors": []}
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(results, f)
             path = f.name
 
         try:
             mock_client = _make_mock_http_client("scan-42")
             with patch.object(sys, "argv", ["upload.py", path, "0"]):
-                with patch("bazel.tools.semgrep.upload.httpx.Client", return_value=mock_client):
+                with patch(
+                    "bazel.tools.semgrep.upload.httpx.Client", return_value=mock_client
+                ):
                     main()
 
             err = capsys.readouterr().err
@@ -284,16 +282,16 @@ class TestMain:
         monkeypatch.setenv("SEMGREP_ENGINE_VERSION", "1.0.0")
 
         results = {"results": [], "errors": []}
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(results, f)
             path = f.name
 
         try:
             mock_client = _make_mock_http_client("s99")
             with patch.object(sys, "argv", ["upload.py", path, "0"]):
-                with patch("bazel.tools.semgrep.upload.httpx.Client", return_value=mock_client):
+                with patch(
+                    "bazel.tools.semgrep.upload.httpx.Client", return_value=mock_client
+                ):
                     main()
 
             urls = [c.args[0] for c in mock_client.post.call_args_list]
@@ -311,16 +309,16 @@ class TestMain:
         monkeypatch.setenv("SEMGREP_ENGINE_VERSION", "1.0.0")
 
         results = {"results": [], "errors": []}
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(results, f)
             path = f.name
 
         try:
             mock_client = _make_mock_http_client("scanX")
             with patch.object(sys, "argv", ["upload.py", path, "2"]):
-                with patch("bazel.tools.semgrep.upload.httpx.Client", return_value=mock_client):
+                with patch(
+                    "bazel.tools.semgrep.upload.httpx.Client", return_value=mock_client
+                ):
                     main()
 
             # Third call is the "complete" request
@@ -337,9 +335,7 @@ class TestMain:
         monkeypatch.setenv("GITHUB_REF_NAME", "main")
 
         results = {"results": [], "errors": []}
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(results, f)
             path = f.name
 
@@ -363,16 +359,16 @@ class TestMain:
         monkeypatch.setenv("SEMGREP_ENGINE_VERSION", "1.0.0")
 
         results = {"results": [], "errors": []}
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(results, f)
             path = f.name
 
         try:
             mock_client = _make_mock_http_client("s1")
             with patch.object(sys, "argv", ["upload.py", path, "0"]):
-                with patch("bazel.tools.semgrep.upload.httpx.Client", return_value=mock_client):
+                with patch(
+                    "bazel.tools.semgrep.upload.httpx.Client", return_value=mock_client
+                ):
                     main()
 
             # First call is the register-scan POST

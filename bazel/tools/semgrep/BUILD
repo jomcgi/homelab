@@ -1,6 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 # gazelle:resolve py bazel //bazel/tools/semgrep:semgrep
@@ -33,8 +33,7 @@ py_test(
     name = "test_upload",
     srcs = ["test_upload.py"],
     deps = [
-        ":semgrep",
-        "@pip//httpx",
+        "//bazel/tools/semgrep",
         "@pip//pytest",
     ],
 )
@@ -45,4 +44,10 @@ semgrep_target_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":upload",
+)
+
+semgrep_test(
+    name = "test_upload_semgrep_test",
+    srcs = ["test_upload.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )
