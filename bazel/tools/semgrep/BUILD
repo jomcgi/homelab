@@ -3,6 +3,17 @@ load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
+# gazelle:resolve py bazel //bazel/tools/semgrep:semgrep
+# gazelle:resolve py bazel.tools //bazel/tools/semgrep:semgrep
+# gazelle:resolve py bazel.tools.semgrep //bazel/tools/semgrep:semgrep
+# gazelle:resolve py bazel.tools.semgrep.upload //bazel/tools/semgrep:semgrep
+# gazelle:resolve py bazel.tools.semgrep.upload._detect_branch //bazel/tools/semgrep:semgrep
+# gazelle:resolve py bazel.tools.semgrep.upload._detect_commit //bazel/tools/semgrep:semgrep
+# gazelle:resolve py bazel.tools.semgrep.upload._detect_repo //bazel/tools/semgrep:semgrep
+# gazelle:resolve py bazel.tools.semgrep.upload._detect_semgrep_version //bazel/tools/semgrep:semgrep
+# gazelle:resolve py bazel.tools.semgrep.upload._git //bazel/tools/semgrep:semgrep
+# gazelle:resolve py bazel.tools.semgrep.upload.main //bazel/tools/semgrep:semgrep
+
 py_venv_binary(
     name = "upload",
     srcs = ["upload.py"],
