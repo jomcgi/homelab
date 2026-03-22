@@ -285,3 +285,13 @@ async def restore_note(path: str, commit: str) -> dict:
             [path],
             f"mcp(restore_note): {path} — restored from {commit[:8]}",
         )
+
+
+def main():
+    settings = Settings()
+    configure(settings)
+    mcp.run(transport="http", host="0.0.0.0", port=settings.port)
+
+
+if __name__ == "__main__":
+    main()
