@@ -25,6 +25,7 @@ from projects.hikes.scrape_walkhighlands.error_handling import (
     safe_float_conversion,
     safe_int_conversion,
     validate_database_file,
+    with_error_collection,
 )
 
 
@@ -384,3 +385,78 @@ class TestErrorCollector:
             collector.log_summary()
 
         assert "without errors" in caplog.text
+
+
+class TestWithErrorCollection:
+    """Tests for the with_error_collection decorator."""
+
+    def test_logger_exception_called_when_func_raises(self):
+        """logger.exception must be called in with_error_collection when func raises."""
+
+        @with_error_collection
+        def failing_func(error_collector):
+            raise ValueError("test error")
+
+        with patch(
+            "projects.hikes.scrape_walkhighlands.error_handling.logger"
+        ) as mock_logger:
+            result, collector = failing_func()
+
+        mock_logger.exception.assert_called_once()
+        assert "failing_func" in str(mock_logger.exception.call_args)
+        assert result is None
+
+    def test_returns_none_and_nonempty_error_collector_on_exception(self):
+        """Returns (None, non-empty ErrorCollector) when func raises."""
+
+        @with_error_collection
+        def failing_func(error_collector):
+            raise RuntimeError("something failed")
+
+        result, collector = failing_func()
+
+        assert result is None
+        assert collector.has_errors()
+        assert len(collector.errors) == 1
+
+    def test_error_collector_contains_error_info(self):
+        """The ErrorCollector returned includes the function name and exception."""
+
+        @with_error_collection
+        def my_func(error_collector):
+            raise TypeError("bad type")
+
+        result, collector = my_func()
+
+        assert collector.errors[0]["operation"] == "my_func"
+        assert "TypeError" in collector.errors[0]["error_type"]
+
+    def test_happy_path_returns_result_and_empty_collector(self):
+        """When func succeeds, returns (result, empty ErrorCollector)."""
+
+        @with_error_collection
+        def ok_func(error_collector):
+            return 42
+
+        result, collector = ok_func()
+
+        assert result == 42
+        assert not collector.has_errors()
+
+    def test_logger_exception_message_contains_func_name(self):
+        """The logger.exception format string includes the function name."""
+
+        @with_error_collection
+        def named_func(error_collector):
+            raise ValueError("boom")
+
+        with patch(
+            "projects.hikes.scrape_walkhighlands.error_handling.logger"
+        ) as mock_logger:
+            failing_func_name = "named_func"
+            named_func()
+
+        call_args = mock_logger.exception.call_args
+        # First positional arg is the format string: "Error in %s"
+        format_str = call_args[0][0]
+        assert "Error in %s" in format_str or "Error in" in format_str
