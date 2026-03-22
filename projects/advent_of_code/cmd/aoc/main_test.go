@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -662,5 +663,381 @@ func TestEnsurePythonPackage_DoesNotOverwriteExisting(t *testing.T) {
 	}
 	if string(data) != sentinel {
 		t.Errorf("existing __init__.py was overwritten; got %q, want %q", string(data), sentinel)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// generateGoTest
+// ---------------------------------------------------------------------------
+
+func TestGenerateGoTest_CreatesFile(t *testing.T) {
+	dir := t.TempDir()
+	dayDir := filepath.Join(dir, "day01")
+	goDir := filepath.Join(dayDir, "go")
+	if err := os.MkdirAll(goDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	if err := generateGoTest(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generateGoTest() error = %v", err)
+	}
+
+	testPath := filepath.Join(goDir, "solution_test.go")
+	if _, err := os.Stat(testPath); err != nil {
+		t.Errorf("solution_test.go not created: %v", err)
+	}
+}
+
+func TestGenerateGoTest_ContentHasExpectedStrings(t *testing.T) {
+	dir := t.TempDir()
+	dayDir := filepath.Join(dir, "day01")
+	goDir := filepath.Join(dayDir, "go")
+	if err := os.MkdirAll(goDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	if err := generateGoTest(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generateGoTest() error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(goDir, "solution_test.go"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	content := string(data)
+
+	for _, want := range []string{"TestPart1", "TestPart2", "answers.json", "input.txt", "year2024/day01"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("solution_test.go missing %q", want)
+		}
+	}
+}
+
+func TestGenerateGoTest_OverwritesExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	dayDir := filepath.Join(dir, "day01")
+	goDir := filepath.Join(dayDir, "go")
+	if err := os.MkdirAll(goDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	// Write sentinel content into the file first
+	sentinel := "// old content"
+	testPath := filepath.Join(goDir, "solution_test.go")
+	if err := os.WriteFile(testPath, []byte(sentinel), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	if err := generateGoTest(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generateGoTest() error = %v", err)
+	}
+
+	data, err := os.ReadFile(testPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) == sentinel {
+		t.Error("generateGoTest() left existing file unchanged; expected an overwrite")
+	}
+}
+
+func TestGenerateGoTest_DataPathContainsYearAndDay(t *testing.T) {
+	tests := []struct {
+		year    int
+		day     int
+		wantYear string
+		wantDay  string
+	}{
+		{2015, 1, "year2015", "day01"},
+		{2024, 25, "year2024", "day25"},
+		{2023, 9, "year2023", "day09"},
+	}
+
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("%d_day%d", tc.year, tc.day), func(t *testing.T) {
+			dir := t.TempDir()
+			dayDir := filepath.Join(dir, "dayXX")
+			goDir := filepath.Join(dayDir, "go")
+			if err := os.MkdirAll(goDir, 0o755); err != nil {
+				t.Fatalf("MkdirAll: %v", err)
+			}
+
+			if err := generateGoTest(dayDir, tc.year, tc.day); err != nil {
+				t.Fatalf("generateGoTest() error = %v", err)
+			}
+
+			data, err := os.ReadFile(filepath.Join(goDir, "solution_test.go"))
+			if err != nil {
+				t.Fatalf("ReadFile: %v", err)
+			}
+			content := string(data)
+
+			if !strings.Contains(content, tc.wantYear) {
+				t.Errorf("solution_test.go missing year %q", tc.wantYear)
+			}
+			if !strings.Contains(content, tc.wantDay) {
+				t.Errorf("solution_test.go missing day %q", tc.wantDay)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// generatePythonTest
+// ---------------------------------------------------------------------------
+
+func TestGeneratePythonTest_CreatesFile(t *testing.T) {
+	dir := t.TempDir()
+	dayDir := filepath.Join(dir, "day01")
+	pyDir := filepath.Join(dayDir, "python")
+	if err := os.MkdirAll(pyDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	if err := generatePythonTest(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generatePythonTest() error = %v", err)
+	}
+
+	testPath := filepath.Join(pyDir, "solution_test.py")
+	if _, err := os.Stat(testPath); err != nil {
+		t.Errorf("solution_test.py not created: %v", err)
+	}
+}
+
+func TestGeneratePythonTest_ContentHasExpectedStrings(t *testing.T) {
+	dir := t.TempDir()
+	dayDir := filepath.Join(dir, "day01")
+	pyDir := filepath.Join(dayDir, "python")
+	if err := os.MkdirAll(pyDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	if err := generatePythonTest(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generatePythonTest() error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(pyDir, "solution_test.py"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	content := string(data)
+
+	for _, want := range []string{
+		"test_part1",
+		"test_part2",
+		"@pytest.fixture",
+		"import pytest",
+		"answers.json",
+		"input.txt",
+		"year2024",
+		"day01",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("solution_test.py missing %q", want)
+		}
+	}
+}
+
+func TestGeneratePythonTest_ImportPathContainsYearAndDay(t *testing.T) {
+	dir := t.TempDir()
+	dayDir := filepath.Join(dir, "dayXX")
+	pyDir := filepath.Join(dayDir, "python")
+	if err := os.MkdirAll(pyDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	if err := generatePythonTest(dayDir, 2024, 5); err != nil {
+		t.Fatalf("generatePythonTest() error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(pyDir, "solution_test.py"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	content := string(data)
+
+	// Import path should reference the correct module
+	for _, want := range []string{"year2024", "day05", "part1", "part2"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("solution_test.py import path missing %q", want)
+		}
+	}
+}
+
+func TestGeneratePythonTest_OverwritesExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	dayDir := filepath.Join(dir, "day01")
+	pyDir := filepath.Join(dayDir, "python")
+	if err := os.MkdirAll(pyDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	// Write sentinel content into the file first
+	sentinel := "# old python test content"
+	testPath := filepath.Join(pyDir, "solution_test.py")
+	if err := os.WriteFile(testPath, []byte(sentinel), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	if err := generatePythonTest(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generatePythonTest() error = %v", err)
+	}
+
+	data, err := os.ReadFile(testPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) == sentinel {
+		t.Error("generatePythonTest() left existing file unchanged; expected an overwrite")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// generateTests
+// ---------------------------------------------------------------------------
+
+// makeAocDayDir returns a dayDir rooted inside an "advent_of_code" directory so
+// that ensurePythonPackage (called by generateTests) stops walking at the right
+// level and does not attempt to create __init__.py in system directories.
+func makeAocDayDir(t *testing.T) (dayDir, goDir, pyDir string) {
+	t.Helper()
+	base := t.TempDir()
+	dayDir = filepath.Join(base, "advent_of_code", "solutions", "year2024", "day01")
+	goDir = filepath.Join(dayDir, "go")
+	pyDir = filepath.Join(dayDir, "python")
+	if err := os.MkdirAll(goDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(goDir): %v", err)
+	}
+	if err := os.MkdirAll(pyDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(pyDir): %v", err)
+	}
+	return dayDir, goDir, pyDir
+}
+
+func TestGenerateTests_BothSolutionsExist(t *testing.T) {
+	dayDir, goDir, pyDir := makeAocDayDir(t)
+
+	if err := os.WriteFile(filepath.Join(goDir, "solution.go"), []byte("package main"), 0o644); err != nil {
+		t.Fatalf("WriteFile solution.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pyDir, "solution.py"), []byte("# solution"), 0o644); err != nil {
+		t.Fatalf("WriteFile solution.py: %v", err)
+	}
+
+	if err := generateTests(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generateTests() error = %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(goDir, "solution_test.go")); err != nil {
+		t.Errorf("solution_test.go not created: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(pyDir, "solution_test.py")); err != nil {
+		t.Errorf("solution_test.py not created: %v", err)
+	}
+}
+
+func TestGenerateTests_OnlyGoSolutionExists(t *testing.T) {
+	dayDir, goDir, pyDir := makeAocDayDir(t)
+
+	if err := os.WriteFile(filepath.Join(goDir, "solution.go"), []byte("package main"), 0o644); err != nil {
+		t.Fatalf("WriteFile solution.go: %v", err)
+	}
+	// No solution.py
+
+	if err := generateTests(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generateTests() error = %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(goDir, "solution_test.go")); err != nil {
+		t.Errorf("solution_test.go not created: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(pyDir, "solution_test.py")); err == nil {
+		t.Error("solution_test.py was created but should not have been (no solution.py)")
+	}
+}
+
+func TestGenerateTests_OnlyPythonSolutionExists(t *testing.T) {
+	dayDir, goDir, pyDir := makeAocDayDir(t)
+
+	// No solution.go
+	if err := os.WriteFile(filepath.Join(pyDir, "solution.py"), []byte("# solution"), 0o644); err != nil {
+		t.Fatalf("WriteFile solution.py: %v", err)
+	}
+
+	if err := generateTests(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generateTests() error = %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(goDir, "solution_test.go")); err == nil {
+		t.Error("solution_test.go was created but should not have been (no solution.go)")
+	}
+	if _, err := os.Stat(filepath.Join(pyDir, "solution_test.py")); err != nil {
+		t.Errorf("solution_test.py not created: %v", err)
+	}
+}
+
+func TestGenerateTests_NeitherSolutionExists(t *testing.T) {
+	dayDir, goDir, pyDir := makeAocDayDir(t)
+	// No solution files at all
+
+	if err := generateTests(dayDir, 2024, 1); err != nil {
+		t.Fatalf("generateTests() error = %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(goDir, "solution_test.go")); err == nil {
+		t.Error("solution_test.go was created but should not have been")
+	}
+	if _, err := os.Stat(filepath.Join(pyDir, "solution_test.py")); err == nil {
+		t.Error("solution_test.py was created but should not have been")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// getSession
+// ---------------------------------------------------------------------------
+
+func TestGetSession_UsesSessionVar(t *testing.T) {
+	orig := sessionVar
+	t.Cleanup(func() { sessionVar = orig })
+	sessionVar = "my-test-session-token"
+
+	got, err := getSession()
+	if err != nil {
+		t.Fatalf("getSession() error = %v, want nil", err)
+	}
+	if got != "my-test-session-token" {
+		t.Errorf("getSession() = %q, want %q", got, "my-test-session-token")
+	}
+}
+
+func TestGetSession_SessionVarTakesPrecedenceOverEmpty(t *testing.T) {
+	orig := sessionVar
+	t.Cleanup(func() { sessionVar = orig })
+
+	// When sessionVar is non-empty, getSession must return it without error
+	// regardless of the environment or cookie store.
+	sessionVar = "explicit-session-abc123"
+
+	got, err := getSession()
+	if err != nil {
+		t.Fatalf("getSession() with non-empty sessionVar returned error: %v", err)
+	}
+	if got != sessionVar {
+		t.Errorf("getSession() = %q, want %q", got, sessionVar)
+	}
+}
+
+func TestGetSession_EmptySessionVarFallsThrough(t *testing.T) {
+	orig := sessionVar
+	t.Cleanup(func() { sessionVar = orig })
+	sessionVar = ""
+
+	// With an empty sessionVar, getSession() delegates to cookies.GetSession().
+	// In CI / test environments there is no browser cookie store, so an error
+	// is the expected outcome. We just verify the function does not panic and
+	// that it does NOT return the empty string as a valid session.
+	got, err := getSession()
+	if err == nil && got == "" {
+		t.Error("getSession() with empty sessionVar returned empty string without error")
 	}
 }
