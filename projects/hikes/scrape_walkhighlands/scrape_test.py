@@ -459,3 +459,106 @@ class TestScrapeWalkhighlands:
 
             assert len(result) == 1
             assert result[0].name == "Test Walk"
+
+
+class TestScrapeLogging:
+    """Tests verifying logger.exception is called in unexpected error paths."""
+
+    @pytest.fixture
+    def mock_session(self):
+        session = MagicMock(spec=requests.Session)
+        return session
+
+    @pytest.fixture
+    def headers(self):
+        return {"User-Agent": "Test Agent"}
+
+    def test_scrape_sub_area_unexpected_error_logs_exception(
+        self, mock_session, headers
+    ):
+        """logger.exception is called when a non-RequestException occurs in scrape_sub_area_links_from_area."""
+        mock_session.get.side_effect = ValueError("unexpected parse error")
+
+        with patch("projects.hikes.scrape_walkhighlands.scrape.logger") as mock_logger:
+            result = scrape_sub_area_links_from_area(
+                "https://www.walkhighlands.co.uk/highlands/", headers, mock_session
+            )
+
+        mock_logger.exception.assert_called()
+        assert result == []
+
+    def test_scrape_walks_unexpected_error_logs_exception(
+        self, mock_session, headers
+    ):
+        """logger.exception is called when a non-RequestException occurs in scrape_walks_from_sub_area."""
+        mock_session.get.side_effect = ValueError("unexpected parse error")
+
+        with patch("projects.hikes.scrape_walkhighlands.scrape.logger") as mock_logger:
+            result = scrape_walks_from_sub_area(
+                "https://www.walkhighlands.co.uk/highlands/cairngorms/",
+                headers,
+                mock_session,
+            )
+
+        mock_logger.exception.assert_called()
+        assert result == []
+
+    def test_scrape_walk_data_unexpected_error_logs_exception(
+        self, mock_session, headers
+    ):
+        """logger.exception is called when an unexpected exception occurs in scrape_walk_data_from_file."""
+        mock_session.get.side_effect = ValueError("unexpected error")
+
+        with patch("projects.hikes.scrape_walkhighlands.scrape.logger") as mock_logger:
+            result = scrape_walk_data_from_file(
+                "https://www.walkhighlands.co.uk/highlands/ben-nevis.shtml",
+                headers,
+                mock_session,
+            )
+
+        mock_logger.exception.assert_called()
+        assert result is None
+
+    def test_scrape_walkhighlands_sub_area_exception_logs_and_continues(self):
+        """logger.exception is called when scrape_sub_area_links_from_area raises."""
+        with (
+            patch(
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
+            ) as mock_areas,
+            patch(
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area",
+                side_effect=RuntimeError("sub-area scrape failed"),
+            ),
+            patch("projects.hikes.scrape_walkhighlands.scrape.logger") as mock_logger,
+        ):
+            mock_areas.return_value = ["https://example.com/area1"]
+            result = scrape_walkhighlands()
+
+        mock_logger.exception.assert_called()
+        assert result == []
+
+    def test_scrape_walkhighlands_walk_data_exception_logs_and_continues(self):
+        """logger.exception is called when scrape_walk_data_from_file raises in the loop."""
+        with (
+            patch(
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
+            ) as mock_areas,
+            patch(
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area"
+            ) as mock_sub_areas,
+            patch(
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_walks_from_sub_area"
+            ) as mock_walks,
+            patch(
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_walk_data_from_file",
+                side_effect=RuntimeError("walk parse failed"),
+            ),
+            patch("projects.hikes.scrape_walkhighlands.scrape.logger") as mock_logger,
+        ):
+            mock_areas.return_value = ["https://example.com/area1"]
+            mock_sub_areas.return_value = ["https://example.com/subarea1"]
+            mock_walks.return_value = ["https://example.com/walk1"]
+            result = scrape_walkhighlands()
+
+        mock_logger.exception.assert_called()
+        assert result == []
