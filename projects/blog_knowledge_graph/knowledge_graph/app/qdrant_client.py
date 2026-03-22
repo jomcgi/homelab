@@ -20,9 +20,7 @@ class QdrantClient:
     async def ensure_collection(self, vector_size: int) -> None:
         """Create collection if it doesn't exist."""
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                f"{self._url}/collections/{self._collection}"
-            )
+            resp = await client.get(f"{self._url}/collections/{self._collection}")
             if resp.status_code == 200:
                 return
 
