@@ -743,8 +743,8 @@ func TestGenerateGoTest_OverwritesExistingFile(t *testing.T) {
 
 func TestGenerateGoTest_DataPathContainsYearAndDay(t *testing.T) {
 	tests := []struct {
-		year    int
-		day     int
+		year     int
+		day      int
 		wantYear string
 		wantDay  string
 	}{
