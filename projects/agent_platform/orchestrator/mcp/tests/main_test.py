@@ -44,6 +44,19 @@ class TestSettings:
     def test_env_prefix(self):
         assert Settings.model_config["env_prefix"] == "ORCHESTRATOR_"
 
+    def test_reads_url_from_env(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRATOR_URL", "http://env-orch.test:1234")
+        monkeypatch.delenv("ORCHESTRATOR_PORT", raising=False)
+        s = Settings()
+        assert s.url == "http://env-orch.test:1234"
+        assert s.port == 8000
+
+    def test_reads_port_from_env(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRATOR_URL", "http://env-orch.test")
+        monkeypatch.setenv("ORCHESTRATOR_PORT", "9999")
+        s = Settings()
+        assert s.port == 9999
+
 
 class TestConfigure:
     def test_sets_async_client(self):
@@ -184,6 +197,18 @@ class TestSubmitJob:
             await submit_job(task="Only task")
         body = mock_req.call_args[1]["json"]
         assert list(body.keys()) == ["task"]
+
+    async def test_source_only_optional_param(self):
+        """source alone (without profile/max_retries) must be included in body."""
+        expected = {
+            "id": "01ABC",
+            "status": "PENDING",
+            "created_at": "2026-03-07T00:00:00Z",
+        }
+        with patch(_PATCH, new_callable=AsyncMock, return_value=expected) as mock_req:
+            await submit_job(task="From CLI", source="cli")
+        body = mock_req.call_args[1]["json"]
+        assert body == {"task": "From CLI", "source": "cli"}
 
     async def test_http_error_returns_error_dict(self):
         with patch(
