@@ -22,7 +22,7 @@ _client: httpx.AsyncClient | None = None
 def configure(settings: Settings) -> None:
     """Configure the HTTP client with the given settings."""
     global _client
-    _client = httpx.AsyncClient(base_url=settings.url)
+    _client = httpx.AsyncClient(base_url=settings.url, timeout=30.0)
 
 
 async def _request(method: str, path: str, **kwargs) -> dict:

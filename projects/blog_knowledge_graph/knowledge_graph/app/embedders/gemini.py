@@ -23,12 +23,11 @@ class GeminiEmbedder:
             }
             for t in texts
         ]
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
                 f"{self.ENDPOINT}/{self._model}:batchEmbedContents",
                 params={"key": self._api_key},
                 json={"requests": requests_payload},
-                timeout=120.0,
             )
             response.raise_for_status()
             data = response.json()
@@ -36,7 +35,7 @@ class GeminiEmbedder:
 
     async def embed_query(self, text: str) -> list[float]:
         """Embed a search query."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 f"{self.ENDPOINT}/{self._model}:embedContent",
                 params={"key": self._api_key},
@@ -45,7 +44,6 @@ class GeminiEmbedder:
                     "content": {"parts": [{"text": text}]},
                     "taskType": "RETRIEVAL_QUERY",
                 },
-                timeout=60.0,
             )
             response.raise_for_status()
             data = response.json()
