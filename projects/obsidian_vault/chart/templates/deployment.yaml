@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "obsidian-vault.fullname" . }}
+  labels:
+    {{- include "obsidian-vault.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Required for RWO PVC - can't attach to multiple pods
+  selector:
+    matchLabels:
+      {{- include "obsidian-vault.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "obsidian-vault.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "obsidian-vault.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: headless-sync
+          image: "{{ .Values.headlessSync.image.repository }}:{{ .Values.headlessSync.image.tag }}"
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          command:
+            - sh
+            - -c
+            - |
+              npx obsidian-headless sync --continuous --vault /vault
+          env:
+            - name: OBSIDIAN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.obsidian.name }}
+                  key: email
+            - name: OBSIDIAN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.obsidian.name }}
+                  key: password
+          volumeMounts:
+            - name: vault
+              mountPath: /vault
+          resources:
+            {{- toYaml .Values.resources.headlessSync | nindent 12 }}
+        - name: git-sidecar
+          image: "{{ .Values.gitSidecar.image.repository }}:{{ .Values.gitSidecar.image.tag }}"
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          command:
+            - /scripts/git-sidecar.sh
+          env:
+            - name: GIT_REMOTE
+              value: {{ .Values.gitSidecar.remote | quote }}
+            - name: GIT_BRANCH
+              value: {{ .Values.gitSidecar.branch | quote }}
+            - name: DEBOUNCE_SECONDS
+              value: {{ .Values.gitSidecar.debounceSeconds | quote }}
+            - name: SSH_KEY_PATH
+              value: /secrets/ssh/ssh-privatekey
+          volumeMounts:
+            - name: vault
+              mountPath: /vault
+            - name: git-sidecar-script
+              mountPath: /scripts
+              readOnly: true
+            - name: github-deploy-key
+              mountPath: /secrets/ssh
+              readOnly: true
+          resources:
+            {{- toYaml .Values.resources.gitSidecar | nindent 12 }}
+        - name: vault-mcp
+          image: "{{ .Values.vaultMcp.image.repository }}:{{ .Values.vaultMcp.image.tag }}"
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: mcp
+              containerPort: {{ .Values.vaultMcp.port }}
+          env:
+            - name: VAULT_PATH
+              value: /vault
+            - name: PORT
+              value: {{ .Values.vaultMcp.port | quote }}
+          volumeMounts:
+            - name: vault
+              mountPath: /vault
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.vaultMcp.port }}
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.vaultMcp.port }}
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.resources.vaultMcp | nindent 12 }}
+      volumes:
+        - name: vault
+          persistentVolumeClaim:
+            claimName: {{ include "obsidian-vault.fullname" . }}
+        - name: git-sidecar-script
+          configMap:
+            name: {{ include "obsidian-vault.fullname" . }}-git-sidecar
+            defaultMode: 0755
+        - name: github-deploy-key
+          secret:
+            secretName: {{ .Values.secrets.github.name }}
+            defaultMode: 0400

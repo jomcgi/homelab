@@ -1,0 +1,6 @@
+apiVersion: v2
+name: obsidian-vault
+description: Obsidian vault sync with git audit trail and MCP server
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
