@@ -32,15 +32,16 @@ ADR 002 declared a generic chart out of scope because per-service charts provide
 
 Replace per-service Helm charts with a single **platform chart** that renders complete service deployments from values alone. Service authors write a `values.yaml` — no `Chart.yaml`, no `templates/`, no `_helpers.tpl`.
 
-| Aspect                 | Today                                                                                                                        | Proposed                                                                 |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| **Service definition** | `chart/` dir with Chart.yaml, templates/, values.yaml + `deploy/` dir with application.yaml, kustomization.yaml, values.yaml | `deploy/values.yaml` only (+ optional `deploy/extras/` for escape hatch) |
-| **Adding a component** | Create a new template file calling `homelab.deployment`                                                                      | Add a key to `values.yaml` under `components:`                           |
-| **Chart maintenance**  | Per-service Chart.yaml versions, per-service targetRevision sync                                                             | Single platform chart version, one targetRevision for all services       |
-| **Deployment pattern** | 3 patterns (OCI dual-source, local chart, deploy-as-chart)                                                                   | 1 pattern: all services use the platform chart                           |
-| **Escape hatch**       | Full Helm template authorship                                                                                                | `deploy/extras/` directory for raw templates                             |
-| **Version coupling**   | Independent — each chart versions and deploys separately                                                                     | Coupled — a library or platform chart change touches all services        |
-| **Image updates**      | ArgoCD Image Updater polls GHCR, commits digests back to git                                                                 | Bazel bakes digests at build time — no external reconciliation needed    |
+| Aspect                 | Today                                                                                                                        | Proposed                                                                  |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Service definition** | `chart/` dir with Chart.yaml, templates/, values.yaml + `deploy/` dir with application.yaml, kustomization.yaml, values.yaml | `deploy/values.yaml` only (+ optional `deploy/extras/` for escape hatch)  |
+| **Adding a component** | Create a new template file calling `homelab.deployment`                                                                      | Add a key to `values.yaml` under `components:`                            |
+| **Chart maintenance**  | Per-service Chart.yaml versions, per-service targetRevision sync                                                             | Single platform chart version, one targetRevision for all services        |
+| **Deployment pattern** | 3 patterns (OCI dual-source, local chart, deploy-as-chart)                                                                   | 1 pattern: all services use the platform chart                            |
+| **Escape hatch**       | Full Helm template authorship                                                                                                | `deploy/extras/` directory for raw templates                              |
+| **Version coupling**   | Independent — each chart versions and deploys separately                                                                     | Coupled — a library or platform chart change touches all services         |
+| **Image updates**      | ArgoCD Image Updater polls GHCR, commits digests back to git                                                                 | Bazel bakes digests at build time — no external reconciliation needed     |
+| **Image wiring**       | Manual `images` dict in BUILD files mapping YAML paths to Bazel targets                                                      | Bazel targets declared in values.yaml — Gazelle auto-generates BUILD deps |
 
 ### What a service looks like
 
@@ -49,8 +50,7 @@ Replace per-service Helm charts with a single **platform chart** that renders co
 
 components:
   ingest:
-    image:
-      repository: ghcr.io/jomcgi/homelab/projects/ships/ingest
+    image: //projects/ships/ingest:image # Bazel target — resolved to {repository, tag} at build time
     port: 8000
     env:
       NATS_URL: nats://nats.ships.svc:4222
@@ -60,8 +60,7 @@ components:
         memory: 100Mi
 
   api:
-    image:
-      repository: ghcr.io/jomcgi/homelab/projects/ships/backend
+    image: //projects/ships/backend:image # Bazel target
     port: 8080
     httpRoute:
       hostname: ships.jomcgi.dev
@@ -74,13 +73,19 @@ components:
         memory: 900Mi
 
   frontend:
-    image:
-      repository: ghcr.io/jomcgi/homelab/projects/ships/frontend
+    image: //projects/ships/frontend:image # Bazel target
     port: 80
     resources:
       requests:
         cpu: 10m
         memory: 100Mi
+
+  # External images use the standard {repository, tag} object — no Bazel target
+  redis:
+    image:
+      repository: docker.io/library/redis
+      tag: "7"
+    port: 6379
 
 secrets:
   ghcr:
@@ -88,7 +93,12 @@ secrets:
       itemPath: vaults/k8s-homelab/items/ghcr-read-permissions
 ```
 
-No Chart.yaml. No templates directory. No Image Updater config. The `application.yaml` and `kustomization.yaml` are generated by tooling (the `format` command or a Bazel rule).
+No Chart.yaml. No templates directory. No Image Updater config. No BUILD file `images` dict. The `application.yaml` and `kustomization.yaml` are generated by tooling (the `format` command or a Bazel rule).
+
+**Image reference rules:**
+
+- `//path/to:target` (string) — Bazel-built image. Resolved to `{repository, tag}` at build time by `helm_images_values`. If the target doesn't exist, **the build fails immediately**.
+- `{repository, tag}` (object) — external image. Passed through as-is to Helm.
 
 ---
 
@@ -141,11 +151,54 @@ This removes:
 - The ArgoCD Image Updater controller deployment
 - A class of bugs where Image Updater and Bazel pinning fight over digest values
 
+### Bazel target images and Gazelle auto-wiring
+
+Today, each chart's BUILD file manually maps YAML paths to Bazel image targets:
+
+```starlark
+# projects/ships/chart/BUILD — today (manual)
+helm_chart(
+    images = {
+        "ingest.image": "//projects/ships/ingest:image.info",
+        "api.image": "//projects/ships/backend:image.info",
+        "frontend.image": "//projects/ships/frontend:image.info",
+    },
+)
+```
+
+This is error-prone — a typo in the path silently produces stale values, and the mapping duplicates information that's already in `values.yaml`.
+
+With Bazel targets declared directly in `values.yaml`, the existing Helm Gazelle extension (`bazel/helm/gazelle/generate.go`) can auto-generate the `images` dict:
+
+1. Parse `deploy/values.yaml`, walk `components.<name>.image`
+2. If the value is a string starting with `//` — it's a Bazel target. Add `<component>.image` -> `<target>.info` to the `images` dict
+3. If the value is an object (`{repository, tag}`) — it's an external image. Skip it
+4. Generate the BUILD rule with the computed `images` map
+
+```starlark
+# projects/ships/deploy/BUILD — auto-generated by Gazelle
+helm_chart(
+    name = "chart",
+    chart = "//projects/shared/helm/homelab-platform:chart",
+    images = {
+        "components.ingest.image": "//projects/ships/ingest:image.info",
+        "components.api.image": "//projects/ships/backend:image.info",
+        "components.frontend.image": "//projects/ships/frontend:image.info",
+        # redis excluded — external image, not a Bazel target
+    },
+)
+```
+
+**Fail-fast guarantee:** If a service author writes `image: //projects/ships/typo:image` and the target doesn't exist, `bazel build` fails at analysis time with a clear error — not silently at deploy time with a stale or missing image.
+
 ### Data flow
 
 ```mermaid
 graph TD
-    A["projects/{service}/deploy/values.yaml<br/>(service author writes this)"] --> B["platform chart<br/>(iterates components, calls library helpers)"]
+    A["projects/{service}/deploy/values.yaml<br/>(service author writes this)"] --> G["Gazelle<br/>(reads //target refs, generates BUILD)"]
+    G --> H["helm_images_values<br/>(resolves targets to {repository, tag})"]
+    H --> B["platform chart<br/>(iterates components, calls library helpers)"]
+    A --> B
     C["homelab-library<br/>(renders K8s resources)"] --> B
     B --> D["ArgoCD Application<br/>(generated by format/Bazel)"]
     D --> E["ArgoCD sync → cluster"]
@@ -220,20 +273,29 @@ One chart, one targetRevision (`HEAD` since it's in-repo), per-service values vi
 - [ ] Migrate one simple service (e.g., stargazer or grimoire) as proof of concept
 - [ ] Validate: `helm template` output matches the service's current rendered manifests
 
-### Phase 2: Application generation
+### Phase 2: Gazelle auto-wiring for image targets
+
+- [ ] Extend `bazel/helm/gazelle/generate.go` to parse `values.yaml` and extract `//` Bazel target strings from `components.<name>.image`
+- [ ] Auto-generate `images` dict in BUILD rules from extracted targets
+- [ ] Update `helm_images_values` to handle the `components.` prefix in YAML paths
+- [ ] Remove manual `images` dicts from existing chart BUILD files
+- [ ] CI validation: build fails if a `//target` in values.yaml doesn't resolve
+
+### Phase 3: Application generation
 
 - [ ] Extend `format` (or add Bazel rule) to generate `application.yaml` + `kustomization.yaml` from the presence of `deploy/values.yaml`
 - [ ] Define a minimal metadata block in values.yaml (name, namespace) or derive from directory path
 - [ ] Update `generate-home-cluster.sh` to discover platform-chart services
 
-### Phase 3: Migration
+### Phase 4: Migration
 
 - [ ] Migrate remaining simple services (single-component, no custom templates)
 - [ ] Migrate multi-component services (marine, agent-platform subsystems)
 - [ ] Remove emptied per-service `chart/` directories
+- [ ] Remove ArgoCD Image Updater controller and all `imageupdater.yaml` files
 - [ ] Document the new service authoring workflow in `docs/services.md`
 
-### Phase 4: Stretch — schema validation
+### Phase 5: Stretch — schema validation
 
 - [ ] Define a JSON Schema for the platform chart values
 - [ ] Integrate schema validation into `format` or CI
