@@ -1,0 +1,8 @@
+gitSidecar:
+  remote: ""
+
+secrets:
+  obsidian:
+    itemPath: ""
+  github:
+    itemPath: ""
