@@ -1211,7 +1211,9 @@ def publish_all(
                         await publish_to_nats(js, record, source)
                         progress.advance(task)
                     except Exception as e:
-                        logger.warning("NATS publish failed for %s: %s", record.dest_key, e)
+                        logger.warning(
+                            "NATS publish failed for %s: %s", record.dest_key, e
+                        )
                         progress.console.print(f"[red][FAIL] {record.dest_key}: {e}")
         finally:
             await nc.close()
@@ -1392,7 +1394,9 @@ def backfill_optics(
                         if from_cache:
                             cache_hits += 1
                     except Exception as e:
-                        logger.warning("Failed to extract EXIF for %s: %s", image_key, e)
+                        logger.warning(
+                            "Failed to extract EXIF for %s: %s", image_key, e
+                        )
                         progress.console.print(f"[red][SKIP] {image_key}: {e}")
                     progress.advance(task)
 
