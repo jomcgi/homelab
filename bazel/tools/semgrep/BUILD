@@ -30,8 +30,8 @@ py_library(
 )
 
 py_test(
-    name = "test_upload",
-    srcs = ["test_upload.py"],
+    name = "upload_test",
+    srcs = ["upload_test.py"],
     deps = [
         "//bazel/tools/semgrep",
         "@pip//pytest",
