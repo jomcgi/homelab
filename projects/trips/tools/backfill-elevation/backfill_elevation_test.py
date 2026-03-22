@@ -622,3 +622,67 @@ class TestRunBackfillFiltering:
         point.elevation = _FakeResult.elevation
         assert point.elevation == pytest.approx(350.5)
         assert point.to_dict()["elevation"] == pytest.approx(350.5)
+
+
+# ---------------------------------------------------------------------------
+# replay_stream logging tests
+# ---------------------------------------------------------------------------
+
+
+class TestReplayStreamLogging:
+    """Verify logger.warning is called when NATS messages can't be parsed."""
+
+    @pytest.mark.asyncio
+    async def test_warning_logged_when_message_parse_fails(self):
+        """logger.warning must be called when a NATS message cannot be parsed."""
+        import nats.errors
+
+        import main as _main_mod
+
+        mock_msg = MagicMock()
+        mock_msg.data = b"not valid json {{{"
+
+        mock_consumer = AsyncMock()
+        mock_consumer.fetch = AsyncMock(
+            side_effect=[[mock_msg], nats.errors.TimeoutError()]
+        )
+        mock_consumer.unsubscribe = AsyncMock()
+
+        mock_js = AsyncMock()
+        mock_js.pull_subscribe = AsyncMock(return_value=mock_consumer)
+
+        with patch.object(_main_mod.logger, "warning") as mock_warn:
+            await replay_stream(mock_js)
+
+        mock_warn.assert_called()
+        warning_args = mock_warn.call_args[0]
+        assert "Could not parse NATS message" in warning_args[0]
+
+    @pytest.mark.asyncio
+    async def test_warning_includes_exception_as_argument(self):
+        """logger.warning is called with the exception as the second argument."""
+        import nats.errors
+
+        import main as _main_mod
+
+        mock_msg = MagicMock()
+        mock_msg.data = b"invalid json"
+
+        mock_consumer = AsyncMock()
+        mock_consumer.fetch = AsyncMock(
+            side_effect=[[mock_msg], nats.errors.TimeoutError()]
+        )
+        mock_consumer.unsubscribe = AsyncMock()
+
+        mock_js = AsyncMock()
+        mock_js.pull_subscribe = AsyncMock(return_value=mock_consumer)
+
+        with patch.object(_main_mod.logger, "warning") as mock_warn:
+            await replay_stream(mock_js)
+
+        mock_warn.assert_called()
+        # Should have been called with format string and exception
+        assert mock_warn.call_count >= 1
+        call_args = mock_warn.call_args[0]
+        # format string + exception object
+        assert len(call_args) >= 2

@@ -520,3 +520,52 @@ class TestRunRebuild:
         )
 
         js.publish.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# TestExtractExifLogging
+# ---------------------------------------------------------------------------
+
+
+class TestExtractExifLogging:
+    """Verify logger.warning is called in extract_exif when an image can't be opened."""
+
+    def test_warning_logged_when_image_cannot_be_opened(self, tmp_path):
+        """logger.warning must be called when Image.open raises an exception."""
+        import main as _main_mod
+        from main import extract_exif
+
+        nonexistent_path = tmp_path / "nonexistent.jpg"
+
+        with patch.object(_main_mod.logger, "warning") as mock_warn:
+            lat, lng, timestamp, optics = extract_exif(nonexistent_path)
+
+        mock_warn.assert_called_once()
+        call_args = mock_warn.call_args[0]
+        assert "Could not extract EXIF from" in call_args[0]
+
+    def test_returns_nones_when_image_cannot_be_opened(self, tmp_path):
+        """extract_exif returns (None, None, None, None) when Image.open fails."""
+        from main import extract_exif
+
+        nonexistent = tmp_path / "bad.jpg"
+        result = extract_exif(nonexistent)
+        assert result == (None, None, None, None)
+
+    def test_warning_includes_filename_in_format_string(self, tmp_path):
+        """logger.warning is called with the filename and exception as arguments."""
+        import main as _main_mod
+        from main import extract_exif
+
+        bad_path = tmp_path / "corrupt_image.jpg"
+        # Write a non-image file so PIL raises on open
+        bad_path.write_bytes(b"not an image")
+
+        with patch.object(_main_mod.logger, "warning") as mock_warn:
+            extract_exif(bad_path)
+
+        mock_warn.assert_called_once()
+        call_args = mock_warn.call_args[0]
+        # Format: "Could not extract EXIF from %s: %s", filename, exception
+        assert len(call_args) >= 3
+        assert call_args[1] == "corrupt_image.jpg"

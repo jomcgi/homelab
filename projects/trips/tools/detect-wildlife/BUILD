@@ -69,11 +69,14 @@ semgrep_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
+# gazelle:resolve py main.download_worker //projects/trips/tools/detect-wildlife:detect-wildlife
 py_test(
     name = "detect_wildlife_test",
     srcs = ["detect_wildlife_test.py"],
+    imports = ["."],
     deps = [
         "//projects/trips/tools/detect-wildlife",
         "@pip//pytest",
+        "@pip//pytest_asyncio",
     ],
 )
