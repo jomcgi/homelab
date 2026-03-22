@@ -45,3 +45,9 @@ sh_test(
     srcs = ["check-hardcoded-svc-url_test.sh"],
     data = [":check-hardcoded-svc-url.sh"],
 )
+
+sh_test(
+    name = "check_library_version_bump_test",
+    srcs = ["check-library-version-bump_test.sh"],
+    data = [":check-library-version-bump.sh"],
+)
