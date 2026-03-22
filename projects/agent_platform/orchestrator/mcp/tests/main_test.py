@@ -81,7 +81,6 @@ class TestConfigure:
         with patch(
             "projects.agent_platform.orchestrator.mcp.app.main.httpx.AsyncClient"
         ) as mock_cls:
-            mock_cls.return_value = MagicMock(spec=httpx.AsyncClient)
             configure(settings)
         mock_cls.assert_called_once()
         call_kwargs = mock_cls.call_args[1]
