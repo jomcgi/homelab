@@ -49,7 +49,7 @@ def _make_mock_ws(messages=None, raise_on_iter=None):
 
     if raise_on_iter is not None:
 
-        async def _iter():
+        async def _iter(self):
             raise raise_on_iter("simulated error")
             # unreachable but required by linter
             return
@@ -58,14 +58,14 @@ def _make_mock_ws(messages=None, raise_on_iter=None):
         mock_ws.__aiter__ = _iter
     elif messages is not None:
 
-        async def _iter():
+        async def _iter(self):
             for msg in messages:
                 yield msg
 
         mock_ws.__aiter__ = _iter
     else:
 
-        async def _iter():
+        async def _iter(self):
             return
             yield  # noqa: unreachable
 

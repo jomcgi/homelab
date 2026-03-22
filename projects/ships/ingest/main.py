@@ -270,11 +270,12 @@ class AISIngestService:
 
             except websockets.exceptions.ConnectionClosed as e:
                 logger.warning(f"WebSocket connection closed: {e}")
+                self.ready = False
             except Exception as e:
                 logger.error(f"WebSocket error: {e}")
+                self.ready = False
 
             if self.running:
-                self.ready = False
                 logger.info(f"Reconnecting in {reconnect_delay:.1f}s...")
                 await asyncio.sleep(reconnect_delay)
                 reconnect_delay = min(
