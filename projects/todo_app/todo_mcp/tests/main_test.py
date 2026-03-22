@@ -81,7 +81,6 @@ class TestConfigure:
         """httpx.AsyncClient must be constructed with timeout=30.0."""
         settings = Settings(url="http://todo.test:8080")
         with patch("projects.todo_app.todo_mcp.app.main.httpx.AsyncClient") as mock_cls:
-            mock_cls.return_value = MagicMock(spec=httpx.AsyncClient)
             configure(settings)
         mock_cls.assert_called_once()
         call_kwargs = mock_cls.call_args[1]
