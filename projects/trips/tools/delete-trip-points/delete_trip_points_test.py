@@ -294,3 +294,30 @@ class TestBatchPublishLogic:
             for pid in point_ids:
                 await publish_delete(mock_js, pid)
         mock_js.publish.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# httpx timeout tests
+# ---------------------------------------------------------------------------
+
+
+class TestHttpxTimeout:
+    """Verify httpx.AsyncClient is constructed with timeout=30.0 in HTTP commands."""
+
+    def test_by_date_source_uses_30_second_timeout(self):
+        """by_date creates AsyncClient with timeout=30.0 (verified from source)."""
+        import inspect
+
+        import main as _main_mod
+
+        source = inspect.getsource(_main_mod.by_date)
+        assert "timeout=30.0" in source
+
+    def test_list_gaps_source_uses_30_second_timeout(self):
+        """list_gaps creates AsyncClient with timeout=30.0 (verified from source)."""
+        import inspect
+
+        import main as _main_mod
+
+        source = inspect.getsource(_main_mod.list_gaps)
+        assert "timeout=30.0" in source

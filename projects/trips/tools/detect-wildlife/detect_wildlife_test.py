@@ -1,12 +1,14 @@
 """Tests for detect-wildlife/main.py."""
 
+import asyncio
 import signal
 import sqlite3
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio  # noqa: F401 — needed to register pytest-asyncio plugin
 
 from main import (
     CaptureQueue,
@@ -14,6 +16,7 @@ from main import (
     DownloadStatus,
     GracefulShutdown,
     PerfStats,
+    download_worker,
 )
 
 
@@ -254,3 +257,74 @@ class TestPerfStats:
         summary = stats.summary()
         assert "Effective rate:" in summary
         assert "photos/min" in summary
+
+
+# ---------------------------------------------------------------------------
+# download_worker logging tests
+# ---------------------------------------------------------------------------
+
+
+class TestDownloadWorkerLogging:
+    """Verify logger.exception is called in download_worker when a download fails."""
+
+    @pytest.mark.asyncio
+    async def test_exception_logged_when_download_fails(self, tmp_path):
+        """logger.exception must fire when gopro.http_command.download_file raises."""
+        import main as _main_mod
+
+        queue = CaptureQueue(tmp_path / "queue.db")
+        rid = queue.add("GOPR0001.JPG", tmp_path / "photo.jpg")
+
+        # GoPro mock whose download_file always raises
+        mock_gopro = MagicMock()
+        mock_gopro.http_command.download_file = AsyncMock(
+            side_effect=RuntimeError("network error")
+        )
+
+        # Shutdown that stops after the first iteration
+        shutdown = GracefulShutdown()
+        download_event = asyncio.Event()
+        download_event.set()  # signal that work is available
+
+        async def _run():
+            # Run the worker until the record is exhausted from pending
+            task = asyncio.create_task(
+                download_worker(mock_gopro, queue, shutdown, download_event)
+            )
+            # Give worker time to process the one record
+            await asyncio.sleep(0.05)
+            shutdown.shutdown_requested = True
+            await task
+
+        with patch.object(_main_mod.logger, "exception") as mock_exc:
+            await _run()
+
+        mock_exc.assert_called()
+        call_args = mock_exc.call_args[0]
+        assert "Download failed for" in call_args[0]
+        assert "GOPR0001.JPG" in call_args[1]
+
+    @pytest.mark.asyncio
+    async def test_record_marked_failed_after_exception(self, tmp_path):
+        """The queue record is marked failed when the download raises."""
+        queue = CaptureQueue(tmp_path / "queue.db")
+        rid = queue.add("GOPR0002.JPG", tmp_path / "photo.jpg")
+
+        mock_gopro = MagicMock()
+        mock_gopro.http_command.download_file = AsyncMock(
+            side_effect=OSError("disk full")
+        )
+
+        shutdown = GracefulShutdown()
+        download_event = asyncio.Event()
+        download_event.set()
+
+        task = asyncio.create_task(
+            download_worker(mock_gopro, queue, shutdown, download_event)
+        )
+        await asyncio.sleep(0.05)
+        shutdown.shutdown_requested = True
+        await task
+
+        stats = queue.get_stats()
+        assert stats.get(DownloadStatus.FAILED.value, 0) >= 1
