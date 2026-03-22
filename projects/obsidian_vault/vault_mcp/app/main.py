@@ -139,3 +139,55 @@ def _git_commit(files: list[str], message: str) -> dict:
         _git("add", f)
     _git("commit", "-m", message)
     return {"status": "ok", "commit_message": message}
+
+
+@mcp.tool
+async def write_note(path: str, content: str, reason: str) -> dict:
+    """Create or overwrite a note. Commits the change to git.
+
+    Args:
+        path: Relative path for the note (e.g. "daily/2026-03-21.md").
+        content: Full markdown content to write.
+        reason: Why this change is being made (used in commit message).
+
+    Returns status and commit message, or an error.
+    """
+    if not reason:
+        return {"error": "reason is required"}
+    resolved = _validate_path(path)
+    if resolved is None:
+        return {"error": f"Invalid path: {path}"}
+
+    async with _lock:
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_text(content)
+        return _git_commit([path], f"mcp(write_note): {path} — {reason}")
+
+
+@mcp.tool
+async def edit_note(path: str, old_text: str, new_text: str, reason: str) -> dict:
+    """Replace a section of an existing note. Commits the change to git.
+
+    Args:
+        path: Relative path to the note.
+        old_text: Exact text to find and replace.
+        new_text: Replacement text.
+        reason: Why this change is being made (used in commit message).
+
+    Returns status and commit message, or an error.
+    """
+    if not reason:
+        return {"error": "reason is required"}
+    resolved = _validate_path(path)
+    if resolved is None:
+        return {"error": f"Invalid path: {path}"}
+    if not resolved.exists():
+        return {"error": f"Note not found: {path}"}
+
+    content = resolved.read_text()
+    if old_text not in content:
+        return {"error": f"Text not found in {path}"}
+
+    async with _lock:
+        resolved.write_text(content.replace(old_text, new_text, 1))
+        return _git_commit([path], f"mcp(edit_note): {path} — {reason}")

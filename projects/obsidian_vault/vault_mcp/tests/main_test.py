@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,9 +14,11 @@ import projects.obsidian_vault.vault_mcp.app.main as _mod
 from projects.obsidian_vault.vault_mcp.app.main import (
     Settings,
     configure,
+    edit_note,
     list_notes,
     read_note,
     search_notes,
+    write_note,
 )
 
 
@@ -23,6 +26,22 @@ from projects.obsidian_vault.vault_mcp.app.main import (
 def _configure_vault(tmp_path):
     """Configure vault to use a temporary directory for each test."""
     configure(Settings(path=str(tmp_path)))
+
+
+@pytest.fixture(autouse=True)
+def _init_git(tmp_path):
+    """Initialize a git repo in the tmp vault so commits work."""
+    subprocess.run(["git", "init", str(tmp_path)], capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.com"],
+        cwd=tmp_path,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        cwd=tmp_path,
+        capture_output=True,
+    )
 
 
 class TestSettings:
@@ -84,7 +103,7 @@ class TestListNotes:
         assert result["notes"] == []
 
     async def test_ignores_dotfiles_and_git(self, tmp_path):
-        (tmp_path / ".git").mkdir()
+        (tmp_path / ".git").mkdir(exist_ok=True)
         (tmp_path / ".git" / "config.md").write_text("git stuff")
         (tmp_path / ".obsidian").mkdir()
         (tmp_path / ".obsidian" / "config.md").write_text("obsidian config")
@@ -149,3 +168,106 @@ class TestSearchNotes:
         result = await search_notes(query="query match")
         assert len(result["matches"]) == 1
         assert result["matches"][0]["path"] == "real.md"
+
+
+class TestWriteNote:
+    async def test_creates_new_note(self, tmp_path):
+        result = await write_note(
+            path="new.md", content="# New Note", reason="created for testing"
+        )
+        assert result["status"] == "ok"
+        assert (tmp_path / "new.md").read_text() == "# New Note"
+
+    async def test_creates_parent_dirs(self, tmp_path):
+        result = await write_note(
+            path="daily/2026-03-21.md", content="# Today", reason="daily note"
+        )
+        assert result["status"] == "ok"
+        assert (tmp_path / "daily" / "2026-03-21.md").exists()
+
+    async def test_overwrites_existing(self, tmp_path):
+        (tmp_path / "existing.md").write_text("old content")
+        subprocess.run(["git", "add", "existing.md"], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "initial"], cwd=tmp_path, capture_output=True
+        )
+        result = await write_note(
+            path="existing.md", content="new content", reason="updated"
+        )
+        assert result["status"] == "ok"
+        assert (tmp_path / "existing.md").read_text() == "new content"
+
+    async def test_commits_with_reason(self, tmp_path):
+        await write_note(path="a.md", content="# A", reason="test reason")
+        log = subprocess.run(
+            ["git", "log", "--oneline", "-1"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert "mcp(write_note)" in log.stdout
+        assert "test reason" in log.stdout
+
+    async def test_rejects_path_traversal(self, tmp_path):
+        result = await write_note(path="../escape.md", content="bad", reason="nope")
+        assert "error" in result
+
+    async def test_reason_required(self, tmp_path):
+        """Reason is a required parameter — empty string is rejected."""
+        result = await write_note(path="a.md", content="# A", reason="")
+        assert "error" in result
+
+
+class TestEditNote:
+    async def test_replaces_section(self, tmp_path):
+        (tmp_path / "note.md").write_text("# Title\n\nOld paragraph\n\n## End")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True
+        )
+        result = await edit_note(
+            path="note.md",
+            old_text="Old paragraph",
+            new_text="New paragraph",
+            reason="updated paragraph",
+        )
+        assert result["status"] == "ok"
+        assert "New paragraph" in (tmp_path / "note.md").read_text()
+        assert "Old paragraph" not in (tmp_path / "note.md").read_text()
+
+    async def test_old_text_not_found(self, tmp_path):
+        (tmp_path / "note.md").write_text("# Title\n\nContent")
+        result = await edit_note(
+            path="note.md",
+            old_text="nonexistent text",
+            new_text="replacement",
+            reason="fix",
+        )
+        assert "error" in result
+
+    async def test_note_not_found(self, tmp_path):
+        result = await edit_note(
+            path="missing.md",
+            old_text="a",
+            new_text="b",
+            reason="fix",
+        )
+        assert "error" in result
+
+    async def test_commits_with_reason(self, tmp_path):
+        (tmp_path / "note.md").write_text("# Old")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True
+        )
+        await edit_note(
+            path="note.md", old_text="# Old", new_text="# New", reason="rename"
+        )
+        log = subprocess.run(
+            ["git", "log", "--oneline", "-1"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert "mcp(edit_note)" in log.stdout
+        assert "rename" in log.stdout
