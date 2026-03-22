@@ -1,6 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 # gazelle:resolve py bazel //bazel/vitepress/rewriter:rewriter
@@ -29,7 +29,7 @@ py_test(
     name = "test_rewrite",
     srcs = ["test_rewrite.py"],
     deps = [
-        ":rewriter",
+        "//bazel/vitepress/rewriter",
         "@pip//pytest",
     ],
 )
@@ -38,4 +38,10 @@ semgrep_target_test(
     name = "rewrite_semgrep_test",
     rules = ["//bazel/semgrep/rules:python_rules"],
     target = ":rewrite",
+)
+
+semgrep_test(
+    name = "test_rewrite_semgrep_test",
+    srcs = ["test_rewrite.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )
