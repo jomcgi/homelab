@@ -198,7 +198,6 @@ class TestSubscribeToAisstream:
 
         def make_ctx(*_a, **_kw):
             connect_call_count[0] += 1
-            service.running = False  # stop after first connect
             return ctx
 
         process_calls = []
@@ -206,6 +205,7 @@ class TestSubscribeToAisstream:
 
         async def capturing_process(msg):
             process_calls.append(msg)
+            service.running = False  # stop reconnect loop after first message
             await original_process(msg)
 
         service.process_message = capturing_process
