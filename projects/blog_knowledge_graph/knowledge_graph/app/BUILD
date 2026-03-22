@@ -128,7 +128,7 @@ py_library(
 )
 
 py_library(
-    name = "scraper_main",
+    name = "scraper_main",  # keep
     srcs = ["scraper_main.py"],
     visibility = ["//:__subpackages__"],
     deps = [
@@ -152,7 +152,7 @@ py_venv_binary(
 )
 
 py_library(
-    name = "embedder_main",
+    name = "embedder_main",  # keep
     srcs = ["embedder_main.py"],
     visibility = ["//:__subpackages__"],
     deps = [
@@ -172,7 +172,7 @@ py_venv_binary(
 )
 
 py_library(
-    name = "mcp_main",
+    name = "mcp_main",  # keep
     srcs = ["mcp_main.py"],
     visibility = ["//:__subpackages__"],
     deps = [

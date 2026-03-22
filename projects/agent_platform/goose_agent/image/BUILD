@@ -1,4 +1,5 @@
 # gazelle:semgrep disabled
+# gazelle:ignore
 
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
