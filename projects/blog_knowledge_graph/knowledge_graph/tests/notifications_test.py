@@ -383,6 +383,26 @@ class TestSlackNotifierErrorHandling:
         )
 
 
+class TestSlackNotifierTimeout:
+    """Verify httpx.AsyncClient timeout in SlackNotifier._post()."""
+
+    @pytest.mark.asyncio
+    async def test_post_uses_10_second_timeout(self):
+        """_post() must construct AsyncClient with timeout=10.0."""
+        with patch(_NOTIF_PATH) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_response = AsyncMock()
+            mock_response.raise_for_status = AsyncMock()
+            mock_client.post.return_value = mock_response
+
+            notifier = SlackNotifier("https://hooks.slack.com/test")
+            await notifier._post("test message")
+
+        mock_cls.assert_called_once_with(timeout=10.0)
+
+
 class TestSlackNotifierBatchEdgeCases:
     """Edge-case tests for notify_batch message content."""
 
