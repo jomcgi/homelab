@@ -393,3 +393,69 @@ class TestHasContentHash:
         must_clause = call_json["filter"]["must"][0]
         assert must_clause["key"] == "content_hash"
         assert must_clause["match"]["value"] == "targethash"
+
+
+class TestQdrantClientTimeouts:
+    """Verify httpx.AsyncClient timeout values in QdrantClient methods."""
+
+    @pytest.mark.asyncio
+    async def test_ensure_collection_uses_10_second_timeout(self, qdrant):
+        """ensure_collection must construct AsyncClient with timeout=10.0."""
+        with patch(_QDRANT_PATH) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            get_resp = MagicMock()
+            get_resp.status_code = 200
+            mock_client.get.return_value = get_resp
+
+            await qdrant.ensure_collection(vector_size=768)
+
+        mock_cls.assert_called_once_with(timeout=10.0)
+
+    @pytest.mark.asyncio
+    async def test_upsert_chunks_uses_30_second_timeout(self, qdrant):
+        """upsert_chunks must construct AsyncClient with timeout=30.0."""
+        with patch(_QDRANT_PATH) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            put_resp = MagicMock()
+            put_resp.raise_for_status = MagicMock()
+            mock_client.put.return_value = put_resp
+
+            await qdrant.upsert_chunks([], [])
+
+        mock_cls.assert_called_once_with(timeout=30.0)
+
+    @pytest.mark.asyncio
+    async def test_search_uses_10_second_timeout(self, qdrant):
+        """search must construct AsyncClient with timeout=10.0."""
+        with patch(_QDRANT_PATH) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            resp = MagicMock()
+            resp.raise_for_status = MagicMock()
+            resp.json.return_value = {"result": {"points": []}}
+            mock_client.post.return_value = resp
+
+            await qdrant.search([0.1, 0.2])
+
+        mock_cls.assert_called_once_with(timeout=10.0)
+
+    @pytest.mark.asyncio
+    async def test_has_content_hash_uses_10_second_timeout(self, qdrant):
+        """has_content_hash must construct AsyncClient with timeout=10.0."""
+        with patch(_QDRANT_PATH) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            resp = MagicMock()
+            resp.raise_for_status = MagicMock()
+            resp.json.return_value = {"result": {"points": []}}
+            mock_client.post.return_value = resp
+
+            await qdrant.has_content_hash("abc123")
+
+        mock_cls.assert_called_once_with(timeout=10.0)

@@ -527,3 +527,88 @@ class TestOllamaEmbedderEmbedQuery:
 
             with pytest.raises(httpx.HTTPStatusError):
                 await ollama.embed_query("query")
+
+
+# ---------------------------------------------------------------------------
+# Timeout verification tests
+# ---------------------------------------------------------------------------
+
+
+class TestGeminiEmbedderTimeout:
+    """Verify httpx.AsyncClient timeout values in GeminiEmbedder."""
+
+    @pytest.mark.asyncio
+    async def test_embed_uses_120_second_timeout(self, gemini):
+        """embed() must construct AsyncClient with timeout=120.0."""
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini.httpx.AsyncClient"
+        ) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_response = MagicMock()
+            mock_response.raise_for_status = MagicMock()
+            mock_response.json.return_value = {"embeddings": [{"values": [0.1]}]}
+            mock_client.post.return_value = mock_response
+
+            await gemini.embed(["text"])
+
+        mock_cls.assert_called_once_with(timeout=120.0)
+
+    @pytest.mark.asyncio
+    async def test_embed_query_uses_60_second_timeout(self, gemini):
+        """embed_query() must construct AsyncClient with timeout=60.0."""
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini.httpx.AsyncClient"
+        ) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_response = MagicMock()
+            mock_response.raise_for_status = MagicMock()
+            mock_response.json.return_value = {"embedding": {"values": [0.1]}}
+            mock_client.post.return_value = mock_response
+
+            await gemini.embed_query("query")
+
+        mock_cls.assert_called_once_with(timeout=60.0)
+
+
+class TestOllamaEmbedderTimeout:
+    """Verify httpx.AsyncClient timeout values in OllamaEmbedder."""
+
+    @pytest.mark.asyncio
+    async def test_embed_uses_120_second_timeout(self, ollama):
+        """embed() must construct AsyncClient with timeout=120.0."""
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama.httpx.AsyncClient"
+        ) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_response = MagicMock()
+            mock_response.raise_for_status = MagicMock()
+            mock_response.json.return_value = {"embeddings": [[0.1]]}
+            mock_client.post.return_value = mock_response
+
+            await ollama.embed(["text"])
+
+        mock_cls.assert_called_once_with(timeout=120.0)
+
+    @pytest.mark.asyncio
+    async def test_embed_query_uses_60_second_timeout(self, ollama):
+        """embed_query() must construct AsyncClient with timeout=60.0."""
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama.httpx.AsyncClient"
+        ) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_response = MagicMock()
+            mock_response.raise_for_status = MagicMock()
+            mock_response.json.return_value = {"embeddings": [[0.1]]}
+            mock_client.post.return_value = mock_response
+
+            await ollama.embed_query("query")
+
+        mock_cls.assert_called_once_with(timeout=60.0)

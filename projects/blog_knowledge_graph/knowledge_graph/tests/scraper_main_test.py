@@ -487,3 +487,40 @@ class TestStatusEndpoint:
                 response = await client.get("/status/https://example.com/article")
 
         assert response.json()["scraped"] is False
+
+
+_SCRAPER_CLIENT_PATH = (
+    "projects.blog_knowledge_graph.knowledge_graph.app.scraper_main.httpx.AsyncClient"
+)
+
+
+class TestScraperHttpxTimeout:
+    """Verify httpx.AsyncClient timeout values in scraper endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_scrape_endpoint_uses_30_second_timeout(self):
+        """The /scrape handler must construct AsyncClient with timeout=30.0."""
+        from unittest.mock import AsyncMock
+
+        from projects.blog_knowledge_graph.knowledge_graph.app.scraper_main import (
+            ScrapeRequest,
+            scrape,
+        )
+
+        req = ScrapeRequest(url="https://example.com/test", type="html", force=False)
+
+        with patch(_SCRAPER_CLIENT_PATH) as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            with patch(
+                "projects.blog_knowledge_graph.knowledge_graph.app.scraper_main._scrape_source",
+                new=AsyncMock(return_value=[]),
+            ):
+                with patch(
+                    "projects.blog_knowledge_graph.knowledge_graph.app.scraper_main._validate_url"
+                ):
+                    await scrape(req)
+
+        mock_cls.assert_called_with(timeout=30.0)
