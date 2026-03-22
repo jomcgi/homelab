@@ -58,11 +58,57 @@ wsGateway:
 
 # Redis — ephemeral pub/sub + session state
 redis:
-  replicaCount: 1
+  replicas: 1
+  containerPort: 6379
+  portName: redis
   image:
     repository: redis
     tag: "7-alpine"
     pullPolicy: IfNotPresent
+  args:
+    - --requirepass
+    - $(REDIS_PASSWORD)
+  env:
+    - name: REDIS_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: grimoire
+          key: redis_password
+  podAnnotations:
+    linkerd.io/inject: disabled
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 999
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+  probes:
+    liveness:
+      exec:
+        - redis-cli
+        - -a
+        - $(REDIS_PASSWORD)
+        - ping
+      initialDelaySeconds: 5
+    readiness:
+      exec:
+        - redis-cli
+        - -a
+        - $(REDIS_PASSWORD)
+        - ping
+      initialDelaySeconds: 5
+  volumeMounts:
+    - name: redis-data
+      mountPath: /data
+  volumes:
+    - name: redis-data
+      emptyDir: {}
   service:
     type: ClusterIP
     port: 6379
