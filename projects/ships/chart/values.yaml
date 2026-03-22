@@ -124,9 +124,10 @@ api:
   # Single replica required for SQLite (single-writer lock)
   replicas: 1
 
+  containerPort: 8000
+
   # Persistent storage for SQLite database
   persistence:
-    enabled: true
     size: 20Gi
     storageClassName: longhorn
     # Path where the database is stored
@@ -150,20 +151,27 @@ api:
       cpu: 100m
       memory: 900Mi
 
-  # Liveness probe - checks if container should be restarted
-  # During catchup, the API may be unresponsive; increase tolerance
-  livenessProbe:
-    initialDelaySeconds: 10
-    periodSeconds: 15
-    timeoutSeconds: 10
-    failureThreshold: 6
+  # Health probes
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 10
+      periodSeconds: 15
+      timeoutSeconds: 10
+      failureThreshold: 6
+    readiness:
+      path: /ready
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 10
+      failureThreshold: 360
 
-  # Readiness probe - checks if container can receive traffic
-  readinessProbe:
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 10
-    failureThreshold: 360
+  # Static env vars (UV/Python needs writable directories)
+  env:
+    - name: HOME
+      value: /tmp
+    - name: UV_CACHE_DIR
+      value: /tmp/.uv-cache
 
   # Pod annotations
   podAnnotations: {}
