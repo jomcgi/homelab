@@ -19,9 +19,9 @@ class QdrantClient:
 
     async def ensure_collection(self, vector_size: int) -> None:
         """Create collection if it doesn't exist."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
-                f"{self._url}/collections/{self._collection}", timeout=10.0
+                f"{self._url}/collections/{self._collection}"
             )
             if resp.status_code == 200:
                 return
@@ -31,7 +31,6 @@ class QdrantClient:
                 json={
                     "vectors": {"size": vector_size, "distance": "Cosine"},
                 },
-                timeout=10.0,
             )
             resp.raise_for_status()
             logger.info("Created Qdrant collection %s", self._collection)
@@ -67,17 +66,16 @@ class QdrantClient:
                 }
             )
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.put(
                 f"{self._url}/collections/{self._collection}/points",
                 json={"points": points},
-                timeout=30.0,
             )
             resp.raise_for_status()
 
     async def search(self, vector: list[float], limit: int = 5) -> list[dict]:
         """Semantic search, return payloads with scores."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 f"{self._url}/collections/{self._collection}/points/query",
                 json={
@@ -85,7 +83,6 @@ class QdrantClient:
                     "limit": limit,
                     "with_payload": True,
                 },
-                timeout=10.0,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -102,7 +99,7 @@ class QdrantClient:
 
     async def has_content_hash(self, content_hash: str) -> bool:
         """Check if any chunks for this content_hash exist."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 f"{self._url}/collections/{self._collection}/points/scroll",
                 json={
@@ -118,7 +115,6 @@ class QdrantClient:
                     "with_payload": False,
                     "with_vector": False,
                 },
-                timeout=10.0,
             )
             resp.raise_for_status()
             data = resp.json()

@@ -56,8 +56,8 @@ def by_date(
 
     async def _delete():
         print(f"Fetching points from {API_URL}...")
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{API_URL}/api/points", timeout=30)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(f"{API_URL}/api/points")
             resp.raise_for_status()
             data = resp.json()
 
@@ -157,8 +157,8 @@ def list_gaps(
 
     async def _list():
         print(f"Fetching points from {API_URL}...")
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{API_URL}/api/points", timeout=30)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(f"{API_URL}/api/points")
             resp.raise_for_status()
             data = resp.json()
 

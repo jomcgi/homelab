@@ -226,7 +226,7 @@ async def scrape(req: ScrapeRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     source = SourceConfig(url=req.url, type=req.type, name=None)
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         results = await _scrape_source(source, client, force=req.force)
     return {"results": results}
 
@@ -237,7 +237,7 @@ async def scrape_all():
     all_results: list[ScrapeResult] = []
 
     with trace_span("scrape-all"):
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             for source in sources:
                 results = await _scrape_source(source, client)
                 all_results.extend(results)
@@ -306,7 +306,7 @@ def _run_batch() -> None:
     async def _batch():
         start = time.monotonic()
         all_results: list[ScrapeResult] = []
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             for source in sources:
                 results = await _scrape_source(source, client)
                 all_results.extend(results)

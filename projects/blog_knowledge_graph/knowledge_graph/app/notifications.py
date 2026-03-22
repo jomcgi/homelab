@@ -43,11 +43,10 @@ class SlackNotifier:
 
     async def _post(self, text: str) -> None:
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(
                     self._webhook_url,
                     json={"text": text},
-                    timeout=10.0,
                 )
                 response.raise_for_status()
         except Exception:
