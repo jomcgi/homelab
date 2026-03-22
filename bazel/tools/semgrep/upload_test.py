@@ -379,3 +379,44 @@ class TestMain:
             assert body["project_metadata"]["branch"] == "feat/branch"
         finally:
             os.unlink(path)
+
+
+class TestMainLoggingWarning:
+    """Verify logging.warning is called in the two error paths of main()."""
+
+    def test_warning_logged_when_results_file_unreadable(self, monkeypatch, caplog):
+        """logging.warning must be called when the results file cannot be opened."""
+        import logging
+
+        monkeypatch.setenv("SEMGREP_APP_TOKEN", "tok")
+        monkeypatch.setenv("SEMGREP_REPO", "org/repo")
+        with patch.object(sys, "argv", ["upload.py", "/nonexistent/file.json", "0"]):
+            with caplog.at_level(logging.WARNING):
+                main()
+        assert any("failed to read results" in r.message for r in caplog.records)
+
+    def test_warning_logged_when_upload_fails(self, monkeypatch, caplog):
+        """logging.warning must be called when the HTTP upload raises an exception."""
+        import logging
+
+        monkeypatch.setenv("SEMGREP_APP_TOKEN", "tok")
+        monkeypatch.setenv("SEMGREP_REPO", "org/repo")
+        monkeypatch.setenv("GITHUB_SHA", "abc")
+        monkeypatch.setenv("GITHUB_REF_NAME", "main")
+
+        results = {"results": [], "errors": []}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(results, f)
+            path = f.name
+
+        try:
+            with patch.object(sys, "argv", ["upload.py", path, "1"]):
+                with patch(
+                    "bazel.tools.semgrep.upload.httpx.Client",
+                    side_effect=Exception("connection refused"),
+                ):
+                    with caplog.at_level(logging.WARNING):
+                        main()
+            assert any("upload failed" in r.message for r in caplog.records)
+        finally:
+            os.unlink(path)
