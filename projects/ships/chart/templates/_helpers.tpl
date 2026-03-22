@@ -13,14 +13,6 @@ Component label aliases — these call the library's component helpers.
 {{ include "homelab.componentSelectorLabels" (dict "context" . "component" "ingest") }}
 {{- end }}
 
-{{- define "marine.api.labels" -}}
-{{ include "homelab.componentLabels" (dict "context" . "component" "api") }}
-{{- end }}
-
-{{- define "marine.api.selectorLabels" -}}
-{{ include "homelab.componentSelectorLabels" (dict "context" . "component" "api") }}
-{{- end }}
-
 {{- define "marine.frontend.labels" -}}
 {{ include "homelab.componentLabels" (dict "context" . "component" "frontend") }}
 {{- end }}
