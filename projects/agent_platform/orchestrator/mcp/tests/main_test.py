@@ -75,6 +75,18 @@ class TestConfigure:
         configure(Settings(url="http://second.test"))
         assert _mod._client is not first
 
+    def test_client_timeout_is_30_seconds(self):
+        """httpx.AsyncClient must be constructed with timeout=30.0."""
+        settings = Settings(url="http://orchestrator.test:8080")
+        with patch(
+            "projects.agent_platform.orchestrator.mcp.app.main.httpx.AsyncClient"
+        ) as mock_cls:
+            mock_cls.return_value = MagicMock(spec=httpx.AsyncClient)
+            configure(settings)
+        mock_cls.assert_called_once()
+        call_kwargs = mock_cls.call_args[1]
+        assert call_kwargs.get("timeout") == 30.0
+
 
 class TestRequest:
     async def test_success_returns_json(self):
@@ -131,6 +143,20 @@ class TestRequest:
         ) as mock_req:
             await _request("POST", "/jobs", json={"task": "test"})
         mock_req.assert_called_once_with("POST", "/jobs", json={"task": "test"})
+
+    async def test_exception_calls_logger_warning(self):
+        """logger.warning must be called when the underlying request raises."""
+        with patch.object(
+            _mod._client,
+            "request",
+            new_callable=AsyncMock,
+            side_effect=Exception("network failure"),
+        ):
+            with patch.object(_mod.logger, "warning") as mock_warn:
+                result = await _request("GET", "/jobs")
+        mock_warn.assert_called_once()
+        assert "Orchestrator API request failed" in mock_warn.call_args[0][0]
+        assert "error" in result
 
 
 class TestSubmitJob:
