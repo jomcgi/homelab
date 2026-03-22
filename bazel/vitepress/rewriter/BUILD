@@ -26,8 +26,8 @@ py_library(
 )
 
 py_test(
-    name = "test_rewrite",
-    srcs = ["test_rewrite.py"],
+    name = "rewrite_test",
+    srcs = ["rewrite_test.py"],
     deps = [
         "//bazel/vitepress/rewriter",
         "@pip//pytest",
