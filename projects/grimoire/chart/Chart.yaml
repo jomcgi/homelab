@@ -2,7 +2,7 @@ apiVersion: v2
 name: grimoire
 description: Self-hosted D&D campaign manager with AI-assisted DMing
 type: application
-version: 0.2.0
+version: 0.3.0
 appVersion: "0.1.0"
 maintainers:
   - name: homelab
