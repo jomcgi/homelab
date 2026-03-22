@@ -11,8 +11,11 @@ Required values under .<component>:
   image.repository, image.tag, image.pullPolicy
 
 Optional values (with defaults):
-  enabled (true), replicas (1), containerPort (8080),
+  enabled (true), replicas (1), containerPort (8080), portName ("http"),
+  args ([]),
   probes.liveness.path ("/health"), probes.readiness.path ("/health"),
+  probes.liveness.exec ([]) — if set, uses exec probe instead of httpGet,
+  probes.readiness.exec ([]) — same for readiness,
   env ([]), resources ({}), volumes ([]), volumeMounts ([]),
   podAnnotations ({}), podSecurityContext (falls back to global),
   securityContext (falls back to global)
@@ -67,8 +70,12 @@ spec:
           securityContext:
             {{- $sec := default $ctx.Values.securityContext $vals.securityContext -}}
             {{- toYaml $sec | nindent 12 }}
+          {{- with $vals.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
-            - name: http
+            - name: {{ $vals.portName | default "http" }}
               containerPort: {{ $vals.containerPort | default 8080 }}
               protocol: TCP
           {{- with $vals.env }}
@@ -76,17 +83,29 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           livenessProbe:
+            {{- if (dig "probes" "liveness" "exec" nil $vals) }}
+            exec:
+              command:
+                {{- toYaml (dig "probes" "liveness" "exec" (list) $vals) | nindent 16 }}
+            {{- else }}
             httpGet:
               path: {{ dig "probes" "liveness" "path" "/health" $vals }}
-              port: http
+              port: {{ $vals.portName | default "http" }}
+            {{- end }}
             initialDelaySeconds: {{ dig "probes" "liveness" "initialDelaySeconds" 10 $vals }}
             periodSeconds: {{ dig "probes" "liveness" "periodSeconds" 10 $vals }}
             timeoutSeconds: {{ dig "probes" "liveness" "timeoutSeconds" 1 $vals }}
             failureThreshold: {{ dig "probes" "liveness" "failureThreshold" 3 $vals }}
           readinessProbe:
+            {{- if (dig "probes" "readiness" "exec" nil $vals) }}
+            exec:
+              command:
+                {{- toYaml (dig "probes" "readiness" "exec" (list) $vals) | nindent 16 }}
+            {{- else }}
             httpGet:
               path: {{ dig "probes" "readiness" "path" "/health" $vals }}
-              port: http
+              port: {{ $vals.portName | default "http" }}
+            {{- end }}
             initialDelaySeconds: {{ dig "probes" "readiness" "initialDelaySeconds" 5 $vals }}
             periodSeconds: {{ dig "probes" "readiness" "periodSeconds" 5 $vals }}
             timeoutSeconds: {{ dig "probes" "readiness" "timeoutSeconds" 1 $vals }}
