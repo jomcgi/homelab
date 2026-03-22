@@ -467,6 +467,41 @@ func TestPollStatusWithPlanNoPlan(t *testing.T) {
 	}
 }
 
+func TestPollStatusWithPlan_ServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	executor := &SandboxExecutor{
+		httpClient: srv.Client(),
+		logger:     slog.Default(),
+	}
+
+	_, _, _, err := executor.pollStatusWithPlan(context.Background(), srv.URL)
+	if err == nil {
+		t.Fatal("expected error for 500 response, got nil")
+	}
+}
+
+func TestPollStatusWithPlan_BadJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "not valid json")
+	}))
+	defer srv.Close()
+
+	executor := &SandboxExecutor{
+		httpClient: srv.Client(),
+		logger:     slog.Default(),
+	}
+
+	_, _, _, err := executor.pollStatusWithPlan(context.Background(), srv.URL)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
 // ---- pollUntilDone tests ----------------------------------------------------
 
 // TestPollUntilDone_ZeroMaxPollErrors_FallbackToTen verifies that when
