@@ -3,6 +3,15 @@ load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
+# gazelle:resolve py bazel //bazel/vitepress/rewriter:rewriter
+# gazelle:resolve py bazel.vitepress //bazel/vitepress/rewriter:rewriter
+# gazelle:resolve py bazel.vitepress.rewriter //bazel/vitepress/rewriter:rewriter
+# gazelle:resolve py bazel.vitepress.rewriter.rewrite //bazel/vitepress/rewriter:rewriter
+# gazelle:resolve py bazel.vitepress.rewriter.rewrite.LINK_PATTERN //bazel/vitepress/rewriter:rewriter
+# gazelle:resolve py bazel.vitepress.rewriter.rewrite.remap_link //bazel/vitepress/rewriter:rewriter
+# gazelle:resolve py bazel.vitepress.rewriter.rewrite.resolve_link //bazel/vitepress/rewriter:rewriter
+# gazelle:resolve py bazel.vitepress.rewriter.rewrite.rewrite_file //bazel/vitepress/rewriter:rewriter
+
 py_venv_binary(
     name = "rewrite",
     srcs = ["rewrite.py"],
