@@ -379,9 +379,7 @@ class TestSubscribeAISStream:
         assert svc.ready is True
 
     @pytest.mark.asyncio
-    async def test_catchup_completes_on_timeout_when_pending_low(
-        self, started_service
-    ):
+    async def test_catchup_completes_on_timeout_when_pending_low(self, started_service):
         """replay_complete becomes True on TimeoutError when pending <= threshold."""
         svc = started_service
 
@@ -747,9 +745,7 @@ class TestWebsocketLiveEndpoint:
         # First receive returns "ping", second raises disconnect
         from fastapi import WebSocketDisconnect
 
-        mock_ws.receive_text = AsyncMock(
-            side_effect=["ping", WebSocketDisconnect()]
-        )
+        mock_ws.receive_text = AsyncMock(side_effect=["ping", WebSocketDisconnect()])
         mock_ws.send_text = AsyncMock()
 
         from projects.ships.backend.main import websocket_live

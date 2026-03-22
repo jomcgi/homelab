@@ -379,9 +379,7 @@ class TestSubscribeToAisstream:
             connect_count[0] += 1
             if connect_count[0] >= 2:
                 service.running = False
-            ctx, _ = _make_mock_ws(
-                raise_on_iter=websockets.exceptions.ConnectionClosed
-            )
+            ctx, _ = _make_mock_ws(raise_on_iter=websockets.exceptions.ConnectionClosed)
             return ctx
 
         with patch("projects.ships.ingest.main.websockets.connect", make_ctx):

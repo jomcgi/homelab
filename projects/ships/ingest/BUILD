@@ -94,8 +94,6 @@ py_test(
     imports = ["."],
     deps = [
         ":ais-ingest",
-        "@pip//certifi",
-        "@pip//nats_py",
         "@pip//pytest",
         "@pip//pytest_asyncio",
         "@pip//websockets",
