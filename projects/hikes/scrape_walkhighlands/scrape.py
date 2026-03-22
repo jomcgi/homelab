@@ -475,6 +475,7 @@ def scrape_walkhighlands(session: requests.Session = None) -> list[Walk]:
                     sub_area_link=sub_area_link,
                 )
         except Exception as e:
+            logger.exception("Error scraping walks from sub-area %s", sub_area_link)
             error_collector.add_error("scrape_walks", e, sub_area_link=sub_area_link)
 
     if not walk_links:
@@ -498,6 +499,7 @@ def scrape_walkhighlands(session: requests.Session = None) -> list[Walk]:
                     walk_link=walk_link,
                 )
         except Exception as e:
+            logger.exception("Error scraping walk data from %s", walk_link)
             error_collector.add_error("scrape_walk_data", e, walk_link=walk_link)
 
     # Log summary of any errors encountered
