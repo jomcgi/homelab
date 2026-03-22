@@ -14,9 +14,12 @@ import projects.obsidian_vault.vault_mcp.app.main as _mod
 from projects.obsidian_vault.vault_mcp.app.main import (
     Settings,
     configure,
+    delete_note,
     edit_note,
+    get_history,
     list_notes,
     read_note,
+    restore_note,
     search_notes,
     write_note,
 )
@@ -271,3 +274,118 @@ class TestEditNote:
         )
         assert "mcp(edit_note)" in log.stdout
         assert "rename" in log.stdout
+
+
+class TestDeleteNote:
+    async def test_moves_to_archive(self, tmp_path):
+        (tmp_path / "doomed.md").write_text("# Doomed")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True
+        )
+        result = await delete_note(path="doomed.md", reason="no longer needed")
+        assert result["status"] == "ok"
+        assert not (tmp_path / "doomed.md").exists()
+        assert (tmp_path / "_archive" / "doomed.md").exists()
+        assert (tmp_path / "_archive" / "doomed.md").read_text() == "# Doomed"
+
+    async def test_preserves_nested_path_in_archive(self, tmp_path):
+        (tmp_path / "projects").mkdir()
+        (tmp_path / "projects" / "old.md").write_text("# Old")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True
+        )
+        await delete_note(path="projects/old.md", reason="archived")
+        assert (tmp_path / "_archive" / "projects" / "old.md").exists()
+
+    async def test_not_found(self, tmp_path):
+        result = await delete_note(path="missing.md", reason="cleanup")
+        assert "error" in result
+
+    async def test_commits_with_reason(self, tmp_path):
+        (tmp_path / "note.md").write_text("# Note")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True
+        )
+        await delete_note(path="note.md", reason="test delete")
+        log = subprocess.run(
+            ["git", "log", "--oneline", "-1"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert "mcp(delete_note)" in log.stdout
+        assert "test delete" in log.stdout
+
+
+class TestGetHistory:
+    async def test_returns_commits_for_file(self, tmp_path):
+        (tmp_path / "note.md").write_text("v1")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "first"], cwd=tmp_path, capture_output=True
+        )
+        (tmp_path / "note.md").write_text("v2")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "second"], cwd=tmp_path, capture_output=True
+        )
+        result = await get_history(path="note.md")
+        assert len(result["commits"]) == 2
+        assert "second" in result["commits"][0]["message"]
+
+    async def test_returns_all_commits_when_no_path(self, tmp_path):
+        (tmp_path / "a.md").write_text("a")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "add a"], cwd=tmp_path, capture_output=True
+        )
+        (tmp_path / "b.md").write_text("b")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "add b"], cwd=tmp_path, capture_output=True
+        )
+        result = await get_history()
+        assert len(result["commits"]) == 2
+
+    async def test_limit_parameter(self, tmp_path):
+        for i in range(5):
+            (tmp_path / f"note{i}.md").write_text(f"v{i}")
+            subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+            subprocess.run(
+                ["git", "commit", "-m", f"commit {i}"],
+                cwd=tmp_path,
+                capture_output=True,
+            )
+        result = await get_history(limit=3)
+        assert len(result["commits"]) == 3
+
+
+class TestRestoreNote:
+    async def test_restores_from_commit(self, tmp_path):
+        (tmp_path / "note.md").write_text("original")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "v1"], cwd=tmp_path, capture_output=True)
+        v1_hash = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        (tmp_path / "note.md").write_text("modified")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "v2"], cwd=tmp_path, capture_output=True)
+        result = await restore_note(path="note.md", commit=v1_hash)
+        assert result["status"] == "ok"
+        assert (tmp_path / "note.md").read_text() == "original"
+
+    async def test_invalid_commit(self, tmp_path):
+        (tmp_path / "note.md").write_text("content")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True
+        )
+        result = await restore_note(path="note.md", commit="0000000000")
+        assert "error" in result
