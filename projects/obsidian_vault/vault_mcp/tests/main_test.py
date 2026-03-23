@@ -13,6 +13,7 @@ from pydantic import ValidationError
 import projects.obsidian_vault.vault_mcp.app.main as _mod
 from projects.obsidian_vault.vault_mcp.app.main import (
     Settings,
+    _git_commit,
     _validate_path,
     configure,
     delete_note,
@@ -470,6 +471,35 @@ class TestValidatePathSymlinkEscape:
         # After resolution the target is outside the vault — _validate_path must return None
         result = _validate_path("evil_link.md")
         assert result is None
+
+
+class TestListNotesDualFilter:
+    async def test_folder_and_pattern_combined(self, tmp_path):
+        """Both folder= and pattern= must be satisfied simultaneously."""
+        (tmp_path / "daily").mkdir()
+        (tmp_path / "daily" / "note-2026-03-21.md").write_text("# Daily note")
+        (tmp_path / "daily" / "summary.md").write_text("# Summary")
+        (tmp_path / "projects").mkdir()
+        (tmp_path / "projects" / "note-homelab.md").write_text("# Homelab")
+        result = await list_notes(folder="daily", pattern="note-*")
+        assert result["notes"] == ["daily/note-2026-03-21.md"]
+
+
+class TestGitCommitMultiFile:
+    def test_stages_all_files_in_list(self, tmp_path):
+        """_git_commit must call git add for every file in the list, not just one."""
+        with patch.object(_mod, "_git") as mock_git:
+            _git_commit(["file-a.md", "file-b.md", "file-c.md"], "multi-file commit")
+
+        add_calls = [
+            c for c in mock_git.call_args_list if c.args[0] == "add"
+        ]
+        staged_files = [c.args[1] for c in add_calls]
+        assert staged_files == ["file-a.md", "file-b.md", "file-c.md"]
+        commit_calls = [
+            c for c in mock_git.call_args_list if c.args[0] == "commit"
+        ]
+        assert len(commit_calls) == 1
 
 
 class TestMain:
