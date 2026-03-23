@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
@@ -13,6 +13,7 @@ from pydantic import ValidationError
 import projects.obsidian_vault.vault_mcp.app.main as _mod
 from projects.obsidian_vault.vault_mcp.app.main import (
     Settings,
+    _validate_path,
     configure,
     delete_note,
     edit_note,
@@ -389,3 +390,98 @@ class TestRestoreNote:
         )
         result = await restore_note(path="note.md", commit="0000000000")
         assert "error" in result
+
+    async def test_rejects_path_traversal(self, tmp_path):
+        result = await restore_note(path="../escape.md", commit="abc123")
+        assert "error" in result
+
+    async def test_rejects_absolute_path(self, tmp_path):
+        result = await restore_note(path="/etc/passwd", commit="abc123")
+        assert "error" in result
+
+
+class TestEditNoteValidation:
+    async def test_reason_required(self, tmp_path):
+        """Empty reason is rejected before any path or content checks."""
+        (tmp_path / "note.md").write_text("# Title")
+        result = await edit_note(
+            path="note.md", old_text="# Title", new_text="# New", reason=""
+        )
+        assert "error" in result
+
+    async def test_rejects_path_traversal(self, tmp_path):
+        result = await edit_note(
+            path="../escape.md", old_text="a", new_text="b", reason="fix"
+        )
+        assert "error" in result
+
+
+class TestDeleteNoteValidation:
+    async def test_reason_required(self, tmp_path):
+        """Empty reason is rejected before any file operations."""
+        (tmp_path / "note.md").write_text("# Doomed")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True
+        )
+        result = await delete_note(path="note.md", reason="")
+        assert "error" in result
+
+    async def test_rejects_path_traversal(self, tmp_path):
+        result = await delete_note(path="../escape.md", reason="cleanup")
+        assert "error" in result
+
+
+class TestListNotesNonexistentFolder:
+    async def test_nonexistent_folder_returns_empty(self, tmp_path):
+        """A folder= that doesn't exist should return an empty notes list."""
+        result = await list_notes(folder="nonexistent")
+        assert result == {"notes": []}
+
+
+class TestGetHistoryCalledProcessError:
+    async def test_returns_empty_commits_on_git_failure(self, tmp_path):
+        """The CalledProcessError branch returns {'commits': []} instead of raising."""
+        with patch.object(_mod, "_git", side_effect=subprocess.CalledProcessError(128, "git")):
+            result = await get_history(path="some/path.md")
+        assert result == {"commits": []}
+
+    async def test_returns_empty_commits_on_git_failure_no_path(self, tmp_path):
+        """CalledProcessError for whole-vault history also returns {'commits': []}."""
+        with patch.object(_mod, "_git", side_effect=subprocess.CalledProcessError(128, "git")):
+            result = await get_history()
+        assert result == {"commits": []}
+
+
+class TestValidatePathSymlinkEscape:
+    def test_symlink_pointing_outside_vault_is_rejected(self, tmp_path, tmp_path_factory):
+        """A symlink inside the vault that points outside it must be rejected."""
+        outside = tmp_path_factory.mktemp("outside")
+        (outside / "secret.md").write_text("secret")
+        # Create a symlink inside the vault pointing to the outside dir
+        link = tmp_path / "evil_link.md"
+        link.symlink_to(outside / "secret.md")
+        # After resolution the target is outside the vault — _validate_path must return None
+        result = _validate_path("evil_link.md")
+        assert result is None
+
+
+class TestMain:
+    def test_main_wires_settings_configure_and_run(self):
+        """main() should instantiate Settings, call configure(), then mcp.run()."""
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.path = "/tmp/test-vault"
+        mock_settings.port = 8000
+
+        with (
+            patch.object(_mod, "Settings", return_value=mock_settings) as mock_settings_cls,
+            patch.object(_mod, "configure") as mock_configure,
+            patch.object(_mod.mcp, "run") as mock_run,
+        ):
+            _mod.main()
+
+        mock_settings_cls.assert_called_once_with()
+        mock_configure.assert_called_once_with(mock_settings)
+        mock_run.assert_called_once_with(
+            transport="http", host="0.0.0.0", port=mock_settings.port
+        )
