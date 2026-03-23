@@ -51,3 +51,9 @@ sh_test(
     srcs = ["check-library-version-bump_test.sh"],
     data = [":check-library-version-bump.sh"],
 )
+
+sh_test(
+    name = "check_mcp_run_http_test",
+    srcs = ["check-mcp-run-http_test.sh"],
+    data = [":check-mcp-run-http.sh"],
+)
