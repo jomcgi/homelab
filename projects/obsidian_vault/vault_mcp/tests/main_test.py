@@ -491,14 +491,10 @@ class TestGitCommitMultiFile:
         with patch.object(_mod, "_git") as mock_git:
             _git_commit(["file-a.md", "file-b.md", "file-c.md"], "multi-file commit")
 
-        add_calls = [
-            c for c in mock_git.call_args_list if c.args[0] == "add"
-        ]
+        add_calls = [c for c in mock_git.call_args_list if c.args[0] == "add"]
         staged_files = [c.args[1] for c in add_calls]
         assert staged_files == ["file-a.md", "file-b.md", "file-c.md"]
-        commit_calls = [
-            c for c in mock_git.call_args_list if c.args[0] == "commit"
-        ]
+        commit_calls = [c for c in mock_git.call_args_list if c.args[0] == "commit"]
         assert len(commit_calls) == 1
 
 
