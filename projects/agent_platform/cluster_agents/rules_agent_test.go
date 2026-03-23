@@ -54,6 +54,43 @@ func TestRulesAgent_CollectWithActivity(t *testing.T) {
 	}
 }
 
+// TestRulesAgent_ExecuteDelegatesToEscalator verifies that RulesAgent.Execute
+// delegates to its Escalator, submitting the action as an orchestrator job.
+func TestRulesAgent_ExecuteDelegatesToEscalator(t *testing.T) {
+	var postReceived bool
+	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		postReceived = true
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"id": "job-rules"})
+	}))
+	defer orchestratorServer.Close()
+
+	escalator := NewEscalator(NewOrchestratorClient(orchestratorServer.URL))
+	agent := NewRulesAgent(nil, escalator, time.Hour)
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: rulesTag,
+			Source:      rulesTag,
+			Title:       "Rules improvement",
+		},
+		Payload: map[string]any{"task": "Review semgrep rules for new patterns"},
+	}}
+
+	err := agent.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: unexpected error: %v", err)
+	}
+	if !postReceived {
+		t.Error("expected Execute to delegate to escalator and POST to orchestrator")
+	}
+}
+
 func TestRulesAgent_AnalyzeCreatesJob(t *testing.T) {
 	agent := NewRulesAgent(nil, nil, 1*time.Hour)
 

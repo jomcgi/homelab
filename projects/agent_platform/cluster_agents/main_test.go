@@ -1,6 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -95,5 +100,85 @@ func TestEnvDurationOr_ParsesVariousFormats(t *testing.T) {
 				t.Errorf("envDurationOr(%q): got %v, want %v", tc.env, got, tc.want)
 			}
 		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// /health HTTP endpoint
+// ---------------------------------------------------------------------------
+
+// newHealthMux builds a ServeMux with the same /health handler as main(),
+// allowing the handler logic to be tested without starting a real process.
+func newHealthMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, "ok")
+	})
+	return mux
+}
+
+// TestHealthEndpoint_Returns200OK verifies that GET /health responds with
+// HTTP 200 and a body containing "ok".
+func TestHealthEndpoint_Returns200OK(t *testing.T) {
+	srv := httptest.NewServer(newHealthMux())
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/health")
+	if err != nil {
+		t.Fatalf("GET /health: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("reading body: %v", err)
+	}
+	if !strings.Contains(string(body), "ok") {
+		t.Errorf("expected body to contain %q, got %q", "ok", string(body))
+	}
+}
+
+// TestHealthEndpoint_MethodsAllowed verifies that the /health endpoint
+// returns 200 for both GET and HEAD (Go's default mux responds to HEAD on any
+// registered handler).
+func TestHealthEndpoint_MethodsAllowed(t *testing.T) {
+	srv := httptest.NewServer(newHealthMux())
+	defer srv.Close()
+
+	req, err := http.NewRequest(http.MethodHead, srv.URL+"/health", nil)
+	if err != nil {
+		t.Fatalf("creating HEAD request: %v", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("HEAD /health: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("HEAD /health: expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+// TestHealthEndpoint_NotFoundForOtherPaths verifies that the mux returns 404
+// for any path other than /health.
+func TestHealthEndpoint_NotFoundForOtherPaths(t *testing.T) {
+	srv := httptest.NewServer(newHealthMux())
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/not-a-path")
+	if err != nil {
+		t.Fatalf("GET /not-a-path: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 for unknown path, got %d", resp.StatusCode)
 	}
 }

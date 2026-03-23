@@ -93,6 +93,44 @@ func TestTestCoverageAgent_CollectNoActivity(t *testing.T) {
 	}
 }
 
+// TestTestCoverageAgent_ExecuteDelegatesToEscalator verifies that
+// TestCoverageAgent.Execute delegates directly to its Escalator, submitting
+// the action to the orchestrator.
+func TestTestCoverageAgent_ExecuteDelegatesToEscalator(t *testing.T) {
+	var postReceived bool
+	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		postReceived = true
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"id": "job-tc"})
+	}))
+	defer orchestratorServer.Close()
+
+	escalator := NewEscalator(NewOrchestratorClient(orchestratorServer.URL))
+	agent := NewTestCoverageAgent(nil, escalator, time.Hour)
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: testCoverageTag,
+			Source:      testCoverageTag,
+			Title:       "Test coverage job",
+		},
+		Payload: map[string]any{"task": "Run test coverage analysis"},
+	}}
+
+	err := agent.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: unexpected error: %v", err)
+	}
+	if !postReceived {
+		t.Error("expected Execute to delegate to escalator and POST to orchestrator")
+	}
+}
+
 func TestTestCoverageAgent_AnalyzeCreatesJob(t *testing.T) {
 	agent := NewTestCoverageAgent(nil, nil, 1*time.Hour)
 
