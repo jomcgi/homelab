@@ -8,7 +8,6 @@ resources:
   - ../../projects/grimoire/deploy
   - ../../projects/mcp/context-forge-gateway/deploy
   - ../../projects/mcp/oauth-proxy/deploy
-  - ../../projects/memgraph/deploy
   - ../../projects/obsidian_vault/deploy
   - ../../projects/operators/oci-model-cache/deploy
   - ../../projects/platform
