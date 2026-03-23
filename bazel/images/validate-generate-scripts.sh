@@ -49,6 +49,7 @@ extract_targets_from_build bazel/images/BUILD >"$TMPDIR_VALIDATE/push_all_grep.t
 # Run equivalent bazel queries
 {
 	bazel query 'kind("oci_push", //...)' 2>/dev/null
+	bazel query 'kind("apko_push", //...)' 2>/dev/null
 	bazel query 'kind("helm_push", //...)' 2>/dev/null
 } | LC_ALL=C sort >"$TMPDIR_VALIDATE/push_all_query.txt"
 
