@@ -8,9 +8,13 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel/tools/oci:providers.bzl", "oci_image_info")
 
 _BINARY = "//projects/obsidian_vault/vault_mcp/app:main"
+
 _BINARY_PATH = "/projects/obsidian_vault/vault_mcp/app/main"
+
 _RUNFILES = _BINARY_PATH + ".runfiles"
+
 _WORKSPACE = _RUNFILES + "/_main"
+
 _REPOSITORY = "ghcr.io/jomcgi/homelab/projects/obsidian_vault/image"
 
 _ENV = {
