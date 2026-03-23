@@ -62,16 +62,16 @@ spec:
               value: {{ .Values.gitSidecar.branch | quote }}
             - name: DEBOUNCE_SECONDS
               value: {{ .Values.gitSidecar.debounceSeconds | quote }}
-            - name: SSH_KEY_PATH
-              value: /secrets/ssh/ssh-privatekey
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.github.name }}
+                  key: GITHUB_TOKEN
           volumeMounts:
             - name: vault
               mountPath: /vault
             - name: git-sidecar-script
               mountPath: /scripts
-              readOnly: true
-            - name: github-deploy-key
-              mountPath: /secrets/ssh
               readOnly: true
           resources:
             {{- toYaml .Values.resources.gitSidecar | nindent 12 }}
@@ -110,7 +110,3 @@ spec:
           configMap:
             name: {{ include "obsidian-vault.fullname" . }}-git-sidecar
             defaultMode: 0755
-        - name: github-deploy-key
-          secret:
-            secretName: {{ .Values.secrets.github.name }}
-            defaultMode: 0400
