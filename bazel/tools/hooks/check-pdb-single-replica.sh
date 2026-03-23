@@ -39,6 +39,11 @@ if ! echo "$CONTENT" | grep -qE '^\s*minAvailable\s*:\s*[1-9][0-9]*\s*$'; then
 	exit 0
 fi
 
+# If the PDB is explicitly disabled, no eviction risk — skip
+if echo "$CONTENT" | grep -qE '^\s*enabled\s*:\s*false\s*$'; then
+	exit 0
+fi
+
 # Extract the minAvailable value
 MIN_AVAIL=$(echo "$CONTENT" | grep -E '^\s*minAvailable\s*:\s*[1-9][0-9]*\s*$' |
 	grep -oE '[1-9][0-9]*' | head -1)
