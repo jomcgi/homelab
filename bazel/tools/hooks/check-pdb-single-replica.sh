@@ -40,7 +40,7 @@ if ! echo "$CONTENT" | grep -qE '^\s*minAvailable\s*:\s*[1-9][0-9]*\s*$'; then
 fi
 
 # Extract the minAvailable value
-MIN_AVAIL=$(echo "$CONTENT" | grep -E '^\s*minAvailable\s*:\s*[1-9][0-9]*\s*$' | \
+MIN_AVAIL=$(echo "$CONTENT" | grep -E '^\s*minAvailable\s*:\s*[1-9][0-9]*\s*$' |
 	grep -oE '[1-9][0-9]*' | head -1)
 
 # Check if there is evidence of multiple replicas (replicaCount > 1)
@@ -53,7 +53,7 @@ fi
 if $HAS_MULTI_REPLICA; then
 	# Multiple replicas configured — might still be problematic if minAvailable >= replicaCount,
 	# but that's harder to check here. Warn only if minAvailable equals replicaCount.
-	REPLICA_COUNT=$(echo "$CONTENT" | grep -E '^\s*replicaCount\s*:\s*[0-9]+\s*$' | \
+	REPLICA_COUNT=$(echo "$CONTENT" | grep -E '^\s*replicaCount\s*:\s*[0-9]+\s*$' |
 		grep -oE '[0-9]+' | head -1)
 	if [[ -n "$REPLICA_COUNT" ]] && [[ "$MIN_AVAIL" -ge "$REPLICA_COUNT" ]]; then
 		cat >&2 <<-EOF
