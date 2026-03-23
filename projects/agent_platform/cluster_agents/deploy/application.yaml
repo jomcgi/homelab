@@ -17,6 +17,8 @@ spec:
         priorityClassName: system-cluster-critical
         podDisruptionBudget:
           enabled: false
+        podAnnotations:
+          config.linkerd.io/skip-inbound-ports: "8080"
   destination:
     server: https://kubernetes.default.svc
     namespace: cluster-agents
