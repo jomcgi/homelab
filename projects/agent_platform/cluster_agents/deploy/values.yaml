@@ -19,7 +19,8 @@ serviceAccount:
   annotations: {}
   name: ""
 
-podAnnotations: {}
+podAnnotations:
+  config.linkerd.io/skip-inbound-ports: "8080"
 
 podSecurityContext:
   seccompProfile:
