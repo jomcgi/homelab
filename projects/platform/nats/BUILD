@@ -12,9 +12,10 @@ argocd_app(
     chart_files = ":chart",
     namespace = "nats",
     release_name = "nats",
-    # Upstream nats chart doesn't expose securityContext; resource limits not configurable for all containers
+    # Upstream nats chart doesn't expose securityContext; resource limits not configurable for all containers; some containers lack readiness probes
     semgrep_exclude_rules = [
         "require-resource-limits",
+        "require-readiness-probe",
         "yaml.kubernetes.security.writable-filesystem-container.writable-filesystem-container",
         "yaml.kubernetes.security.run-as-non-root.run-as-non-root",
     ],

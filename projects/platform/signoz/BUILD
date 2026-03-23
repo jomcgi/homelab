@@ -12,10 +12,11 @@ argocd_app(
     chart_files = ":chart",
     namespace = "signoz",
     release_name = "signoz",
-    # Many subcomponents (clickhouse, alertmanager, otel collectors); fixing all via values is fragile; resource limits not configurable for all subcomponent containers
+    # Many subcomponents (clickhouse, alertmanager, otel collectors); fixing all via values is fragile; resource limits not configurable for all subcomponent containers; async/wget containers also lack readiness probes
     semgrep_exclude_rules = [
         "require-tmp-emptydir",
         "require-resource-limits",
+        "require-readiness-probe",
         "yaml.kubernetes.security.allow-privilege-escalation.allow-privilege-escalation",
         "yaml.kubernetes.security.writable-filesystem-container.writable-filesystem-container",
         "yaml.kubernetes.security.run-as-non-root.run-as-non-root",

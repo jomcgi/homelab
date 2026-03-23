@@ -12,10 +12,11 @@ argocd_app(
     chart_files = ":chart",
     namespace = "gpu-operator",
     release_name = "nvidia-gpu-operator",
-    # GPU drivers require privileged containers; upstream chart doesn't expose securityContext; resource limits not configurable for all init containers
+    # GPU drivers require privileged containers; upstream chart doesn't expose securityContext; resource limits not configurable for all init containers; init containers also lack readiness probes
     semgrep_exclude_rules = [
         "require-tmp-emptydir",
         "require-resource-limits",
+        "require-readiness-probe",
         "yaml.kubernetes.security.privileged-container.privileged-container",
         "yaml.kubernetes.security.allow-privilege-escalation.allow-privilege-escalation",
         "yaml.kubernetes.security.writable-filesystem-container.writable-filesystem-container",
