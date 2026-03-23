@@ -111,6 +111,14 @@ filegroup(
 )
 
 semgrep_test(
+    name = "kubernetes_rules_test",
+    srcs = ["//bazel/semgrep/tests:kubernetes_yaml_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":kubernetes_rules"],
+    tags = ["semgrep"],
+)
+
+semgrep_test(
     name = "yaml_rules_test",
     srcs = ["//bazel/semgrep/tests:yaml_fixtures"],
     env = {"SEMGREP_TEST_MODE": "1"},
