@@ -12,6 +12,8 @@ py_venv_binary(
         "@pip//fastmcp",
         "@pip//httpx",
         "@pip//pydantic_settings",
+        "@pip//starlette",
+        "@pip//uvicorn",
     ],
 )
 
@@ -26,6 +28,8 @@ py_library(
         "@pip//fastmcp",
         "@pip//httpx",
         "@pip//pydantic_settings",
+        "@pip//starlette",
+        "@pip//uvicorn",
     ],
 )
 
