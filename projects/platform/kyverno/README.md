@@ -4,7 +4,7 @@ Policy engine for Kubernetes with custom ClusterPolicies for automated observabi
 
 ## Overview
 
-Kyverno acts as a Kubernetes admission controller that mutates resources to enforce cluster-wide conventions. This chart wraps the upstream Kyverno chart and adds two custom ClusterPolicies that automatically inject OpenTelemetry configuration and Linkerd service mesh annotations into all workloads.
+Kyverno acts as a Kubernetes admission controller that mutates resources to enforce cluster-wide conventions. This chart wraps the upstream Kyverno chart and adds three custom ClusterPolicies that automatically inject OpenTelemetry configuration, Linkerd service mesh annotations, and disable Linkerd injection on Jobs.
 
 ```mermaid
 flowchart LR
@@ -23,7 +23,7 @@ flowchart LR
 
 ## Architecture
 
-The chart deploys four Kyverno controllers plus two custom ClusterPolicies:
+The chart deploys four Kyverno controllers plus three custom ClusterPolicies:
 
 - **Admission Controller** - Intercepts API server requests to mutate and validate resources against policies
 - **Background Controller** - Applies policies retroactively to existing resources (not just new ones)
@@ -34,6 +34,7 @@ Custom policies included:
 
 - **OTel Injection** (`inject-otel-env-vars`) - Mutates Deployments, StatefulSets, and DaemonSets to inject `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` environment variables
 - **Linkerd Injection** (`inject-linkerd-namespace-annotation`) - Mutates Namespaces to add `linkerd.io/inject: enabled` annotation for automatic sidecar injection
+- **Linkerd Jobs Disable** (`disable-linkerd-on-jobs`) - Annotates Job pods with `linkerd.io/inject: disabled` to prevent the sidecar from blocking Job completion
 
 ## Key Features
 
