@@ -499,23 +499,27 @@ class TestGitCommitMultiFile:
 
 
 class TestMain:
-    def test_main_wires_settings_configure_and_run(self):
-        """main() should instantiate Settings, call configure(), then mcp.run()."""
+    def test_main_wires_settings_configure_and_uvicorn(self):
+        """main() should instantiate Settings, call configure(), build http_app, and run uvicorn."""
         mock_settings = MagicMock(spec=Settings)
         mock_settings.path = "/tmp/test-vault"
         mock_settings.port = 8000
+        mock_app = MagicMock()
 
         with (
             patch.object(
                 _mod, "Settings", return_value=mock_settings
             ) as mock_settings_cls,
             patch.object(_mod, "configure") as mock_configure,
-            patch.object(_mod.mcp, "run") as mock_run,
+            patch.object(_mod.mcp, "http_app", return_value=mock_app),
+            patch("uvicorn.run") as mock_uvicorn_run,
         ):
             _mod.main()
 
         mock_settings_cls.assert_called_once_with()
         mock_configure.assert_called_once_with(mock_settings)
-        mock_run.assert_called_once_with(
-            transport="http", host="0.0.0.0", port=mock_settings.port
+        mock_app.add_route.assert_called_once()
+        assert mock_app.add_route.call_args[0][0] == "/healthz"
+        mock_uvicorn_run.assert_called_once_with(
+            mock_app, host="0.0.0.0", port=mock_settings.port
         )
