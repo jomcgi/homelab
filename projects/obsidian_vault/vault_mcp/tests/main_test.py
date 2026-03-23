@@ -523,3 +523,28 @@ class TestMain:
         mock_uvicorn_run.assert_called_once_with(
             mock_app, host="0.0.0.0", port=mock_settings.port
         )
+
+    async def test_healthz_handler_returns_ok_json(self):
+        """The /healthz closure must return JSONResponse({'status': 'ok'}) when invoked."""
+        import json
+
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.path = "/tmp/test-vault"
+        mock_settings.port = 8000
+        mock_app = MagicMock()
+
+        with (
+            patch.object(_mod, "Settings", return_value=mock_settings),
+            patch.object(_mod, "configure"),
+            patch.object(_mod.mcp, "http_app", return_value=mock_app),
+            patch("uvicorn.run"),
+        ):
+            _mod.main()
+
+        # Extract the handler registered with add_route("/healthz", <handler>)
+        handler = mock_app.add_route.call_args[0][1]
+        mock_request = MagicMock()
+        response = await handler(mock_request)
+
+        assert response.status_code == 200
+        assert json.loads(response.body) == {"status": "ok"}
