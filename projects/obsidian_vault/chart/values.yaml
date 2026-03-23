@@ -13,7 +13,7 @@ gitSidecar:
 
 vaultMcp:
   image:
-    repository: ghcr.io/jomcgi/homelab/obsidian-vault-mcp
+    repository: ghcr.io/jomcgi/homelab/projects/obsidian_vault
     tag: "latest"
   port: 8000
 
@@ -27,6 +27,7 @@ secrets:
     itemPath: ""
 
 podSecurityContext:
+  fsGroup: 65532
   seccompProfile:
     type: RuntimeDefault
 
