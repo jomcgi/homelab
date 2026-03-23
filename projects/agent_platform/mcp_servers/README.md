@@ -75,7 +75,7 @@ For third-party images (e.g., `docker.io/signoz/signoz-mcp-server`), skip the im
 ### 4. Render and verify
 
 ```bash
-helm template agent-platform-mcp-servers projects/agent_platform/mcp_servers/ \
+helm template agent-platform-mcp-servers projects/agent_platform/chart/mcp-servers/ \
   -f projects/agent_platform/deploy/values.yaml
 ```
 
