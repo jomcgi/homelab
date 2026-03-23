@@ -26,7 +26,7 @@ secrets:
     name: obsidian-credentials
     itemPath: ""
   github:
-    name: github-deploy-key
+    name: github-token
     itemPath: ""
 
 podSecurityContext:
