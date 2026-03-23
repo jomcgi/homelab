@@ -181,6 +181,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-library-version-bump.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-empty-1password-itempath.sh",
+            "timeout": 5
           }
         ]
       }
