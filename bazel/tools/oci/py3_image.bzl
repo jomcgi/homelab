@@ -8,7 +8,7 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load", "oc
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel/tools/oci:providers.bzl", "oci_image_info")
 
-def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", tars = [], repository = None, visibility = ["//bazel/images:__pkg__"], multi_platform = True):
+def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", tars = [], bash_symlink = True, repository = None, visibility = ["//bazel/images:__pkg__"], multi_platform = True):
     """Create a multi-platform Python 3 image from a Python binary.
 
     Args:
@@ -23,6 +23,9 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
         workdir: The working directory to set in the image.
         base: The base image to use for the image.
         tars: Additional tar layers to include in the image (e.g., extra binaries or config).
+        bash_symlink: Create /bin/bash -> /usr/bin/bash symlink layer. Set to False for bases
+                     where /bin is a symlink to /usr/bin (e.g., Wolfi apko images), as the
+                     layer would shadow the /bin symlink and break /bin/* resolution.
         repository: The container registry repository (e.g., "ghcr.io/jomcgi/homelab/my-app").
                    Defaults to "ghcr.io/jomcgi/homelab/{package_name}".
         visibility: Visibility of the generated .push target. Defaults to ["//bazel/images:__pkg__"]
@@ -40,15 +43,17 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
         "PYTHONPATH": workspace_root,
     }, **env)
 
-    # Wolfi installs bash to /usr/bin/bash but py_venv_binary shebangs use /bin/bash
-    tar(
-        name = name + "_bash_symlink",
-        mtree = ["./bin/bash type=link link=/usr/bin/bash"],
-    )
-
     # py_venv_binary omits ctx.file.main from runfiles — create a supplementary
     # tar layer to include the source file at the correct runfiles path.
-    extra_tars = [name + "_bash_symlink"] + list(tars)
+    extra_tars = list(tars)
+    if bash_symlink:
+        # Wolfi installs bash to /usr/bin/bash but py_venv_binary shebangs use /bin/bash.
+        # Skip for bases where /bin -> /usr/bin (the layer would shadow the symlink).
+        tar(
+            name = name + "_bash_symlink",
+            mtree = ["./bin/bash type=link link=/usr/bin/bash"],
+        )
+        extra_tars.append(name + "_bash_symlink")
     if main == None and binary.package == native.package_name():
         main = binary.name + ".py"
     if main:
