@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -88,6 +89,65 @@ func TestReadmeFreshnessAgent_ExecuteDelegatesToEscalator(t *testing.T) {
 	}
 	if !postReceived {
 		t.Error("expected Execute to delegate to escalator and POST to orchestrator")
+	}
+}
+
+func TestReadmeFreshnessAgent_CollectNoActivity(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		commits := []ghCommit{
+			{
+				SHA: "bot111",
+				Commit: ghCommitDetail{
+					Author:  ghAuthor{Name: "ci-format-bot", Date: time.Now()},
+					Message: "style: auto-format",
+				},
+			},
+		}
+		json.NewEncoder(w).Encode(commits)
+	}))
+	defer githubServer.Close()
+
+	gate := NewGitActivityGate(
+		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		NewOrchestratorClient("http://should-not-be-called"),
+		[]string{"ci-format-bot"},
+		"main",
+	)
+
+	agent := NewReadmeFreshnessAgent(gate, nil, 1*time.Hour)
+
+	findings, err := agent.Collect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Errorf("expected 0 findings, got %d", len(findings))
+	}
+}
+
+// TestReadmeFreshnessAgent_CollectGateError verifies that Collect propagates
+// errors returned by the gate (e.g. GitHub API unavailable).
+func TestReadmeFreshnessAgent_CollectGateError(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}))
+	defer githubServer.Close()
+
+	gate := NewGitActivityGate(
+		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		NewOrchestratorClient("http://should-not-be-called"),
+		[]string{"ci-format-bot"},
+		"main",
+	)
+
+	agent := NewReadmeFreshnessAgent(gate, nil, 1*time.Hour)
+
+	_, err := agent.Collect(context.Background())
+	if err == nil {
+		t.Fatal("expected error from Collect when gate fails, got nil")
+	}
+	if !strings.Contains(err.Error(), "git activity check") {
+		t.Errorf("expected error to contain 'git activity check', got: %v", err)
 	}
 }
 
