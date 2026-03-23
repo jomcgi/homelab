@@ -838,6 +838,13 @@ var _ = Describe("ModelCacheCalculator", func() {
 					// LastState missing
 				}),
 			),
+			Entry("Unknown without ObservedPhase",
+				PhaseUnknown,
+				newModelCacheWithStatus(v1alpha1.ModelCacheStatus{
+					Phase: PhaseUnknown,
+					// ObservedPhase missing - Validate() requires it to be non-empty
+				}),
+			),
 		)
 	})
 
