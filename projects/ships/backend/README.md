@@ -245,7 +245,28 @@ WebSocket endpoint for real-time position updates.
 
 **Message format:**
 
-Broadcasts a batched positions message with the latest position per vessel:
+On connect, the server immediately sends a snapshot of all current vessel positions:
+
+```json
+{
+  "type": "snapshot",
+  "vessels": [
+    {
+      "mmsi": "316001234",
+      "lat": 49.2827,
+      "lon": -123.1207,
+      "speed": 12.5,
+      "course": 180.0,
+      "heading": 182,
+      "nav_status": 0,
+      "ship_name": "VESSEL NAME",
+      "timestamp": "2024-01-15T12:00:00Z"
+    }
+  ]
+}
+```
+
+Subsequently, batched position updates are broadcast as vessels move:
 
 ```json
 {
@@ -273,7 +294,11 @@ const ws = new WebSocket("wss://ships-api.jomcgi.dev/ws/live");
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
-  if (msg.type === "positions") {
+  if (msg.type === "snapshot") {
+    // Initial state — replace all markers
+    msg.vessels.forEach((vessel) => updateMapMarker(vessel));
+  } else if (msg.type === "positions") {
+    // Incremental updates
     msg.positions.forEach((pos) => {
       console.log(`${pos.ship_name} at ${pos.lat}, ${pos.lon}`);
       updateMapMarker(pos);
