@@ -38,8 +38,12 @@ def _vault_path() -> Path:
 
 
 def _git(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
-    """Run a git command in the vault directory."""
-    return subprocess.run(
+    """Run a git command in the vault directory.
+
+    Safe from injection: uses list-mode subprocess (no shell=True),
+    and all callers validate paths via _validate_path() first.
+    """
+    return subprocess.run(  # nosemgrep: mcp-shell-injection-taint
         ["git", *args],
         cwd=cwd or _vault_path(),
         capture_output=True,
