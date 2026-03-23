@@ -391,10 +391,18 @@ class TestMain:
         monkeypatch.setenv("ORCHESTRATOR_URL", "http://orchestrator.test:8080")
         monkeypatch.delenv("ORCHESTRATOR_PORT", raising=False)
 
-        with patch.object(_mod.mcp, "run") as mock_run:
+        mock_app = MagicMock()
+        with (
+            patch.object(_mod.mcp, "http_app", return_value=mock_app) as mock_http_app,
+            patch("uvicorn.run") as mock_uvicorn,
+        ):
             from projects.agent_platform.orchestrator.mcp.app.main import main
 
             main()
 
-        mock_run.assert_called_once_with(transport="http", host="0.0.0.0", port=8000)
+        mock_http_app.assert_called_once()
+        mock_app.add_route.assert_called_once()
+        route_path = mock_app.add_route.call_args[0][0]
+        assert route_path == "/healthz"
+        mock_uvicorn.assert_called_once_with(mock_app, host="0.0.0.0", port=8000)
         assert _mod._client is not None
