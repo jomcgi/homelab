@@ -3,7 +3,7 @@ imagePullSecrets:
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/homelab/projects/operators/oci-model-cache
-    tag: main@sha256:5daee534bd2dfd0fedc95df029a9a11122d09fa093f65a8b7823c3d64fdfa5a5
+    tag: "" # Pinned at build time by helm_images_values
     pullPolicy: Always
   tracing:
     serviceName: "oci-model-cache-operator"
@@ -27,18 +27,7 @@ hfToken:
   onepassword:
     itemPath: "vaults/k8s-homelab/items/oci-model-cache"
 imageUpdater:
-  enabled: true
-  images:
-    - alias: operator
-      imageName: ghcr.io/jomcgi/homelab/projects/operators/oci-model-cache:main
-      helm:
-        name: controllerManager.image.repository
-        tag: controllerManager.image.tag
-  writeBack:
-    method: git:secret:argocd/argocd-image-updater-token
-    repository: https://github.com/jomcgi/homelab.git
-    branch: main
-    target: helmvalues:projects/operators/oci-model-cache/deploy/values.yaml
+  enabled: false
 extraResources:
   - apiVersion: onepassword.com/v1
     kind: OnePasswordItem
