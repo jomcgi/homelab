@@ -1,0 +1,2 @@
+# Memgraph cluster-specific overrides
+# priorityClassName: ""  # Set to assign a PriorityClass to the Memgraph pod

@@ -34,8 +34,3 @@ dependencies:
     repository: "file://./agent-sandbox"
     condition: agent-sandbox.enabled
 
-  - name: memgraph
-    alias: memgraph-shared
-    repository: "file://./memgraph"
-    version: 0.2.16
-    condition: memgraph-shared.enabled
