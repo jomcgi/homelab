@@ -111,9 +111,7 @@ async def reset_weekly() -> dict:
 def main():
     settings = Settings()
     configure(settings)
-    mcp.run(
-        transport="http", host="0.0.0.0", port=settings.port
-    )  # nosemgrep: no-mcp-run-http — TODO migrate to mcp.http_app() + uvicorn (follow-up to PR #1456)
+    mcp.run(transport="http", host="0.0.0.0", port=settings.port)
 
 
 if __name__ == "__main__":
