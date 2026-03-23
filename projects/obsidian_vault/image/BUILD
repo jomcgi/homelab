@@ -1,10 +1,8 @@
-load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_apko//apko:defs.bzl", _apko_base = "apko_image")
-load("@rules_oci//oci:defs.bzl", "oci_image_index")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
 
-# --- Multi-platform apko base (git + bash + busybox) ---
+# --- Per-architecture apko bases (git + bash + busybox) ---
 # py3_image provides hermetic Python; apko provides git for vault sync.
 
 _apko_base(
@@ -23,31 +21,15 @@ _apko_base(
     tag = "latest",
 )
 
-platform_transition_filegroup(
-    name = "git_base_amd64_transitioned",
-    srcs = [":git_base_amd64"],
-    target_platform = "//bazel/tools/platforms:linux_x86_64",
-)
-
-platform_transition_filegroup(
-    name = "git_base_arm64_transitioned",
-    srcs = [":git_base_arm64"],
-    target_platform = "//bazel/tools/platforms:linux_aarch64",
-)
-
-oci_image_index(
-    name = "git_base",
-    images = [
-        ":git_base_amd64_transitioned",
-        ":git_base_arm64_transitioned",
-    ],
-)
-
 # --- Python image on apko base ---
+# select() resolves per-arch base via platform_transition_filegroup in py3_image.
 
 py3_image(
     name = "image",
-    base = ":git_base",
+    base = select({
+        "@platforms//cpu:arm64": ":git_base_arm64",
+        "@platforms//cpu:x86_64": ":git_base_amd64",
+    }),
     binary = "//projects/obsidian_vault/vault_mcp/app:main",
     env = {
         "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=no",
