@@ -1,5 +1,5 @@
 gitSidecar:
-  remote: ""
+  remote: "https://github.com/jomcgi/obsidian-vault.git"
 
 gateway:
   url: "http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80"
@@ -8,4 +8,4 @@ gateway:
 
 secrets:
   obsidian:
-    itemPath: ""
+    itemPath: "vaults/k8s-homelab/items/obsidian"
