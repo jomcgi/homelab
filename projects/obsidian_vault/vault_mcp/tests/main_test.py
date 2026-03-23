@@ -442,19 +442,25 @@ class TestListNotesNonexistentFolder:
 class TestGetHistoryCalledProcessError:
     async def test_returns_empty_commits_on_git_failure(self, tmp_path):
         """The CalledProcessError branch returns {'commits': []} instead of raising."""
-        with patch.object(_mod, "_git", side_effect=subprocess.CalledProcessError(128, "git")):
+        with patch.object(
+            _mod, "_git", side_effect=subprocess.CalledProcessError(128, "git")
+        ):
             result = await get_history(path="some/path.md")
         assert result == {"commits": []}
 
     async def test_returns_empty_commits_on_git_failure_no_path(self, tmp_path):
         """CalledProcessError for whole-vault history also returns {'commits': []}."""
-        with patch.object(_mod, "_git", side_effect=subprocess.CalledProcessError(128, "git")):
+        with patch.object(
+            _mod, "_git", side_effect=subprocess.CalledProcessError(128, "git")
+        ):
             result = await get_history()
         assert result == {"commits": []}
 
 
 class TestValidatePathSymlinkEscape:
-    def test_symlink_pointing_outside_vault_is_rejected(self, tmp_path, tmp_path_factory):
+    def test_symlink_pointing_outside_vault_is_rejected(
+        self, tmp_path, tmp_path_factory
+    ):
         """A symlink inside the vault that points outside it must be rejected."""
         outside = tmp_path_factory.mktemp("outside")
         (outside / "secret.md").write_text("secret")
@@ -474,7 +480,9 @@ class TestMain:
         mock_settings.port = 8000
 
         with (
-            patch.object(_mod, "Settings", return_value=mock_settings) as mock_settings_cls,
+            patch.object(
+                _mod, "Settings", return_value=mock_settings
+            ) as mock_settings_cls,
             patch.object(_mod, "configure") as mock_configure,
             patch.object(_mod.mcp, "run") as mock_run,
         ):
