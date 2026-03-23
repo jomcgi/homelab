@@ -69,3 +69,9 @@ sh_test(
     srcs = ["check-empty-1password-itempath_test.sh"],
     data = [":check-empty-1password-itempath.sh"],
 )
+
+sh_test(
+    name = "check_pdb_single_replica_test",
+    srcs = ["check-pdb-single-replica_test.sh"],
+    data = [":check-pdb-single-replica.sh"],
+)
