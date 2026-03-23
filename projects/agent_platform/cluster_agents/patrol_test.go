@@ -256,3 +256,56 @@ func TestPatrolAgent_CollectAggregatesFromCollector(t *testing.T) {
 		t.Fatalf("expected 1 finding, got %d", len(findings))
 	}
 }
+
+// TestPatrolAgent_CollectNilCollectorReturnsNil verifies the nil guard in
+// Collect: when the collector is nil, Collect returns (nil, nil) without
+// panicking.
+func TestPatrolAgent_CollectNilCollectorReturnsNil(t *testing.T) {
+	patrol := NewPatrolAgent(nil, nil, 1*time.Hour)
+
+	findings, err := patrol.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("expected nil error with nil collector, got: %v", err)
+	}
+	if findings != nil {
+		t.Errorf("expected nil findings with nil collector, got: %v", findings)
+	}
+}
+
+// TestPatrolAgent_CollectPropagatesCollectorError verifies that when the
+// underlying AlertCollector returns an error (e.g. the SigNoz API is down),
+// Collect propagates that error to the caller.
+func TestPatrolAgent_CollectPropagatesCollectorError(t *testing.T) {
+	// Return a non-200 status to make the collector fail.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	collector := NewAlertCollector(server.URL, "")
+	patrol := NewPatrolAgent(collector, nil, 1*time.Hour)
+
+	_, err := patrol.Collect(context.Background())
+	if err == nil {
+		t.Fatal("expected error from Collect when collector fails, got nil")
+	}
+}
+
+// TestPatrolAgent_ExecuteNilEscalatorReturnsNil verifies the nil guard in
+// Execute: when the escalator is nil, Execute returns nil without panicking.
+func TestPatrolAgent_ExecuteNilEscalatorReturnsNil(t *testing.T) {
+	patrol := NewPatrolAgent(nil, nil, 1*time.Hour)
+
+	actions := []Action{
+		{
+			Type:    ActionOrchestratorJob,
+			Finding: Finding{Fingerprint: "fp-1", Title: "Some Alert"},
+			Payload: map[string]any{"task": "investigate"},
+		},
+	}
+
+	err := patrol.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("expected nil error with nil escalator, got: %v", err)
+	}
+}
