@@ -152,7 +152,19 @@ async def get_job_output(job_id: str) -> dict:
 def main():
     settings = Settings()
     configure(settings)
-    mcp.run(transport="http", host="0.0.0.0", port=settings.port)
+
+    app = mcp.http_app()
+
+    async def healthz(request):
+        from starlette.responses import JSONResponse
+
+        return JSONResponse({"status": "ok"})
+
+    app.add_route("/healthz", healthz)
+
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=settings.port)
 
 
 if __name__ == "__main__":
