@@ -169,6 +169,11 @@
           },
           {
             "type": "command",
+            "command": "bazel/tools/hooks/check-ebpf-otel-annotations.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "bazel/tools/hooks/check-library-version-bump.sh",
             "timeout": 5
           }

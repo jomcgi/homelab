@@ -51,3 +51,9 @@ sh_test(
     srcs = ["check-library-version-bump_test.sh"],
     data = [":check-library-version-bump.sh"],
 )
+
+sh_test(
+    name = "check_ebpf_otel_annotations_test",
+    srcs = ["check-ebpf-otel-annotations_test.sh"],
+    data = [":check-ebpf-otel-annotations.sh"],
+)
