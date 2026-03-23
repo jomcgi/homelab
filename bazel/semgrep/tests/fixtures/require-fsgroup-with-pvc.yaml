@@ -1,0 +1,92 @@
+# Tests for require-fsgroup-with-pvc rule.
+---
+# ok: PVC volume with fsGroup set in podSecurityContext
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ok-with-fsgroup
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: app
+          image: myapp:latest
+          resources:
+            limits:
+              memory: "256Mi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-pvc
+
+---
+# ok: no PVC volume, no fsGroup needed
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ok-no-pvc
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: app
+          image: myapp:latest
+          resources:
+            limits:
+              memory: "256Mi"
+      volumes:
+        - name: config
+          configMap:
+            name: my-config
+
+---
+# ruleid: require-fsgroup-with-pvc
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-pvc-no-fsgroup
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        # fsGroup missing — non-root container cannot write to PVC
+      containers:
+        - name: app
+          image: myapp:latest
+          resources:
+            limits:
+              memory: "256Mi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-pvc
+
+---
+# ruleid: require-fsgroup-with-pvc
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-pvc-no-security-context
+spec:
+  template:
+    spec:
+      # no securityContext at all
+      containers:
+        - name: app
+          image: myapp:latest
+          resources:
+            limits:
+              memory: "256Mi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: my-pvc

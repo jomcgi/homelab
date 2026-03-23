@@ -1,0 +1,33 @@
+rules:
+  - id: require-fsgroup-with-pvc
+    patterns:
+      - pattern: |
+          volumes:
+            - name: $VOLUME
+              persistentVolumeClaim:
+                ...
+      - pattern-not: |
+          securityContext:
+            ...
+            fsGroup: ...
+    message: >
+      A `persistentVolumeClaim` volume is defined but `podSecurityContext.fsGroup`
+      is not set. Non-root containers (uid 65532) cannot write to a PVC without
+      `fsGroup: 65532` in `spec.template.spec.securityContext`. Without it, the
+      volume is owned by root and the container will fail with a permission denied
+      error. Add `fsGroup: 65532` to your `podSecurityContext` values.
+    languages: [yaml]
+    severity: ERROR
+    metadata:
+      category: correctness
+      subcategory: kubernetes
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      technology: [kubernetes]
+      description: >
+        Helm chart templates with PVC volumes must set podSecurityContext.fsGroup
+        so non-root containers (uid 65532) can write to the volume
+    paths:
+      include:
+        - "**/chart/templates/**"
