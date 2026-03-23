@@ -27,6 +27,9 @@ spec:
       imagePullSecrets:
         - name: ghcr-imagepull-secret
       {{- end }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
       serviceAccountName: {{ include "cluster-agents.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}

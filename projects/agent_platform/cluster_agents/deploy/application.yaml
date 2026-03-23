@@ -8,12 +8,16 @@ spec:
   source:
     repoURL: ghcr.io/jomcgi/homelab/charts
     chart: cluster-agents
-    targetRevision: 0.6.2
+    targetRevision: 0.6.3
     helm:
       releaseName: cluster-agents
       valuesObject:
         imagePullSecret:
           enabled: true
+        priorityClassName: system-cluster-critical
+        podDisruptionBudget:
+          enabled: true
+          minAvailable: 1
   destination:
     server: https://kubernetes.default.svc
     namespace: cluster-agents
