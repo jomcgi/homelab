@@ -57,6 +57,8 @@ multirun(
         "//projects/grimoire/ws-gateway:image.push",
         "//projects/hikes/update_forecast:update_image.push",
         "//projects/obsidian_vault/chart:chart.push",
+        "//projects/obsidian_vault/image:git_base_amd64.push",
+        "//projects/obsidian_vault/image:git_base_arm64.push",
         "//projects/obsidian_vault/image:image.push",
         "//projects/operators/cloudflare:image.push",
         "//projects/operators/oci-model-cache/helm/oci-model-cache-operator:chart.push",
