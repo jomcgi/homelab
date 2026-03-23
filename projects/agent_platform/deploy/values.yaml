@@ -193,6 +193,9 @@ agent-orchestrator:
 
 # ── Goose Sandboxes ─────────────────────────────────────────────────────────
 goose-sandboxes:
+  namespace:
+    resourceQuota:
+      pods: "20"
   sandboxTemplate:
     env:
       contextForgeUrl: "http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp"
