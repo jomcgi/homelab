@@ -151,6 +151,20 @@ func TestRulesAgent_CollectGateError(t *testing.T) {
 	}
 }
 
+// TestRulesAgent_AnalyzeEmptyFindings verifies that Analyze returns nil
+// actions when given an empty findings slice, not an empty non-nil slice.
+func TestRulesAgent_AnalyzeEmptyFindings(t *testing.T) {
+	agent := NewRulesAgent(nil, nil, time.Hour)
+
+	actions, err := agent.Analyze(context.Background(), []Finding{})
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	if actions != nil {
+		t.Errorf("expected nil actions for empty findings, got %v", actions)
+	}
+}
+
 func TestRulesAgent_AnalyzeCreatesJob(t *testing.T) {
 	agent := NewRulesAgent(nil, nil, 1*time.Hour)
 
@@ -187,5 +201,9 @@ func TestRulesAgent_AnalyzeCreatesJob(t *testing.T) {
 	}
 	if taskStr == "" {
 		t.Error("expected non-empty task string")
+	}
+	// The task must include the commit range, not a ULID.
+	if !strings.Contains(taskStr, "abc123..def456") {
+		t.Errorf("expected task to contain commit range abc123..def456, got: %s", taskStr)
 	}
 }

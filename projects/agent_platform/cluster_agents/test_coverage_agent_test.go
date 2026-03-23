@@ -131,6 +131,46 @@ func TestTestCoverageAgent_ExecuteDelegatesToEscalator(t *testing.T) {
 	}
 }
 
+// TestTestCoverageAgent_CollectGateError verifies that Collect returns an error
+// wrapping "git activity check" when the GitHub API returns a non-200 status.
+func TestTestCoverageAgent_CollectGateError(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer githubServer.Close()
+
+	gate := NewGitActivityGate(
+		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		NewOrchestratorClient("http://should-not-be-called"),
+		[]string{"ci-format-bot"},
+		"main",
+	)
+
+	agent := NewTestCoverageAgent(gate, nil, 1*time.Hour)
+
+	_, err := agent.Collect(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "git activity check") {
+		t.Errorf("expected error to contain 'git activity check', got: %v", err)
+	}
+}
+
+// TestTestCoverageAgent_AnalyzeEmptyFindings verifies that Analyze returns nil
+// actions when given an empty findings slice, not an empty non-nil slice.
+func TestTestCoverageAgent_AnalyzeEmptyFindings(t *testing.T) {
+	agent := NewTestCoverageAgent(nil, nil, time.Hour)
+
+	actions, err := agent.Analyze(context.Background(), []Finding{})
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	if actions != nil {
+		t.Errorf("expected nil actions for empty findings, got %v", actions)
+	}
+}
+
 func TestTestCoverageAgent_AnalyzeCreatesJob(t *testing.T) {
 	agent := NewTestCoverageAgent(nil, nil, 1*time.Hour)
 
