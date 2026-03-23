@@ -1,5 +1,5 @@
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
-load("@rules_apko//apko:defs.bzl", _apko_image = "apko_image")
+load("@rules_apko//apko:defs.bzl", _apko_base = "apko_image")
 load("@rules_oci//oci:defs.bzl", "oci_image_index")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
@@ -7,7 +7,7 @@ load("//bazel/tools/oci:py3_image.bzl", "py3_image")
 # --- Multi-platform apko base (git + bash + busybox) ---
 # py3_image provides hermetic Python; apko provides git for vault sync.
 
-_apko_image(
+_apko_base(
     name = "git_base_amd64",
     architecture = "x86_64",
     config = "apko.yaml",
@@ -15,7 +15,7 @@ _apko_image(
     tag = "latest",
 )
 
-_apko_image(
+_apko_base(
     name = "git_base_arm64",
     architecture = "aarch64",
     config = "apko.yaml",
