@@ -17,6 +17,9 @@ data:
 
     cd "$VAULT_PATH"
 
+    # Mark vault path as safe (fsGroup chown triggers git's dubious ownership check)
+    git config --global --add safe.directory "$VAULT_PATH"
+
     # Configure HTTPS auth if GITHUB_TOKEN is provided
     if [ -n "$GITHUB_TOKEN" ]; then
         git config --global credential.helper store

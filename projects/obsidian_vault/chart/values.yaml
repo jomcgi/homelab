@@ -1,4 +1,5 @@
 headlessSync:
+  enabled: false
   image:
     repository: node
     tag: "22-alpine"
