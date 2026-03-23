@@ -6,4 +6,5 @@ helm_chart(
         "vaultMcp.image": "//projects/obsidian_vault/image:image.info",
     },
     publish = True,
+    visibility = ["//overlays:__subpackages__"],
 )
