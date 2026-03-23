@@ -310,14 +310,6 @@ agent-sandbox:
       runAsUser: 65532
       fsGroup: 65532
 
-# ── Subchart: memgraph-shared ────────────────────────────────────────────────
-# Optional vendored Memgraph graph database. Disabled by default.
-# Enable with memgraph-shared.enabled=true and override values as needed.
-# Temporary vendor: includes priorityClassName patch (memgraph/helm-charts#212)
-# pending upstream release.
-memgraph-shared:
-  enabled: false
-
 # ── Subchart: nats ───────────────────────────────────────────────────────────
 # NATS JetStream — required by agent-orchestrator for job queuing.
 nats:
