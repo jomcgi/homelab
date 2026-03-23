@@ -58,6 +58,7 @@ multirun(
         "//projects/hikes/update_forecast:update_image.push",
         "//projects/obsidian_vault/chart:chart.push",
         "//projects/obsidian_vault/image:image.push",
+        "//projects/obsidian_vault:py_image.push",
         "//projects/operators/cloudflare:image.push",
         "//projects/operators/oci-model-cache/helm/oci-model-cache-operator:chart.push",
         "//projects/operators/oci-model-cache:image.push",

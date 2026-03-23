@@ -34,6 +34,8 @@ spec:
             - |
               npx obsidian-headless sync --continuous --vault /vault
           env:
+            - name: HOME
+              value: /home/vault
             - name: OBSIDIAN_EMAIL
               valueFrom:
                 secretKeyRef:
@@ -47,6 +49,8 @@ spec:
           volumeMounts:
             - name: vault
               mountPath: /vault
+            - name: home
+              mountPath: /home/vault
           resources:
             {{- toYaml .Values.resources.headlessSync | nindent 12 }}
         - name: git-sidecar
@@ -56,6 +60,8 @@ spec:
           command:
             - /scripts/git-sidecar.sh
           env:
+            - name: HOME
+              value: /home/vault
             - name: GIT_REMOTE
               value: {{ .Values.gitSidecar.remote | quote }}
             - name: GIT_BRANCH
@@ -70,6 +76,8 @@ spec:
           volumeMounts:
             - name: vault
               mountPath: /vault
+            - name: home
+              mountPath: /home/vault
             - name: git-sidecar-script
               mountPath: /scripts
               readOnly: true
@@ -106,6 +114,8 @@ spec:
         - name: vault
           persistentVolumeClaim:
             claimName: {{ include "obsidian-vault.fullname" . }}
+        - name: home
+          emptyDir: {}
         - name: git-sidecar-script
           configMap:
             name: {{ include "obsidian-vault.fullname" . }}-git-sidecar

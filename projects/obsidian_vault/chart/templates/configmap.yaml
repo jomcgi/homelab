@@ -17,13 +17,11 @@ data:
 
     cd "$VAULT_PATH"
 
-    # Configure SSH if deploy key is provided
-    if [ -n "$SSH_KEY_PATH" ] && [ -f "$SSH_KEY_PATH" ]; then
-        mkdir -p ~/.ssh
-        cp "$SSH_KEY_PATH" ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
-        ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-        git config --global core.sshCommand "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new"
+    # Configure HTTPS auth if GITHUB_TOKEN is provided
+    if [ -n "$GITHUB_TOKEN" ]; then
+        git config --global credential.helper store
+        printf 'https://x-access-token:%s@github.com\n' "$GITHUB_TOKEN" > ~/.git-credentials
+        chmod 600 ~/.git-credentials
     fi
 
     # Initialize git repo if needed
