@@ -23,10 +23,7 @@ persistence:
 
 secrets:
   obsidian:
-    name: obsidian-credentials
-    itemPath: ""
-  github:
-    name: github-token
+    name: obsidian
     itemPath: ""
 
 podSecurityContext:
