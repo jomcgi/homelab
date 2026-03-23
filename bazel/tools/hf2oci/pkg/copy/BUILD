@@ -29,6 +29,7 @@ go_test(
     srcs = [
         "classify_test.go",
         "copy_test.go",
+        "errors_test.go",
         "resolve_test.go",
     ],
     embed = [":copy"],

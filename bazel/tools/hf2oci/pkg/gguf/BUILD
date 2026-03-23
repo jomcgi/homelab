@@ -17,6 +17,7 @@ go_test(
     name = "gguf_test",
     srcs = [
         "parse_test.go",
+        "size_test.go",
         "split_test.go",
         "write_test.go",
     ],

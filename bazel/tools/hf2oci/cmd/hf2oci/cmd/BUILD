@@ -19,7 +19,10 @@ go_library(
 
 go_test(
     name = "cmd_test",
-    srcs = ["output_test.go"],
+    srcs = [
+        "copy_test.go",
+        "output_test.go",
+    ],
     embed = [":cmd"],
     deps = [
         "//bazel/tools/hf2oci/pkg/copy",
