@@ -12,9 +12,10 @@ argocd_app(
     chart_files = ":chart",
     namespace = "linkerd",
     release_name = "linkerd",
-    # Upstream chart; containers don't mount /tmp and heartbeat lacks resource limits
+    # Upstream chart; containers don't mount /tmp and heartbeat lacks resource limits; heartbeat also lacks readiness probe
     semgrep_exclude_rules = [
         "require-resource-limits",
+        "require-readiness-probe",
         "require-tmp-emptydir",
     ],
     tags = [
