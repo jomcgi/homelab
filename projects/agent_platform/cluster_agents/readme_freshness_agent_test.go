@@ -151,6 +151,20 @@ func TestReadmeFreshnessAgent_CollectGateError(t *testing.T) {
 	}
 }
 
+// TestReadmeFreshnessAgent_AnalyzeEmptyFindings verifies that Analyze returns
+// nil actions when given an empty findings slice, not an empty non-nil slice.
+func TestReadmeFreshnessAgent_AnalyzeEmptyFindings(t *testing.T) {
+	agent := NewReadmeFreshnessAgent(nil, nil, time.Hour)
+
+	actions, err := agent.Analyze(context.Background(), []Finding{})
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	if actions != nil {
+		t.Errorf("expected nil actions for empty findings, got %v", actions)
+	}
+}
+
 func TestReadmeFreshnessAgent_AnalyzeCreatesJob(t *testing.T) {
 	agent := NewReadmeFreshnessAgent(nil, nil, 1*time.Hour)
 
