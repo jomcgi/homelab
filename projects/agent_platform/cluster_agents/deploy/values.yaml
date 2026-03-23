@@ -65,6 +65,12 @@ secrets:
     onepassword:
       itemPath: "vaults/k8s-homelab/items/agent-secrets"
 
+priorityClassName: ""
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
