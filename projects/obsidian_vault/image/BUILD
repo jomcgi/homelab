@@ -2,7 +2,7 @@ load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@aspect_rules_py//py:defs.bzl", "py_image_layer")
-load("@rules_apko//apko:defs.bzl", _apko_image = "apko_image")
+load("@rules_apko//apko:defs.bzl", _apko_base = "apko_image")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel/tools/oci:providers.bzl", "oci_image_info")
@@ -21,7 +21,7 @@ _ENV = {
 
 # --- Per-architecture apko bases (Python 3.12 + git) ---
 
-_apko_image(
+_apko_base(
     name = "base_amd64",
     architecture = "x86_64",
     config = "apko.yaml",
@@ -29,7 +29,7 @@ _apko_image(
     tag = "latest",
 )
 
-_apko_image(
+_apko_base(
     name = "base_arm64",
     architecture = "aarch64",
     config = "apko.yaml",
