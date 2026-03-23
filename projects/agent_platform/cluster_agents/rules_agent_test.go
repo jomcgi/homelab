@@ -207,3 +207,55 @@ func TestRulesAgent_AnalyzeCreatesJob(t *testing.T) {
 		t.Errorf("expected task to contain commit range abc123..def456, got: %s", taskStr)
 	}
 }
+
+// TestRulesAgent_NameAndInterval verifies the Name() and Interval() accessors.
+func TestRulesAgent_NameAndInterval(t *testing.T) {
+	want := 20 * time.Minute
+	agent := NewRulesAgent(nil, nil, want)
+
+	if agent.Name() != "rules" {
+		t.Errorf("expected Name()=%q, got %q", "rules", agent.Name())
+	}
+	if agent.Interval() != want {
+		t.Errorf("expected Interval()=%v, got %v", want, agent.Interval())
+	}
+}
+
+// TestRulesAgent_AnalyzeMissingCommitRangeFallsBackToEmpty verifies that when
+// the finding's Data map has no "commit_range" key (or the value is not a
+// string), the task is still well-formed and does not contain a placeholder or
+// panic. The commit range appears as an empty parenthetical.
+func TestRulesAgent_AnalyzeMissingCommitRangeFallsBackToEmpty(t *testing.T) {
+	agent := NewRulesAgent(nil, nil, time.Hour)
+
+	findings := []Finding{
+		{
+			Fingerprint: rulesTag,
+			Source:      rulesTag,
+			Severity:    SeverityInfo,
+			Title:       "Rules improvement opportunity",
+			Data:        map[string]any{}, // no commit_range
+			Timestamp:   time.Now(),
+		},
+	}
+
+	actions, err := agent.Analyze(context.Background(), findings)
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+
+	task, ok := actions[0].Payload["task"].(string)
+	if !ok {
+		t.Fatalf("expected Payload[\"task\"] to be a string")
+	}
+	if task == "" {
+		t.Error("expected non-empty task even with missing commit_range")
+	}
+	// The empty commit range produces an empty parenthetical "()" in the task.
+	if !strings.Contains(task, "()") {
+		t.Errorf("expected task to contain empty parenthetical when commit_range is missing, got:\n%s", task)
+	}
+}

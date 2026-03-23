@@ -309,3 +309,56 @@ func TestPatrolAgent_ExecuteNilEscalatorReturnsNil(t *testing.T) {
 		t.Fatalf("expected nil error with nil escalator, got: %v", err)
 	}
 }
+
+// TestPatrolAgent_NameReturnsClusterPatrol verifies the Name() accessor.
+func TestPatrolAgent_NameReturnsClusterPatrol(t *testing.T) {
+	patrol := NewPatrolAgent(nil, nil, 1*time.Hour)
+	if patrol.Name() != "cluster-patrol" {
+		t.Errorf("expected Name()=%q, got %q", "cluster-patrol", patrol.Name())
+	}
+}
+
+// TestPatrolAgent_IntervalReturnsConfiguredValue verifies the Interval() accessor.
+func TestPatrolAgent_IntervalReturnsConfiguredValue(t *testing.T) {
+	want := 42 * time.Minute
+	patrol := NewPatrolAgent(nil, nil, want)
+	if patrol.Interval() != want {
+		t.Errorf("expected Interval()=%v, got %v", want, patrol.Interval())
+	}
+}
+
+// TestPatrolAgent_ExecuteDelegatesToEscalator verifies that when the escalator
+// is non-nil, Execute delegates the actions to it, causing a POST to the
+// orchestrator.
+func TestPatrolAgent_ExecuteDelegatesToEscalator(t *testing.T) {
+	var postReceived bool
+	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		postReceived = true
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"id": "job-patrol"})
+	}))
+	defer orchestratorServer.Close()
+
+	escalator := NewEscalator(NewOrchestratorClient(orchestratorServer.URL))
+	patrol := NewPatrolAgent(nil, escalator, 1*time.Hour)
+
+	actions := []Action{
+		{
+			Type:    ActionOrchestratorJob,
+			Finding: Finding{Fingerprint: "fp-patrol-1", Title: "Pod OOMKilled"},
+			Payload: map[string]any{"task": "investigate OOMKill"},
+		},
+	}
+
+	err := patrol.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: unexpected error: %v", err)
+	}
+	if !postReceived {
+		t.Error("expected Execute to delegate to escalator and POST to orchestrator")
+	}
+}

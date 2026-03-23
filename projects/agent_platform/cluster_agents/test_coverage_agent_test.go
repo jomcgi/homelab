@@ -214,3 +214,56 @@ func TestTestCoverageAgent_AnalyzeCreatesJob(t *testing.T) {
 		t.Errorf("expected task to contain commit range abc123..def456, got: %s", taskStr)
 	}
 }
+
+// TestTestCoverageAgent_NameAndInterval verifies the Name() and Interval()
+// accessors return the configured values.
+func TestTestCoverageAgent_NameAndInterval(t *testing.T) {
+	want := 25 * time.Minute
+	agent := NewTestCoverageAgent(nil, nil, want)
+
+	if agent.Name() != "test-coverage" {
+		t.Errorf("expected Name()=%q, got %q", "test-coverage", agent.Name())
+	}
+	if agent.Interval() != want {
+		t.Errorf("expected Interval()=%v, got %v", want, agent.Interval())
+	}
+}
+
+// TestTestCoverageAgent_AnalyzeMissingCommitRangeFallsBackToEmpty verifies
+// that when the finding's Data map has no "commit_range" key, Analyze still
+// produces a valid non-empty task string and does not panic. The commit range
+// appears as an empty parenthetical in the task.
+func TestTestCoverageAgent_AnalyzeMissingCommitRangeFallsBackToEmpty(t *testing.T) {
+	agent := NewTestCoverageAgent(nil, nil, time.Hour)
+
+	findings := []Finding{
+		{
+			Fingerprint: testCoverageTag,
+			Source:      testCoverageTag,
+			Severity:    SeverityInfo,
+			Title:       "Test coverage improvement opportunity",
+			Data:        map[string]any{}, // no commit_range
+			Timestamp:   time.Now(),
+		},
+	}
+
+	actions, err := agent.Analyze(context.Background(), findings)
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+
+	task, ok := actions[0].Payload["task"].(string)
+	if !ok {
+		t.Fatalf("expected Payload[\"task\"] to be a string")
+	}
+	if task == "" {
+		t.Error("expected non-empty task even with missing commit_range")
+	}
+	// The empty commit range produces an empty parenthetical "()" in the task.
+	if !strings.Contains(task, "()") {
+		t.Errorf("expected task to contain empty parenthetical when commit_range is missing, got:\n%s", task)
+	}
+}
