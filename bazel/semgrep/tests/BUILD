@@ -25,3 +25,17 @@ filegroup(
     name = "no_stale_repo_paths_fixtures",
     srcs = ["fixtures/no-stale-repo-paths.md"],
 )
+
+# Fixtures for kubernetes rules (require-readiness-probe, require-resource-limits, etc.).
+# Referenced by //bazel/semgrep/rules:kubernetes_rules_test.
+filegroup(
+    name = "kubernetes_yaml_fixtures",
+    srcs = glob([
+        "fixtures/require-readiness-probe.yaml",
+        "fixtures/require-resource-limits.yaml",
+        "fixtures/require-tmp-emptydir.yaml",
+        "fixtures/no-hardcoded-image-digest.yaml",
+        "fixtures/no-host-network.yaml",
+        "fixtures/no-privileged.yaml",
+    ]),
+)
