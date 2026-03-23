@@ -64,6 +64,12 @@ tar(
     ],
 )
 
+# Wolfi installs bash to /usr/bin/bash but py_venv_binary shebangs use /bin/bash
+tar(
+    name = "bash_symlink_tar",
+    mtree = ["./bin/bash type=link link=/usr/bin/bash"],
+)
+
 # --- Per-architecture final images ---
 
 oci_image(
@@ -71,7 +77,7 @@ oci_image(
     base = ":base_amd64",
     entrypoint = [_BINARY_PATH],
     env = _ENV,
-    tars = _LAYERS_AMD64 + [":main_src_tar"],
+    tars = _LAYERS_AMD64 + [":main_src_tar", ":bash_symlink_tar"],
 )
 
 platform_transition_filegroup(
@@ -85,7 +91,7 @@ oci_image(
     base = ":base_arm64",
     entrypoint = [_BINARY_PATH],
     env = _ENV,
-    tars = _LAYERS_ARM64 + [":main_src_tar"],
+    tars = _LAYERS_ARM64 + [":main_src_tar", ":bash_symlink_tar"],
 )
 
 platform_transition_filegroup(
