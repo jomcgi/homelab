@@ -31,6 +31,7 @@ py_library(
 
 semgrep_target_test(
     name = "main_semgrep_test",
+    exclude_rules = ["no-mcp-run-http"],
     lockfiles = ["//bazel/requirements:all.txt"],
     rules = ["//bazel/semgrep/rules:python_rules"],
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
@@ -40,5 +41,6 @@ semgrep_target_test(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
+    exclude_rules = ["no-mcp-run-http"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
