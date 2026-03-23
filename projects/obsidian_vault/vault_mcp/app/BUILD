@@ -3,6 +3,11 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 
+exports_files(
+    ["main.py"],
+    visibility = ["//projects/obsidian_vault/image:__pkg__"],
+)
+
 py_venv_binary(
     name = "main",
     srcs = ["main.py"],
