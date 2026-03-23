@@ -41,10 +41,10 @@ service:
 resources:
   requests:
     cpu: 10m
-    memory: 64Mi
+    memory: 128Mi
   limits:
     cpu: 200m
-    memory: 256Mi
+    memory: 512Mi
 
 config:
   signozUrl: "http://signoz.signoz.svc.cluster.local:8080"
