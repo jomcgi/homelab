@@ -116,3 +116,80 @@ func TestPRFixAgent_AnalyzeCreatesPerPRActions(t *testing.T) {
 		}
 	}
 }
+
+// TestPRFixAgent_ExecuteDelegatesToEscalator verifies that PRFixAgent.Execute
+// delegates directly to its Escalator, causing a job to be submitted to the
+// orchestrator for each failing PR action.
+func TestPRFixAgent_ExecuteDelegatesToEscalator(t *testing.T) {
+	var postReceived bool
+	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		postReceived = true
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"id": "job-pr"})
+	}))
+	defer orchestratorServer.Close()
+
+	escalator := NewEscalator(NewOrchestratorClient(orchestratorServer.URL))
+	agent := NewPRFixAgent(nil, escalator, time.Hour, 30*time.Minute)
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: "improvement:pr-fix:42",
+			Source:      "improvement:pr-fix",
+			Title:       "PR #42 has failing CI checks",
+		},
+		Payload: map[string]any{"task": "Fix CI failure for PR #42"},
+	}}
+
+	err := agent.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: unexpected error: %v", err)
+	}
+	if !postReceived {
+		t.Error("expected Execute to delegate to escalator and POST to orchestrator")
+	}
+}
+
+// TestPRFixAgent_AnalyzeEmptyFindings verifies that Analyze returns nil
+// actions when given an empty findings slice, not an empty non-nil slice.
+func TestPRFixAgent_AnalyzeEmptyFindings(t *testing.T) {
+	agent := NewPRFixAgent(nil, nil, time.Hour, 30*time.Minute)
+
+	actions, err := agent.Analyze(context.Background(), []Finding{})
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	if actions != nil {
+		t.Errorf("expected nil actions for empty findings, got %v", actions)
+	}
+}
+
+// TestPRFixAgent_CollectNoPRs verifies that when there are no open PRs at all
+// (not just no failing ones) Collect returns an empty findings slice without
+// error.
+func TestPRFixAgent_CollectNoPRs(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode([]ghPullRequest{})
+	}))
+	defer githubServer.Close()
+
+	agent := NewPRFixAgent(
+		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		nil,
+		time.Hour,
+		30*time.Minute,
+	)
+
+	findings, err := agent.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("Collect: unexpected error: %v", err)
+	}
+	if len(findings) != 0 {
+		t.Errorf("expected 0 findings, got %d", len(findings))
+	}
+}

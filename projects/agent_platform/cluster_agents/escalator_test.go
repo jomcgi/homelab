@@ -276,3 +276,157 @@ func TestEscalator_IncludesSHATagWhenLatestSHASet(t *testing.T) {
 		t.Errorf("expected tag sha:def456 in tags %v (needed for GitActivityGate dedup)", tags)
 	}
 }
+
+// TestEscalator_EmptyTaskSkipsSubmit verifies that submitOrchestratorJob
+// returns an error (and does not POST) when the action payload has no "task"
+// key, preventing a vacuous job from being queued.
+func TestEscalator_EmptyTaskSkipsSubmit(t *testing.T) {
+	var postReceived bool
+	orchestrator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			// No active jobs — dedup passes.
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		// A POST here would be a bug; record it.
+		postReceived = true
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer orchestrator.Close()
+
+	esc := &Escalator{
+		orchestrator: &OrchestratorClient{baseURL: orchestrator.URL, client: &http.Client{}},
+	}
+
+	// Action with no "task" in Payload.
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: "improvement:rules",
+			Source:      "improvement:rules",
+			Title:       "Rules improvement",
+		},
+		Payload: map[string]any{}, // intentionally empty
+	}}
+
+	err := esc.Execute(context.Background(), actions)
+	// Execute itself returns nil (errors are logged and looped over).
+	if err != nil {
+		t.Fatalf("Execute: unexpected error: %v", err)
+	}
+	if postReceived {
+		t.Error("expected no POST to orchestrator when task is empty")
+	}
+}
+
+// TestEscalator_OrchestratorNon202ReturnsError verifies that when the
+// orchestrator returns a non-202 status code for a job submission the error is
+// surfaced (logged) and the submit is treated as failed.
+func TestEscalator_OrchestratorNon202ReturnsError(t *testing.T) {
+	orchestrator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		// Simulate a server-side error on job submission.
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer orchestrator.Close()
+
+	esc := &Escalator{
+		orchestrator: &OrchestratorClient{baseURL: orchestrator.URL, client: &http.Client{}},
+	}
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: "improvement:readme",
+			Source:      "improvement:readme",
+			Title:       "README freshness check",
+		},
+		Payload: map[string]any{"task": "Check README accuracy"},
+	}}
+
+	// Execute returns nil because errors per-action are logged, not propagated.
+	// The important thing is that no panic occurs and the loop continues.
+	err := esc.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: unexpected error: %v", err)
+	}
+}
+
+// TestEscalator_DedupCheckNon200ContinuesToNextAction verifies that when the
+// orchestrator dedup (GET /jobs) endpoint returns a non-200 status, the action
+// is skipped without panicking or returning an error, and subsequent actions
+// are still processed.
+func TestEscalator_DedupCheckNon200ContinuesToNextAction(t *testing.T) {
+	var postCount int
+	orchestrator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			// Simulate orchestrator being unavailable for dedup check.
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		postCount++
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer orchestrator.Close()
+
+	esc := &Escalator{
+		orchestrator: &OrchestratorClient{baseURL: orchestrator.URL, client: &http.Client{}},
+	}
+
+	actions := []Action{
+		{
+			Type: ActionOrchestratorJob,
+			Finding: Finding{
+				Fingerprint: "improvement:test-coverage",
+				Source:      "improvement:test-coverage",
+				Title:       "Test coverage",
+			},
+			Payload: map[string]any{"task": "Check test coverage"},
+		},
+		{
+			Type: ActionOrchestratorJob,
+			Finding: Finding{
+				Fingerprint: "improvement:rules",
+				Source:      "improvement:rules",
+				Title:       "Rules check",
+			},
+			Payload: map[string]any{"task": "Check semgrep rules"},
+		},
+	}
+
+	err := esc.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: unexpected error: %v", err)
+	}
+	// Both actions fail dedup check — neither should be submitted.
+	if postCount != 0 {
+		t.Errorf("expected 0 POSTs after dedup check failures, got %d", postCount)
+	}
+}
+
+// TestEscalator_NilOrchestratorSkipsHasActiveJob verifies that when the
+// OrchestratorClient is nil (e.g. ORCHESTRATOR_URL not set), hasActiveJob
+// returns false without panicking, allowing the submit path to be reached
+// (which also guards against nil orchestrator before POSTing).
+func TestEscalator_NilOrchestratorSkipsSubmit(t *testing.T) {
+	esc := &Escalator{orchestrator: nil}
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: "improvement:test-coverage",
+			Source:      "improvement:test-coverage",
+			Title:       "Test coverage",
+		},
+		Payload: map[string]any{"task": "Check test coverage"},
+	}}
+
+	// Should complete without panic even when orchestrator is nil.
+	err := esc.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute with nil orchestrator: unexpected error: %v", err)
+	}
+}

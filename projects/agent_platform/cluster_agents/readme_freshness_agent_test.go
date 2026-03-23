@@ -54,6 +54,43 @@ func TestReadmeFreshnessAgent_CollectWithActivity(t *testing.T) {
 	}
 }
 
+// TestReadmeFreshnessAgent_ExecuteDelegatesToEscalator verifies that
+// ReadmeFreshnessAgent.Execute delegates to its Escalator.
+func TestReadmeFreshnessAgent_ExecuteDelegatesToEscalator(t *testing.T) {
+	var postReceived bool
+	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		postReceived = true
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"id": "job-readme"})
+	}))
+	defer orchestratorServer.Close()
+
+	escalator := NewEscalator(NewOrchestratorClient(orchestratorServer.URL))
+	agent := NewReadmeFreshnessAgent(nil, escalator, time.Hour)
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: readmeFreshnessTag,
+			Source:      readmeFreshnessTag,
+			Title:       "README freshness check",
+		},
+		Payload: map[string]any{"task": "Audit README files for accuracy"},
+	}}
+
+	err := agent.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: unexpected error: %v", err)
+	}
+	if !postReceived {
+		t.Error("expected Execute to delegate to escalator and POST to orchestrator")
+	}
+}
+
 func TestReadmeFreshnessAgent_AnalyzeCreatesJob(t *testing.T) {
 	agent := NewReadmeFreshnessAgent(nil, nil, 1*time.Hour)
 
