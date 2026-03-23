@@ -218,3 +218,60 @@ func TestPRFixAgent_CollectNoPRs(t *testing.T) {
 		t.Errorf("expected 0 findings, got %d", len(findings))
 	}
 }
+
+// TestPRFixAgent_NameReturnsPRFix verifies the Name() accessor.
+func TestPRFixAgent_NameReturnsPRFix(t *testing.T) {
+	agent := NewPRFixAgent(nil, nil, time.Hour, 30*time.Minute)
+	if agent.Name() != "pr-fix" {
+		t.Errorf("expected Name()=%q, got %q", "pr-fix", agent.Name())
+	}
+}
+
+// TestPRFixAgent_IntervalReturnsConfiguredValue verifies the Interval() accessor.
+func TestPRFixAgent_IntervalReturnsConfiguredValue(t *testing.T) {
+	want := 15 * time.Minute
+	agent := NewPRFixAgent(nil, nil, want, 30*time.Minute)
+	if agent.Interval() != want {
+		t.Errorf("expected Interval()=%v, got %v", want, agent.Interval())
+	}
+}
+
+// TestPRFixAgent_AnalyzeTaskContainsPRNumberAndBranch verifies that the task
+// string built by Analyze includes the PR number and branch name so the agent
+// receiving the job has full context.
+func TestPRFixAgent_AnalyzeTaskContainsPRNumberAndBranch(t *testing.T) {
+	agent := NewPRFixAgent(nil, nil, time.Hour, 30*time.Minute)
+
+	findings := []Finding{
+		{
+			Fingerprint: "improvement:pr-fix:77",
+			Source:      "improvement:pr-fix",
+			Severity:    SeverityInfo,
+			Title:       "PR #77 has failing CI checks",
+			Data: map[string]any{
+				"pr_number": 77,
+				"branch":    "feat/my-feature",
+			},
+			Timestamp: time.Now(),
+		},
+	}
+
+	actions, err := agent.Analyze(context.Background(), findings)
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+
+	task, ok := actions[0].Payload["task"].(string)
+	if !ok {
+		t.Fatalf("expected Payload[\"task\"] to be a string, got %T", actions[0].Payload["task"])
+	}
+
+	for _, want := range []string{"77", "feat/my-feature"} {
+		if !strings.Contains(task, want) {
+			t.Errorf("Payload[\"task\"] missing %q:\n%s", want, task)
+		}
+	}
+}

@@ -374,3 +374,79 @@ func TestRunnerContinuesAfterSweepTimeout(t *testing.T) {
 			atomic.LoadInt32(&agent.sweepsAfterBlock))
 	}
 }
+
+// TestRunnerWithZeroAgents verifies that Run returns immediately (without
+// blocking) when no agents are registered.
+func TestRunnerWithZeroAgents(t *testing.T) {
+	r := NewRunner([]Agent{})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		r.Run(ctx)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Run returned without waiting for ctx cancellation — correct behaviour.
+	case <-time.After(500 * time.Millisecond):
+		t.Error("Run() with zero agents did not return promptly")
+	}
+}
+
+// blockingAnalyzeAgent blocks inside Analyze until its context is cancelled.
+// This simulates a hung downstream call during the analyze phase and verifies
+// that the per-sweep timeout applies to all phases, not just Collect.
+type blockingAnalyzeAgent struct {
+	fakeAgent
+	blockUntilCancelled bool
+	sweepsAfterBlock    int32 // atomic
+	blocked             chan struct{}
+}
+
+func (a *blockingAnalyzeAgent) Analyze(ctx context.Context, findings []Finding) ([]Action, error) {
+	if a.blockUntilCancelled {
+		select {
+		case a.blocked <- struct{}{}:
+		default:
+		}
+		a.blockUntilCancelled = false
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	atomic.AddInt32(&a.sweepsAfterBlock, 1)
+	return a.fakeAgent.Analyze(ctx, findings)
+}
+
+// TestRunnerContinuesAfterAnalyzeTimeout verifies that when Analyze blocks and
+// exhausts the per-sweep timeout, the loop continues running subsequent sweeps.
+// This mirrors TestRunnerContinuesAfterSweepTimeout but exercises the Analyze
+// phase rather than Collect.
+func TestRunnerContinuesAfterAnalyzeTimeout(t *testing.T) {
+	agent := &blockingAnalyzeAgent{
+		fakeAgent: fakeAgent{
+			name:     "blocking-analyze-agent",
+			interval: 30 * time.Millisecond,
+		},
+		blockUntilCancelled: true,
+		blocked:             make(chan struct{}, 1),
+	}
+
+	r := &Runner{
+		agents:       []Agent{agent},
+		sweepTimeout: 40 * time.Millisecond,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+
+	r.Run(ctx)
+
+	if atomic.LoadInt32(&agent.sweepsAfterBlock) < 1 {
+		t.Errorf("expected at least 1 sweep after the blocking analyze timed out, got %d",
+			atomic.LoadInt32(&agent.sweepsAfterBlock))
+	}
+}

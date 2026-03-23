@@ -203,3 +203,89 @@ func TestReadmeFreshnessAgent_AnalyzeCreatesJob(t *testing.T) {
 		t.Error("expected non-empty task string")
 	}
 }
+
+// TestReadmeFreshnessAgent_NameAndInterval verifies the Name() and Interval()
+// accessors return the configured values.
+func TestReadmeFreshnessAgent_NameAndInterval(t *testing.T) {
+	want := 30 * time.Minute
+	agent := NewReadmeFreshnessAgent(nil, nil, want)
+
+	if agent.Name() != "readme-freshness" {
+		t.Errorf("expected Name()=%q, got %q", "readme-freshness", agent.Name())
+	}
+	if agent.Interval() != want {
+		t.Errorf("expected Interval()=%v, got %v", want, agent.Interval())
+	}
+}
+
+// TestReadmeFreshnessAgent_AnalyzeMultipleFindingsProducesOneAction verifies
+// that Analyze always emits exactly one action regardless of how many findings
+// are passed (the gate produces at most one, but the contract should be explicit).
+func TestReadmeFreshnessAgent_AnalyzeMultipleFindingsProducesOneAction(t *testing.T) {
+	agent := NewReadmeFreshnessAgent(nil, nil, time.Hour)
+
+	findings := []Finding{
+		{
+			Fingerprint: readmeFreshnessTag,
+			Source:      readmeFreshnessTag,
+			Severity:    SeverityInfo,
+			Title:       "README freshness check",
+			Data:        map[string]any{"commit_range": "aaa..bbb"},
+			Timestamp:   time.Now(),
+		},
+		{
+			Fingerprint: readmeFreshnessTag + "-extra",
+			Source:      readmeFreshnessTag,
+			Severity:    SeverityInfo,
+			Title:       "README freshness check duplicate",
+			Data:        map[string]any{"commit_range": "ccc..ddd"},
+			Timestamp:   time.Now(),
+		},
+	}
+
+	actions, err := agent.Analyze(context.Background(), findings)
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	// Analyze only uses findings[0]; the second finding is intentionally ignored.
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action even with multiple findings, got %d", len(actions))
+	}
+	if actions[0].Finding.Fingerprint != readmeFreshnessTag {
+		t.Errorf("expected action to use first finding fingerprint %q, got %q",
+			readmeFreshnessTag, actions[0].Finding.Fingerprint)
+	}
+}
+
+// TestReadmeFreshnessAgent_AnalyzeTaskContentMentionsREADME verifies that
+// the task string includes "README" so the receiving agent knows what to audit.
+func TestReadmeFreshnessAgent_AnalyzeTaskContentMentionsREADME(t *testing.T) {
+	agent := NewReadmeFreshnessAgent(nil, nil, time.Hour)
+
+	findings := []Finding{
+		{
+			Fingerprint: readmeFreshnessTag,
+			Source:      readmeFreshnessTag,
+			Severity:    SeverityInfo,
+			Title:       "README freshness check",
+			Data:        map[string]any{"commit_range": "abc..def"},
+			Timestamp:   time.Now(),
+		},
+	}
+
+	actions, err := agent.Analyze(context.Background(), findings)
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+
+	task, ok := actions[0].Payload["task"].(string)
+	if !ok {
+		t.Fatalf("expected Payload[\"task\"] to be a string")
+	}
+	if !strings.Contains(task, "README") {
+		t.Errorf("expected task to mention README, got:\n%s", task)
+	}
+}
