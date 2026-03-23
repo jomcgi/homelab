@@ -22,10 +22,12 @@ go_test(
     srcs = [
         "copy_test.go",
         "output_test.go",
+        "resolve_test.go",
     ],
     embed = [":cmd"],
     deps = [
         "//bazel/tools/hf2oci/pkg/copy",
+        "@com_github_spf13_cobra//:cobra",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
     ],
