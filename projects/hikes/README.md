@@ -66,7 +66,7 @@ bazel run //projects/hikes/update_forecast:update
 
 # Run frontend Playwright tests
 cd projects/hikes/frontend
-pnpm test
+npm test
 ```
 
 ## Configuration
