@@ -13,7 +13,7 @@ gitSidecar:
 
 vaultMcp:
   image:
-    repository: ghcr.io/jomcgi/homelab/projects/obsidian_vault
+    repository: ghcr.io/jomcgi/homelab/projects/obsidian_vault/image
     tag: "latest"
   port: 8000
 
