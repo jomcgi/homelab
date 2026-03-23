@@ -39,9 +39,15 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
         "PYTHONPATH": workspace_root,
     }, **env)
 
+    # Wolfi installs bash to /usr/bin/bash but py_venv_binary shebangs use /bin/bash
+    tar(
+        name = name + "_bash_symlink",
+        mtree = ["./bin/bash type=link link=/usr/bin/bash"],
+    )
+
     # py_venv_binary omits ctx.file.main from runfiles — create a supplementary
     # tar layer to include the source file at the correct runfiles path.
-    src_tars = []
+    src_tars = [name + "_bash_symlink"]
     if main == None and binary.package == native.package_name():
         main = binary.name + ".py"
     if main:
