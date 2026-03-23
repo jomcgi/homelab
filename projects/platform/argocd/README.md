@@ -34,4 +34,4 @@ projects/home-cluster/kustomization.yaml (auto-generated)
   → projects/{service}/deploy/application.yaml
 ```
 
-Each `application.yaml` points to its colocated Helm chart in `projects/{service}/chart/`.
+Each `application.yaml` points to either a colocated Helm chart in `projects/{service}/chart/` or an upstream chart from an OCI/Helm registry.
