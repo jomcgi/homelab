@@ -152,7 +152,7 @@ async def get_job_output(job_id: str) -> dict:
 def main():
     settings = Settings()
     configure(settings)
-    mcp.run(transport="http", host="0.0.0.0", port=settings.port)
+    mcp.run(transport="http", host="0.0.0.0", port=settings.port)  # nosemgrep: no-mcp-run-http — TODO migrate to mcp.http_app() + uvicorn (follow-up to PR #1456)
 
 
 if __name__ == "__main__":
