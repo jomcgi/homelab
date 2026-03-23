@@ -7,12 +7,15 @@ dependencies:
   version: 0.1.0
 - name: agent-orchestrator
   repository: file://./orchestrator
-  version: 0.11.0
+  version: 0.11.1
 - name: nats
   repository: https://nats-io.github.io/k8s/helm/charts/
   version: 2.12.3
 - name: agent-sandbox
   repository: file://./agent-sandbox
   version: 0.1.0
-digest: sha256:58effbc26028e0b1926a736135bb14f29c0256bc17cbbec281e12d596b5bdf94
-generated: "2026-03-20T21:35:00.281706-07:00"
+- name: memgraph
+  repository: file://./memgraph
+  version: 0.2.16
+digest: sha256:1486ea237cb6fb21384531996c5fb2993c79535ef6c90dd99ab274ad306c0e10
+generated: "2026-03-23T20:24:57.404043688Z"

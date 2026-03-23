@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "memgraph.fullname" . }}
+  {{- with .Values.service.labels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    {{- if .Values.service.enableBolt }}
+    - port: {{ .Values.service.boltPort }}
+      targetPort: {{ .Values.service.boltPort }}
+      protocol: TCP
+      name: tcp-bolt-port
+    {{- end }}
+    {{- if .Values.service.enableWebsocketMonitoring }}
+    - port: {{ .Values.service.websocketPortMonitoring }}
+      targetPort: {{ .Values.service.websocketPortMonitoring }}
+      protocol: TCP
+      name: tcp-websocket-monitoring-port
+    {{- end }}
+    {{- if .Values.service.enableHttpMonitoring }}
+    - port: {{ .Values.service.httpPortMonitoring }}
+      targetPort: {{ .Values.service.httpPortMonitoring }}
+      protocol: TCP
+      name: http-monitoring-port
+    {{- end }}
+  selector:
+    {{- include "memgraph.selectorLabels" . | nindent 4 }}
