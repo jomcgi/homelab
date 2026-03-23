@@ -26,7 +26,7 @@ pnpm install
 pnpm dev
 ```
 
-The app connects to the trips API (`trips.jomcgi.dev/api`) for photo and route data.
+The app connects to the trips API (`api.jomcgi.dev/trips`) for photo and route data.
 
 ## Deployment
 
