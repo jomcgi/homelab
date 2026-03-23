@@ -57,3 +57,9 @@ sh_test(
     srcs = ["check-mcp-run-http_test.sh"],
     data = [":check-mcp-run-http.sh"],
 )
+
+sh_test(
+    name = "check_ebpf_otel_annotations_test",
+    srcs = ["check-ebpf-otel-annotations_test.sh"],
+    data = [":check-ebpf-otel-annotations.sh"],
+)
