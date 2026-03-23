@@ -169,6 +169,31 @@ func TestPRFixAgent_AnalyzeEmptyFindings(t *testing.T) {
 	}
 }
 
+// TestPRFixAgent_CollectAPIError verifies that when the GitHub API returns an
+// error (e.g. HTTP 500), Collect propagates the error with a descriptive
+// message rather than silently returning empty findings.
+func TestPRFixAgent_CollectAPIError(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}))
+	defer githubServer.Close()
+
+	agent := NewPRFixAgent(
+		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		nil,
+		time.Hour,
+		30*time.Minute,
+	)
+
+	_, err := agent.Collect(context.Background())
+	if err == nil {
+		t.Fatal("expected error from Collect when GitHub API fails, got nil")
+	}
+	if !strings.Contains(err.Error(), "fetching failing PRs") {
+		t.Errorf("expected error to contain 'fetching failing PRs', got: %v", err)
+	}
+}
+
 // TestPRFixAgent_CollectNoPRs verifies that when there are no open PRs at all
 // (not just no failing ones) Collect returns an empty findings slice without
 // error.
