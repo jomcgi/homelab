@@ -16,6 +16,8 @@ py_venv_binary(
     deps = [
         "@pip//fastmcp",
         "@pip//pydantic_settings",
+        "@pip//starlette",
+        "@pip//uvicorn",
     ],
 )
 
@@ -29,6 +31,8 @@ py_library(
     deps = [
         "@pip//fastmcp",
         "@pip//pydantic_settings",
+        "@pip//starlette",
+        "@pip//uvicorn",
     ],
 )
 
