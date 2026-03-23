@@ -73,3 +73,22 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
           value: /health
+
+  - it: should not set pod annotations by default
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations
+
+  - it: should render Linkerd skip-inbound-ports annotation when configured
+    # Regression: cluster-agents namespace has Linkerd injection enabled (via Kyverno).
+    # SigNoz OTel httpcheck runs from the signoz namespace (outside the mesh).
+    # Without this annotation, Linkerd intercepts inbound port 8080 connections from
+    # unmeshed clients and drops them, causing the health check alert to fire.
+    # This annotation tells proxy-init to bypass the proxy for port 8080.
+    set:
+      podAnnotations:
+        config.linkerd.io/skip-inbound-ports: "8080"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["config.linkerd.io/skip-inbound-ports"]
+          value: "8080"
