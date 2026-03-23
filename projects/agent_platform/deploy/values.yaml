@@ -184,8 +184,6 @@ agent-orchestrator:
     inferenceUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
   podAnnotations:
     linkerd.io/inject: enabled
-    instrumentation.opentelemetry.io/inject-go: "go"
-    instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app"
   httpRoute:
     enabled: true
     hostname: agents.jomcgi.dev

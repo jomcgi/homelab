@@ -10,9 +10,6 @@ git:
 persistence:
   storageClass: longhorn
   size: 5Gi # Larger since it contains the full repo
-podAnnotations:
-  instrumentation.opentelemetry.io/inject-go: "go"
-  instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app"
 # Prefer to schedule on the same node to avoid volume reattachment delays
 affinity:
   podAffinity:
