@@ -77,7 +77,10 @@ oci_image(
     base = ":base_amd64",
     entrypoint = [_BINARY_PATH],
     env = _ENV,
-    tars = _LAYERS_AMD64 + [":main_src_tar", ":bash_symlink_tar"],
+    tars = _LAYERS_AMD64 + [
+        ":main_src_tar",
+        ":bash_symlink_tar",
+    ],
 )
 
 platform_transition_filegroup(
@@ -91,7 +94,10 @@ oci_image(
     base = ":base_arm64",
     entrypoint = [_BINARY_PATH],
     env = _ENV,
-    tars = _LAYERS_ARM64 + [":main_src_tar", ":bash_symlink_tar"],
+    tars = _LAYERS_ARM64 + [
+        ":main_src_tar",
+        ":bash_symlink_tar",
+    ],
 )
 
 platform_transition_filegroup(
