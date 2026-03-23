@@ -30,6 +30,7 @@ py3_image(
         "@platforms//cpu:arm64": ":git_base_arm64",
         "@platforms//cpu:x86_64": ":git_base_amd64",
     }),
+    bash_symlink = False,  # apko base has /bin -> /usr/bin; the symlink layer would shadow it
     binary = "//projects/obsidian_vault/vault_mcp/app:main",
     env = {
         "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=no",
