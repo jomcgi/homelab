@@ -9,5 +9,3 @@ gateway:
 secrets:
   obsidian:
     itemPath: ""
-  github:
-    itemPath: ""
