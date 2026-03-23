@@ -42,18 +42,6 @@ build:ci --disk_cache=
 # CI: Use default repository cache location (ephemeral per-runner)
 # Longhorn RWX volumes have I/O errors, BuildBuddy handles remote caching
 
-# =============================================================================
-# Remote Cache Control - Handle large artifacts
-# =============================================================================
-# Disable remote caching for ALL Tar operations in CI builds (--config=ci)
-# This prevents BuildBuddy cache eviction failures caused by large ML model
-# tarballs (5GB+ weight files) that exceed cache retention limits.
-#
-# Trade-off: ALL pkg_tar operations skip remote cache in CI, not just large
-# models. However, small tarballs build quickly enough that the performance
-# impact is negligible. Local (non-CI) builds still benefit from Tar caching.
-build:ci --modify_execution_info=Tar=+no-remote-cache
-
 # rules_python is working to enable this default to avoid dependency on a system interpreter
 # See https://github.com/bazel-contrib/rules_python/issues/3187
 # NB: some tools run py_binary targets even if the user didn't select to add Python to their project
