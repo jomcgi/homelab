@@ -63,3 +63,9 @@ sh_test(
     srcs = ["check-ebpf-otel-annotations_test.sh"],
     data = [":check-ebpf-otel-annotations.sh"],
 )
+
+sh_test(
+    name = "check_empty_1password_itempath_test",
+    srcs = ["check-empty-1password-itempath_test.sh"],
+    data = [":check-empty-1password-itempath.sh"],
+)
