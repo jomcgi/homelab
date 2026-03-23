@@ -237,22 +237,22 @@
       },
       {
         "name": "busybox",
-        "url": "https://packages.wolfi.dev/os/x86_64/busybox-1.37.0-r54.apk",
-        "version": "1.37.0-r54",
+        "url": "https://packages.wolfi.dev/os/x86_64/busybox-1.37.0-r55.apk",
+        "version": "1.37.0-r55",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8351",
-          "checksum": "sha1-37/dSBWyzocM5aQo8Q9q0hofVJo="
+          "range": "bytes=0-8499",
+          "checksum": "sha1-i3XmcdZP2O8KfhP3ozCTGGkB92U="
         },
         "data": {
-          "range": "bytes=8352-425144",
-          "checksum": "sha256-w71t3rYaSgRCxui2ba/H63B7Wlm0bTsBOOHWU4eDEzs="
+          "range": "bytes=8500-425353",
+          "checksum": "sha256-YXrpFG8Zwx//O6zEusJfFD4PhsPES7/X9yFXGfe5vGI="
         },
-        "checksum": "Q137/dSBWyzocM5aQo8Q9q0hofVJo="
+        "checksum": "Q1i3XmcdZP2O8KfhP3ozCTGGkB92U="
       },
       {
         "name": "libacl1",
@@ -1700,22 +1700,22 @@
       },
       {
         "name": "busybox",
-        "url": "https://packages.wolfi.dev/os/aarch64/busybox-1.37.0-r54.apk",
-        "version": "1.37.0-r54",
+        "url": "https://packages.wolfi.dev/os/aarch64/busybox-1.37.0-r55.apk",
+        "version": "1.37.0-r55",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8379",
-          "checksum": "sha1-mhffPatl/xHV9OrtgaT5I8sHgsM="
+          "range": "bytes=0-8525",
+          "checksum": "sha1-Xa5WuR2+tam4itVjSmPOsVz8UnM="
         },
         "data": {
-          "range": "bytes=8380-428369",
-          "checksum": "sha256-ixkH9FriJc8T3lGf3oSey8hQofjnyR/5EPwzJE2o0+U="
+          "range": "bytes=8526-428575",
+          "checksum": "sha256-ff7cYliV/Vqg6bVBsqPNMSdjaslCuUVTMA+PYec2CNU="
         },
-        "checksum": "Q1mhffPatl/xHV9OrtgaT5I8sHgsM="
+        "checksum": "Q1Xa5WuR2+tam4itVjSmPOsVz8UnM="
       },
       {
         "name": "libacl1",

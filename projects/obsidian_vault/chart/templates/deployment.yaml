@@ -24,6 +24,7 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
+        {{- if .Values.headlessSync.enabled }}
         - name: headless-sync
           image: "{{ .Values.headlessSync.image.repository }}:{{ .Values.headlessSync.image.tag }}"
           securityContext:
@@ -53,6 +54,7 @@ spec:
               mountPath: /home/vault
           resources:
             {{- toYaml .Values.resources.headlessSync | nindent 12 }}
+        {{- end }}
         - name: git-sidecar
           image: "{{ .Values.gitSidecar.image.repository }}:{{ .Values.gitSidecar.image.tag }}"
           securityContext:
