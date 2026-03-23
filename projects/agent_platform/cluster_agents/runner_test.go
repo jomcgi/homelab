@@ -134,9 +134,9 @@ func TestRunnerContinuesAfterSweepPanic(t *testing.T) {
 // (Collect, Analyze, or Execute), then succeeds on subsequent calls.
 type errOnNthCallAgent struct {
 	fakeAgent
-	method      string // "collect", "analyze", "execute"
-	errOnCall   int
-	callCount   int32 // atomic
+	method       string // "collect", "analyze", "execute"
+	errOnCall    int
+	callCount    int32 // atomic
 	successAfter int32 // atomic — counts successful sweeps after the error
 }
 
