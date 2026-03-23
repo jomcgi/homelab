@@ -75,3 +75,9 @@ sh_test(
     srcs = ["check-pdb-single-replica_test.sh"],
     data = [":check-pdb-single-replica.sh"],
 )
+
+sh_test(
+    name = "check_missing_imageupdater_test",
+    srcs = ["check-missing-imageupdater_test.sh"],
+    data = [":check-missing-imageupdater.sh"],
+)
