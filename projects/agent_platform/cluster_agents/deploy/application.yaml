@@ -16,8 +16,7 @@ spec:
           enabled: true
         priorityClassName: system-cluster-critical
         podDisruptionBudget:
-          enabled: true
-          minAvailable: 1
+          enabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: cluster-agents
