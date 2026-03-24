@@ -66,6 +66,7 @@ config:
   # Set to "" to use the compiled-in default (5m).
   sweepTimeout: ""
   githubRepo: "jomcgi/homelab"
+  githubBranch: "main"
   botAuthors: "ci-format-bot,argocd-image-updater,chart-version-bot"
   testCoverageInterval: "1h"
   readmeFreshnessInterval: "168h"
