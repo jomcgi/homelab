@@ -173,3 +173,27 @@ semgrep_test(
     rules = [":stale_copyright_year_rule"],
     tags = ["semgrep"],
 )
+
+semgrep_test(
+    name = "shell_rules_test",
+    srcs = glob(["shell/*.bash"]),
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":shell_rules"],
+    tags = ["semgrep"],
+)
+
+semgrep_test(
+    name = "bazel_rules_test",
+    srcs = glob(["bazel/*.build"]),
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":bazel_rules"],
+    tags = ["semgrep"],
+)
+
+semgrep_test(
+    name = "dockerfile_rules_test",
+    srcs = glob(["dockerfile/*.dockerfile"]),
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":dockerfile_rules"],
+    tags = ["semgrep"],
+)
