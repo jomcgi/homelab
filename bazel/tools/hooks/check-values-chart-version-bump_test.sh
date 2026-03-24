@@ -113,7 +113,7 @@ EOF
 git -C "${FAKE_REPO}" add .
 git -C "${FAKE_REPO}" commit -q -m "initial"
 
-# Service B: deploy/Chart.yaml WITH staged changes (modified after commit)
+# Service B: deploy/Chart.yaml — will be modified AFTER all commits (see below)
 SVC_B="${FAKE_REPO}/projects/service-b"
 mkdir -p "${SVC_B}/deploy"
 cat >"${SVC_B}/deploy/Chart.yaml" <<'EOF'
@@ -126,8 +126,6 @@ replicaCount: 1
 EOF
 git -C "${FAKE_REPO}" add .
 git -C "${FAKE_REPO}" commit -q -m "add service-b"
-# Now modify the Chart.yaml so it has uncommitted changes
-echo "# bumped" >>"${SVC_B}/deploy/Chart.yaml"
 
 # ---------------------------------------------------------------------------
 # Pattern 2: chart/ directory contains Chart.yaml (sibling to deploy/)
@@ -150,7 +148,7 @@ EOF
 git -C "${FAKE_REPO}" add .
 git -C "${FAKE_REPO}" commit -q -m "add service-c"
 
-# Service D: chart/Chart.yaml WITH staged changes
+# Service D: chart/Chart.yaml — will be modified AFTER all commits (see below)
 SVC_D="${FAKE_REPO}/projects/service-d"
 mkdir -p "${SVC_D}/chart" "${SVC_D}/deploy"
 cat >"${SVC_D}/chart/Chart.yaml" <<'EOF'
@@ -163,8 +161,6 @@ replicas: 2
 EOF
 git -C "${FAKE_REPO}" add .
 git -C "${FAKE_REPO}" commit -q -m "add service-d"
-# Modify chart/Chart.yaml to simulate a bumped version
-echo "# bumped" >>"${SVC_D}/chart/Chart.yaml"
 
 # Service E: deploy/values.yaml with no Chart.yaml anywhere → skip
 SVC_E="${FAKE_REPO}/projects/service-e"
@@ -174,6 +170,12 @@ key: value
 EOF
 git -C "${FAKE_REPO}" add .
 git -C "${FAKE_REPO}" commit -q -m "add service-e"
+
+# Now that all commits are done, apply Chart.yaml modifications for B and D.
+# These are done AFTER all `git add .` sweeps to prevent them from being
+# accidentally staged and committed by subsequent service setup steps.
+echo "# bumped" >>"${SVC_B}/deploy/Chart.yaml"
+echo "# bumped" >>"${SVC_D}/chart/Chart.yaml"
 
 # ---------------------------------------------------------------------------
 # Test helpers
