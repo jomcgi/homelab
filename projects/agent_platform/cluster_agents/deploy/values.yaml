@@ -20,6 +20,11 @@ serviceAccount:
   name: ""
 
 podAnnotations:
+  # cluster-agents namespace has Linkerd injection enabled (via Kyverno).
+  # The SigNoz OTel httpcheck receiver runs from the signoz namespace, which is
+  # outside the Linkerd mesh. Without this annotation, Linkerd intercepts and
+  # drops inbound connections from unmeshed clients on port 8080, causing the
+  # /health endpoint to be unreachable and firing the 'cluster-agents Unreachable' alert.
   config.linkerd.io/skip-inbound-ports: "8080"
 
 podSecurityContext:
