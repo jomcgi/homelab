@@ -37,3 +37,23 @@ helm_annotation_test(
     release_name = "cluster-agents",
     tags = ["helm"],
 )
+
+# Production-values regression: simulates the exact valuesObject applied by application.yaml.
+# chart-version-bot regenerates valuesObject on every chart bump; if podAnnotations were ever
+# placed in valuesObject instead of values.yaml the bot would silently drop them.
+# This test catches that regression by rendering with the production overrides and asserting
+# the Linkerd annotation (which lives in values.yaml defaults) is still present.
+helm_annotation_test(
+    name = "linkerd_annotation_production_values_test",
+    annotations = ["config.linkerd.io/skip-inbound-ports:8080"],
+    chart = "projects/agent_platform/cluster_agents/deploy",
+    chart_files = ":chart",
+    namespace = "cluster-agents",
+    release_name = "cluster-agents",
+    set = [
+        "imagePullSecret.enabled=true",
+        "priorityClassName=system-cluster-critical",
+        "podDisruptionBudget.enabled=false",
+    ],
+    tags = ["helm"],
+)
