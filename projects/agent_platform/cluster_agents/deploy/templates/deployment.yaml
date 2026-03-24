@@ -78,6 +78,10 @@ spec:
           value: {{ .Values.config.prFixStaleThreshold | quote }}
         - name: NATS_URL
           value: {{ .Values.config.natsUrl | quote }}
+        {{- if .Values.config.sweepTimeout }}
+        - name: SWEEP_TIMEOUT
+          value: {{ .Values.config.sweepTimeout | quote }}
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /health

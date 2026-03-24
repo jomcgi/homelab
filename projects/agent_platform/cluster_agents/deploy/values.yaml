@@ -57,6 +57,11 @@ config:
   orchestratorUrl: "http://agent-platform-agent-orchestrator.agent-platform.svc.cluster.local:8080"
   httpPort: "8080"
   patrolInterval: "1h"
+  # sweepTimeout caps how long a single agent sweep (collect→analyze→execute) may run.
+  # A hung HTTP call to SigNoz or the orchestrator cannot block the patrol loop beyond
+  # this deadline. Must be well below patrolInterval (default 5m is intentionally low).
+  # Set to "" to use the compiled-in default (5m).
+  sweepTimeout: ""
   githubRepo: "jomcgi/homelab"
   botAuthors: "ci-format-bot,argocd-image-updater,chart-version-bot"
   testCoverageInterval: "1h"
