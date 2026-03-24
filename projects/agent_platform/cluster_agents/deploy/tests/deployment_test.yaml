@@ -85,6 +85,14 @@ tests:
           path: spec.template.metadata.annotations["config.linkerd.io/skip-inbound-ports"]
           value: "8080"
 
+  - it: should set GITHUB_BRANCH env var from config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GITHUB_BRANCH
+            value: "main"
+
   - it: should retain Linkerd annotation with production valuesObject settings
     # Regression: simulates the exact valuesObject applied by application.yaml in production.
     # The chart-version-bot regenerates valuesObject on every chart bump — if podAnnotations

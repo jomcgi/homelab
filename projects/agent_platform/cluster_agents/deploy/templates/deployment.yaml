@@ -64,6 +64,8 @@ spec:
               key: GITHUB_TOKEN
         - name: GITHUB_REPO
           value: {{ .Values.config.githubRepo | quote }}
+        - name: GITHUB_BRANCH
+          value: {{ .Values.config.githubBranch | quote }}
         - name: BOT_AUTHORS
           value: {{ .Values.config.botAuthors | quote }}
         - name: TEST_COVERAGE_INTERVAL
