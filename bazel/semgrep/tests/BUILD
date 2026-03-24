@@ -32,7 +32,11 @@ filegroup(
 filegroup(
     name = "kubernetes_yaml_fixtures",
     srcs = glob([
+        "fixtures/no-hardcoded-image-digest.yaml",
+        "fixtures/no-host-network.yaml",
+        "fixtures/no-privileged.yaml",
         "fixtures/pdb-minAvailable-blocks-eviction.yaml",
+        "fixtures/require-fsgroup-with-pvc.yaml",
         "fixtures/require-readiness-probe.yaml",
         "fixtures/require-resource-limits.yaml",
         "fixtures/require-tmp-emptydir.yaml",
