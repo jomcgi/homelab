@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: ghcr.io/jomcgi/homelab/charts
     chart: cluster-agents
-    targetRevision: 0.6.13
+    targetRevision: 0.6.14
     helm:
       releaseName: cluster-agents
       valuesObject:
