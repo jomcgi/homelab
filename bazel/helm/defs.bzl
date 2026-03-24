@@ -4,7 +4,7 @@ load("//bazel/helm:app.bzl", _argocd_app = "argocd_app")
 load("//bazel/helm:chart.bzl", _helm_chart = "helm_chart")
 load("//bazel/helm:images.bzl", _helm_images_values = "helm_images_values")
 load("//bazel/helm:render.bzl", _helm_render = "helm_render")
-load("//bazel/helm:test.bzl", _helm_lint_test = "helm_lint_test", _helm_template_test = "helm_template_test")
+load("//bazel/helm:test.bzl", _helm_annotation_test = "helm_annotation_test", _helm_lint_test = "helm_lint_test", _helm_template_test = "helm_template_test")
 
 # Re-export all public symbols
 helm_chart = _helm_chart
@@ -13,3 +13,4 @@ helm_images_values = _helm_images_values
 helm_render = _helm_render
 helm_template_test = _helm_template_test
 helm_lint_test = _helm_lint_test
+helm_annotation_test = _helm_annotation_test

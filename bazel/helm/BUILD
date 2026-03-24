@@ -5,6 +5,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 exports_files([
     "chart-version.sh",
+    "helm-assert-annotations.sh",
     "helm-template-test.sh",
     "push.sh.tpl",
     "render-manifests.sh",
