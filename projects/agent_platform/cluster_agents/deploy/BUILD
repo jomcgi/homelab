@@ -1,4 +1,4 @@
-load("//bazel/helm:defs.bzl", "helm_chart")
+load("//bazel/helm:defs.bzl", "argocd_app", "helm_chart")
 
 helm_chart(
     name = "chart",
@@ -7,4 +7,19 @@ helm_chart(
     },
     publish = True,
     visibility = ["//overlays:__subpackages__"],
+)
+
+argocd_app(
+    name = "cluster-agents",
+    chart = "projects/agent_platform/cluster_agents/deploy",
+    chart_files = ":chart",
+    namespace = "cluster-agents",
+    release_name = "cluster-agents",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = [
+        "values.yaml",
+    ],
 )
