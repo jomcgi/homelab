@@ -24,10 +24,14 @@ type Runner struct {
 }
 
 // NewRunner creates a runner for the given agents.
-func NewRunner(agents []Agent) *Runner {
+// If sweepTimeout is zero, defaultSweepTimeout (5 minutes) is used.
+func NewRunner(agents []Agent, sweepTimeout time.Duration) *Runner {
+	if sweepTimeout <= 0 {
+		sweepTimeout = defaultSweepTimeout
+	}
 	return &Runner{
 		agents:       agents,
-		sweepTimeout: defaultSweepTimeout,
+		sweepTimeout: sweepTimeout,
 	}
 }
 

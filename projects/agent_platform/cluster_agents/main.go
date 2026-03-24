@@ -24,6 +24,7 @@ func main() {
 	orchestratorURL := os.Getenv("ORCHESTRATOR_URL")
 	httpPort := envOr("HTTP_PORT", "8080")
 	patrolInterval := envDurationOr("PATROL_INTERVAL", 1*time.Hour)
+	sweepTimeout := envDurationOr("SWEEP_TIMEOUT", 0)
 
 	collector := NewAlertCollector(signozURL, signozToken)
 	orchestrator := NewOrchestratorClient(orchestratorURL)
@@ -55,7 +56,7 @@ func main() {
 		NewPRFixAgent(githubClient, escalator, prFixInterval, prFixStaleThreshold),
 	}
 
-	runner := NewRunner(agents)
+	runner := NewRunner(agents, sweepTimeout)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +75,7 @@ func main() {
 	slog.Info("cluster-agents starting",
 		"agent_count", len(agents),
 		"patrol_interval", patrolInterval,
+		"sweep_timeout", runner.sweepTimeout,
 		"test_coverage_interval", testCoverageInterval,
 		"readme_freshness_interval", readmeFreshnessInterval,
 		"rules_interval", rulesInterval,

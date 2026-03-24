@@ -48,7 +48,7 @@ func TestRunnerExecutesAgentLoop(t *testing.T) {
 		interval: 50 * time.Millisecond,
 	}
 
-	r := NewRunner([]Agent{agent})
+	r := NewRunner([]Agent{agent}, 0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
@@ -65,7 +65,7 @@ func TestRunnerRunsMultipleAgents(t *testing.T) {
 	a1 := &fakeAgent{name: "agent-1", interval: 50 * time.Millisecond}
 	a2 := &fakeAgent{name: "agent-2", interval: 50 * time.Millisecond}
 
-	r := NewRunner([]Agent{a1, a2})
+	r := NewRunner([]Agent{a1, a2}, 0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
@@ -378,7 +378,7 @@ func TestRunnerContinuesAfterSweepTimeout(t *testing.T) {
 // TestRunnerWithZeroAgents verifies that Run returns immediately (without
 // blocking) when no agents are registered.
 func TestRunnerWithZeroAgents(t *testing.T) {
-	r := NewRunner([]Agent{})
+	r := NewRunner([]Agent{}, 0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -394,6 +394,25 @@ func TestRunnerWithZeroAgents(t *testing.T) {
 		// Run returned without waiting for ctx cancellation — correct behaviour.
 	case <-time.After(500 * time.Millisecond):
 		t.Error("Run() with zero agents did not return promptly")
+	}
+}
+
+// TestNewRunnerUsesDefaultSweepTimeoutWhenZero verifies that NewRunner uses
+// defaultSweepTimeout when sweepTimeout is zero, preserving backward compatibility.
+func TestNewRunnerUsesDefaultSweepTimeoutWhenZero(t *testing.T) {
+	r := NewRunner([]Agent{}, 0)
+	if r.sweepTimeout != defaultSweepTimeout {
+		t.Errorf("NewRunner(0): sweepTimeout = %v, want %v", r.sweepTimeout, defaultSweepTimeout)
+	}
+}
+
+// TestNewRunnerHonoursSweepTimeout verifies that NewRunner stores the
+// caller-supplied sweep timeout when it is positive (i.e., non-zero).
+func TestNewRunnerHonoursSweepTimeout(t *testing.T) {
+	want := 2 * time.Minute
+	r := NewRunner([]Agent{}, want)
+	if r.sweepTimeout != want {
+		t.Errorf("NewRunner(%v): sweepTimeout = %v, want %v", want, r.sweepTimeout, want)
 	}
 }
 
