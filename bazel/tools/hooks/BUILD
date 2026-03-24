@@ -99,3 +99,9 @@ sh_test(
     srcs = ["check-inline-subchart_test.sh"],
     data = [":check-inline-subchart.sh"],
 )
+
+sh_test(
+    name = "check_values_chart_version_bump_test",
+    srcs = ["check-values-chart-version-bump_test.sh"],
+    data = [":check-values-chart-version-bump.sh"],
+)

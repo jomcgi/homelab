@@ -211,6 +211,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-inline-subchart.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-values-chart-version-bump.sh",
+            "timeout": 5
           }
         ]
       }
