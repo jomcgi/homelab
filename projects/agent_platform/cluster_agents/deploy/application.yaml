@@ -11,6 +11,11 @@ spec:
     targetRevision: 0.6.16
     helm:
       releaseName: cluster-agents
+      # IMPORTANT: Do NOT add podAnnotations here. The chart-version-bot regenerates
+      # valuesObject and will silently drop any annotations placed in this block.
+      # The Linkerd skip-inbound-ports annotation lives in values.yaml (not here)
+      # so it persists across chart version bumps. See deployment_test.yaml for
+      # the regression test that enforces this.
       valuesObject:
         imagePullSecret:
           enabled: true
