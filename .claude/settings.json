@@ -196,6 +196,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-missing-imageupdater.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-missing-argocd-app-build.sh",
+            "timeout": 5
           }
         ]
       }
