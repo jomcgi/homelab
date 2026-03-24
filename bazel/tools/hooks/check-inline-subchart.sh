@@ -38,8 +38,8 @@ if [[ ! -f "$PARENT_CHART_YAML" ]]; then
 fi
 
 # Check if the subdirectory is declared as a file:// dependency in the parent Chart.yaml
-if ! grep -qF "file://$CHART_SUBDIR" "$PARENT_CHART_YAML" && \
-   ! grep -qF "file://./$CHART_SUBDIR" "$PARENT_CHART_YAML"; then
+if ! grep -qF "file://$CHART_SUBDIR" "$PARENT_CHART_YAML" &&
+	! grep -qF "file://./$CHART_SUBDIR" "$PARENT_CHART_YAML"; then
 	cat >&2 <<-EOF
 		WARNING: Writing Chart.yaml inside chart/$CHART_SUBDIR/ but '$CHART_SUBDIR' is not
 		declared as a file:// dependency in $PARENT_CHART_YAML.
