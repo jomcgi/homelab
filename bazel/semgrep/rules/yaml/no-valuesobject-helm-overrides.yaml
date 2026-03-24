@@ -13,4 +13,4 @@ rules:
     paths:
       include:
         - "**/deploy/application.yaml"
-    pattern-regex: '^\s*(podAnnotations|podLabels|resources|nodeSelector|tolerations|env):'
+    pattern-regex: 'valuesObject:[\s\S]*?\n\s*(podAnnotations|podLabels|resources|nodeSelector|tolerations|env):'

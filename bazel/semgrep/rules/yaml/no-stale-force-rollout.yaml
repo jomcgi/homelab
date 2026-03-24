@@ -14,4 +14,4 @@ rules:
       include:
         - "**/deploy/values.yaml"
         - "**/deploy/values.*.yaml"
-    pattern-regex: 'homelab/force-rollout'
+    pattern-regex: 'homelab/force-rollout\s*:'
