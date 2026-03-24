@@ -19,8 +19,8 @@ if [[ -z "$CONTENT" ]]; then
 	exit 0
 fi
 
-# Only check */deploy/application.yaml files
-if ! echo "$FILE_PATH" | grep -qE '.*/deploy/application\.yaml$'; then
+# Only check application.yaml files (both deploy/ and platform/ layouts)
+if ! echo "$FILE_PATH" | grep -qE '.*/application\.yaml$'; then
 	exit 0
 fi
 

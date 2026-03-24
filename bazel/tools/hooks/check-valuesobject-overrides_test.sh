@@ -159,10 +159,10 @@ run_test "write_values_yaml_not_checked" \
 	'{"tool_input":{"file_path":"projects/myservice/deploy/values.yaml","content":"spec:\n  source:\n    helm:\n      valuesObject:\n        podAnnotations:\n          foo: bar\n"}}' \
 	0 ""
 
-# (h) Non-deploy path application.yaml → silent
-run_test "write_non_deploy_application_yaml_silent" \
+# (h) Platform path application.yaml with valuesObject → WARNING (platform services don't use deploy/ subdir)
+run_test "write_platform_application_yaml_warns" \
 	'{"tool_input":{"file_path":"projects/myservice/application.yaml","content":"spec:\n  source:\n    helm:\n      valuesObject:\n        podAnnotations:\n          foo: bar\n"}}' \
-	0 ""
+	0 "WARNING"
 
 # (i) Empty content → silent
 run_test "write_empty_content_silent" \
@@ -187,6 +187,11 @@ run_test "warning_message_mentions_values_yaml" \
 # (m) Nested deploy path still matched
 run_test "write_nested_deploy_application_yaml_warns" \
 	'{"tool_input":{"file_path":"projects/agent_platform/cluster_agents/deploy/application.yaml","content":"spec:\n  source:\n    helm:\n      valuesObject:\n        env:\n          - name: MY_VAR\n            value: hello\n"}}' \
+	0 "WARNING"
+
+# (n) Platform service path (projects/platform/<svc>/application.yaml) with valuesObject + env → WARNING
+run_test "write_platform_service_application_yaml_warns" \
+	'{"tool_input":{"file_path":"projects/platform/signoz/application.yaml","content":"spec:\n  source:\n    helm:\n      valuesObject:\n        env:\n          - name: MY_VAR\n            value: hello\n"}}' \
 	0 "WARNING"
 
 # ---------------------------------------------------------------------------
