@@ -28,7 +28,7 @@ data:
       },
       "annotations": {
         "summary": "cluster-agents at http://cluster-agents.cluster-agents.svc.cluster.local:8080/health is unreachable",
-        "description": "HTTP health check has failed 5 consecutive times over 10 minutes. This could indicate the service is down."
+        "description": "HTTP health check has failed 5 consecutive times over 10 minutes. Check pod status and logs. Known cause: missing Linkerd annotation config.linkerd.io/skip-inbound-ports=8080 on the Deployment — Linkerd drops inbound connections from the unmeshed signoz namespace without it. Verify the annotation is present: kubectl get pod -n cluster-agents -o jsonpath='{.items[0].metadata.annotations}'."
       },
       "condition": {
         "compositeQuery": {
