@@ -12,5 +12,5 @@ rules:
       category: correctness
     paths:
       include:
-        - "**/deploy/application.yaml"
+        - "**/application.yaml"
     pattern-regex: 'valuesObject:[\s\S]*?\n\s*(podAnnotations|podLabels|resources|nodeSelector|tolerations|env):'
