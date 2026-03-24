@@ -93,3 +93,9 @@ sh_test(
     srcs = ["check-missing-argocd-app-build_test.sh"],
     data = [":check-missing-argocd-app-build.sh"],
 )
+
+sh_test(
+    name = "check_inline_subchart_test",
+    srcs = ["check-inline-subchart_test.sh"],
+    data = [":check-inline-subchart.sh"],
+)
