@@ -24,7 +24,10 @@ podAnnotations:
   # The SigNoz OTel httpcheck receiver runs from the signoz namespace, which is
   # outside the Linkerd mesh. Without this annotation, Linkerd intercepts and
   # drops inbound connections from unmeshed clients on port 8080, causing the
-  # /health endpoint to be unreachable and firing the 'cluster-agents Unreachable' alert.
+  # /health endpoint to be unreachable and firing the 'cluster-agents Unreachable'
+  # alert (SigNoz rule ID: 019cda4d-9837-76b0-b625-0149055459fa).
+  # A helm_annotation_test in BUILD and a unit test in deployment_test.yaml both
+  # enforce this annotation is always present to prevent regression.
   config.linkerd.io/skip-inbound-ports: "8080"
 
 podSecurityContext:
