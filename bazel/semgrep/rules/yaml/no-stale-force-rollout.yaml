@@ -12,6 +12,7 @@ rules:
       category: correctness
     paths:
       include:
-        - "**/deploy/values.yaml"
-        - "**/deploy/values.*.yaml"
+        - "**/values.yaml"
+        - "**/values-*.yaml"
+        - "**/values.*.yaml"
     pattern-regex: 'homelab/force-rollout\s*:'
