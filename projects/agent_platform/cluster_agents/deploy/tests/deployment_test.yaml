@@ -84,3 +84,19 @@ tests:
       - equal:
           path: spec.template.metadata.annotations["config.linkerd.io/skip-inbound-ports"]
           value: "8080"
+
+  - it: should retain Linkerd annotation with production valuesObject settings
+    # Regression: simulates the exact valuesObject applied by application.yaml in production.
+    # The chart-version-bot regenerates valuesObject on every chart bump — if podAnnotations
+    # were ever placed there, the bot would silently drop them. This test ensures the annotation
+    # survives the production override pattern (imagePullSecret, priorityClassName, PDB) because
+    # it lives in values.yaml (chart defaults), not in the ArgoCD valuesObject.
+    # See application.yaml for the IMPORTANT comment explaining this constraint.
+    set:
+      imagePullSecret.enabled: true
+      priorityClassName: system-cluster-critical
+      podDisruptionBudget.enabled: false
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["config.linkerd.io/skip-inbound-ports"]
+          value: "8080"
