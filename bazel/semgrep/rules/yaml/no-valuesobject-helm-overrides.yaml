@@ -1,0 +1,16 @@
+rules:
+  - id: no-valuesobject-helm-overrides
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      Helm value overrides (podAnnotations, podLabels, resources, nodeSelector,
+      tolerations, env) found inside a `valuesObject` block in application.yaml.
+      These values should live in `values.yaml` so they receive CI coverage via
+      `helm_template_test`. Move them to the service's `deploy/values.yaml` instead.
+      See PRs #1488-#1499 for examples.
+    metadata:
+      category: correctness
+    paths:
+      include:
+        - "**/deploy/application.yaml"
+    pattern-regex: '^\s*(podAnnotations|podLabels|resources|nodeSelector|tolerations|env):'
