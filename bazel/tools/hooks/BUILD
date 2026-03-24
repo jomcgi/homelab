@@ -81,3 +81,15 @@ sh_test(
     srcs = ["check-missing-imageupdater_test.sh"],
     data = [":check-missing-imageupdater.sh"],
 )
+
+sh_test(
+    name = "check_valuesobject_overrides_test",
+    srcs = ["check-valuesobject-overrides_test.sh"],
+    data = [":check-valuesobject-overrides.sh"],
+)
+
+sh_test(
+    name = "check_missing_argocd_app_build_test",
+    srcs = ["check-missing-argocd-app-build_test.sh"],
+    data = [":check-missing-argocd-app-build.sh"],
+)
