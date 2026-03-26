@@ -1,5 +1,6 @@
 headlessSync:
   enabled: true
+  vaultName: "jomcgi"
 
 gitSidecar:
   remote: "https://github.com/jomcgi/obsidian-vault.git"

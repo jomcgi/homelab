@@ -1,5 +1,6 @@
 headlessSync:
   enabled: false
+  vaultName: ""
   image:
     repository: node
     tag: "22-alpine"

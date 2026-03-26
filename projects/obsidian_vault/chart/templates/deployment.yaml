@@ -33,10 +33,16 @@ spec:
             - sh
             - -c
             - |
-              npx obsidian-headless sync --continuous --vault /vault
+              set -e
+              npm install -g obsidian-headless
+              ob login --email "$OBSIDIAN_EMAIL" --password "$OBSIDIAN_PASSWORD"
+              ob sync-setup --vault "$VAULT_NAME" --path /vault --password "$OBSIDIAN_PASSWORD"
+              exec ob sync --continuous
           env:
             - name: HOME
               value: /home/vault
+            - name: VAULT_NAME
+              value: {{ .Values.headlessSync.vaultName | quote }}
             - name: OBSIDIAN_EMAIL
               valueFrom:
                 secretKeyRef:
