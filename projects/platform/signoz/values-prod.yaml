@@ -155,6 +155,9 @@ k8s-infra:
             exporters:
               - otlp
 
+# signoz subchart configuration
+# NOTE: k8s-infra is a sibling subchart (not nested inside signoz). Configure
+# the OTel agent/deployment resources and receivers under the top-level k8s-infra key above.
 signoz:
   clickhouse:
     resources:
@@ -203,20 +206,3 @@ signoz:
       limits:
         cpu: 2
         memory: 4Gi
-  k8sInfra:
-    otelAgent:
-      resources:
-        requests:
-          cpu: 100m
-          memory: 200Mi
-        limits:
-          cpu: 500m
-          memory: 500Mi
-    otelDeployment:
-      resources:
-        requests:
-          cpu: 100m
-          memory: 200Mi
-        limits:
-          cpu: 500m
-          memory: 400Mi
