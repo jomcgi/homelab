@@ -39,6 +39,7 @@ spec:
               npm install -g obsidian-headless
               ob login --email "$OBSIDIAN_EMAIL" --password "$OBSIDIAN_PASSWORD"
               ob sync-setup --vault "$VAULT_NAME" --path /vault --password "$OBSIDIAN_PASSWORD"
+              cd /vault
               exec ob sync --continuous
           env:
             - name: HOME
