@@ -29,7 +29,7 @@ k8s-infra:
     # OTel does not hot-reload its config — a pod restart is required.
     # Update this value to trigger a new rollout when config changes land.
     podAnnotations:
-      homelab/force-rollout: "2026-03-24-2"
+      homelab/force-rollout: "2026-03-26"
     # Inject Cloudflare Access service token for Zero Trust bypass
     # Create a service token in Cloudflare Zero Trust dashboard:
     # Zero Trust > Access > Service Auth > Create Service Token
