@@ -25,11 +25,6 @@ k8s-infra:
       limits:
         cpu: 500m
         memory: 400Mi
-    # Force pod rollout so the otelDeployment picks up config changes.
-    # OTel does not hot-reload its config — a pod restart is required.
-    # Update this value to trigger a new rollout when config changes land.
-    podAnnotations:
-      homelab/force-rollout: "2026-03-26"
     # Inject Cloudflare Access service token for Zero Trust bypass
     # Create a service token in Cloudflare Zero Trust dashboard:
     # Zero Trust > Access > Service Auth > Create Service Token
