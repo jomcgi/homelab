@@ -34,6 +34,8 @@ spec:
             - -c
             - |
               set -e
+              npm config set prefix "$HOME/.npm-global"
+              export PATH="$HOME/.npm-global/bin:$PATH"
               npm install -g obsidian-headless
               ob login --email "$OBSIDIAN_EMAIL" --password "$OBSIDIAN_PASSWORD"
               ob sync-setup --vault "$VAULT_NAME" --path /vault --password "$OBSIDIAN_PASSWORD"
