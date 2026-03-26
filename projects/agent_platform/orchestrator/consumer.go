@@ -84,10 +84,10 @@ func (c *Consumer) Run(ctx context.Context) {
 
 		for msg := range msgs.Messages() {
 			wg.Add(1)
-			go func() {
+			go func(m jetstream.Msg) {
 				defer wg.Done()
-				c.processJob(ctx, msg)
-			}()
+				c.processJob(ctx, m)
+			}(msg)
 		}
 
 		if err := msgs.Error(); err != nil {
