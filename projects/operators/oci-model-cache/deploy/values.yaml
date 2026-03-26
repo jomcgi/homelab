@@ -3,7 +3,7 @@ imagePullSecrets:
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/homelab/projects/operators/oci-model-cache
-    tag: "" # Pinned at build time by helm_images_values
+    # tag pinned at build time by helm_images_values
     pullPolicy: Always
   tracing:
     serviceName: "oci-model-cache-operator"

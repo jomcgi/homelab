@@ -1,25 +1,9 @@
 # Development overrides for stargazer
 
-# ArgoCD Image Updater
-imageUpdater:
-  enabled: true
-  images:
-    - alias: stargazer
-      imageName: ghcr.io/jomcgi/homelab/projects/stargazer:main
-      helm:
-        name: image.repository
-        tag: image.tag
-  writeBack:
-    method: git:secret:argocd/argocd-image-updater-token
-    repository: https://github.com/jomcgi/homelab.git
-    branch: main
-    target: helmvalues:projects/stargazer/deploy/values.yaml
-# Run every 30 minutes
-schedule: "0,30 * * * *"
 # Stargazer service image
 image:
   repository: ghcr.io/jomcgi/homelab/projects/stargazer
-  tag: "main@sha256:6831963f698e277c3220ff038bd28134879e1ca43d1c52804f8cefd8bca6730a"
+  tag: "main"
   pullPolicy: IfNotPresent
 # Persistent storage
 persistence:
@@ -65,7 +49,5 @@ imagePullSecret:
 # Configure pods to use the image pull secret
 imagePullSecrets:
   - name: ghcr-imagepull-secret
-# Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
 podAnnotations:
   otel.injected-by: kyverno/inject-otel-env-vars
-  instrumentation.opentelemetry.io/inject-python: "python"
