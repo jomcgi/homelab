@@ -1,3 +1,6 @@
+headlessSync:
+  enabled: true
+
 gitSidecar:
   remote: "https://github.com/jomcgi/obsidian-vault.git"
 
