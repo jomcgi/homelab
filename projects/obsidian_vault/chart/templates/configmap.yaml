@@ -19,6 +19,8 @@ data:
 
     # Mark vault path as safe (fsGroup chown triggers git's dubious ownership check)
     git config --global --add safe.directory "$VAULT_PATH"
+    git config --global user.email "vault-sidecar@homelab.local"
+    git config --global user.name "vault-sidecar"
 
     # Configure HTTPS auth if GITHUB_TOKEN is provided
     if [ -n "$GITHUB_TOKEN" ]; then
@@ -30,8 +32,6 @@ data:
     # Initialize git repo if needed
     if [ ! -d .git ]; then
         git init
-        git config user.email "vault-sidecar@homelab.local"
-        git config user.name "vault-sidecar"
         if [ -n "$REMOTE" ]; then
             git remote add origin "$REMOTE"
             # Pull existing history if any
