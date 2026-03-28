@@ -79,3 +79,18 @@ semgrep_test(
     srcs = ["qdrant_client.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_library(
+    name = "embedder",
+    srcs = ["embedder.py"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@pip//fastembed",
+    ],
+)
+
+semgrep_test(
+    name = "embedder_semgrep_test",
+    srcs = ["embedder.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)

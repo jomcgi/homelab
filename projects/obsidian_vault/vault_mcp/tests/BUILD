@@ -79,3 +79,18 @@ semgrep_test(
     srcs = ["qdrant_client_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "embedder_test",
+    srcs = ["embedder_test.py"],
+    deps = [
+        "//projects/obsidian_vault/vault_mcp/app:embedder",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "embedder_test_semgrep_test",
+    srcs = ["embedder_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
