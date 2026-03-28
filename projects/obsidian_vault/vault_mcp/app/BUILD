@@ -94,3 +94,20 @@ semgrep_test(
     srcs = ["embedder.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_library(
+    name = "reconciler",
+    srcs = ["reconciler.py"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":chunker",
+        ":embedder",
+        ":qdrant_client",
+    ],
+)
+
+semgrep_test(
+    name = "reconciler_semgrep_test",
+    srcs = ["reconciler.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
