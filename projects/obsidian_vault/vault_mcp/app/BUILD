@@ -63,3 +63,19 @@ semgrep_test(
     srcs = ["chunker.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_library(
+    name = "qdrant_client",
+    srcs = ["qdrant_client.py"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":chunker",
+        "@pip//httpx",
+    ],
+)
+
+semgrep_test(
+    name = "qdrant_client_semgrep_test",
+    srcs = ["qdrant_client.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)

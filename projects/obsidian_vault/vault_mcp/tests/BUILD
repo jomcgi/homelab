@@ -61,3 +61,21 @@ semgrep_test(
     srcs = ["chunker_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "qdrant_client_test",
+    srcs = ["qdrant_client_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app:qdrant_client",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_httpx",
+    ],
+)
+
+semgrep_test(
+    name = "qdrant_client_test_semgrep_test",
+    srcs = ["qdrant_client_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
