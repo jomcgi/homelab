@@ -51,3 +51,15 @@ semgrep_test(
     exclude_rules = ["mcp-shell-injection-taint"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_library(
+    name = "chunker",
+    srcs = ["chunker.py"],
+    visibility = ["//:__subpackages__"],
+)
+
+semgrep_test(
+    name = "chunker_semgrep_test",
+    srcs = ["chunker.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
