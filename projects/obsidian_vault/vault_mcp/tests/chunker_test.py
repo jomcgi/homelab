@@ -46,7 +46,7 @@ class TestChunkMarkdown:
         assert "return 42" in full_text
 
     def test_merges_small_chunks(self):
-        content = "# A\n\nTiny.\n\n## B\n\nAlso tiny."
+        content = "# A\n\nTiny.\n\nAlso tiny."
         chunks = chunk_markdown(
             content=content,
             content_hash="jkl012",

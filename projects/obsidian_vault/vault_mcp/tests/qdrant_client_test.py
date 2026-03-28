@@ -16,8 +16,12 @@ def qdrant():
 
 
 def _mock_response(status_code: int = 200, json: dict | None = None) -> httpx.Response:
-    """Build a fake httpx.Response."""
-    return httpx.Response(status_code=status_code, json=json or {})
+    """Build a fake httpx.Response with a dummy request (needed for raise_for_status)."""
+    return httpx.Response(
+        status_code=status_code,
+        json=json or {},
+        request=httpx.Request("GET", "http://test"),
+    )
 
 
 def _mock_async_client(**method_returns):
