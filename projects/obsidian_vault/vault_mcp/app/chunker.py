@@ -1,0 +1,133 @@
+"""Markdown-aware text chunking for embedding."""
+
+from __future__ import annotations
+
+import re
+from typing import TypedDict
+
+
+class ChunkPayload(TypedDict):
+    content_hash: str
+    chunk_index: int
+    chunk_text: str
+    section_header: str
+    source_url: str
+    title: str
+
+
+def _estimate_tokens(text: str) -> int:
+    return int(len(text.split()) * 1.3)
+
+
+def _split_by_headers(content: str) -> list[tuple[str, str]]:
+    pattern = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
+    sections: list[tuple[str, str]] = []
+    last_pos = 0
+    last_header = ""
+    for match in pattern.finditer(content):
+        if last_pos < match.start():
+            body = content[last_pos : match.start()].strip()
+            if body:
+                sections.append((last_header, body))
+        last_header = match.group(0).strip()
+        last_pos = match.end()
+    remaining = content[last_pos:].strip()
+    if remaining:
+        sections.append((last_header, remaining))
+    if not sections:
+        sections = [("", content.strip())]
+    return sections
+
+
+def _split_paragraphs(text: str, max_tokens: int) -> list[str]:
+    chunks: list[str] = []
+    current: list[str] = []
+    current_tokens = 0
+    parts: list[str] = []
+    in_code_block = False
+    code_block_lines: list[str] = []
+    for line in text.split("\n"):
+        if line.strip().startswith("```"):
+            if in_code_block:
+                code_block_lines.append(line)
+                parts.append("\n".join(code_block_lines))
+                code_block_lines = []
+                in_code_block = False
+            else:
+                in_code_block = True
+                code_block_lines = [line]
+        elif in_code_block:
+            code_block_lines.append(line)
+        else:
+            parts.append(line)
+    if code_block_lines:
+        parts.append("\n".join(code_block_lines))
+    paragraphs: list[str] = []
+    current_para: list[str] = []
+    for part in parts:
+        if part.strip().startswith("```"):
+            if current_para:
+                paragraphs.append("\n".join(current_para))
+                current_para = []
+            paragraphs.append(part)
+        elif part.strip() == "":
+            if current_para:
+                paragraphs.append("\n".join(current_para))
+                current_para = []
+        else:
+            current_para.append(part)
+    if current_para:
+        paragraphs.append("\n".join(current_para))
+    for para in paragraphs:
+        para_tokens = _estimate_tokens(para)
+        if current_tokens + para_tokens > max_tokens and current:
+            chunks.append("\n\n".join(current))
+            current = []
+            current_tokens = 0
+        current.append(para)
+        current_tokens += para_tokens
+    if current:
+        chunks.append("\n\n".join(current))
+    return chunks
+
+
+def chunk_markdown(
+    content: str,
+    content_hash: str,
+    source_url: str,
+    title: str,
+    max_tokens: int = 512,
+    min_tokens: int = 50,
+) -> list[ChunkPayload]:
+    if not content.strip():
+        return []
+    sections = _split_by_headers(content)
+    raw_chunks: list[tuple[str, str]] = []
+    for header, body in sections:
+        sub_chunks = _split_paragraphs(body, max_tokens)
+        for chunk in sub_chunks:
+            raw_chunks.append((header, chunk))
+    merged: list[tuple[str, str]] = []
+    for header, chunk_text in raw_chunks:
+        if (
+            merged
+            and _estimate_tokens(chunk_text) < min_tokens
+            and _estimate_tokens(merged[-1][1] + "\n\n" + chunk_text) <= max_tokens
+        ):
+            prev_header, prev_text = merged[-1]
+            merged[-1] = (prev_header, prev_text + "\n\n" + chunk_text)
+        else:
+            merged.append((header, chunk_text))
+    payloads: list[ChunkPayload] = []
+    for idx, (header, chunk_text) in enumerate(merged):
+        payloads.append(
+            ChunkPayload(
+                content_hash=content_hash,
+                chunk_index=idx,
+                chunk_text=chunk_text,
+                section_header=header,
+                source_url=source_url,
+                title=title,
+            )
+        )
+    return payloads

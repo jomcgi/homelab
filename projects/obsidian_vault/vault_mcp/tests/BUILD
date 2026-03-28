@@ -46,3 +46,18 @@ semgrep_test(
     srcs = ["main_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "chunker_test",
+    srcs = ["chunker_test.py"],
+    deps = [
+        "//projects/obsidian_vault/vault_mcp/app:chunker",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "chunker_test_semgrep_test",
+    srcs = ["chunker_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
