@@ -72,7 +72,9 @@ dependencies = [
     "lxml-html-clean",  # Required by trafilatura; added explicitly because lxml[html-clean] creates a Bazel cycle
     # Bosun (Claude Code web interface) dependencies
     "google-genai~=1.56",
-    "starlette>=0.47.2"
+    "starlette>=0.47.2",
+    # Obsidian vault embedding (CPU-only, in-process)
+    "fastembed>=0.6",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
