@@ -66,10 +66,6 @@ dependencies = [
     "constructs~=10.0",
     # XML parsing with XXE protection
     "defusedxml~=0.7",
-    # Knowledge Graph Scraper dependencies
-    "trafilatura>=1.12",
-    "feedparser~=6.0",
-    "lxml-html-clean",  # Required by trafilatura; added explicitly because lxml[html-clean] creates a Bazel cycle
     # Bosun (Claude Code web interface) dependencies
     "google-genai~=1.56",
     "starlette>=0.47.2",
