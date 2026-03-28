@@ -34,6 +34,7 @@ _PATCH_TARGET = "projects.obsidian_vault.vault_mcp.app.qdrant_client.httpx.Async
 
 
 class TestEnsureCollection:
+    @pytest.mark.asyncio
     async def test_creates_collection_when_missing(self, qdrant):
         mock = _mock_async_client(
             get=_mock_response(404),
@@ -43,6 +44,7 @@ class TestEnsureCollection:
             await qdrant.ensure_collection(vector_size=768)
         mock.put.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_skips_when_collection_exists(self, qdrant):
         mock = _mock_async_client(get=_mock_response(200, {"result": {}}))
         with patch(_PATCH_TARGET, return_value=mock):
@@ -51,6 +53,7 @@ class TestEnsureCollection:
 
 
 class TestUpsertChunks:
+    @pytest.mark.asyncio
     async def test_upserts_points(self, qdrant):
         mock = _mock_async_client(
             put=_mock_response(200, {"result": {"status": "completed"}}),
@@ -72,6 +75,7 @@ class TestUpsertChunks:
 
 
 class TestSearch:
+    @pytest.mark.asyncio
     async def test_returns_results_with_scores(self, qdrant):
         mock = _mock_async_client(
             post=_mock_response(
@@ -101,6 +105,7 @@ class TestSearch:
 
 
 class TestDeleteBySourceUrl:
+    @pytest.mark.asyncio
     async def test_sends_filter_delete(self, qdrant):
         mock = _mock_async_client(
             post=_mock_response(200, {"result": {"status": "completed"}}),
@@ -111,6 +116,7 @@ class TestDeleteBySourceUrl:
 
 
 class TestGetIndexedSources:
+    @pytest.mark.asyncio
     async def test_returns_source_hash_mapping(self, qdrant):
         mock = _mock_async_client(
             post=_mock_response(

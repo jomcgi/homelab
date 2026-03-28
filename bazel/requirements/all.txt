@@ -1077,7 +1077,7 @@ glom==25.12.0 \
     --hash=sha256:1ae7da88be3693df40ad27bdf57a765a55c075c86c971bcddd67927403eb0069 \
     --hash=sha256:b9f21e77f71a6576a43864e85066b8cc3f0f778d0d50961563f8981377a6dcb1
     # via semgrep
-google-auth==2.48.0 \
+google-auth[requests]==2.48.0 \
     --hash=sha256:2e2a537873d449434252a9632c28bfc268b0adb1e53f9fb62afc5333a975903f \
     --hash=sha256:4f7e706b0cd3208a3d940a19a822c37a476ddba5450156c3e6624a71f7c841ce
     # via
@@ -2008,7 +2008,7 @@ onnxruntime==1.24.4 \
     #   -c bazel/requirements/runtime.txt
     #   -r bazel/requirements/runtime.txt
     #   fastembed
-open-gopro==0.22.0 \
+open-gopro[gui]==0.22.0 \
     --hash=sha256:8b55f4ecb549f3b71593a901e2b8d10eda84cfd1e7d9c8dd2719082d2000e0bc \
     --hash=sha256:ecf8b4baed8ef0ab8c83d5673afee4dcea8ced942a82d1feec9a500967df703a
     # via
@@ -2624,7 +2624,7 @@ publication==0.0.3 \
     #   cdk8s
     #   constructs
     #   jsii
-py-key-value-aio==0.4.4 \
+py-key-value-aio[filetree, keyring, memory]==0.4.4 \
     --hash=sha256:18e17564ecae61b987f909fc2cd41ee2012c84b4b1dcb8c055cf8b4bc1bf3f5d \
     --hash=sha256:e3012e6243ed7cc09bb05457bd4d03b1ba5c2b1ca8700096b3927db79ffbbe55
     # via
@@ -2723,7 +2723,7 @@ pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementatio
     #   -c bazel/requirements/runtime.txt
     #   -r bazel/requirements/runtime.txt
     #   cffi
-pydantic==2.12.5 \
+pydantic[email]==2.12.5 \
     --hash=sha256:4d351024c75c0f085a9febbb665ce8c0c6ec5d30e903bdb6394b7ede26aebb49 \
     --hash=sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d
     # via
@@ -2892,7 +2892,7 @@ pygments==2.19.2 \
     #   -r bazel/requirements/runtime.txt
     #   copier
     #   rich
-pyjwt==2.11.0 \
+pyjwt[crypto]==2.11.0 \
     --hash=sha256:35f95c1f0fbe5d5ba6e43f00271c275f7a1a4db1dab27bf708073b75318ea623 \
     --hash=sha256:94a6bde30eb5c8e04fee991062b534071fd1439ef58d2adc9ccb823e7bcd0469
     # via
@@ -3318,7 +3318,7 @@ requests-cache==1.3.1 \
     # via
     #   -c bazel/requirements/runtime.txt
     #   -r bazel/requirements/runtime.txt
-returns==0.26.0 \
+returns[compatible-mypy]==0.26.0 \
     --hash=sha256:180320e0f6e9ea9845330ccfc020f542330f05b7250941d9b9b7c00203fcc3da \
     --hash=sha256:7cae94c730d6c56ffd9d0f583f7a2c0b32cfe17d141837150c8e6cff3eb30d71
     # via
@@ -3858,7 +3858,7 @@ urllib3==2.6.3 \
     #   requests
     #   requests-cache
     #   semgrep
-uvicorn==0.41.0 \
+uvicorn[standard]==0.41.0 \
     --hash=sha256:09d11cf7008da33113824ee5a1c6422d89fbc2ff476540d69a34c87fab8b571a \
     --hash=sha256:29e35b1d2c36a04b9e180d4007ede3bcb32a85fbdfd6c6aeb3f26839de088187
     # via
