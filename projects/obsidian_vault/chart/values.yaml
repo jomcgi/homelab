@@ -57,10 +57,10 @@ resources:
       memory: "64Mi"
   vaultMcp:
     requests:
-      memory: "64Mi"
-      cpu: "20m"
+      memory: "512Mi"
+      cpu: "100m"
     limits:
-      memory: "128Mi"
+      memory: "768Mi"
 
 gateway:
   url: ""
@@ -73,3 +73,22 @@ gateway:
     itemPath: ""
 
 podAnnotations: {}
+
+# Embedding
+embedding:
+  qdrantCollection: obsidian_vault
+  model: nomic-ai/nomic-embed-text-v1.5
+  cacheDir: /vault/.cache/fastembed
+  reconcileIntervalSeconds: 300
+
+# Qdrant subchart
+qdrant:
+  replicaCount: 1
+  persistence:
+    size: 2Gi
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"

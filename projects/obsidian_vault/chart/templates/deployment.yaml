@@ -104,8 +104,18 @@ spec:
           env:
             - name: VAULT_PATH
               value: /vault
-            - name: PORT
+            - name: VAULT_PORT
               value: {{ .Values.vaultMcp.port | quote }}
+            - name: VAULT_QDRANT_URL
+              value: "http://{{ include "obsidian-vault.fullname" . }}-qdrant:6333"
+            - name: VAULT_QDRANT_COLLECTION
+              value: {{ .Values.embedding.qdrantCollection | quote }}
+            - name: VAULT_EMBED_MODEL
+              value: {{ .Values.embedding.model | quote }}
+            - name: VAULT_EMBED_CACHE_DIR
+              value: {{ .Values.embedding.cacheDir | quote }}
+            - name: VAULT_RECONCILE_INTERVAL_SECONDS
+              value: {{ .Values.embedding.reconcileIntervalSeconds | quote }}
           volumeMounts:
             - name: vault
               mountPath: /vault
