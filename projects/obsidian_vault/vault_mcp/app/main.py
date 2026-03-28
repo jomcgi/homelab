@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import fnmatch
+import logging
 import os
 import shutil
 import subprocess
@@ -12,6 +13,10 @@ from pathlib import Path
 from fastmcp import FastMCP
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from projects.obsidian_vault.vault_mcp.app.embedder import VaultEmbedder
+from projects.obsidian_vault.vault_mcp.app.qdrant_client import QdrantClient
+from projects.obsidian_vault.vault_mcp.app.reconciler import VaultReconciler
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="VAULT_")
@@ -19,11 +24,20 @@ class Settings(BaseSettings):
     path: str = "/vault"
     port: int = 8000
 
+    # Embedding
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_collection: str = "obsidian_vault"
+    embed_model: str = "nomic-ai/nomic-embed-text-v1.5"
+    embed_cache_dir: str = "/vault/.cache/fastembed"
+    reconcile_interval_seconds: int = 300
+
 
 mcp = FastMCP("ObsidianVault")
 
 _settings: Settings | None = None
 _lock: asyncio.Lock | None = None
+_embedder: VaultEmbedder | None = None
+_qdrant: QdrantClient | None = None
 
 
 def configure(settings: Settings) -> None:
@@ -135,6 +149,26 @@ async def search_notes(query: str) -> dict:
             matches.append({"path": str(rel), "lines": matching_lines})
 
     return {"matches": matches}
+
+
+@mcp.tool
+async def search_semantic(query: str, limit: int = 5) -> dict:
+    """Semantic search across vault notes using vector embeddings.
+
+    Args:
+        query: Natural language search query.
+        limit: Max results to return (default 5).
+
+    Returns matching chunks with scores, paths, and section headers.
+    """
+    if _embedder is None or _qdrant is None:
+        return {"error": "Semantic search not configured"}
+    vector = _embedder.embed_query(query)
+    results = await _qdrant.search(vector=vector, limit=limit)
+    for r in results:
+        if "source_url" in r:
+            r["path"] = r["source_url"].removeprefix("vault://")
+    return {"results": results}
 
 
 def _git_commit(files: list[str], message: str) -> dict:
@@ -291,6 +325,28 @@ async def restore_note(path: str, commit: str) -> dict:
         )
 
 
+async def _reconcile_loop(settings: Settings) -> None:
+    """Background loop that reconciles vault with Qdrant."""
+    global _embedder, _qdrant
+
+    _embedder = VaultEmbedder(
+        model=settings.embed_model, cache_dir=settings.embed_cache_dir
+    )
+    _qdrant = QdrantClient(
+        url=settings.qdrant_url, collection=settings.qdrant_collection
+    )
+    await _qdrant.ensure_collection(vector_size=_embedder.dimension)
+    reconciler = VaultReconciler(
+        vault_path=settings.path, embedder=_embedder, qdrant=_qdrant
+    )
+    while True:
+        try:
+            await reconciler.run()
+        except Exception:
+            logging.getLogger(__name__).exception("Reconciler error")
+        await asyncio.sleep(settings.reconcile_interval_seconds)
+
+
 def main():
     settings = Settings()
     configure(settings)
@@ -303,6 +359,10 @@ def main():
         return JSONResponse({"status": "ok"})
 
     app.add_route("/healthz", healthz)
+
+    @app.on_event("startup")
+    async def _start_reconciler():
+        asyncio.create_task(_reconcile_loop(settings))
 
     import uvicorn
 
