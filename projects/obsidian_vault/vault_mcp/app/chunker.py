@@ -84,8 +84,29 @@ def _split_paragraphs(text: str, max_tokens: int) -> list[str]:
             chunks.append("\n\n".join(current))
             current = []
             current_tokens = 0
-        current.append(para)
-        current_tokens += para_tokens
+        if para_tokens > max_tokens:
+            # Split oversized paragraph by words
+            words = para.split()
+            buf: list[str] = []
+            buf_tokens = 0
+            for word in words:
+                word_tokens = _estimate_tokens(word)
+                if buf_tokens + word_tokens > max_tokens and buf:
+                    if current:
+                        chunks.append("\n\n".join(current))
+                        current = []
+                        current_tokens = 0
+                    chunks.append(" ".join(buf))
+                    buf = []
+                    buf_tokens = 0
+                buf.append(word)
+                buf_tokens += word_tokens
+            if buf:
+                current.append(" ".join(buf))
+                current_tokens += buf_tokens
+        else:
+            current.append(para)
+            current_tokens += para_tokens
     if current:
         chunks.append("\n\n".join(current))
     return chunks
@@ -111,6 +132,7 @@ def chunk_markdown(
     for header, chunk_text in raw_chunks:
         if (
             merged
+            and merged[-1][0] == header
             and _estimate_tokens(chunk_text) < min_tokens
             and _estimate_tokens(merged[-1][1] + "\n\n" + chunk_text) <= max_tokens
         ):
