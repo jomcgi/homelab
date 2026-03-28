@@ -51,8 +51,8 @@ py_test(
     name = "chunker_test",
     srcs = ["chunker_test.py"],
     deps = [
-        "//projects/obsidian_vault/vault_mcp/app:chunker",
-        "@pip//pytest",
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app",
     ],
 )
 
@@ -67,7 +67,7 @@ py_test(
     srcs = ["qdrant_client_test.py"],
     deps = [
         ":conftest",
-        "//projects/obsidian_vault/vault_mcp/app:qdrant_client",
+        "//projects/obsidian_vault/vault_mcp/app",
         "@pip//httpx",
         "@pip//pytest",
     ],
@@ -83,8 +83,8 @@ py_test(
     name = "embedder_test",
     srcs = ["embedder_test.py"],
     deps = [
-        "//projects/obsidian_vault/vault_mcp/app:embedder",
-        "@pip//pytest",
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app",
     ],
 )
 
@@ -99,7 +99,7 @@ py_test(
     srcs = ["reconciler_test.py"],
     deps = [
         ":conftest",
-        "//projects/obsidian_vault/vault_mcp/app:reconciler",
+        "//projects/obsidian_vault/vault_mcp/app",
         "@pip//pytest",
     ],
 )

@@ -32,25 +32,31 @@ class QdrantClient:
             logger.info("Created Qdrant collection %s", self._collection)
 
     async def upsert_chunks(
-        self, chunks: list[ChunkPayload], vectors: list[list[float]],
+        self,
+        chunks: list[ChunkPayload],
+        vectors: list[list[float]],
     ) -> None:
         points = []
         for chunk, vector in zip(chunks, vectors):
             point_id = str(
-                uuid.uuid5(_NAMESPACE, f"{chunk['content_hash']}_{chunk['chunk_index']}")
+                uuid.uuid5(
+                    _NAMESPACE, f"{chunk['content_hash']}_{chunk['chunk_index']}"
+                )
             )
-            points.append({
-                "id": point_id,
-                "vector": vector,
-                "payload": {
-                    "source_url": chunk["source_url"],
-                    "title": chunk["title"],
-                    "section_header": chunk["section_header"],
-                    "chunk_index": chunk["chunk_index"],
-                    "chunk_text": chunk["chunk_text"],
-                    "content_hash": chunk["content_hash"],
-                },
-            })
+            points.append(
+                {
+                    "id": point_id,
+                    "vector": vector,
+                    "payload": {
+                        "source_url": chunk["source_url"],
+                        "title": chunk["title"],
+                        "section_header": chunk["section_header"],
+                        "chunk_index": chunk["chunk_index"],
+                        "chunk_text": chunk["chunk_text"],
+                        "content_hash": chunk["content_hash"],
+                    },
+                }
+            )
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.put(
                 f"{self._url}/collections/{self._collection}/points",

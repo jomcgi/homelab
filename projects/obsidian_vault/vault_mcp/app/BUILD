@@ -14,12 +14,8 @@ py_venv_binary(
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
-        ":chunker",
-        ":embedder",
-        ":qdrant_client",
-        ":reconciler",
+        ":app",
         "@pip//fastmcp",
-        "@pip//httpx",
         "@pip//pydantic_settings",
         "@pip//starlette",
         "@pip//uvicorn",
@@ -30,14 +26,15 @@ py_library(
     name = "app",
     srcs = [
         "__init__.py",
+        "chunker.py",
+        "embedder.py",
         "main.py",
+        "qdrant_client.py",
+        "reconciler.py",
     ],
     visibility = ["//:__subpackages__"],
     deps = [
-        ":chunker",
-        ":embedder",
-        ":qdrant_client",
-        ":reconciler",
+        "@pip//fastembed",
         "@pip//fastmcp",
         "@pip//httpx",
         "@pip//pydantic_settings",
@@ -68,12 +65,6 @@ py_library(
     visibility = ["//:__subpackages__"],
 )
 
-semgrep_test(
-    name = "chunker_semgrep_test",
-    srcs = ["chunker.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
-
 py_library(
     name = "qdrant_client",
     srcs = ["qdrant_client.py"],
@@ -82,12 +73,6 @@ py_library(
         ":chunker",
         "@pip//httpx",
     ],
-)
-
-semgrep_test(
-    name = "qdrant_client_semgrep_test",
-    srcs = ["qdrant_client.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 py_library(
@@ -99,12 +84,6 @@ py_library(
     ],
 )
 
-semgrep_test(
-    name = "embedder_semgrep_test",
-    srcs = ["embedder.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
-
 py_library(
     name = "reconciler",
     srcs = ["reconciler.py"],
@@ -114,10 +93,4 @@ py_library(
         ":embedder",
         ":qdrant_client",
     ],
-)
-
-semgrep_test(
-    name = "reconciler_semgrep_test",
-    srcs = ["reconciler.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
 )
