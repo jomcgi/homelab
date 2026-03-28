@@ -1,7 +1,7 @@
 # gazelle:semgrep_exclude_rules mcp-shell-injection-taint
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
 
 exports_files(
     ["main.py"],
@@ -50,13 +50,6 @@ semgrep_target_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":main",
-)
-
-semgrep_test(
-    name = "__init___semgrep_test",
-    srcs = ["__init__.py"],
-    exclude_rules = ["mcp-shell-injection-taint"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 py_library(
