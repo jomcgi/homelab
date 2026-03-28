@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
@@ -23,6 +23,7 @@ from projects.obsidian_vault.vault_mcp.app.main import (
     read_note,
     restore_note,
     search_notes,
+    search_semantic,
     write_note,
 )
 
@@ -548,3 +549,46 @@ class TestMain:
 
         assert response.status_code == 200
         assert json.loads(response.body) == {"status": "ok"}
+
+
+class TestSearchSemantic:
+    async def test_returns_results(self, tmp_path):
+        mock_qdrant = AsyncMock()
+        mock_qdrant.search.return_value = [
+            {
+                "score": 0.92,
+                "source_url": "vault://note.md",
+                "chunk_text": "some content",
+                "section_header": "# Title",
+                "title": "note.md",
+            }
+        ]
+        mock_embedder = MagicMock()
+        mock_embedder.embed_query.return_value = [0.1] * 768
+
+        with (
+            patch.object(_mod, "_qdrant", mock_qdrant),
+            patch.object(_mod, "_embedder", mock_embedder),
+        ):
+            result = await search_semantic(query="test query", limit=5)
+
+        assert len(result["results"]) == 1
+        assert result["results"][0]["score"] == 0.92
+        assert result["results"][0]["path"] == "note.md"
+
+    async def test_returns_error_when_not_configured(self, tmp_path):
+        with (
+            patch.object(_mod, "_qdrant", None),
+            patch.object(_mod, "_embedder", None),
+        ):
+            result = await search_semantic(query="test")
+        assert "error" in result
+
+
+class TestSettingsEmbedding:
+    def test_embedding_settings_defaults(self):
+        s = Settings()
+        assert s.qdrant_url == "http://localhost:6333"
+        assert s.qdrant_collection == "obsidian_vault"
+        assert s.embed_model == "nomic-ai/nomic-embed-text-v1.5"
+        assert s.reconcile_interval_seconds == 300
