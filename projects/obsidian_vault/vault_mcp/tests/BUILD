@@ -94,3 +94,19 @@ semgrep_test(
     srcs = ["embedder_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "reconciler_test",
+    srcs = ["reconciler_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app:reconciler",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "reconciler_test_semgrep_test",
+    srcs = ["reconciler_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
