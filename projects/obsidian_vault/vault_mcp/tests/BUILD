@@ -70,7 +70,6 @@ py_test(
         "//projects/obsidian_vault/vault_mcp/app:qdrant_client",
         "@pip//httpx",
         "@pip//pytest",
-        "@pip//pytest_httpx",
     ],
 )
 
