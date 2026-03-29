@@ -71,6 +71,8 @@ dependencies = [
     "starlette>=0.47.2",
     # Obsidian vault embedding (CPU-only, in-process)
     "fastembed>=0.6",
+    # Nexus dependencies
+    "sqlmodel~=0.0.22",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
