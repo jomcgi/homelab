@@ -1,0 +1,21 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "nexus.fullname" . }}-pg
+  labels:
+    {{- include "nexus.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.postgres.instances }}
+  storage:
+    size: {{ .Values.postgres.storage.size }}
+    {{- if .Values.postgres.storage.storageClass }}
+    storageClassName: {{ .Values.postgres.storage.storageClass }}
+    {{- end }}
+  postgresql:
+    parameters:
+      shared_buffers: "64MB"
+      effective_cache_size: "128MB"
+  bootstrap:
+    initdb:
+      database: nexus
+      owner: app

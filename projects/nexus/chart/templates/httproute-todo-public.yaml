@@ -1,0 +1,17 @@
+{{- if .Values.cfIngress.todo.public.enabled }}
+{{- $params := dict
+  "name" (printf "%s-todo-public" (include "nexus.fullname" .))
+  "tier" .Values.cfIngress.todo.public.tier
+  "hostname" .Values.cfIngress.todo.public.hostname
+  "serviceName" (include "nexus.fullname" .)
+  "servicePort" (.Values.cfIngress.todo.public.servicePort | int)
+  "gateway" .Values.cfIngress.todo.public.gateway
+}}
+{{- include "cf-ingress.httproute" $params }}
+---
+{{- $rlParams := dict
+  "name" (printf "%s-todo-public" (include "nexus.fullname" .))
+  "rateLimit" .Values.cfIngress.todo.public.rateLimit
+}}
+{{- include "cf-ingress.rate-limit" $rlParams }}
+{{- end }}

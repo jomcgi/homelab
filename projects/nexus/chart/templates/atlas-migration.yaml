@@ -1,0 +1,14 @@
+apiVersion: db.atlasgo.io/v1alpha1
+kind: AtlasMigration
+metadata:
+  name: {{ include "nexus.fullname" . }}
+  labels:
+    {{- include "nexus.labels" . | nindent 4 }}
+spec:
+  url:
+    secretKeyRef:
+      name: {{ include "nexus.fullname" . }}-pg-app
+      key: uri
+  dir:
+    configMapRef:
+      name: {{ include "nexus.fullname" . }}-migrations
