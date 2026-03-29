@@ -1,14 +1,14 @@
-{{- define "nexus.fullname" -}}
+{{- define "monolith.fullname" -}}
 {{- .Release.Name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "nexus.labels" -}}
-app.kubernetes.io/name: nexus
+{{- define "monolith.labels" -}}
+app.kubernetes.io/name: monolith
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
-{{- define "nexus.selectorLabels" -}}
-app.kubernetes.io/name: nexus
+{{- define "monolith.selectorLabels" -}}
+app.kubernetes.io/name: monolith
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}

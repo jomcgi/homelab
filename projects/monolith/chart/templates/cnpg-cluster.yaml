@@ -1,9 +1,9 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: {{ include "nexus.fullname" . }}-pg
+  name: {{ include "monolith.fullname" . }}-pg
   labels:
-    {{- include "nexus.labels" . | nindent 4 }}
+    {{- include "monolith.labels" . | nindent 4 }}
 spec:
   instances: {{ .Values.postgres.instances }}
   storage:
@@ -17,5 +17,5 @@ spec:
       effective_cache_size: "128MB"
   bootstrap:
     initdb:
-      database: nexus
+      database: monolith
       owner: app

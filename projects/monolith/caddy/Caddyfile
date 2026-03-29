@@ -1,4 +1,4 @@
-# projects/nexus/caddy/Caddyfile
+# projects/monolith/caddy/Caddyfile
 :3000 {
     # Proxy API requests to FastAPI sidecar
     handle /api/* {

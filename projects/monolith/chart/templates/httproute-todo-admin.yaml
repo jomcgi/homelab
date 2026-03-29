@@ -1,16 +1,16 @@
 {{- if .Values.cfIngress.todo.admin.enabled }}
 {{- $params := dict
-  "name" (printf "%s-todo-admin" (include "nexus.fullname" .))
+  "name" (printf "%s-todo-admin" (include "monolith.fullname" .))
   "tier" .Values.cfIngress.todo.admin.tier
   "hostname" .Values.cfIngress.todo.admin.hostname
-  "serviceName" (include "nexus.fullname" .)
+  "serviceName" (include "monolith.fullname" .)
   "servicePort" (.Values.cfIngress.todo.admin.servicePort | int)
   "gateway" .Values.cfIngress.todo.admin.gateway
 }}
 {{- include "cf-ingress.httproute" $params }}
 ---
 {{- $spParams := dict
-  "name" (printf "%s-todo-admin" (include "nexus.fullname" .))
+  "name" (printf "%s-todo-admin" (include "monolith.fullname" .))
   "team" .Values.cfIngress.todo.admin.team
 }}
 {{- include "cf-ingress.security-policy" $spParams }}

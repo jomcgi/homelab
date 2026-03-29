@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "nexus.fullname" . }}
+  name: {{ include "monolith.fullname" . }}
   labels:
-    {{- include "nexus.labels" . | nindent 4 }}
+    {{- include "monolith.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.backend.replicas }}
   selector:
     matchLabels:
-      {{- include "nexus.selectorLabels" . | nindent 6 }}
+      {{- include "monolith.selectorLabels" . | nindent 6 }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "nexus.selectorLabels" . | nindent 8 }}
+        {{- include "monolith.selectorLabels" . | nindent 8 }}
       annotations:
         instrumentation.opentelemetry.io/inject-python: "python"
     spec:
@@ -35,7 +35,7 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "nexus.fullname" . }}-pg-app
+                  name: {{ include "monolith.fullname" . }}-pg-app
                   key: uri
           command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
           livenessProbe:

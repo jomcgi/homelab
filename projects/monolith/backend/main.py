@@ -18,13 +18,13 @@ async def lifespan(app: FastAPI):
     import asyncio
 
     scheduler_task = asyncio.create_task(run_scheduler())
-    logger.info("Nexus started")
+    logger.info("Monolith started")
     yield
     scheduler_task.cancel()
-    logger.info("Nexus shutting down")
+    logger.info("Monolith shutting down")
 
 
-app = FastAPI(title="Nexus", lifespan=lifespan)
+app = FastAPI(title="Monolith", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

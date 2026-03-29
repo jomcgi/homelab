@@ -210,7 +210,7 @@ importers:
         specifier: ^4.75.0
         version: 4.75.0
 
-  projects/nexus/frontend:
+  projects/monolith/frontend:
     dependencies:
       "@sveltejs/adapter-static":
         specifier: ^3.0.0
@@ -2335,6 +2335,7 @@ packages:
       {
         integrity: sha512-3AHmtQq/ppNuUspKAlvA8HtLybkDflkMuLK4DPo77DfthRb71V84/c4MlWJXixZz4uruIH4uaa07IqoAkG64fg==,
       }
+    cpu: [x64]
     os: [linux]
 
   "@rollup/rollup-linux-x64-musl@4.59.0":
