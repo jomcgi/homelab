@@ -328,14 +328,27 @@ async def restore_note(path: str, commit: str) -> dict:
 async def _reconcile_loop(settings: Settings) -> None:
     """Background loop that reconciles vault with Qdrant."""
     global _embedder, _qdrant
+    log = logging.getLogger(__name__)
 
-    _embedder = VaultEmbedder(
-        model=settings.embed_model, cache_dir=settings.embed_cache_dir
-    )
-    _qdrant = QdrantClient(
-        url=settings.qdrant_url, collection=settings.qdrant_collection
-    )
-    await _qdrant.ensure_collection(vector_size=_embedder.dimension)
+    # Retry initialization — fastembed model download or Qdrant may not be ready
+    while _embedder is None or _qdrant is None:
+        try:
+            log.info("Initialising embedder (model=%s)", settings.embed_model)
+            _embedder = VaultEmbedder(
+                model=settings.embed_model, cache_dir=settings.embed_cache_dir
+            )
+            log.info("Initialising Qdrant client (url=%s)", settings.qdrant_url)
+            _qdrant = QdrantClient(
+                url=settings.qdrant_url, collection=settings.qdrant_collection
+            )
+            await _qdrant.ensure_collection(vector_size=_embedder.dimension)
+            log.info("Semantic search initialised successfully")
+        except Exception:
+            _embedder = None
+            _qdrant = None
+            log.exception("Failed to initialise semantic search, retrying in 30s")
+            await asyncio.sleep(30)
+
     reconciler = VaultReconciler(
         vault_path=settings.path, embedder=_embedder, qdrant=_qdrant
     )
@@ -343,7 +356,7 @@ async def _reconcile_loop(settings: Settings) -> None:
         try:
             await reconciler.run()
         except Exception:
-            logging.getLogger(__name__).exception("Reconciler error")
+            log.exception("Reconciler error")
         await asyncio.sleep(settings.reconcile_interval_seconds)
 
 
