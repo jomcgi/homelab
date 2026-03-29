@@ -1,0 +1,68 @@
+backend:
+  replicas: 1
+  image:
+    repository: ghcr.io/jomcgi/homelab/projects/nexus/backend
+    tag: main
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "10m"
+    limits:
+      memory: "128Mi"
+
+frontend:
+  image:
+    repository: ghcr.io/jomcgi/homelab/projects/nexus/frontend
+    tag: main
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "32Mi"
+      cpu: "5m"
+    limits:
+      memory: "64Mi"
+
+postgres:
+  instances: 1
+  storage:
+    size: 2Gi
+    storageClass: ""
+
+service:
+  port: 3000
+
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+cfIngress:
+  todo:
+    public:
+      enabled: true
+      tier: public
+      hostname: todo.jomcgi.dev
+      servicePort: 3000
+      gateway:
+        name: cloudflare-ingress
+        namespace: envoy-gateway-system
+      rateLimit:
+        requests: 100
+        unit: Minute
+    admin:
+      enabled: true
+      tier: trusted
+      hostname: todo-admin.jomcgi.dev
+      servicePort: 3000
+      gateway:
+        name: cloudflare-ingress
+        namespace: envoy-gateway-system
+      team: jomcgi

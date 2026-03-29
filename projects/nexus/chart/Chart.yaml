@@ -1,0 +1,9 @@
+apiVersion: v2
+name: nexus
+description: Consolidated homelab web services
+version: 0.1.0
+type: application
+dependencies:
+  - name: cf-ingress
+    version: 0.1.0
+    repository: "file://../../platform/cf-ingress-library"
