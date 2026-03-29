@@ -27,6 +27,8 @@ js_library(
         ":node_modules/mdsvex",
         ":node_modules/svelte",
         ":node_modules/vite",
+        # Rollup's platform-specific native binary for Linux CI (loaded at runtime via require())
+        ":node_modules/@rollup/rollup-linux-x64-gnu",
     ],
 )
 
