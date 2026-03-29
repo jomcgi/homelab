@@ -74,9 +74,7 @@ class VaultReconciler:
                 continue
             texts = [c["chunk_text"] for c in chunks]
             loop = asyncio.get_running_loop()
-            vectors = await loop.run_in_executor(
-                None, self._embedder.embed, texts
-            )
+            vectors = await loop.run_in_executor(None, self._embedder.embed, texts)
             await self._qdrant.upsert_chunks(chunks, vectors)
             del texts, vectors, chunks
             gc.collect()
