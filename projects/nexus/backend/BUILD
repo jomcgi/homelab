@@ -1,4 +1,5 @@
 # gazelle:ignore
+# gazelle:exclude todo
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
