@@ -12,9 +12,7 @@ from projects.obsidian_vault.vault_mcp.app.embedder import VaultEmbedder
 class TestVaultEmbedder:
     def test_embed_returns_vectors(self):
         mock_model = MagicMock()
-        mock_model.embed.return_value = iter(
-            [np.full(768, 0.1), np.full(768, 0.2)]
-        )
+        mock_model.embed.return_value = iter([np.full(768, 0.1), np.full(768, 0.2)])
         with patch(
             "projects.obsidian_vault.vault_mcp.app.embedder.TextEmbedding",
             return_value=mock_model,
