@@ -13,6 +13,7 @@
   --bg: #f2f0ed;
   --border: #ccc;
   --surface: #e8e6e3;
+  --danger: #c53030;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,6 +24,7 @@
     --bg: #111;
     --border: #333;
     --surface: #1a1a1a;
+    --danger: #f56565;
   }
 }
 
@@ -235,85 +237,70 @@ html {
 
 /* ── Todos ─────────────────────────────────── */
 
-.todo-header {
-  display: flex;
-  gap: 1rem;
-}
-
-.scope-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: var(--font);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--fg-tertiary);
+.section-label--interactive {
+  cursor: pointer;
   transition: color 0.15s ease;
 }
 
-.scope-btn--active {
-  color: var(--fg);
-}
-
-.scope-btn:hover {
+.section-label--interactive:hover {
   color: var(--fg-secondary);
 }
 
-.scope-btn:focus-visible {
-  outline: 1.5px solid var(--fg);
-  outline-offset: 2px;
-}
-
-.todo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.todo-row {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.3rem 0;
-  cursor: pointer;
-  user-select: none;
-  border-radius: 2px;
-}
-
-.todo-row:focus-visible {
-  outline: 1.5px solid var(--fg);
-  outline-offset: 2px;
-}
-
-.todo-check {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 0;
-  border: 0.06rem solid var(--fg);
-  flex-shrink: 0;
-  transition: background 0.15s ease;
-}
-
-.todo-row--done .todo-check {
-  background: var(--fg);
-}
-
-.todo-text {
+/* Single input class for both display and edit —
+   readOnly toggles interactivity, DOM stays identical */
+.todo-field {
+  font-family: var(--font);
   font-size: 0.85rem;
   line-height: 1.5;
-  transition: opacity 0.15s ease;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: 0.2rem 0;
+  cursor: pointer;
 }
 
-.todo-row--done .todo-text {
+.todo-field--goal {
+  font-weight: 700;
+}
+
+.todo-field--done {
   text-decoration: line-through;
   opacity: 0.3;
 }
 
-.todo-empty {
-  font-size: 0.75rem;
+.todo-field--empty {
+  color: var(--danger);
+}
+
+.todo-field::placeholder {
+  color: var(--danger);
+}
+
+.todo-field:focus-visible {
+  outline: none;
+}
+
+.todo-divider {
+  height: 0;
+  border-top: 0.04rem solid var(--border);
+  margin: 0.3rem 0;
+}
+
+.todo-daily-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.todo-dash {
   color: var(--fg-tertiary);
-  font-style: italic;
+  flex-shrink: 0;
+}
+
+.todo-dash--empty {
+  color: var(--danger);
 }
 
 /* ── Reduced motion ────────────────────────── */
