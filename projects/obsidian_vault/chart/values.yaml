@@ -57,10 +57,10 @@ resources:
       memory: "64Mi"
   vaultMcp:
     requests:
-      memory: "1536Mi"
+      memory: "2Gi"
       cpu: "100m"
     limits:
-      memory: "2Gi"
+      memory: "3Gi"
 
 gateway:
   url: ""
