@@ -396,9 +396,15 @@ training with millions of invocations.
 - [ ] Set up training environment (TRL or similar) on worker node
 - [ ] Configure QLoRA: 4-bit quantization, LoRA rank 64–128, target modules
       (q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj)
-- [ ] Train SFT on prompt → rule YAML pairs, 3–5 epochs
+- [ ] Train SFT on prompt → rule YAML pairs, save checkpoints at each epoch
 - [ ] Validate: measure parse rate and basic CWE coverage on validation split
-- [ ] Save SFT LoRA adapter checkpoint
+      **at each epoch** — track train loss vs validation loss divergence
+- [ ] Run eval on validation set per epoch to find the optimal stopping point
+      (expect overfitting risk given ~1,298 training examples)
+- [ ] Track per-CWE-class metrics across epochs — sparse classes (e.g. CWE-79
+      with 41 rules) will overfit faster than dense classes (CWE-918 with 283)
+- [ ] Save best SFT LoRA adapter checkpoint (by validation detection recall,
+      not train loss)
 
 ### Phase 2: GRPO RL
 
@@ -408,10 +414,17 @@ training with millions of invocations.
       computation
 - [ ] Configure GRPO: group size 4, gradient checkpointing, sequence length cap
       1024 tokens
-- [ ] Train GRPO on top of SFT checkpoint, 2–3 epochs over training prompts
+- [ ] Train GRPO on top of SFT checkpoint, save checkpoints at each epoch
 - [ ] Monitor reward curves: parse rate should plateau early, detection recall
-      should climb steadily
-- [ ] Save RL LoRA adapter checkpoint
+      should climb steadily — watch for reward plateau or decline (overfitting
+      to specific test fixtures)
+- [ ] **Reward overfitting check**: hold out a subset of test fixtures from the
+      reward function and evaluate the model against them separately. If the
+      model scores well on reward fixtures but poorly on held-out fixtures for
+      the same CWE, it's gaming the tests rather than learning the vulnerability
+      pattern
+- [ ] Save best RL LoRA adapter checkpoint (by held-out fixture detection
+      recall)
 
 ### Phase 3: Evaluation
 
@@ -591,6 +604,7 @@ production scanning. The model is a drafting tool, not an autonomous scanner.
 | Base model's pretraining data contaminates eval                       | Low        | High     | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                 |
 | Reward signal too sparse for taint rules                              | Medium     | Medium   | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                        |
 | Frontier model already solves the task well enough                    | Medium     | High     | Benchmark early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                  |
+| Overfitting to small dataset or specific test fixtures                | High       | High     | Per-epoch validation eval; per-CWE tracking; held-out fixture subset for RL reward overfitting detection      |
 
 ---
 
