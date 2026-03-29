@@ -8,6 +8,7 @@ contents:
     - busybox
     - ca-certificates-bundle
     - git
+    - libstdc++
     - tzdata
 
 archs:
