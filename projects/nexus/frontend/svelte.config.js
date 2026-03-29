@@ -7,6 +7,8 @@ const config = {
   kit: {
     adapter: adapter({
       fallback: "index.html",
+      pages: "dist",
+      assets: "dist",
     }),
     paths: {
       base: "",

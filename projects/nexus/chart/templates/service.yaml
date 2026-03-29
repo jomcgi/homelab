@@ -9,7 +9,7 @@ spec:
   ports:
     - name: http
       port: {{ .Values.service.port }}
-      targetPort: http
+      targetPort: api
       protocol: TCP
   selector:
     {{- include "nexus.selectorLabels" . | nindent 4 }}

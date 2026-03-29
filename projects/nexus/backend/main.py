@@ -1,8 +1,11 @@
 import logging
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .todo.router import router as todo_router
 from .todo.scheduler import run_scheduler
@@ -37,6 +40,15 @@ app.include_router(todo_router)
 def healthz():
     return {"status": "ok"}
 
+
+# Serve SvelteKit static frontend (must be after API routes)
+_static_dir = os.environ.get(
+    "STATIC_DIR",
+    str(Path(__file__).resolve().parent.parent / "frontend" / "dist"),
+)
+if Path(_static_dir).is_dir():
+    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="frontend")
+    logger.info("Serving frontend from %s", _static_dir)
 
 # OTEL instrumentation (optional -- enabled by auto-instrumentation annotation)
 try:

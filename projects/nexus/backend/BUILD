@@ -11,6 +11,7 @@ py_venv_binary(
         ["**/*.py"],
         exclude = ["**/*_test.py"],
     ),
+    data = ["//projects/nexus/frontend:build"],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
