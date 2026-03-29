@@ -2,7 +2,7 @@ apiVersion: v2
 name: obsidian-vault
 description: Obsidian vault sync with git audit trail and MCP server
 type: application
-version: 0.5.11
+version: 0.5.12
 appVersion: "0.2.0"
 dependencies:
   - name: qdrant
