@@ -333,6 +333,13 @@ Full RL run:    1,100 prompts × 3 epochs × 0.06s ≈ 3.3 minutes
 
 Semgrep execution is negligible. Training is entirely GPU-bound.
 
+**Future optimization (not needed at this scale):** candidate rules with
+structurally identical ASTs could be deduplicated via hashing to skip redundant
+semgrep-core invocations. The `-parse_rules` flag exists for syntax-only
+validation but takes the same 0.12s (OCaml binary startup dominates), so it's
+not a useful fast gate. These optimizations only matter if scaling to continuous
+training with millions of invocations.
+
 ---
 
 ## Key Decisions
@@ -459,15 +466,27 @@ represents the best realistic prompting effort — not a strawman.
 ```
 Eval matrix:
 
-                    Parse    Detection   FP      Latency   Cost/rule
-                    rate     recall      rate    (p50)     (marginal)
-─────────────────────────────────────────────────────────────────────
-Claude Opus          ?%       ?%         ?%      ~5s       ~$0.10
-Claude Sonnet        ?%       ?%         ?%      ~2s       ~$0.03
-Qwen 9B (SFT only)  ?%       ?%         ?%      <1s       $0
-Qwen 9B (SFT+RL)    ?%       ?%         ?%      <1s       $0
-Pro rule oracle     100%     100%        0%       —         —
+                      Parse    Detection   FP      Latency   Cost/rule
+                      rate     recall      rate    (p50)     (marginal)
+───────────────────────────────────────────────────────────────────────
+Claude Opus            ?%       ?%         ?%      ~5s       ~$0.10
+Claude Sonnet          ?%       ?%         ?%      ~2s       ~$0.03
+Qwen 9B (base)         ?%       ?%         ?%      <1s       $0
+Qwen 9B (SFT only)    ?%       ?%         ?%      <1s       $0
+Qwen 9B (SFT+RL)      ?%       ?%         ?%      <1s       $0
+Pro rule oracle       100%     100%        0%       —         —
 ```
+
+The **base → SFT → SFT+RL** progression is as important as the absolute
+numbers. Each phase should show measurable improvement:
+
+- **Base → SFT delta**: proves the model learned Semgrep syntax and rule
+  structure from supervised examples
+- **SFT → RL delta**: proves the reward signal teaches behavioral correctness
+  beyond imitation
+- **Any delta**: even if the final model doesn't match frontier, a clear
+  staircase of improvement validates the pipeline and signals that scaling
+  up (larger model, more data) would close the gap
 
 ### Success criteria
 
