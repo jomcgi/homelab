@@ -38,6 +38,7 @@ _settings: Settings | None = None
 _lock: asyncio.Lock | None = None
 _embedder: VaultEmbedder | None = None
 _qdrant: QdrantClient | None = None
+_background_tasks: set[asyncio.Task] = set()  # prevent GC of fire-and-forget tasks
 
 
 def configure(settings: Settings) -> None:
@@ -376,7 +377,9 @@ def main():
 
     @app.on_event("startup")
     async def _start_reconciler():
-        asyncio.create_task(_reconcile_loop(settings))
+        task = asyncio.create_task(_reconcile_loop(settings))
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
 
     import uvicorn
 
