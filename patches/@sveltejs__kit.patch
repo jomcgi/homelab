@@ -24,20 +24,5 @@ index 1f2188097ade6fe54d680f7d5702ad3df652dc81..1ca6d02f58f116e6e2c72dd544c11a37
 +		return '/** */';
 +	}
  }
- 
+
  /**
-diff --git a/src/types/synthetic/$env+dynamic+private.md b/src/types/synthetic/$env+dynamic+private.md
-deleted file mode 100644
-index 1fbc586a6c54f49c6a8aeb426285dc76af21802c..0000000000000000000000000000000000000000
-diff --git a/src/types/synthetic/$env+dynamic+public.md b/src/types/synthetic/$env+dynamic+public.md
-deleted file mode 100644
-index 975b65888b1b72f6eb0dbff2f4b3a5309c7619c7..0000000000000000000000000000000000000000
-diff --git a/src/types/synthetic/$env+static+private.md b/src/types/synthetic/$env+static+private.md
-deleted file mode 100644
-index 8db31316250680e04c25f3abc7082482827d221a..0000000000000000000000000000000000000000
-diff --git a/src/types/synthetic/$env+static+public.md b/src/types/synthetic/$env+static+public.md
-deleted file mode 100644
-index 41b7943c83e8755ae0d36d664423a0fc0568c8af..0000000000000000000000000000000000000000
-diff --git a/src/types/synthetic/$lib.md b/src/types/synthetic/$lib.md
-deleted file mode 100644
-index 1108e1b85cb0bf439e9ef5d8330ac0a04be3d3de..0000000000000000000000000000000000000000
