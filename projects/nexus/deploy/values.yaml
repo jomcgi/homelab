@@ -1,0 +1,30 @@
+backend:
+  replicas: 1
+
+postgres:
+  instances: 1
+  storage:
+    size: 2Gi
+
+cfIngress:
+  todo:
+    public:
+      enabled: true
+      tier: public
+      hostname: todo.jomcgi.dev
+      servicePort: 3000
+      gateway:
+        name: cloudflare-ingress
+        namespace: envoy-gateway-system
+      rateLimit:
+        requests: 100
+        unit: Minute
+    admin:
+      enabled: true
+      tier: trusted
+      hostname: todo-admin.jomcgi.dev
+      servicePort: 3000
+      gateway:
+        name: cloudflare-ingress
+        namespace: envoy-gateway-system
+      team: jomcgi
