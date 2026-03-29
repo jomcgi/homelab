@@ -13,11 +13,11 @@ class VaultEmbedder:
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         """Embed a batch of texts for indexing."""
-        return list(self._model.embed(texts))
+        return [v.tolist() for v in self._model.embed(texts)]
 
     def embed_query(self, text: str) -> list[float]:
         """Embed a single search query."""
-        return list(self._model.query_embed(text))[0]
+        return next(self._model.query_embed(text)).tolist()
 
     @property
     def dimension(self) -> int:
