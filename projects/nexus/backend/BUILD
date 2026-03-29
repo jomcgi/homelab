@@ -2,8 +2,18 @@
 # gazelle:exclude todo
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
+load("//bazel/tools/js:exec_filegroup.bzl", "exec_filegroup")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
+
+# Pin the frontend build to the exec (host) platform. The vite output is
+# just static HTML/CSS/JS — it's arch-independent — but py3_image's
+# platform transitions would otherwise cause aspect_rules_js to select
+# wrong-arch native binaries (esbuild, rollup) for the arm64 variant.
+exec_filegroup(
+    name = "frontend_dist",
+    src = "//projects/nexus/frontend:build",
+)
 
 py_venv_binary(
     name = "main",
@@ -11,6 +21,7 @@ py_venv_binary(
         ["**/*.py"],
         exclude = ["**/*_test.py"],
     ),
+    data = [":frontend_dist"],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
@@ -38,10 +49,6 @@ py_library(
     ],
 )
 
-# TODO: Embed frontend dist in OCI image. Currently blocked because
-# py3_image's platform_transition_filegroup causes js_run_binary to
-# select wrong-platform native binaries (e.g. esbuild/linux-arm64 on
-# x86_64 exec). Needs a mechanism to build JS outside the transition.
 py3_image(
     name = "image",
     binary = "//projects/nexus/backend:main",
