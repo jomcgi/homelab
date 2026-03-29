@@ -28,9 +28,10 @@ ADRs document significant architectural decisions and their context.
 
 ## Security
 
-| ADR                                                  | Decision                                |
-| ---------------------------------------------------- | --------------------------------------- |
-| [001 - Bazel Semgrep](security/001-bazel-semgrep.md) | Semgrep SAST integrated via Bazel rules |
+| ADR                                                                                | Decision                                                        |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [001 - Bazel Semgrep](security/001-bazel-semgrep.md)                               | Semgrep SAST integrated via Bazel rules                         |
+| [002 - Semgrep Rule Generation via RL](security/002-semgrep-rule-generation-rl.md) | RL-finetuned Qwen 3.5 9B for generating Semgrep rules from CVEs |
 
 ## Tooling
 
