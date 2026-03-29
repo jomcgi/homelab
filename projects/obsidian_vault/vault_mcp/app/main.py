@@ -8,6 +8,7 @@ import logging
 import os
 import shutil
 import subprocess
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -368,18 +369,27 @@ def main():
 
     app = mcp.http_app()
 
+    # Wrap the existing lifespan to start the reconcile loop.
+    # Starlette ignores on_event("startup") when a lifespan handler exists
+    # (which FastMCP sets up), so we must extend the lifespan instead.
+    original_lifespan = app.router.lifespan_context
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async with original_lifespan(app):
+            task = asyncio.create_task(_reconcile_loop(settings))
+            _background_tasks.add(task)
+            task.add_done_callback(_background_tasks.discard)
+            yield
+
+    app.router.lifespan_context = lifespan
+
     async def healthz(request):
         from starlette.responses import JSONResponse
 
         return JSONResponse({"status": "ok"})
 
     app.add_route("/healthz", healthz)
-
-    @app.on_event("startup")
-    async def _start_reconciler():
-        task = asyncio.create_task(_reconcile_loop(settings))
-        _background_tasks.add(task)
-        task.add_done_callback(_background_tasks.discard)
 
     import uvicorn
 
