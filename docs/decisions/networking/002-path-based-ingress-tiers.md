@@ -88,6 +88,7 @@ The `cf-ingress-library` template derives everything from minimal input:
 # What a consumer provides:
 cfIngress:
   external:
+    # Public read API
     - path: /todo
       serviceName: todo-public
       servicePort: 80
@@ -95,18 +96,21 @@ cfIngress:
       rateLimit:
         requests: 100
         unit: Minute
+    # Private admin — same app, different path and port
     - path: /todo/admin
       serviceName: todo-admin
       servicePort: 8080
       # no public: true → private.jomcgi.dev (SSO)
 ```
 
+Tiers are non-exclusive — a single service can expose different paths on different hostnames. Each entry produces an independent HTTPRoute, so `/todo` on `public.jomcgi.dev` and `/todo/admin` on `private.jomcgi.dev` coexist without conflict.
+
 The library hardcodes:
 
 - **Hostnames**: `public.jomcgi.dev` / `private.jomcgi.dev`
 - **Gateway ref**: `cloudflare-ingress` in `envoy-gateway-system`
-- **external-dns annotation**: `<tunnelId>.cfargotunnel.com`
-- **SecurityPolicy**: Cloudflare Access JWT validation (for private routes)
+- **Tunnel ID**: hardcoded in the external-dns annotation
+- **SecurityPolicy**: Cloudflare Access JWT validation (auto-attached to private routes)
 - **Tier label**: derived from `public: true/false`
 
 ### FastAPI codegen (future)
@@ -184,11 +188,11 @@ A Bazel rule extracts the OpenAPI spec at build time and generates the `cfIngres
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. **Tunnel ID value source** — hardcode in the library chart (it's not sensitive) or pass as `global.tunnelId`? Hardcoding is simpler but couples the chart to one cluster.
-2. **Path prefix ownership** — should there be a registry of claimed path prefixes to prevent conflicts, or is a CI lint rule sufficient?
-3. **Mixed tiers for one path** — can a service expose the same path on both public and private (e.g. `/api` public for reads, `/api` private for writes)? If so, the Gateway needs to merge routes with different method matchers.
+1. **Tunnel ID value source** — hardcode in the library chart. The tunnel ID is not sensitive (visible in DNS CNAMEs) and this cluster has one tunnel. If a second cluster is added, the chart can be parameterised then.
+2. **Path prefix ownership** — CI lint rule that renders all HTTPRoutes and checks for overlapping `PathPrefix` values within the same hostname. No registry needed. Fits the existing semgrep/lint pattern.
+3. **Per-path tier selection** — tiers are non-exclusive. A single service can expose different paths on different tiers (e.g. `/api/users` public, `/api/admin` private). These are independent HTTPRoutes on different hostnames — no Gateway route merging or method matching needed. The lint rule only checks for overlapping paths within the same hostname.
 
 ---
 
