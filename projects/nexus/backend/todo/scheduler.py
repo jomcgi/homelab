@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 from sqlmodel import Session
 
-from ..db import engine
+from ..db import get_engine
 from .router import _archive_and_reset
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ async def run_scheduler() -> None:
         logger.info("Scheduler: triggering %s reset", "weekly" if weekly else "daily")
 
         try:
-            with Session(engine) as session:
+            with Session(get_engine()) as session:
                 _archive_and_reset(session, weekly_reset=weekly)
         except Exception:
             logger.exception("Scheduler: reset failed, will retry next cycle")
