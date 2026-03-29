@@ -92,5 +92,6 @@ py_test(
         "@pip//httpx",
         "@pip//pytest",
         "@pip//sqlmodel",
+        "@pip//tzdata",
     ],
 )
