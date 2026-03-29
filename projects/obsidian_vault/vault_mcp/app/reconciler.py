@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import gc
 import hashlib
 import logging
@@ -72,7 +73,10 @@ class VaultReconciler:
             if not chunks:
                 continue
             texts = [c["chunk_text"] for c in chunks]
-            vectors = self._embedder.embed(texts)
+            loop = asyncio.get_running_loop()
+            vectors = await loop.run_in_executor(
+                None, self._embedder.embed, texts
+            )
             await self._qdrant.upsert_chunks(chunks, vectors)
             del texts, vectors, chunks
             gc.collect()
