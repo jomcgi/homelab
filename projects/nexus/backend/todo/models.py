@@ -5,7 +5,7 @@ from sqlmodel import Field, SQLModel
 
 class Task(SQLModel, table=True):
     __tablename__ = "tasks"
-    __table_args__ = {"schema": "todo"}
+    __table_args__ = {"schema": "todo", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     task: str = ""
@@ -16,7 +16,7 @@ class Task(SQLModel, table=True):
 
 class Archive(SQLModel, table=True):
     __tablename__ = "archives"
-    __table_args__ = {"schema": "todo"}
+    __table_args__ = {"schema": "todo", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     date: date
