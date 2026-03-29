@@ -4,7 +4,7 @@ from functools import lru_cache
 from sqlmodel import Session, create_engine
 
 DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql://app:app@localhost:5432/nexus"
+    "DATABASE_URL", "postgresql://app:app@localhost:5432/monolith"
 )
 
 

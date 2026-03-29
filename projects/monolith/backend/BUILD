@@ -12,7 +12,7 @@ load("//bazel/tools/pytest:defs.bzl", "py_test")
 # wrong-arch native binaries (esbuild, rollup) for the arm64 variant.
 exec_filegroup(
     name = "frontend_dist",
-    src = "//projects/nexus/frontend:build",
+    src = "//projects/monolith/frontend:build",
 )
 
 py_venv_binary(
@@ -34,7 +34,7 @@ py_venv_binary(
 )
 
 py_library(
-    name = "nexus_backend",
+    name = "monolith_backend",
     srcs = glob(
         ["**/*.py"],
         exclude = ["**/*_test.py"],
@@ -51,8 +51,8 @@ py_library(
 
 py3_image(
     name = "image",
-    binary = "//projects/nexus/backend:main",
-    repository = "ghcr.io/jomcgi/homelab/projects/nexus/backend",
+    binary = "//projects/monolith/backend:main",
+    repository = "ghcr.io/jomcgi/homelab/projects/monolith/backend",
 )
 
 py_test(
@@ -60,7 +60,7 @@ py_test(
     srcs = ["todo/router_test.py"],
     imports = ["."],
     deps = [
-        ":nexus_backend",
+        ":monolith_backend",
         "@pip//fastapi",
         "@pip//httpx",
         "@pip//pytest",
@@ -74,7 +74,7 @@ py_test(
     srcs = ["todo/scheduler_test.py"],
     imports = ["."],
     deps = [
-        ":nexus_backend",
+        ":monolith_backend",
         "@pip//pytest",
         "@pip//pytest_asyncio",
         "@pip//sqlmodel",
@@ -87,7 +87,7 @@ py_test(
     srcs = ["frontend_test.py"],
     imports = ["."],
     deps = [
-        ":nexus_backend",
+        ":monolith_backend",
         "@pip//fastapi",
         "@pip//httpx",
         "@pip//pytest",

@@ -1,7 +1,7 @@
 backend:
   replicas: 1
   image:
-    repository: ghcr.io/jomcgi/homelab/projects/nexus/backend
+    repository: ghcr.io/jomcgi/homelab/projects/monolith/backend
     tag: main
     pullPolicy: IfNotPresent
   resources:

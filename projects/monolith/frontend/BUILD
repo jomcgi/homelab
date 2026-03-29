@@ -2,7 +2,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@npm//projects/nexus/frontend:vite/package_json.bzl", vite_bin = "bin")
+load("@npm//projects/monolith/frontend:vite/package_json.bzl", vite_bin = "bin")
 
 npm_link_all_packages(name = "node_modules")
 
@@ -41,7 +41,7 @@ js_run_binary(
     chdir = package_name(),
     out_dirs = ["dist"],
     tool = ":vite",
-    visibility = ["//projects/nexus/backend:__pkg__"],
+    visibility = ["//projects/monolith/backend:__pkg__"],
 )
 
 # Validate the frontend builds in CI without going through py3_image's

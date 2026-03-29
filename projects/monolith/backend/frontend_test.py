@@ -10,7 +10,7 @@ import pytest
 # since the StaticFiles mount runs at module-import time.
 _static_dir = tempfile.mkdtemp()
 Path(_static_dir, "index.html").write_text(
-    "<!doctype html><html><body>Nexus Frontend</body></html>"
+    "<!doctype html><html><body>Monolith Frontend</body></html>"
 )
 Path(_static_dir, "favicon.png").write_bytes(b"\x89PNG fake")
 os.environ["STATIC_DIR"] = _static_dir
@@ -29,7 +29,7 @@ def test_serves_index_html(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "Nexus Frontend" in response.text
+    assert "Monolith Frontend" in response.text
 
 
 def test_serves_static_asset(client):

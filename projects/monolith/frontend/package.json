@@ -1,5 +1,5 @@
 {
-  "name": "nexus-frontend",
+  "name": "monolith-frontend",
   "private": true,
   "type": "module",
   "scripts": {

@@ -6,7 +6,7 @@ resources:
   - ../../projects/agent_platform
   - ../../projects/mcp/context-forge-gateway/deploy
   - ../../projects/mcp/oauth-proxy/deploy
-  - ../../projects/nexus/deploy
+  - ../../projects/monolith/deploy
   - ../../projects/obsidian_vault/deploy
   - ../../projects/operators/oci-model-cache/deploy
   - ../../projects/platform
