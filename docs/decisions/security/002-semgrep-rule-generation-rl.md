@@ -349,6 +349,7 @@ Semgrep execution is negligible. Training is entirely GPU-bound.
 | **semgrep-core direct** (not pysemgrep) | 16× faster (0.12s vs 2.0s). Matches existing Bazel pipeline approach ([ADR 001](001-bazel-semgrep.md)). Makes reward computation negligible       |
 | **Pro engine for reward** (not OSS)     | 76% of Pro rules use cross-file taint; OSS engine would give wrong reward signals for the majority of training data                               |
 | **Exclude OpenGrep**                    | 99% overlap with community rules (263/266 identical IDs). Adds noise, not signal                                                                  |
+| **Frontier benchmark required**         | Finetuned model must justify itself against Claude Opus/Sonnet with good prompting. If frontier wins on all axes, use prompting instead           |
 
 ---
 
@@ -402,6 +403,12 @@ Semgrep execution is negligible. Training is entirely GPU-bound.
 - [ ] Compute metrics: parse rate, detection recall per CWE class, false
       positive rate, taint correctness
 - [ ] Compare against Pro rule oracle on same fixtures
+- [ ] **Frontier model benchmark**: run the same eval prompts through Claude
+      (Opus/Sonnet via Max subscription) with identical system prompt and
+      scoring methodology — this is the bar the finetuned model must beat or
+      match at lower cost/latency
+- [ ] Compare finetuned 9B vs frontier across all metrics, document where each
+      wins
 - [ ] Document results and identify weak CWE classes for potential data
       augmentation
 
@@ -412,6 +419,73 @@ Semgrep execution is negligible. Training is entirely GPU-bound.
 - [ ] Train Kubernetes/YAML LoRA adapter (11 Pro rules + community)
 - [ ] Build lightweight language router from CVE description
 - [ ] Implement LoRA hot-swap at inference time on single base model
+
+---
+
+## Frontier Model Benchmark
+
+### Why benchmark against frontier
+
+The finetuned 9B model must justify its existence against the alternative:
+prompting a frontier model (Claude Opus/Sonnet) with the same CVE description
+and asking for a Semgrep rule. Tokens are cheap on a Max subscription — if
+frontier+prompting achieves 90%+ quality, the finetuned model needs to
+demonstrably win on at least one axis to be worth the training investment.
+
+### Evaluation axes
+
+| Axis                   | Frontier advantage                                                           | Finetuned 9B advantage                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Detection quality**  | Broader world knowledge, better reasoning about novel vulnerability patterns | RL reward signal directly optimizes for detection; may outperform on taint rule structure |
+| **Parse rate**         | Likely high (frontier models are good at YAML)                               | SFT explicitly trains on Semgrep syntax; should be near 100%                              |
+| **Latency**            | 2–10s per rule (API round-trip)                                              | <1s locally on 4090 via llama.cpp                                                         |
+| **Cost at scale**      | ~$0.05–0.15 per rule (token costs)                                           | Free after training (~$0 marginal cost)                                                   |
+| **Offline capability** | Requires internet                                                            | Fully local, air-gapped capable                                                           |
+| **Taint rule quality** | General code understanding                                                   | Specifically trained on 850 taint rules with propagators/sanitizers                       |
+
+### Benchmark methodology
+
+Run the **identical eval pipeline** for both models on the held-out 2026+ CVE
+set:
+
+1. Same prompts (CVE/CWE description + "generate a Python Semgrep rule")
+2. Same scoring (semgrep-core execution against grouped test fixtures)
+3. Same metrics (parse rate, detection recall, false positive rate per CWE)
+
+For frontier, use a system prompt that includes Semgrep pattern syntax
+documentation and 2–3 few-shot examples of Pro-quality taint rules. This
+represents the best realistic prompting effort — not a strawman.
+
+```
+Eval matrix:
+
+                    Parse    Detection   FP      Latency   Cost/rule
+                    rate     recall      rate    (p50)     (marginal)
+─────────────────────────────────────────────────────────────────────
+Claude Opus          ?%       ?%         ?%      ~5s       ~$0.10
+Claude Sonnet        ?%       ?%         ?%      ~2s       ~$0.03
+Qwen 9B (SFT only)  ?%       ?%         ?%      <1s       $0
+Qwen 9B (SFT+RL)    ?%       ?%         ?%      <1s       $0
+Pro rule oracle     100%     100%        0%       —         —
+```
+
+### Success criteria
+
+The finetuned model is a success if **any** of these hold:
+
+1. **Quality parity at zero marginal cost** — matches frontier detection recall
+   within 5 percentage points, making bulk rule generation free
+2. **Outperforms frontier on taint rules** — RL specialization produces better
+   source/sink/propagator/sanitizer structure than general-purpose prompting
+3. **Latency advantage matters** — sub-second generation enables interactive
+   use cases (IDE integration, real-time CVE response) where API round-trips
+   are too slow
+4. **Offline/private operation** — the model runs entirely locally with no
+   external dependencies, important for sensitive security work
+
+If frontier dominates on all axes, the correct conclusion is "use frontier with
+good prompting" — and the training data + eval infrastructure built here
+becomes the prompt engineering + eval harness instead.
 
 ---
 
@@ -450,6 +524,7 @@ production scanning. The model is a drafting tool, not an autonomous scanner.
 | Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium   | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization               |
 | Base model's pretraining data contaminates eval                       | Low        | High     | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                 |
 | Reward signal too sparse for taint rules                              | Medium     | Medium   | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                        |
+| Frontier model already solves the task well enough                    | Medium     | High     | Benchmark early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                  |
 
 ---
 
