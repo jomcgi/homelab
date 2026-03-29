@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import subprocess
 from pathlib import Path
@@ -583,6 +584,70 @@ class TestSearchSemantic:
         ):
             result = await search_semantic(query="test")
         assert "error" in result
+
+
+class TestReconcileLoopInit:
+    async def test_retries_on_init_failure(self, tmp_path):
+        """If embedder or qdrant init fails, the loop retries instead of dying."""
+        settings = Settings(
+            path=str(tmp_path),
+            qdrant_url="http://localhost:6333",
+            reconcile_interval_seconds=1,
+        )
+        call_count = 0
+
+        def failing_embedder(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise ConnectionError("model download failed")
+            mock = MagicMock()
+            mock.dimension = 768
+            return mock
+
+        mock_qdrant = AsyncMock()
+        mock_reconciler = AsyncMock()
+
+        with (
+            patch.object(_mod, "VaultEmbedder", side_effect=failing_embedder),
+            patch.object(_mod, "QdrantClient", return_value=mock_qdrant),
+            patch.object(_mod, "VaultReconciler", return_value=mock_reconciler),
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
+            # Run the loop but cancel after reconciler.run is called once
+            mock_reconciler.run.side_effect = asyncio.CancelledError
+            with pytest.raises(asyncio.CancelledError):
+                await _mod._reconcile_loop(settings)
+
+        # Should have retried init twice (30s sleep each), then succeeded
+        assert call_count == 3
+        retry_sleeps = [c.args[0] for c in mock_sleep.call_args_list if c.args[0] == 30]
+        assert len(retry_sleeps) == 2
+
+    async def test_init_success_sets_globals(self, tmp_path):
+        """Successful init sets _embedder and _qdrant globals."""
+        settings = Settings(
+            path=str(tmp_path),
+            qdrant_url="http://localhost:6333",
+            reconcile_interval_seconds=1,
+        )
+        mock_embedder = MagicMock()
+        mock_embedder.dimension = 768
+        mock_qdrant = AsyncMock()
+        mock_reconciler = AsyncMock()
+        mock_reconciler.run.side_effect = asyncio.CancelledError
+
+        with (
+            patch.object(_mod, "VaultEmbedder", return_value=mock_embedder),
+            patch.object(_mod, "QdrantClient", return_value=mock_qdrant),
+            patch.object(_mod, "VaultReconciler", return_value=mock_reconciler),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
+            with pytest.raises(asyncio.CancelledError):
+                await _mod._reconcile_loop(settings)
+
+        assert _mod._embedder is mock_embedder
+        assert _mod._qdrant is mock_qdrant
 
 
 class TestSettingsEmbedding:
