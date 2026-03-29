@@ -34,9 +34,12 @@ Single worker node in the homelab cluster:
 
 | Source                                    | Python Rules | Test Fixtures                                    | Notes                         |
 | ----------------------------------------- | ------------ | ------------------------------------------------ | ----------------------------- |
-| Semgrep Pro rules                         | 1,032        | Internal test suite (multi-file taint scenarios) | Vendored via OCI/Bazel        |
-| Community rules (`semgrep/semgrep-rules`) | 266          | Co-located `.py` files (344 rules have them)     | Public, zero overlap with Pro |
-| **Total**                                 | **1,298**    | **~1,298 with validated test cases**             |                               |
+| Semgrep Pro rules (authenticated API)     | 881          | Internal test suite (multi-file taint scenarios) | Vendored via OCI/Bazel        |
+| Community rules (`semgrep/semgrep-rules`) | 273          | Co-located `.py` files (344 rules have them)     | Public, zero overlap with Pro |
+| **Total**                                 | **1,154**    | **~1,154 with validated test cases**             |                               |
+
+Full SAST corpus across all languages: **2,865 rules** (1,767 Pro + 1,098
+community). SFT trains on all languages; RL uses Python only.
 
 OpenGrep rules were evaluated but are a near-complete fork of community rules
 (263/266 overlap) — excluded to avoid duplication.
@@ -45,13 +48,13 @@ OpenGrep rules were evaluated but are a near-complete fork of community rules
 
 The Pro Python corpus is dominated by taint-mode rules:
 
-| Property                   | Count | % of 1,032 |
-| -------------------------- | ----- | ---------- |
-| Taint mode (`mode: taint`) | 850   | 82%        |
-| Cross-file/interproc       | 780   | 76%        |
-| With propagators           | 762   | 74%        |
-| With sanitizers            | 774   | 75%        |
-| Pattern mode (non-taint)   | 182   | 18%        |
+| Property                   | Count | % of 881 |
+| -------------------------- | ----- | -------- |
+| Taint mode (`mode: taint`) | 794   | 90%      |
+| Cross-file/interproc       | ~730  | ~83%     |
+| With propagators           | ~700  | ~80%     |
+| With sanitizers            | ~710  | ~81%     |
+| Pattern mode (non-taint)   | 87    | 10%      |
 
 ### CWE Coverage (Top 10, Pro + Community Combined)
 

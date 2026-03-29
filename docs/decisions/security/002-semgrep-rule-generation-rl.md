@@ -60,27 +60,28 @@ for multi-language expansion via LoRA adapter bank.
 ```mermaid
 graph TD
     subgraph "Phase 0: Data Construction"
-        PRO["Pro Rules<br/>1,032 Python"] --> PARSE["Parse rules +<br/>extract metadata"]
-        COMM["Community Rules<br/>266 Python"] --> PARSE
+        PRO["Pro SAST Rules<br/>1,767 (all langs)"] --> PARSE["Parse rules +<br/>extract metadata"]
+        COMM["Community Rules<br/>1,098 (all langs)"] --> PARSE
         NVD["NVD / MITRE<br/>CVE descriptions"] --> PROMPTS["Build prompt<br/>variants"]
         PARSE --> GROUP["Group by<br/>CWE class"]
         GROUP --> PROMPTS
-        TESTS["Pro internal test<br/>fixtures + community<br/>co-located .py files"] --> FIXTURES["Map fixtures to<br/>rule groups"]
+        TESTS["Pro internal test<br/>fixtures + community<br/>co-located files"] --> FIXTURES["Map fixtures to<br/>rule groups"]
         GROUP --> FIXTURES
         PROMPTS --> SPLIT["Time-based<br/>train/eval split"]
         FIXTURES --> SPLIT
-        SPLIT --> DATA["training_data.jsonl"]
+        SPLIT --> SFT_DATA["sft_data.jsonl<br/>2,865 rules · all langs"]
+        SPLIT --> RL_DATA["rl_data.jsonl<br/>1,154 rules · Python only"]
     end
 
-    subgraph "Phase 1: SFT Warmup"
-        DATA --> SFT["QLoRA finetune<br/>Qwen 3.5 9B"]
+    subgraph "Phase 1: SFT Warmup (Multi-Language)"
+        SFT_DATA --> SFT["QLoRA finetune<br/>Qwen 3.5 9B"]
         SFT --> ADAPTER1["SFT LoRA<br/>adapter"]
     end
 
-    subgraph "Phase 2: GRPO RL"
+    subgraph "Phase 2: GRPO RL (Python Only)"
         ADAPTER1 --> GEN["Generate N=4<br/>candidate rules"]
-        DATA -.->|prompts| GEN
-        GEN --> EXEC["Run semgrep-core<br/>against test fixtures"]
+        RL_DATA -.->|prompts| GEN
+        GEN --> EXEC["Run semgrep-core<br/>against Python fixtures"]
         EXEC --> REWARD["Compute grouped<br/>reward score"]
         REWARD --> UPDATE["GRPO policy<br/>update"]
         UPDATE --> GEN
@@ -111,33 +112,89 @@ graph TD
 
 #### Sources and Volumes
 
+Data from the authenticated Semgrep scan config API (117,168 total rules), after
+excluding 114,303 SCA supply-chain advisory rules (`ssc-*` IDs with `sca_info`
+metadata):
+
+**Python corpus (RL target):**
+
 | Source                                    | Python Rules | Test Fixtures                          | Overlap                                   |
 | ----------------------------------------- | ------------ | -------------------------------------- | ----------------------------------------- |
-| Semgrep Pro rules (OCI-vendored)          | 1,032        | Internal test suite (multi-file taint) | —                                         |
-| Community rules (`semgrep/semgrep-rules`) | 266          | Co-located `.py` files (344 have them) | Zero with Pro                             |
+| Semgrep Pro rules (authenticated API)     | 881          | Internal test suite (multi-file taint) | —                                         |
+| Community rules (`semgrep/semgrep-rules`) | 273          | Co-located `.py` files (344 have them) | Zero with Pro                             |
 | OpenGrep (`opengrep/opengrep-rules`)      | 263          | Co-located `.py` files                 | 99% duplicate of community — **excluded** |
-| **Total**                                 | **1,298**    | **~1,298 with validated test cases**   |                                           |
+| **Total**                                 | **1,154**    | **~1,154 with validated test cases**   |                                           |
+
+**Full SAST corpus (all languages, for multi-language SFT):**
+
+| Language   | Pro       | Community | Total     | Taint     | Taint % |
+| ---------- | --------- | --------- | --------- | --------- | ------- |
+| Python     | 881       | 273       | 1,154     | 852       | 74%     |
+| TypeScript | 170       | 158       | 328       | 219       | 67%     |
+| JavaScript | 171       | 156       | 327       | 219       | 67%     |
+| Java       | 178       | 118       | 296       | 155       | 52%     |
+| C#         | 138       | 33        | 171       | 130       | 76%     |
+| Go         | 69        | 85        | 154       | 69        | 45%     |
+| Ruby       | 23        | 73        | 96        | 40        | 42%     |
+| PHP        | 29        | 39        | 68        | 44        | 65%     |
+| Kotlin     | 63        | 18        | 79        | 21        | 27%     |
+| Rust       | 49        | 4         | 53        | 39        | 74%     |
+| Swift      | 53        | 2         | 55        | 16        | 29%     |
+| C/C++      | 51        | 5         | 56        | 27        | 48%     |
+| Other      | 11        | 134       | 145       | 1         | 1%      |
+| **Total**  | **1,767** | **1,098** | **2,865** | **1,832** | **64%** |
 
 OpenGrep was evaluated and excluded: 263 of 266 rule IDs are identical to the
 community repo. It's a fork, not an independent source.
 
-#### Pro Rule Characteristics
+The authenticated API also returned 114,303 "custom" origin rules — these are
+**entirely SCA/supply-chain advisory rules** (every one has `sca_info` metadata
+and `ssc-` UUID prefixes). They check for vulnerable dependency versions, not
+code patterns, and are excluded from training.
+
+#### Pro Rule Characteristics (Python)
 
 The Pro Python corpus is overwhelmingly taint-mode, requiring cross-file
 analysis for correct reward computation:
 
-| Property                        | Count | % of Pro corpus |
+| Property                        | Count | % of Pro Python |
 | ------------------------------- | ----- | --------------- |
-| Taint mode (`mode: taint`)      | 850   | 82%             |
-| Cross-file / interproc analysis | 780   | 76%             |
-| With propagators                | 762   | 74%             |
-| With sanitizers                 | 774   | 75%             |
-| Pattern mode (non-taint)        | 182   | 18%             |
+| Taint mode (`mode: taint`)      | 794   | 90%             |
+| Cross-file / interproc analysis | ~730  | ~83%            |
+| With propagators                | ~700  | ~80%            |
+| With sanitizers                 | ~710  | ~81%            |
+| Pattern mode (non-taint)        | 87    | 10%             |
 
 This distribution means the model must learn to produce taint rules with
 sources, sinks, propagators, and sanitizers — not just pattern-matching rules.
 The reward function must use the Pro engine with `-pro_inter_file` to correctly
 evaluate cross-file taint rules.
+
+#### Multi-Language SFT Strategy
+
+Taint rule structure is **language-agnostic YAML**: sources, sinks, propagators,
+and sanitizers compose the same way in Python, Java, Go, and JavaScript. The
+language-specific parts (pattern syntax within `pattern:` fields) use a common
+grammar with language-specific AST node names.
+
+This means training SFT on **all 2,865 SAST rules across all languages** teaches
+the model the compositional structure of Semgrep rules — the "grammar" of taint
+analysis — without needing language-specific reward computation. Python-only RL
+(Phase 2) then teaches detection semantics within that structure.
+
+| Phase | Data scope                  | Rationale                                                                            |
+| ----- | --------------------------- | ------------------------------------------------------------------------------------ |
+| SFT   | All languages (2,865 rules) | Taint structure is language-agnostic; 2.5× more training signal for rule composition |
+| RL    | Python only (1,154 rules)   | Reward requires semgrep-core execution against Python test fixtures                  |
+
+Benefits of multi-language SFT:
+
+- **2.5× more training examples** for learning rule structure (2,865 vs 1,154)
+- **Cross-language transfer**: a taint rule pattern learned from a Java SSRF rule
+  helps generate a Python SSRF rule — the source/sink/sanitizer composition is
+  identical, only the pattern strings differ
+- **Reduced overfitting risk**: larger dataset with structural diversity prevents
+  the model from memorizing Python-specific patterns during SFT
 
 #### CWE Vulnerability Class Grouping
 
@@ -324,13 +381,13 @@ reduce LoRA rank, or enable more aggressive gradient checkpointing.
 
 #### Training Phases
 
-| Phase                | Method                      | Data                           | Duration (est.) |
-| -------------------- | --------------------------- | ------------------------------ | --------------- |
-| 0: Data construction | CPU-only                    | 1,298 rules → grouped JSONL    | ~2 hours        |
-| 1: SFT warmup        | QLoRA, 3–5 epochs           | ~3–5K prompt/rule pairs        | ~2–4 hours      |
-| 2: GRPO RL           | QLoRA + semgrep-core reward | ~1,100 train prompts, 3 epochs | ~6–10 hours     |
-| 3: Evaluation        | Inference + semgrep-core    | ~98 held-out 2026+ CVEs        | ~30 minutes     |
-| **Total**            |                             |                                | **~1–2 days**   |
+| Phase                | Method                      | Data                                     | Duration (est.) |
+| -------------------- | --------------------------- | ---------------------------------------- | --------------- |
+| 0: Data construction | CPU-only                    | 2,865 rules (all langs) → grouped JSONL  | ~3 hours        |
+| 1: SFT warmup        | QLoRA, 3–5 epochs           | ~8–14K prompt/rule pairs (all languages) | ~4–6 hours      |
+| 2: GRPO RL           | QLoRA + semgrep-core reward | ~1,000 Python train prompts, 3 epochs    | ~6–10 hours     |
+| 3: Evaluation        | Inference + semgrep-core    | ~98 held-out 2026+ CVEs                  | ~30 minutes     |
+| **Total**            |                             |                                          | **~1–2 days**   |
 
 #### Semgrep Execution Budget
 
@@ -360,7 +417,8 @@ training with millions of invocations.
 | **QLoRA** (not full finetune)           | Full finetune of 9B requires ~72GB VRAM (bf16); QLoRA fits in 14–19GB while preserving 90%+ of full finetune quality                              |
 | **GRPO** (not PPO)                      | No value network needed — simpler, less VRAM, more stable for tasks with programmatic reward signals. Proven by DeepSeek-R1 for code generation   |
 | **SFT → RL** (not RL-only)              | SFT warmup teaches Semgrep YAML syntax; RL on top teaches behavioral correctness. Direct RL from base model is too unstable for structured output |
-| **Python-first**                        | Largest corpus (1,032 Pro rules), richest taint coverage (82%), most CWE classes. Designed for LoRA-per-language expansion                        |
+| **Multi-language SFT, Python-only RL**  | SFT on all 2,865 rules (taint structure is language-agnostic); RL on Python only (requires semgrep-core execution). 2.5× more SFT signal          |
+| **Python-first for RL**                 | Largest corpus (881 Pro rules), richest taint coverage (90%), most CWE classes. Designed for LoRA-per-language expansion                          |
 | **CWE-grouped reward** (not per-rule)   | Trains the model to reason about vulnerability classes, not memorize specific rule patterns. Produces more generalizable rules                    |
 | **CVE date-based eval split**           | Prevents data contamination from base model pretraining. 2026+ CVEs are guaranteed unseen                                                         |
 | **semgrep-core direct** (not pysemgrep) | 16× faster (0.12s vs 2.0s). Matches existing Bazel pipeline approach ([ADR 001](001-bazel-semgrep.md)). Makes reward computation negligible       |
@@ -375,32 +433,40 @@ training with millions of invocations.
 ### Phase 0: Data Construction
 
 - [ ] Write rule parser: extract id, message, metadata (CWE, OWASP, severity),
-      pattern YAML from Pro + community rule files
+      pattern YAML from Pro + community rule files **across all languages**
+- [ ] Filter out SCA rules (114,303 `ssc-*` supply-chain advisory rules with
+      `sca_info` metadata) — retain only SAST rules (2,865 total)
 - [ ] Build CWE grouping: map rules to vulnerability classes using metadata CWE
       fields
 - [ ] Obtain Pro internal test fixtures (Semgrep employee access)
 - [ ] Map test fixtures to CWE groups: categorize as core_positive,
       variant_positive, core_negative, edge_negative
-- [ ] Integrate community test fixtures (co-located `.py` files already
-      available)
+- [ ] Integrate community test fixtures (co-located files already available)
 - [ ] Fetch CVE/CWE descriptions from NVD API for prompt construction
 - [ ] Build prompt variants: CWE description, CVE advisory text, rule message
       field, combined variants
 - [ ] Apply time-based split using CVE publication dates (train: pre-2025,
       val: 2025, eval: 2026+)
-- [ ] Output `training_data.jsonl` with grouped fixtures and prompt variants
+- [ ] Output `sft_data.jsonl` — all 2,865 rules across all languages for
+      multi-language SFT
+- [ ] Output `rl_data.jsonl` — 1,154 Python-only rules with test fixtures for
+      GRPO reward computation
 
-### Phase 1: SFT Warmup
+### Phase 1: SFT Warmup (Multi-Language)
 
 - [ ] Download Qwen 3.5 9B base weights
 - [ ] Set up training environment (TRL or similar) on worker node
 - [ ] Configure QLoRA: 4-bit quantization, LoRA rank 64–128, target modules
       (q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj)
-- [ ] Train SFT on prompt → rule YAML pairs, save checkpoints at each epoch
+- [ ] Train SFT on **all 2,865 rules across all languages** — taint rule
+      structure is language-agnostic YAML; multi-language training provides 2.5×
+      more signal for learning rule composition
+- [ ] Save checkpoints at each epoch
 - [ ] Validate: measure parse rate and basic CWE coverage on validation split
       **at each epoch** — track train loss vs validation loss divergence
 - [ ] Run eval on validation set per epoch to find the optimal stopping point
-      (expect overfitting risk given ~1,298 training examples)
+      (overfitting risk lower with 2,865 multi-language examples vs 1,154
+      Python-only)
 - [ ] Track per-CWE-class metrics across epochs — sparse classes (e.g. CWE-79
       with 41 rules) will overfit faster than dense classes (CWE-918 with 283)
 - [ ] Save best SFT LoRA adapter checkpoint (by validation detection recall,
@@ -442,11 +508,15 @@ training with millions of invocations.
 - [ ] Document results and identify weak CWE classes for potential data
       augmentation
 
-### Phase 4: Multi-Language Expansion (Future)
+### Phase 4: Multi-Language RL Expansion (Future)
 
-- [ ] Train Go LoRA adapter (113 Pro rules)
-- [ ] Train JavaScript LoRA adapter (316 Pro rules)
-- [ ] Train Kubernetes/YAML LoRA adapter (11 Pro rules + community)
+SFT already covers all languages. This phase adds **language-specific RL** with
+semgrep-core execution against each language's test fixtures:
+
+- [ ] Build Go reward pipeline (69 Pro taint rules + 85 community rules)
+- [ ] Build JavaScript/TypeScript reward pipeline (327 rules, 219 taint)
+- [ ] Build Java reward pipeline (296 rules, 155 taint)
+- [ ] Train per-language LoRA adapters via GRPO on language-specific fixtures
 - [ ] Build lightweight language router from CVE description
 - [ ] Implement LoRA hot-swap at inference time on single base model
 
@@ -593,18 +663,18 @@ production scanning. The model is a drafting tool, not an autonomous scanner.
 
 ## Risks
 
-| Risk                                                                  | Likelihood | Impact   | Mitigation                                                                                                    |
-| --------------------------------------------------------------------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------- |
-| 1,298 rules insufficient for SFT                                      | Medium     | Medium   | Prompt augmentation (3–5 variants per rule); add community rules for under-represented CWE classes            |
-| GRPO OOM on 4090 with 9B model                                        | Low        | High     | Reduce group size to 2–3, reduce LoRA rank, enable gradient checkpointing. Fallback: use 4B model             |
-| Model produces syntactically valid but semantically wrong taint rules | Medium     | High     | Grouped reward with 0.3 weight on false positive penalty; taint-specific eval metrics                         |
-| Pro test fixtures lack sufficient negative examples                   | Medium     | Medium   | Generate additional negatives with LLM, validate against Pro rule oracle                                      |
-| Semgrep Pro license restricts model training                          | Low        | Critical | Verify internally — employee access may have different terms. Worst case: train on community-only (266 rules) |
-| Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium   | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization               |
-| Base model's pretraining data contaminates eval                       | Low        | High     | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                 |
-| Reward signal too sparse for taint rules                              | Medium     | Medium   | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                        |
-| Frontier model already solves the task well enough                    | Medium     | High     | Benchmark early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                  |
-| Overfitting to small dataset or specific test fixtures                | High       | High     | Per-epoch validation eval; per-CWE tracking; held-out fixture subset for RL reward overfitting detection      |
+| Risk                                                                  | Likelihood | Impact   | Mitigation                                                                                                                                                  |
+| --------------------------------------------------------------------- | ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1,154 Python rules insufficient for RL                                | Medium     | Medium   | Multi-language SFT (2,865 rules) mitigates; prompt augmentation (3–5 variants per rule)                                                                     |
+| GRPO OOM on 4090 with 9B model                                        | Low        | High     | Reduce group size to 2–3, reduce LoRA rank, enable gradient checkpointing. Fallback: use 4B model                                                           |
+| Model produces syntactically valid but semantically wrong taint rules | Medium     | High     | Grouped reward with 0.3 weight on false positive penalty; taint-specific eval metrics                                                                       |
+| Pro test fixtures lack sufficient negative examples                   | Medium     | Medium   | Generate additional negatives with LLM, validate against Pro rule oracle                                                                                    |
+| Semgrep Pro license restricts model training                          | Low        | Critical | Verify internally — employee access may have different terms. Worst case: train on community-only (266 rules)                                               |
+| Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium   | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization                                                             |
+| Base model's pretraining data contaminates eval                       | Low        | High     | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                                                               |
+| Reward signal too sparse for taint rules                              | Medium     | Medium   | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                                                                      |
+| Frontier model already solves the task well enough                    | Medium     | High     | Benchmark early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                                                                |
+| Overfitting to small dataset or specific test fixtures                | Medium     | High     | Multi-language SFT (2,865 rules) reduces SFT risk; per-epoch validation eval; per-CWE tracking; held-out fixture subset for RL reward overfitting detection |
 
 ---
 
