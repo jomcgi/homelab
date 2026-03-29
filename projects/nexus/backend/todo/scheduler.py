@@ -31,5 +31,8 @@ async def run_scheduler() -> None:
         weekly = reset_time.weekday() == 5  # Saturday = end of Friday
         logger.info("Scheduler: triggering %s reset", "weekly" if weekly else "daily")
 
-        with Session(engine) as session:
-            _archive_and_reset(session, weekly_reset=weekly)
+        try:
+            with Session(engine) as session:
+                _archive_and_reset(session, weekly_reset=weekly)
+        except Exception:
+            logger.exception("Scheduler: reset failed, will retry next cycle")
