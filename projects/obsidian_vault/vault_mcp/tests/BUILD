@@ -85,6 +85,7 @@ py_test(
     deps = [
         ":conftest",
         "//projects/obsidian_vault/vault_mcp/app",
+        "@pip//numpy",
     ],
 )
 
