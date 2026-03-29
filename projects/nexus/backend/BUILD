@@ -11,7 +11,6 @@ py_venv_binary(
         ["**/*.py"],
         exclude = ["**/*_test.py"],
     ),
-    data = ["//projects/nexus/frontend:build"],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
@@ -39,6 +38,10 @@ py_library(
     ],
 )
 
+# TODO: Embed frontend dist in OCI image. Currently blocked because
+# py3_image's platform_transition_filegroup causes js_run_binary to
+# select wrong-platform native binaries (e.g. esbuild/linux-arm64 on
+# x86_64 exec). Needs a mechanism to build JS outside the transition.
 py3_image(
     name = "image",
     binary = "//projects/nexus/backend:main",
