@@ -27,6 +27,9 @@ patchedDependencies:
   "@sveltejs/kit":
     hash: yr7jlkv3efqqhtawxk636tdpvm
     path: patches/@sveltejs__kit.patch
+  rollup:
+    hash: ucodry5rwsvqoy3uc2v6oocfeq
+    path: patches/rollup.patch
 
 importers:
   .:
@@ -374,10 +377,10 @@ importers:
         version: 4.4.2(@types/node@25.5.0)(@types/react-dom@19.2.3(@types/react@19.2.8))(@types/react@19.2.8)(jiti@1.21.7)(lightningcss@1.30.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(tsx@4.21.0)(yaml@2.8.2)
       "@astrojs/tailwind":
         specifier: ^6.0.2
-        version: 6.0.2(astro@5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))
+        version: 6.0.2(astro@5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq))(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))
       astro:
         specifier: ^5.18.1
-        version: 5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+        version: 5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq))(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       astro-remote:
         specifier: ^0.3.3
         version: 0.3.4
@@ -2329,7 +2332,6 @@ packages:
       {
         integrity: sha512-3AHmtQq/ppNuUspKAlvA8HtLybkDflkMuLK4DPo77DfthRb71V84/c4MlWJXixZz4uruIH4uaa07IqoAkG64fg==,
       }
-    cpu: [x64]
     os: [linux]
 
   "@rollup/rollup-linux-x64-musl@4.59.0":
@@ -12425,9 +12427,9 @@ snapshots:
       - tsx
       - yaml
 
-  "@astrojs/tailwind@6.0.2(astro@5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))":
+  "@astrojs/tailwind@6.0.2(astro@5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq))(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))":
     dependencies:
-      astro: 5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      astro: 5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq))(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       autoprefixer: 10.4.23(postcss@8.5.6)
       postcss: 8.5.6
       postcss-load-config: 4.0.2(postcss@8.5.6)
@@ -13325,13 +13327,13 @@ snapshots:
 
   "@rolldown/pluginutils@1.0.0-beta.53": {}
 
-  "@rollup/pluginutils@5.3.0(rollup@4.59.0)":
+  "@rollup/pluginutils@5.3.0(rollup@4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq))":
     dependencies:
       "@types/estree": 1.0.8
       estree-walker: 2.0.2
       picomatch: 4.0.4
     optionalDependencies:
-      rollup: 4.59.0
+      rollup: 4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq)
 
   "@rollup/rollup-android-arm-eabi@4.59.0":
     optional: true
@@ -14568,7 +14570,7 @@ snapshots:
       marked-smartypants: 1.1.11(marked@12.0.2)
       ultrahtml: 1.6.0
 
-  astro@5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2):
+  astro@5.18.1(@types/node@25.5.0)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq))(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2):
     dependencies:
       "@astrojs/compiler": 2.13.1
       "@astrojs/internal-helpers": 0.7.6
@@ -14576,7 +14578,7 @@ snapshots:
       "@astrojs/telemetry": 3.3.0
       "@capsizecss/unpack": 4.0.0
       "@oslojs/encoding": 1.1.0
-      "@rollup/pluginutils": 5.3.0(rollup@4.59.0)
+      "@rollup/pluginutils": 5.3.0(rollup@4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq))
       acorn: 8.16.0
       aria-query: 5.3.2
       axobject-query: 4.1.0
@@ -18431,7 +18433,7 @@ snapshots:
 
   robust-predicates@3.0.2: {}
 
-  rollup@4.59.0:
+  rollup@4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq):
     dependencies:
       "@types/estree": 1.0.8
     optionalDependencies:
@@ -19363,7 +19365,7 @@ snapshots:
     dependencies:
       esbuild: 0.27.2
       postcss: 8.5.6
-      rollup: 4.59.0
+      rollup: 4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq)
     optionalDependencies:
       "@types/node": 22.19.7
       fsevents: 2.3.3
@@ -19373,7 +19375,7 @@ snapshots:
     dependencies:
       esbuild: 0.27.2
       postcss: 8.5.6
-      rollup: 4.59.0
+      rollup: 4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq)
     optionalDependencies:
       "@types/node": 25.5.0
       fsevents: 2.3.3
@@ -19385,7 +19387,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
       postcss: 8.5.6
-      rollup: 4.59.0
+      rollup: 4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq)
       tinyglobby: 0.2.15
     optionalDependencies:
       "@types/node": 25.5.0
@@ -19401,7 +19403,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
       postcss: 8.5.6
-      rollup: 4.59.0
+      rollup: 4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq)
       tinyglobby: 0.2.15
     optionalDependencies:
       "@types/node": 25.5.0
@@ -19417,7 +19419,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
       postcss: 8.5.6
-      rollup: 4.59.0
+      rollup: 4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq)
       tinyglobby: 0.2.15
     optionalDependencies:
       "@types/node": 22.19.7
@@ -19433,7 +19435,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
       postcss: 8.5.6
-      rollup: 4.59.0
+      rollup: 4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq)
       tinyglobby: 0.2.15
     optionalDependencies:
       "@types/node": 25.5.0
@@ -19449,7 +19451,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
       postcss: 8.5.6
-      rollup: 4.59.0
+      rollup: 4.59.0(patch_hash=ucodry5rwsvqoy3uc2v6oocfeq)
       tinyglobby: 0.2.15
     optionalDependencies:
       "@types/node": 25.5.0

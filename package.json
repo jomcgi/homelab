@@ -55,7 +55,8 @@
       "locutus@>=2.0.12 <2.0.39": ">=2.0.39"
     },
     "patchedDependencies": {
-      "@sveltejs/kit": "patches/@sveltejs__kit.patch"
+      "@sveltejs/kit": "patches/@sveltejs__kit.patch",
+      "rollup": "patches/rollup.patch"
     }
   }
 }
