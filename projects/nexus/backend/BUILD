@@ -81,3 +81,16 @@ py_test(
         "@pip//tzdata",
     ],
 )
+
+py_test(
+    name = "frontend_test",
+    srcs = ["frontend_test.py"],
+    imports = ["."],
+    deps = [
+        ":nexus_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
