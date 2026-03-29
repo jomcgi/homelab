@@ -1,7 +1,7 @@
 apiVersion: v2
 name: nexus
 description: Consolidated homelab web services
-version: 0.2.0
+version: 0.2.1
 type: application
 dependencies:
   - name: cf-ingress
