@@ -1,4 +1,4 @@
-# RL-Finetuned Model for Semgrep Rule Generation
+# RL-Finetuned Model for Security-Incident-Driven Semgrep Rule Generation
 
 **Author:** Joe McGinley
 **Status:** Draft
@@ -9,40 +9,50 @@
 
 ## Problem
 
-Writing high-quality Semgrep rules is expensive. A single taint-mode rule with
-sources, sinks, propagators, and sanitizers can take hours to author — the
-engineer must understand the vulnerability class, the target framework's API
-surface, and Semgrep's pattern language. The Pro rule corpus (1,032 Python rules
-alone) represents thousands of engineering hours.
+When a security incident occurs — a CVE is published, a vulnerability is
+disclosed, or an internal audit surfaces a new attack pattern — the immediate
+question is: **"are we affected?"** Answering that requires a Semgrep rule that
+detects the specific vulnerability pattern in code. Today, writing that rule is
+expensive and slow.
 
-When a new CVE drops, the gap between disclosure and a working detection rule is
-a window of exposure. Today that gap is filled by human rule authors at Semgrep
-or by security engineers writing custom rules. An RL-finetuned model that can
-read a CVE advisory and produce a working detection rule would collapse this
-window from hours/days to seconds.
+A single taint-mode rule with sources, sinks, propagators, and sanitizers can
+take hours to author. The engineer must understand the vulnerability class, the
+target framework's API surface, and Semgrep's pattern language. The gap between
+disclosure and a working detection rule is a window of exposure — filled today
+by human rule authors at Semgrep or by security engineers writing custom rules.
+
+**The goal is a model that takes a security incident description as input and
+produces a working Semgrep detection rule as output.** The model is specifically
+rewarded for generating rules that catch the vulnerability pattern described in
+the incident, not just any syntactically valid rule.
 
 The homelab already has the infrastructure to support this:
 
 - **Semgrep Pro rules** vendored via OCI/Bazel with daily auto-updates
-  ([ADR 001](001-bazel-semgrep.md))
+  ([ADR 001](001-bazel-semgrep.md)) — each rule maps to a specific CWE/CVE,
+  providing natural (incident description → detection rule) training pairs
 - **semgrep-core-proprietary** OCaml binary invoked directly, bypassing the
-  Python wrapper (0.12s vs 2s per invocation)
+  Python wrapper (0.12s vs 2s per invocation) — enables programmatic reward
+  computation during RL training
 - **RTX 4090** on the worker node with 24GB VRAM — sufficient for QLoRA
   training of a 9B parameter model
 - **Pro engine test fixtures** available internally (Semgrep employee access)
+  — provide ground-truth test cases for each security rule
 
 The missing piece is a training pipeline that turns these assets into a model
-capable of generating Semgrep rules from natural language vulnerability
-descriptions.
+that can read a security incident and produce a detection rule.
 
 ---
 
 ## Proposal
 
-Finetune **Qwen 3.5 9B** to generate Semgrep rules from CVE/CWE vulnerability
-descriptions using a two-phase approach: supervised finetuning (SFT) for syntax
-acquisition, followed by Group Relative Policy Optimization (GRPO) with
-semgrep-core execution as the reward signal.
+Finetune **Qwen 3.5 9B** to generate Semgrep detection rules from security
+incident descriptions (CVE advisories, CWE descriptions, vulnerability
+disclosures) using a two-phase approach: supervised finetuning (SFT) for syntax
+acquisition, followed by Group Relative Policy Optimization (GRPO) where the
+reward signal is **whether the generated rule actually detects the described
+vulnerability** — measured by executing the rule against known-vulnerable and
+known-safe code via semgrep-core.
 
 Start with **Python-only** (largest corpus, richest taint coverage), designed
 for multi-language expansion via LoRA adapter bank.
@@ -86,12 +96,12 @@ graph TD
 
 ### What changes
 
-| Aspect              | Today                       | Proposed                                               |
-| ------------------- | --------------------------- | ------------------------------------------------------ |
-| Rule authoring      | Manual, hours per rule      | Model generates candidate in seconds                   |
-| CVE response time   | Hours to days               | Seconds (generation) + minutes (human review)          |
-| Taint rule coverage | Limited to authored rules   | Model generalizes across frameworks within a CWE class |
-| Infrastructure      | Semgrep engine + rules only | Add training pipeline on existing GPU node             |
+| Aspect                     | Today                                         | Proposed                                                           |
+| -------------------------- | --------------------------------------------- | ------------------------------------------------------------------ |
+| Security incident response | Manual rule authoring (hours per rule)        | Feed incident description to model, get detection rule in seconds  |
+| CVE-to-detection gap       | Hours to days of exposure                     | Seconds (generation) + minutes (human review)                      |
+| Taint rule coverage        | Limited to rules authored for known incidents | Model generalizes to detect new incidents within known CWE classes |
+| Infrastructure             | Semgrep engine + rules only                   | Add training pipeline on existing GPU node                         |
 
 ---
 
