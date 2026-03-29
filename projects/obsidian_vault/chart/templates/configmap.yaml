@@ -29,6 +29,11 @@ data:
         chmod 600 ~/.git-credentials
     fi
 
+    # Ensure .gitignore excludes non-vault data (fastembed model cache, etc.)
+    if ! grep -q '^\.cache/' .gitignore 2>/dev/null; then
+        echo '.cache/' >> .gitignore
+    fi
+
     # Initialize git repo if needed
     if [ ! -d .git ]; then
         git init
