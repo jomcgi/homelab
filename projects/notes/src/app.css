@@ -1,0 +1,327 @@
+/* ─────────────────────────────────────────────
+   Notes — brutalist productivity dashboard
+   Design: Dieter Rams / single-viewport utility
+   Scale: root font-size drives all proportions
+   ───────────────────────────────────────────── */
+
+:root {
+  --font: "Space Mono", "SF Mono", monospace;
+
+  --fg: #111;
+  --fg-secondary: #555;
+  --fg-tertiary: #999;
+  --bg: #f2f0ed;
+  --border: #ccc;
+  --surface: #e8e6e3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e8e6e3;
+    --fg-secondary: #999;
+    --fg-tertiary: #666;
+    --bg: #111;
+    --border: #333;
+    --surface: #1a1a1a;
+  }
+}
+
+html {
+  /* Scale from the larger of width/height so content
+     fills the viewport in both dimensions. */
+  font-size: clamp(16px, max(1.6vw, 2.6vh), 48px);
+}
+
+/* ── Layout ────────────────────────────────── */
+
+.root {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--fg);
+  background: var(--bg);
+  overflow: hidden;
+  -webkit-font-feature-settings: "liga" 0;
+  font-feature-settings: "liga" 0;
+}
+
+/* ── Capture (left pane) ───────────────────── */
+
+.capture {
+  flex: 1 1 0%;
+  display: flex;
+  flex-direction: column;
+  padding: 2.5rem;
+  padding-bottom: 1.25rem;
+  min-width: 0;
+}
+
+.capture-input {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 1.15rem;
+  line-height: 1.8;
+  color: var(--fg);
+  padding: 0;
+  letter-spacing: -0.01em;
+  transition: opacity 0.3s ease;
+}
+
+.capture-input::placeholder {
+  color: var(--fg-tertiary);
+}
+
+.capture-input--sent {
+  opacity: 0.1;
+}
+
+.capture-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+}
+
+.capture-hint {
+  font-size: 0.75rem;
+  color: var(--fg-tertiary);
+  letter-spacing: 0.04em;
+  transition: opacity 0.2s ease;
+}
+
+.capture-count {
+  font-size: 0.75rem;
+  color: var(--fg-tertiary);
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Divider ───────────────────────────────── */
+
+.divider {
+  display: none;
+}
+
+/* ── Right panel ───────────────────────────── */
+
+.panel {
+  flex: 0 0 38%;
+  max-width: 22rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2.5rem 2rem;
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-left: 0.06rem solid var(--fg);
+}
+
+.panel::-webkit-scrollbar {
+  display: none;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.date {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.clock {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Sections ──────────────────────────────── */
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--fg);
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 0.04rem solid var(--border);
+}
+
+/* ── Schedule ──────────────────────────────── */
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.event-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  padding: 0.3rem 0;
+}
+
+.event-time {
+  font-size: 0.8rem;
+  color: var(--fg-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.2rem;
+  flex-shrink: 0;
+}
+
+.event-title {
+  font-size: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.event-meta {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-tertiary);
+  flex-shrink: 0;
+}
+
+.event-row--past .event-time,
+.event-row--past .event-title,
+.event-row--past .event-meta {
+  text-decoration: line-through;
+  opacity: 0.3;
+}
+
+/* ── Links ─────────────────────────────────── */
+
+.links-grid {
+  display: grid;
+  gap: 0.3rem 0;
+}
+
+.link {
+  font-size: 0.85rem;
+  color: var(--fg-secondary);
+  padding: 0.1rem 0;
+  transition: color 0.15s ease;
+}
+
+.link:hover {
+  color: var(--fg);
+}
+
+.link:focus-visible {
+  outline: 1.5px solid var(--fg);
+  outline-offset: 2px;
+}
+
+/* ── Todos ─────────────────────────────────── */
+
+.todo-header {
+  display: flex;
+  gap: 1rem;
+}
+
+.scope-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--fg-tertiary);
+  transition: color 0.15s ease;
+}
+
+.scope-btn--active {
+  color: var(--fg);
+}
+
+.scope-btn:hover {
+  color: var(--fg-secondary);
+}
+
+.scope-btn:focus-visible {
+  outline: 1.5px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.todo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.3rem 0;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 2px;
+}
+
+.todo-row:focus-visible {
+  outline: 1.5px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.todo-check {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 0;
+  border: 0.06rem solid var(--fg);
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.todo-row--done .todo-check {
+  background: var(--fg);
+}
+
+.todo-text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  transition: opacity 0.15s ease;
+}
+
+.todo-row--done .todo-text {
+  text-decoration: line-through;
+  opacity: 0.3;
+}
+
+.todo-empty {
+  font-size: 0.75rem;
+  color: var(--fg-tertiary);
+  font-style: italic;
+}
+
+/* ── Reduced motion ────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
