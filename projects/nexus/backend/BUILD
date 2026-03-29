@@ -53,6 +53,7 @@ py_test(
         "@pip//httpx",
         "@pip//pytest",
         "@pip//sqlmodel",
+        "@pip//tzdata",
     ],
 )
 
@@ -65,5 +66,6 @@ py_test(
         "@pip//pytest",
         "@pip//pytest_asyncio",
         "@pip//sqlmodel",
+        "@pip//tzdata",
     ],
 )
