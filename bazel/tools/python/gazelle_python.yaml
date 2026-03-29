@@ -312,6 +312,7 @@ manifest:
     shapely: shapely
     shellingham: shellingham
     six: six
+    sqlmodel: sqlmodel
     sniffio: sniffio
     soupsieve: soupsieve
     sqlite_fts4: sqlite_fts4
