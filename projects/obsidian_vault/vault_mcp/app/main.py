@@ -361,6 +361,7 @@ async def _reconcile_loop(settings: Settings) -> None:
 
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     settings = Settings()
     configure(settings)
 
