@@ -123,12 +123,16 @@ spec:
             httpGet:
               path: /healthz
               port: {{ .Values.vaultMcp.port }}
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /healthz
               port: {{ .Values.vaultMcp.port }}
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
+            periodSeconds: 10
           resources:
             {{- toYaml .Values.resources.vaultMcp | nindent 12 }}
       volumes:
