@@ -587,6 +587,15 @@ class TestSearchSemantic:
 
 
 class TestReconcileLoopInit:
+    @pytest.fixture(autouse=True)
+    def _reset_globals(self):
+        """Reset module globals so each test starts with uninitialised state."""
+        _mod._embedder = None
+        _mod._qdrant = None
+        yield
+        _mod._embedder = None
+        _mod._qdrant = None
+
     async def test_retries_on_init_failure(self, tmp_path):
         """If embedder or qdrant init fails, the loop retries instead of dying."""
         settings = Settings(
