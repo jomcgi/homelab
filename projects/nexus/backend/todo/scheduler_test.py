@@ -16,9 +16,9 @@ async def test_scheduler_calculates_next_midnight():
     mock_now = datetime(2026, 3, 28, 22, 0, 0, tzinfo=TZ)
 
     with (
-        patch("projects.nexus.backend.todo.scheduler.datetime") as mock_dt,
+        patch("todo.scheduler.datetime") as mock_dt,
         patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-        patch("projects.nexus.backend.todo.scheduler._archive_and_reset"),
+        patch("todo.scheduler._archive_and_reset"),
     ):
         mock_dt.now.return_value = mock_now
         mock_dt.combine = datetime.combine
