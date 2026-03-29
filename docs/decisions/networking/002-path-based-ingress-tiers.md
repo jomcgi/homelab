@@ -179,12 +179,12 @@ A Bazel rule extracts the OpenAPI spec at build time and generates the `cfIngres
 
 ## Risks
 
-| Risk                                                            | Likelihood | Impact | Mitigation                                                                           |
-| --------------------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------ |
-| Path conflicts between services                                 | Low        | Medium | Lint rule to check for overlapping path prefixes across all HTTPRoutes               |
-| external-dns creates records before Access policy is configured | Low        | High   | Deploy Access policy for `private.jomcgi.dev/*` before any routes migrate            |
-| Existing clients hardcode old subdomains                        | Medium     | Low    | Cloudflare redirect rules from old subdomains to new paths during transition         |
-| FastAPI codegen misses routes (no tag = silent omission)        | Medium     | Low    | Lint rule requires explicit `x-ingress` tag on all routes; missing tag is a CI error |
+| Risk                                                            | Likelihood | Impact | Mitigation                                                                                                                                     |
+| --------------------------------------------------------------- | ---------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Path conflicts between services                                 | Low        | Medium | Within a service: framework enforces path uniqueness per port. Across services: CI lint rule checks for overlapping path prefixes per hostname |
+| external-dns creates records before Access policy is configured | Low        | High   | Deploy Access policy for `private.jomcgi.dev/*` before any routes migrate                                                                      |
+| Existing clients hardcode old subdomains                        | Medium     | Low    | Cloudflare redirect rules from old subdomains to new paths during transition                                                                   |
+| FastAPI codegen misses routes (no tag = silent omission)        | Medium     | Low    | Lint rule requires explicit `x-ingress` tag on all routes; missing tag is a CI error                                                           |
 
 ---
 
