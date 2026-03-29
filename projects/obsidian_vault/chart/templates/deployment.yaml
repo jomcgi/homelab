@@ -102,6 +102,8 @@ spec:
             - name: mcp
               containerPort: {{ .Values.vaultMcp.port }}
           env:
+            - name: ORT_DISABLE_ARENA
+              value: "1"
             - name: VAULT_PATH
               value: /vault
             - name: VAULT_PORT
