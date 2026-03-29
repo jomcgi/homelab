@@ -131,7 +131,13 @@ def _archive_and_reset(session: Session, weekly_reset: bool) -> None:
             check = "x" if t.done else " "
             lines.append(f"- [{check}] {t.task}")
 
-    session.add(Archive(date=today, content="\n".join(lines)))
+    existing_archive = session.exec(
+        select(Archive).where(Archive.date == today)
+    ).first()
+    if existing_archive:
+        existing_archive.content = "\n".join(lines)
+    else:
+        session.add(Archive(date=today, content="\n".join(lines)))
 
     # Clear tasks
     existing = session.exec(select(Task)).all()

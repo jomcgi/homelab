@@ -1,6 +1,6 @@
 import os
 
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, create_engine
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql://app:app@localhost:5432/nexus"
