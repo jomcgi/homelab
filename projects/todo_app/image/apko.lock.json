@@ -522,22 +522,22 @@
       },
       {
         "name": "readline",
-        "url": "https://packages.wolfi.dev/os/x86_64/readline-8.3-r1.apk",
-        "version": "8.3-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/readline-8.3-r2.apk",
+        "version": "8.3-r2",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-3887",
-          "checksum": "sha1-vL4XjVse3ZTOexy4Rl4c2olko9s="
+          "range": "bytes=0-6720",
+          "checksum": "sha1-1WRlY3do45L9jnu5YAoRTSTcimY="
         },
         "data": {
-          "range": "bytes=3888-339634",
-          "checksum": "sha256-MO7S4LbvC4dyv4Lzk8eq1BPdU/CveFeJVR11vqHZQ+Q="
+          "range": "bytes=6721-342785",
+          "checksum": "sha256-b8Pq+h8UH9KT10SqvwjnKyZNJ1p5qhjdXy2Yn63jtNw="
         },
-        "checksum": "Q1vL4XjVse3ZTOexy4Rl4c2olko9s="
+        "checksum": "Q11WRlY3do45L9jnu5YAoRTSTcimY="
       },
       {
         "name": "sqlite-libs",
@@ -674,22 +674,22 @@
       },
       {
         "name": "libcurl-openssl4",
-        "url": "https://packages.wolfi.dev/os/x86_64/libcurl-openssl4-8.19.0-r3.apk",
-        "version": "8.19.0-r3",
+        "url": "https://packages.wolfi.dev/os/x86_64/libcurl-openssl4-8.19.0-r4.apk",
+        "version": "8.19.0-r4",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11906",
-          "checksum": "sha1-YrCU4HRmghjpu5cVveKIY4sWXOM="
+          "range": "bytes=0-12981",
+          "checksum": "sha1-vzlqWrPpDKnW4OsyaQM87dA0Eoo="
         },
         "data": {
-          "range": "bytes=11907-518834",
-          "checksum": "sha256-Z6DxwNud6zZkzsjLdLmZw9AndVjr4xDmwLlpevmP1Oo="
+          "range": "bytes=12982-519904",
+          "checksum": "sha256-d/3PXFQSklM3U35qcDpa3bTYwbmS/LUf0dL/wh1uk1U="
         },
-        "checksum": "Q1YrCU4HRmghjpu5cVveKIY4sWXOM="
+        "checksum": "Q1vzlqWrPpDKnW4OsyaQM87dA0Eoo="
       },
       {
         "name": "git",
@@ -1301,22 +1301,22 @@
       },
       {
         "name": "readline",
-        "url": "https://packages.wolfi.dev/os/aarch64/readline-8.3-r1.apk",
-        "version": "8.3-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/readline-8.3-r2.apk",
+        "version": "8.3-r2",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-3933",
-          "checksum": "sha1-U8GDjvDj9eHCB+1NdgXp4NKzmPE="
+          "range": "bytes=0-6765",
+          "checksum": "sha1-2ElnZowSoKaA2mqerRlzwYmdEXc="
         },
         "data": {
-          "range": "bytes=3934-335034",
-          "checksum": "sha256-PU16uzdKxlk7V28YHwwE6EgxQfcPeQdbqV4nrD0wyC0="
+          "range": "bytes=6766-338510",
+          "checksum": "sha256-Pd3fAHN5e0AoYd6JXSxqwO+GjdDeuhkunLpUAR4uCS0="
         },
-        "checksum": "Q1U8GDjvDj9eHCB+1NdgXp4NKzmPE="
+        "checksum": "Q12ElnZowSoKaA2mqerRlzwYmdEXc="
       },
       {
         "name": "sqlite-libs",
@@ -1453,22 +1453,22 @@
       },
       {
         "name": "libcurl-openssl4",
-        "url": "https://packages.wolfi.dev/os/aarch64/libcurl-openssl4-8.19.0-r3.apk",
-        "version": "8.19.0-r3",
+        "url": "https://packages.wolfi.dev/os/aarch64/libcurl-openssl4-8.19.0-r4.apk",
+        "version": "8.19.0-r4",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11952",
-          "checksum": "sha1-rCcg/Rq/0YK9oh8ekWJ/L0POtc8="
+          "range": "bytes=0-13020",
+          "checksum": "sha1-vrGMfDbmYuJFB3YpJ1dtKqPVly4="
         },
         "data": {
-          "range": "bytes=11953-516948",
-          "checksum": "sha256-XMFZDPaJOWncan2+Qh5Xj+cfDA6+icALY2A9SeK3uT8="
+          "range": "bytes=13021-518015",
+          "checksum": "sha256-Xl1p8NFl9Mt97IV7uwzphL8hgCBtmdFdmvMhjKBSTc0="
         },
-        "checksum": "Q1rCcg/Rq/0YK9oh8ekWJ/L0POtc8="
+        "checksum": "Q1vrGMfDbmYuJFB3YpJ1dtKqPVly4="
       },
       {
         "name": "git",

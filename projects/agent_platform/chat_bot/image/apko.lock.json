@@ -370,22 +370,22 @@
       },
       {
         "name": "nodejs-20",
-        "url": "https://packages.wolfi.dev/os/x86_64/nodejs-20-20.20.1-r1.apk",
-        "version": "20.20.1-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/nodejs-20-20.20.2-r0.apk",
+        "version": "20.20.2-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-7382",
-          "checksum": "sha1-j1hs6kK+DIotxNx7BgHOhSsGJRE="
+          "range": "bytes=0-7383",
+          "checksum": "sha1-YDbdHg9AunVoH4/ny6/6lo2cIXw="
         },
         "data": {
-          "range": "bytes=7383-19583827",
-          "checksum": "sha256-6al8rGdeYsbC8y7GsTjAq4eN+9R1ZoS8WyF1D6+XIIw="
+          "range": "bytes=7384-19620706",
+          "checksum": "sha256-QBWKexqce7+hLSFvKc2rEgTsf62UeAQCTXDTQOzgXXU="
         },
-        "checksum": "Q1j1hs6kK+DIotxNx7BgHOhSsGJRE="
+        "checksum": "Q1YDbdHg9AunVoH4/ny6/6lo2cIXw="
       },
       {
         "name": "wolfi-baselayout",
@@ -731,22 +731,22 @@
       },
       {
         "name": "nodejs-20",
-        "url": "https://packages.wolfi.dev/os/aarch64/nodejs-20-20.20.1-r1.apk",
-        "version": "20.20.1-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/nodejs-20-20.20.2-r0.apk",
+        "version": "20.20.2-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-7402",
-          "checksum": "sha1-0Tovl0aEvGUfXMG1NWEuHomBFcc="
+          "range": "bytes=0-7409",
+          "checksum": "sha1-MOl+1SuzvrAkJGm8Aym2j9CZmqc="
         },
         "data": {
-          "range": "bytes=7403-19411413",
-          "checksum": "sha256-CZhASoufXcl0YZf8n9BX7pvW6w3zJA3nzyIUFHw+6yQ="
+          "range": "bytes=7410-19447162",
+          "checksum": "sha256-4ZVglyePFGBKvos6wygS8CdTAZhRhJEj9IZM5jmVeNk="
         },
-        "checksum": "Q10Tovl0aEvGUfXMG1NWEuHomBFcc="
+        "checksum": "Q1MOl+1SuzvrAkJGm8Aym2j9CZmqc="
       }
     ]
   }
