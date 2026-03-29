@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import logging
 from pathlib import Path
@@ -73,6 +74,8 @@ class VaultReconciler:
             texts = [c["chunk_text"] for c in chunks]
             vectors = self._embedder.embed(texts)
             await self._qdrant.upsert_chunks(chunks, vectors)
+            del texts, vectors, chunks
+            gc.collect()
 
         logger.info(
             "Reconciled: %d embedded, %d deleted, %d unchanged",
