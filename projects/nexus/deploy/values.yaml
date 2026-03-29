@@ -12,7 +12,7 @@ cfIngress:
       enabled: true
       tier: public
       hostname: todo.jomcgi.dev
-      servicePort: 3000
+      servicePort: 8000
       gateway:
         name: cloudflare-ingress
         namespace: envoy-gateway-system
@@ -23,7 +23,7 @@ cfIngress:
       enabled: true
       tier: trusted
       hostname: todo-admin.jomcgi.dev
-      servicePort: 3000
+      servicePort: 8000
       gateway:
         name: cloudflare-ingress
         namespace: envoy-gateway-system

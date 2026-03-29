@@ -11,18 +11,6 @@ backend:
     limits:
       memory: "128Mi"
 
-frontend:
-  image:
-    repository: ghcr.io/jomcgi/homelab/projects/nexus/frontend
-    tag: main
-    pullPolicy: IfNotPresent
-  resources:
-    requests:
-      memory: "32Mi"
-      cpu: "5m"
-    limits:
-      memory: "64Mi"
-
 postgres:
   instances: 1
   storage:
@@ -30,7 +18,7 @@ postgres:
     storageClass: ""
 
 service:
-  port: 3000
+  port: 8000
 
 podSecurityContext:
   seccompProfile:
@@ -50,7 +38,7 @@ cfIngress:
       enabled: true
       tier: public
       hostname: todo.jomcgi.dev
-      servicePort: 3000
+      servicePort: 8000
       gateway:
         name: cloudflare-ingress
         namespace: envoy-gateway-system
@@ -61,7 +49,7 @@ cfIngress:
       enabled: true
       tier: trusted
       hostname: todo-admin.jomcgi.dev
-      servicePort: 3000
+      servicePort: 8000
       gateway:
         name: cloudflare-ingress
         namespace: envoy-gateway-system
