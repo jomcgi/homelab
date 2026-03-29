@@ -5,6 +5,7 @@ resources:
   - ./argocd
   - ./argocd-image-updater
   - ./cert-manager # Must be before linkerd
+  - ./cloudnative-pg/deploy
   - ./cloudflare-gateway # Envoy Gateway + Gateway API + Cloudflare Tunnel; CRDs must be before linkerd
   - ./coredns
   - ./kyverno
