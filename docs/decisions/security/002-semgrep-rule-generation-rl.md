@@ -483,9 +483,46 @@ The finetuned model is a success if **any** of these hold:
 4. **Offline/private operation** — the model runs entirely locally with no
    external dependencies, important for sensitive security work
 
-If frontier dominates on all axes, the correct conclusion is "use frontier with
-good prompting" — and the training data + eval infrastructure built here
-becomes the prompt engineering + eval harness instead.
+### Outcome paths
+
+The benchmark produces one of three outcomes, each with a clear next step:
+
+```
+                           Detection recall
+                           vs frontier (%)
+                                │
+                    ┌───────────┼───────────┐
+                    │           │           │
+                ≥ 95%       70–94%       < 70%
+                    │           │           │
+                    ▼           ▼           ▼
+              ┌─────────┐ ┌─────────┐ ┌─────────┐
+              │ SUCCESS │ │ SCALE   │ │ PIVOT   │
+              │         │ │ UP      │ │         │
+              │ Ship it │ │ Larger  │ │ Use     │
+              │ locally │ │ model + │ │frontier │
+              │ on 4090 │ │ cloud   │ │+prompts │
+              └─────────┘ └─────────┘ └─────────┘
+```
+
+1. **Ship it** (≥95% of frontier quality) — the 9B model matches frontier on
+   this narrow domain. Deploy locally on the 4090 via llama.cpp. Zero marginal
+   cost, sub-second latency, offline capable.
+
+2. **Scale up** (70–94% of frontier quality) — the pipeline works and the task
+   is learnable, but the 9B model lacks capacity. This is strong signal to
+   invest in a larger training run: same pipeline, bigger model (32B–70B),
+   more data (community rules, synthetic augmentation), on cloud GPUs. The
+   4090 run was a successful feasibility study that de-risks the investment.
+
+3. **Pivot to prompting** (<70% of frontier quality) — the finetuned model
+   doesn't justify itself. Use frontier with good prompting instead. The data
+   pipeline and eval infrastructure become a prompt engineering + eval harness.
+
+Outcome (2) is arguably the most valuable result — it proves the approach works
+and provides a clear scaling roadmap. The training data, reward function, and
+eval framework built in Phases 0–3 transfer directly to a larger run with no
+rework.
 
 ---
 
