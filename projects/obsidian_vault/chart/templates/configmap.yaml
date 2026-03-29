@@ -34,6 +34,12 @@ data:
         echo '.cache/' >> .gitignore
     fi
 
+    # Remove model cache from git index if previously tracked (prevents OOM on git add -A)
+    if [ -d .git ] && git ls-files --error-unmatch .cache/ >/dev/null 2>&1; then
+        git rm -r --cached .cache/
+        git commit -m "sync: untrack model cache"
+    fi
+
     # Initialize git repo if needed
     if [ ! -d .git ]; then
         git init
