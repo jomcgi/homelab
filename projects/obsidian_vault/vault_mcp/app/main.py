@@ -348,6 +348,11 @@ async def _reconcile_loop(settings: Settings) -> None:
         except Exception:
             _embedder = None
             _qdrant = None
+            # Clear corrupt fastembed cache so next attempt re-downloads
+            cache = Path(settings.embed_cache_dir)
+            if cache.exists():
+                log.info("Clearing fastembed cache at %s", cache)
+                shutil.rmtree(cache, ignore_errors=True)
             log.exception("Failed to initialise semantic search, retrying in 30s")
             await asyncio.sleep(30)
 
