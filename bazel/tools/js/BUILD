@@ -30,6 +30,12 @@ bzl_library(
 )
 
 bzl_library(
+    name = "exec_filegroup",
+    srcs = ["exec_filegroup.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+bzl_library(
     name = "node_modules_tar",
     srcs = ["node_modules_tar.bzl"],
     visibility = ["//visibility:public"],
