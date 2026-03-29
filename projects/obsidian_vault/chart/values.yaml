@@ -51,16 +51,16 @@ resources:
       memory: "384Mi"
   gitSidecar:
     requests:
-      memory: "64Mi"
+      memory: "128Mi"
       cpu: "10m"
     limits:
-      memory: "192Mi"
+      memory: "512Mi"
   vaultMcp:
     requests:
-      memory: "4Gi"
+      memory: "8Gi"
       cpu: "100m"
     limits:
-      memory: "8Gi"
+      memory: "16Gi"
 
 gateway:
   url: ""
