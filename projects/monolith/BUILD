@@ -2,6 +2,7 @@
 # gazelle:exclude todo
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
 load("//bazel/tools/js:exec_filegroup.bzl", "exec_filegroup")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
@@ -25,19 +26,8 @@ py_venv_binary(
         exclude = ["**/*_test.py"],
     ),
     data = [":frontend_dist"],
-    imports = ["."],
     main = "app/main.py",
     visibility = ["//:__subpackages__"],
-    deps = [
-        "@pip//fastapi",
-        "@pip//opentelemetry_instrumentation_fastapi",
-        "@pip//psycopg",
-        "@pip//psycopg_binary",
-        "@pip//pydantic",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
-        "@pip//uvicorn",
-    ],
 )
 
 py_library(
@@ -114,4 +104,12 @@ py_test(
         "@pip//sqlmodel",
         "@pip//tzdata",
     ],
+)
+
+semgrep_target_test(
+    name = "main_semgrep_test",
+    lockfiles = ["//bazel/requirements:all.txt"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+    sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
+    target = ":main",
 )
