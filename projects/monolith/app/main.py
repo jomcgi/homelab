@@ -58,3 +58,8 @@ try:
     logger.info("OpenTelemetry instrumentation enabled")
 except ImportError:
     logger.info("OpenTelemetry not available, skipping instrumentation")
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
