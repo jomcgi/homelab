@@ -37,18 +37,18 @@ persistence:
 resources:
   api:
     requests:
-      memory: "24Mi"
-      cpu: "5m"
+      memory: "64Mi"
+      cpu: "10m"
     limits:
-      memory: "24Mi"
-      cpu: "5m"
+      memory: "128Mi"
+      cpu: "200m"
   static:
     requests:
       memory: "16Mi"
       cpu: "5m"
     limits:
-      memory: "16Mi"
-      cpu: "5m"
+      memory: "32Mi"
+      cpu: "50m"
 
 ## Pod security context
 podSecurityContext:
