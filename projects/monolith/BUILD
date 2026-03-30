@@ -113,6 +113,31 @@ py_test(
     ],
 )
 
+py_test(
+    name = "schedule_service_test",
+    srcs = ["schedule/service_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//icalendar",
+        "@pip//pytest",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
+    name = "schedule_router_test",
+    srcs = ["schedule/router_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//tzdata",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     rules = ["//bazel/semgrep/rules:python_rules"],
