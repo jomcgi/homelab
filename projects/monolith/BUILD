@@ -59,6 +59,7 @@ py_library(
 py3_image(
     name = "image",
     binary = "//projects/monolith:main",
+    main = "app/main.py",
     repository = "ghcr.io/jomcgi/homelab/projects/monolith/backend",
 )
 
