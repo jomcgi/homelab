@@ -32,6 +32,10 @@ securityContext:
     drop:
       - ALL
 
+onepassword:
+  enabled: false
+  itemPath: ""
+
 cfIngress:
   private:
     enabled: true

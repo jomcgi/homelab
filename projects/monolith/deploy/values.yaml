@@ -6,6 +6,10 @@ postgres:
   storage:
     size: 2Gi
 
+onepassword:
+  enabled: true
+  itemPath: "vaults/Homelab/items/private-homepage"
+
 cfIngress:
   private:
     enabled: true
