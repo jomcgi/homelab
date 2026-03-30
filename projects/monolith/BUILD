@@ -32,6 +32,7 @@ py_venv_binary(
     deps = [
         "@pip//fastapi",
         "@pip//opentelemetry_instrumentation_fastapi",
+        "@pip//psycopg_binary",
         "@pip//pydantic",
         "@pip//sqlmodel",
         "@pip//tzdata",
@@ -52,6 +53,7 @@ py_library(
     deps = [
         "@pip//fastapi",
         "@pip//opentelemetry_instrumentation_fastapi",
+        "@pip//psycopg_binary",
         "@pip//pydantic",
         "@pip//sqlmodel",
         "@pip//tzdata",
