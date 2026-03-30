@@ -138,6 +138,18 @@ py_test(
     ],
 )
 
+py_test(
+    name = "todo_service_test",
+    srcs = ["todo/service_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     rules = ["//bazel/semgrep/rules:python_rules"],
