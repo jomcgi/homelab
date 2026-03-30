@@ -218,6 +218,11 @@ Pro and community corpora are complementary: Pro is heavy on SSRF, SQLi, and
 path traversal (framework-specific taint rules); community is stronger on XSS,
 OS command injection, and weak crypto (pattern-matching rules).
 
+Note: the top 10 CWE classes account for ~134 of 273 community Python rules.
+The remaining ~139 community rules span CWE classes outside the top 10, or lack
+CWE metadata entirely — these participate in SFT (learning rule syntax) but
+cannot be CWE-grouped for RL reward computation without manual CWE annotation.
+
 Each CWE group contains:
 
 ```
@@ -337,8 +342,8 @@ Gate 1: Parse validity
 │
 └─ PASS → Gate 2: Precision constraint
              │
-             ├─ ANY core_negative hit → reward capped at 0.1
-             │   (prevents over-broad rules from scoring well)
+             ├─ ANY core_negative hit → capped at 0.1 × (1 - FP_rate)
+             │   (gradient toward fewer FPs even while capped)
              │
              └─ ZERO core_negative hits → Gate 3: Detection recall
                   │
@@ -348,11 +353,17 @@ Gate 1: Parse validity
                        (bonus: 0.8 base + 0.2 × avoidance rate)
 ```
 
-| Gate | Condition                          | Effect                                                            |
-| ---- | ---------------------------------- | ----------------------------------------------------------------- |
-| 1    | Valid Semgrep YAML                 | Soft penalty (0.05) in RL epoch 1, hard zero thereafter           |
-| 2    | Zero `core_negative` hits          | Caps reward at 0.1 if violated — "don't over-match" learned first |
-| 3    | `core_positive` + `variant` recall | Recall optimized only within the precision constraint             |
+| Gate | Condition                 | Effect                                                                                           |
+| ---- | ------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1    | Valid Semgrep YAML        | Soft penalty (0.05) in RL epoch 1, hard zero thereafter                                          |
+| 2    | Zero `core_negative` hits | Reward capped at `0.1 × (1 - core_negative_hit_rate)` if violated — gradient toward fewer FPs    |
+| 3    | Detection recall          | `core_positive` recall × 0.5 + `variant_positive` recall × 0.2 + `edge_negative` avoidance × 0.1 |
+
+Gate 2 uses a soft cap rather than a flat ceiling. A rule that hits 1 of 20
+core_negatives scores `0.1 × 0.95 = 0.095`, while a rule that hits all 20
+scores `0.1 × 0 = 0`. This gives GRPO gradient signal to distinguish "slightly
+over-broad" from "wildly over-broad," preventing early-RL candidates from
+piling up at an identical capped score with no learning signal.
 
 **Why hierarchical gating:** With a flat weighted score, the model can trade
 precision for recall and still achieve a decent reward. Gating forces the model
@@ -414,12 +425,14 @@ post-hoc truncation.
 | -------------------- | --------------------------- | ---------------------------------------- | --------------- |
 | 0: Data construction | CPU-only                    | 2,865 rules (all langs) → grouped JSONL  | ~3 hours        |
 | 1: SFT warmup        | QLoRA, early stopping       | ~8–14K prompt/rule pairs (all languages) | ~3–5 hours      |
-| 2: GRPO RL           | QLoRA + semgrep-core reward | ~1,000 Python train prompts, N=16 groups | ~8–14 hours     |
+| 2: GRPO RL           | QLoRA + semgrep-core reward | ~1,000 Python train prompts, N=16 groups | ~16–28 hours    |
 | 3: Evaluation        | Inference + semgrep-core    | ~98 held-out 2026+ CVEs                  | ~30 minutes     |
-| **Total**            |                             |                                          | **~1–2 days**   |
+| **Total**            |                             |                                          | **~2–3 days**   |
 
-Phase 2 is GPU-bound: 4 sequential generation micro-batches per step dominate
-wall-clock time. Semgrep scoring of all 16 candidates is negligible.
+Phase 2 is GPU-bound: 4 sequential generation micro-batches per step, each
+producing 4 candidates, dominate wall-clock time. Semgrep scoring of all 16
+candidates is negligible (~0.24s parallel). Generation and scoring are fully
+serial — the estimate assumes no overlap between them.
 
 #### Semgrep Execution Budget
 
@@ -447,7 +460,7 @@ deduplicated via hashing to skip redundant invocations.
 
 | Decision                                    | Rationale                                                                                                                                         |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Qwen 3.5 9B** (not 7B or 14B)             | 9B fits in 4-bit on 24GB VRAM with room for GRPO; strong code generation baseline; larger models OOM during RL                                    |
+| **Qwen 3.5 9B** (not 7B or 14B)             | 9B fits in 4-bit on 24GB VRAM with room for GRPO; strong coding capabilities; 262K native context; Apache 2.0; larger models OOM during RL        |
 | **QLoRA** (not full finetune)               | Full finetune of 9B requires ~72GB VRAM (bf16); QLoRA fits in 14–19GB while preserving 90%+ of full finetune quality                              |
 | **GRPO** (not PPO)                          | No value network needed — simpler, less VRAM, more stable for tasks with programmatic reward signals. Proven by DeepSeek-R1 for code generation   |
 | **N=16 micro-batched**                      | Advantage estimate variance scales as ~1/N; N=16 balances signal quality against wall-clock cost. Micro-batching (4×4) keeps VRAM constant        |
@@ -484,19 +497,23 @@ deduplicated via hashing to skip redundant invocations.
       for Phase 2
 - [ ] Integrate community test fixtures (co-located files already available)
 - [ ] Fetch CVE/CWE descriptions from NVD API for prompt construction
-- [ ] Build prompt variants at **multiple specificity levels** to simulate
-      real-world input quality variance: 1. Generic CWE description (MITRE) 2. Specific CVE advisory text (NVD) 3. Partial vulnerability description with missing details 4. Ambiguous incident report 5. Rule `message` field (terse, technical)
+- [ ] Build prompt variants at **multiple specificity levels** (ordered
+      hardest → easiest): (1) generic CWE description from MITRE, (2) ambiguous
+      incident report, (3) partial vulnerability description with missing
+      details, (4) specific CVE advisory text from NVD, (5) rule `message`
+      field. During RL, use **curriculum scheduling**: start with Levels 4–5
+      (specific prompts) so the model gets a foothold, then gradually mix in
+      Levels 1–2 as reward stabilizes. SFT uses all levels uniformly
 - [ ] Apply time-based split using CVE publication dates (train: pre-2025,
       val: 2025, eval: 2026+)
 - [ ] **Profile token length distribution** of all Pro rules — determine
       appropriate `max_new_tokens` cap for generation. Complex taint rules
       with multiple sources/sinks/propagators/sanitizers may exceed 1,024
       tokens. Set cap at p95 of the distribution to avoid truncation artifacts
-- [ ] **CWE class rebalancing**: compute per-CWE sample counts and apply
-      oversampling for sparse classes (e.g. CWE-79 with 41 rules) and
-      undersampling for dense classes (e.g. CWE-918 with 283 rules) in the
-      RL training data. Without this, the model will over-index on SSRF and
-      underperform on everything else
+- [ ] **CWE class rebalancing**: sample RL training data proportional to
+      √(class_count) per CWE — this reduces the 7:1 imbalance between CWE-918
+      (283 rules) and CWE-79 (41 rules) to ~2.6:1, without hammering the sparse
+      classes with 7× oversampling that would cause its own overfitting
 - [ ] Output `sft_data.jsonl` — all 2,865 rules across all languages for
       multi-language SFT (with data augmentation: field order shuffling,
       prompt paraphrases)
@@ -512,17 +529,21 @@ deduplicated via hashing to skip redundant invocations.
       0.1–0.2** (critical for a dataset this small — 2,865 examples on a 9B
       model overfits fast), target modules (q_proj, k_proj, v_proj, o_proj,
       gate_proj, up_proj, down_proj)
-- [ ] **Structural data augmentation before SFT**: shuffle YAML field ordering
-      (sources before sinks, sinks before sources), vary indentation style,
-      add/remove optional fields. This teaches the model that rule structure is
-      semantic, not positional — pure prompt paraphrasing is weak augmentation
-      that the model quickly learns to ignore
+- [ ] **Structural data augmentation before SFT**: shuffle order-invariant
+      YAML fields (`metadata:` sub-fields like `cwe:`, `owasp:`, `confidence:`;
+      ordering of `pattern-sources` vs `pattern-sinks` within taint rules).
+      Hold fixed: `rules:` as top-level key, required fields (`id:`,
+      `message:`, `severity:`), taint-mode structural keys. Vary indentation
+      style, add/remove optional metadata fields. This teaches the model that
+      rule structure is semantic, not positional
 - [ ] Train SFT on **all 2,865 rules across all languages** — taint rule
       structure is language-agnostic YAML; multi-language training provides 2.5×
       more signal for learning rule composition
-- [ ] **Early stopping with patience of 0.5 epochs** — expect overfitting well
-      before epoch 3 for a 9B model on ~14K examples. Monitor validation loss
-      at sub-epoch granularity (every 500 steps)
+- [ ] **Early stopping with patience of 0.5 epochs**, keyed on **validation
+      detection recall** (measured via semgrep-core on validation split), not
+      validation loss — loss can decrease while recall plateaus if the model
+      learns to produce "average" rules. Monitor at sub-epoch granularity
+      (every 500 steps)
 - [ ] Track per-CWE-class metrics across epochs — sparse classes (e.g. CWE-79
       with 41 rules) will overfit faster than dense classes (CWE-918 with 283)
 - [ ] Save best SFT LoRA adapter checkpoint (by validation detection recall,
@@ -738,7 +759,7 @@ production scanning. The model is a drafting tool, not an autonomous scanner.
 | 1,154 Python rules insufficient for RL                                | Medium     | Medium   | Multi-language SFT (2,865 rules) mitigates; prompt augmentation (5 specificity levels per rule); structural data augmentation (field shuffling)                 |
 | GRPO OOM on 4090 with 9B model                                        | Low        | High     | Micro-batched N=16 only needs VRAM for 4 concurrent candidates; reduce LoRA rank, enable gradient checkpointing. Fallback: use 4B model                         |
 | Model produces syntactically valid but semantically wrong taint rules | Medium     | High     | Hierarchical reward gates precision before recall; held-out fixture subset detects reward gaming                                                                |
-| CWE class imbalance (SSRF 283 vs XSS 41)                              | High       | Medium   | Per-CWE oversampling/undersampling in RL data; per-CWE metrics tracked separately — model must not sacrifice tail classes for dominant ones                     |
+| CWE class imbalance (SSRF 283 vs XSS 41)                              | High       | Medium   | √(count)-proportional sampling reduces 7:1 to ~2.6:1 without overfitting sparse classes; per-CWE metrics tracked separately                                     |
 | Pro test fixtures lack sufficient negative examples                   | Medium     | Medium   | Generate additional negatives with LLM; oracle validation in Phase 0 catches broken fixtures before training                                                    |
 | Semgrep Pro license restricts model training                          | Low        | Critical | Verify internally — employee access may have different terms. Worst case: train on community-only (273 rules)                                                   |
 | Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium   | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization                                                                 |
