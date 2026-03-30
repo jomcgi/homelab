@@ -7,12 +7,12 @@ import pytest
 
 from todo import scheduler
 
-TZ = ZoneInfo("America/Los_Angeles")
+TZ = ZoneInfo("America/Vancouver")
 
 
 @pytest.mark.asyncio
 async def test_scheduler_calculates_next_midnight():
-    """Verify scheduler sleeps until next midnight Pacific."""
+    """Verify scheduler sleeps until next midnight Vancouver time."""
     mock_now = datetime(2026, 3, 28, 22, 0, 0, tzinfo=TZ)
     expected_midnight = datetime.combine(
         mock_now.date() + timedelta(days=1), time(0, 0), tzinfo=TZ

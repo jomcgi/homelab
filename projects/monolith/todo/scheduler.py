@@ -10,11 +10,11 @@ from app.db import get_engine
 from .service import archive_and_reset
 
 logger = logging.getLogger(__name__)
-TZ = ZoneInfo("America/Los_Angeles")
+TZ = ZoneInfo("America/Vancouver")
 
 
 async def run_scheduler() -> None:
-    """Run daily/weekly reset at midnight Pacific."""
+    """Run daily/weekly reset at midnight Vancouver time."""
     while True:
         now = datetime.now(TZ)
         next_midnight = datetime.combine(
@@ -29,7 +29,7 @@ async def run_scheduler() -> None:
         await asyncio.sleep(sleep_seconds)
 
         reset_time = datetime.now(TZ)
-        weekly = reset_time.weekday() == 5  # Saturday = end of Friday
+        weekly = reset_time.weekday() == 0  # Monday midnight = end of Sunday
         logger.info("Scheduler: triggering %s reset", "weekly" if weekly else "daily")
 
         try:
