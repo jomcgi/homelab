@@ -1,0 +1,72 @@
+import logging
+import os
+from datetime import date, datetime, time
+from zoneinfo import ZoneInfo
+
+import httpx
+from icalendar import Calendar
+
+logger = logging.getLogger(__name__)
+TZ = ZoneInfo("America/Vancouver")
+
+# In-memory cache, populated by poll_calendar()
+_cached_events: list[dict] = []
+
+ICAL_FEED_URL = os.environ.get("ICAL_FEED_URL", "")
+
+
+def parse_events_for_date(ics_text: str, target_date: date, tz: ZoneInfo) -> list[dict]:
+    cal = Calendar.from_ical(ics_text)
+    all_day = []
+    timed = []
+
+    for component in cal.walk("VEVENT"):
+        dtstart = component.get("DTSTART")
+        if dtstart is None:
+            continue
+        dt = dtstart.dt
+        summary = str(component.get("SUMMARY", ""))
+
+        # All-day event: dtstart is a date, not datetime
+        if isinstance(dt, date) and not isinstance(dt, datetime):
+            if dt == target_date:
+                all_day.append({"time": None, "title": summary, "allDay": True})
+            continue
+
+        # Timed event: convert to target timezone
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=tz)
+        else:
+            dt = dt.astimezone(tz)
+
+        if dt.date() == target_date:
+            timed.append(
+                {
+                    "time": dt.strftime("%H:%M"),
+                    "title": summary,
+                    "allDay": False,
+                }
+            )
+
+    timed.sort(key=lambda e: e["time"])
+    return all_day + timed
+
+
+def get_today_events() -> list[dict]:
+    return list(_cached_events)
+
+
+async def poll_calendar() -> None:
+    global _cached_events
+    if not ICAL_FEED_URL:
+        logger.warning("ICAL_FEED_URL not set, skipping calendar poll")
+        return
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+            resp = await client.get(ICAL_FEED_URL, timeout=30)
+            resp.raise_for_status()
+        today = datetime.now(TZ).date()
+        _cached_events = parse_events_for_date(resp.text, today, TZ)
+        logger.info("Calendar refreshed: %d events for %s", len(_cached_events), today)
+    except Exception:
+        logger.exception("Failed to fetch calendar feed")
