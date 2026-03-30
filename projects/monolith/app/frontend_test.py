@@ -17,7 +17,7 @@ os.environ["STATIC_DIR"] = _static_dir
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from .main import app  # noqa: E402
+from app.main import app  # noqa: E402
 
 
 @pytest.fixture(name="client")

@@ -37,7 +37,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "monolith.fullname" . }}-pg-app
                   key: uri
-          command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
           livenessProbe:
             httpGet:
               path: /healthz
