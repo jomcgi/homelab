@@ -34,6 +34,7 @@ py_venv_binary(
         "@pip//opentelemetry_instrumentation_fastapi",
         "@pip//pydantic",
         "@pip//sqlmodel",
+        "@pip//tzdata",
         "@pip//uvicorn",
     ],
 )
@@ -53,6 +54,7 @@ py_library(
         "@pip//opentelemetry_instrumentation_fastapi",
         "@pip//pydantic",
         "@pip//sqlmodel",
+        "@pip//tzdata",
         "@pip//uvicorn",
     ],
 )
