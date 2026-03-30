@@ -1,7 +1,54 @@
 <script>
   let { data } = $props();
 
-  // Map API shape → internal state
+  // ── Capture ──────────────────────────────────
+  let note = $state("");
+  let sent = $state(false);
+  let captureRef = $state(null);
+
+  $effect(() => {
+    captureRef?.focus();
+  });
+
+  function submitCapture() {
+    if (!note.trim()) return;
+    sent = true;
+    setTimeout(() => {
+      note = "";
+      sent = false;
+      captureRef?.focus();
+    }, 500);
+  }
+
+  function captureKeyDown(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      submitCapture();
+    }
+  }
+
+  // ── Schedule ─────────────────────────────────
+  const EVENTS = [
+    { time: "09:00", title: "Standup", meta: "Daily" },
+    { time: "10:30", title: "1:1 w/ Manager", meta: "Recurring" },
+    { time: "14:00", title: "Infra Review", meta: "Platform" },
+  ];
+
+  const LINKS = [
+    { label: "ArgoCD", url: "#" },
+    { label: "Grafana", url: "#" },
+    { label: "SigNoz", url: "#" },
+    { label: "BuildBuddy", url: "#" },
+    { label: "Notion", url: "#" },
+    { label: "GitHub", url: "#" },
+  ];
+
+  function isPast(timeStr, d) {
+    const [h, m] = timeStr.split(":").map(Number);
+    return d.getHours() > h || (d.getHours() === h && d.getMinutes() >= m);
+  }
+
+  // ── Todo ─────────────────────────────────────
   let goal = $state(data.todo.weekly.task);
   let goalDone = $state(data.todo.weekly.done);
   let daily = $state(data.todo.daily.map((d) => d.task));
@@ -11,7 +58,6 @@
   let goalRef = $state(null);
   let dailyRefs = $state([null, null, null]);
 
-  // Debounced auto-save
   let saveTimer;
   function scheduleSave() {
     clearTimeout(saveTimer);
@@ -69,7 +115,7 @@
     }
   }
 
-  // Date + clock
+  // ── Clock ────────────────────────────────────
   let now = $state(new Date());
   $effect(() => {
     const id = setInterval(() => (now = new Date()), 30_000);
@@ -94,12 +140,61 @@
 </script>
 
 <div class="root">
-  <div class="panel">
+  <!-- Left pane: Capture -->
+  <section class="capture">
+    <textarea
+      bind:this={captureRef}
+      class="capture-input"
+      class:capture-input--sent={sent}
+      value={note}
+      oninput={(e) => (note = e.target.value)}
+      onkeydown={captureKeyDown}
+      placeholder="write something..."
+      spellcheck="false"
+      aria-label="Quick note"
+    ></textarea>
+    <footer class="capture-footer">
+      <span class="capture-hint">
+        {sent ? "sent" : note.trim() ? "\u2318 enter" : "\u00a0"}
+      </span>
+      {#if note.length > 0}
+        <span class="capture-count">{note.length}</span>
+      {/if}
+    </footer>
+  </section>
+
+  <!-- Right pane -->
+  <aside class="panel">
     <header class="panel-header">
       <span class="date">{formatDate(now)}</span>
       <span class="clock">{formatTime(now)}</span>
     </header>
 
+    <!-- Schedule -->
+    <section class="panel-section">
+      <h2 class="section-label">today</h2>
+      <ul class="event-list">
+        {#each EVENTS as ev}
+          <li class="event-row" class:event-row--past={isPast(ev.time, now)}>
+            <span class="event-time">{ev.time}</span>
+            <span class="event-title">{ev.title}</span>
+            <span class="event-meta">{ev.meta}</span>
+          </li>
+        {/each}
+      </ul>
+    </section>
+
+    <!-- Links -->
+    <section class="panel-section">
+      <h2 class="section-label">links</h2>
+      <div class="links-grid">
+        {#each LINKS as lk}
+          <a href={lk.url} class="link">{lk.label}</a>
+        {/each}
+      </div>
+    </section>
+
+    <!-- Todo -->
     <section class="panel-section">
       <h2
         class="section-label section-label--interactive"
@@ -170,14 +265,14 @@
         </div>
       {/each}
     </section>
-  </div>
+  </aside>
 </div>
 
 <style>
+  /* ── Layout ────────────────────────────────── */
+
   .root {
     display: flex;
-    justify-content: center;
-    align-items: center;
     height: 100vh;
     width: 100%;
     font-family: var(--font);
@@ -190,14 +285,77 @@
     font-feature-settings: "liga" 0;
   }
 
+  /* ── Capture (left pane) ───────────────────── */
+
+  .capture {
+    flex: 1 1 0%;
+    display: flex;
+    flex-direction: column;
+    padding: 2.5rem;
+    padding-bottom: 1.25rem;
+    min-width: 0;
+  }
+
+  .capture-input {
+    flex: 1;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font);
+    font-size: 1.15rem;
+    line-height: 1.8;
+    color: var(--fg);
+    padding: 0;
+    letter-spacing: -0.01em;
+    transition: opacity 0.3s ease;
+  }
+
+  .capture-input::placeholder {
+    color: var(--fg-tertiary);
+  }
+
+  .capture-input--sent {
+    opacity: 0.1;
+  }
+
+  .capture-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.75rem;
+  }
+
+  .capture-hint {
+    font-size: 0.75rem;
+    color: var(--fg-tertiary);
+    letter-spacing: 0.04em;
+    transition: opacity 0.2s ease;
+  }
+
+  .capture-count {
+    font-size: 0.75rem;
+    color: var(--fg-tertiary);
+    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Right panel ───────────────────────────── */
+
   .panel {
-    width: 100%;
+    flex: 0 0 38%;
     max-width: 22rem;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 2rem;
+    justify-content: space-between;
     padding: 2.5rem 2rem;
+    overflow-y: auto;
+    scrollbar-width: none;
+    border-left: 0.06rem solid var(--fg);
+  }
+
+  .panel::-webkit-scrollbar {
+    display: none;
   }
 
   .panel-header {
@@ -220,6 +378,8 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* ── Sections ──────────────────────────────── */
+
   .panel-section {
     display: flex;
     flex-direction: column;
@@ -236,6 +396,76 @@
     padding-bottom: 0.4rem;
     border-bottom: 0.04rem solid var(--border);
   }
+
+  /* ── Schedule ──────────────────────────────── */
+
+  .event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .event-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.8rem;
+    padding: 0.3rem 0;
+  }
+
+  .event-time {
+    font-size: 0.8rem;
+    color: var(--fg-secondary);
+    font-variant-numeric: tabular-nums;
+    min-width: 3.2rem;
+    flex-shrink: 0;
+  }
+
+  .event-title {
+    font-size: 1rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .event-meta {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-tertiary);
+    flex-shrink: 0;
+  }
+
+  .event-row--past .event-time,
+  .event-row--past .event-title,
+  .event-row--past .event-meta {
+    text-decoration: line-through;
+    opacity: 0.3;
+  }
+
+  /* ── Links ─────────────────────────────────── */
+
+  .links-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.3rem 0;
+  }
+
+  .link {
+    font-size: 0.85rem;
+    color: var(--fg-secondary);
+    padding: 0.1rem 0;
+    transition: color 0.15s ease;
+  }
+
+  .link:hover {
+    color: var(--fg);
+  }
+
+  .link:focus-visible {
+    outline: 1.5px solid var(--fg);
+    outline-offset: 2px;
+  }
+
+  /* ── Todos ─────────────────────────────────── */
 
   .section-label--interactive {
     cursor: pointer;
