@@ -1,7 +1,7 @@
 # ADR 006: OIDC Authentication for MCP Gateway
 
 **Author:** Joe McGinley
-**Status:** Accepted
+**Status:** Superseded by [011-cloudflare-managed-oauth](011-cloudflare-managed-oauth.md)
 **Created:** 2026-03-01
 **Updated:** 2026-03-06
 **Relates to:** [003-context-forge](003-context-forge.md), [005-role-based-mcp-access](005-role-based-mcp-access.md)
@@ -101,9 +101,9 @@ In-cluster agents (OpenHands sandboxes, Goose pods) continue to access Context F
 
 ### Phase 1: Deploy mcp-oauth-proxy
 
-- [x] Create Helm chart at `charts/mcp-oauth-proxy/` (deployment, service, onepassworditem)
-- [x] Create ArgoCD overlay at `overlays/prod/mcp-oauth-proxy/`
-- [x] Add to `overlays/prod/kustomization.yaml`
+- [x] Create Helm chart at `projects/mcp/oauth-proxy/chart/` (deployment, service, onepassworditem)
+- [x] Create ArgoCD application at `projects/mcp/oauth-proxy/deploy/`
+- [x] Add to `projects/home-cluster/kustomization.yaml`
 
 ### Phase 2: Update Cloudflare Tunnel Route
 

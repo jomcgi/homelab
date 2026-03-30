@@ -25,9 +25,9 @@ mcp-stack:
       # JWT auth required for in-cluster registration jobs (charts/mcp-servers registration-job.yaml)
       MCP_CLIENT_AUTH_ENABLED: "true"
       MCP_REQUIRE_AUTH: "false"
-      # mcp-oauth-proxy handles auth and injects X-Forwarded-User — see ADR 006
+      # Cloudflare Access Managed OAuth handles auth at the edge — see ADR 011
       TRUST_PROXY_AUTH: "true"
-      PROXY_USER_HEADER: "X-Forwarded-User"
+      PROXY_USER_HEADER: "Cf-Access-Authenticated-User-Email"
     extraEnvFrom:
       - secretRef:
           name: context-forge
@@ -93,9 +93,9 @@ secret:
 networkPolicy:
   enabled: false
 
-# Temporary test route for Cloudflare Managed OAuth validation (ADR 011).
-# Enable in deploy/values.yaml to create an HTTPRoute for mcp-test.jomcgi.dev.
-oauthTest:
+# HTTPRoute for external access via Cloudflare Tunnel.
+# Auth handled at edge by Cloudflare Access Managed OAuth (ADR 011).
+httpRoute:
   enabled: false
   hostname: ""
   gatewayRef:
