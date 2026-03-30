@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from . import scheduler
+from todo import scheduler
 
 TZ = ZoneInfo("America/Los_Angeles")
 
@@ -22,7 +22,7 @@ async def test_scheduler_calculates_next_midnight():
     with (
         patch.object(scheduler, "datetime") as mock_dt,
         patch.object(scheduler, "asyncio") as mock_asyncio,
-        patch.object(scheduler, "_archive_and_reset"),
+        patch.object(scheduler, "archive_and_reset"),
     ):
         mock_dt.now.return_value = mock_now
         mock_dt.combine = datetime.combine

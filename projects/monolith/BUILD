@@ -1,5 +1,4 @@
 # gazelle:ignore
-# gazelle:exclude todo
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/tools/js:exec_filegroup.bzl", "exec_filegroup")
@@ -18,11 +17,14 @@ exec_filegroup(
 py_venv_binary(
     name = "main",
     srcs = glob(
-        ["**/*.py"],
+        [
+            "app/**/*.py",
+            "todo/**/*.py",
+        ],
         exclude = ["**/*_test.py"],
     ),
     data = [":frontend_dist"],
-    main = "main.py",
+    main = "app/main.py",
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//fastapi",
@@ -36,7 +38,10 @@ py_venv_binary(
 py_library(
     name = "monolith_backend",
     srcs = glob(
-        ["**/*.py"],
+        [
+            "app/**/*.py",
+            "todo/**/*.py",
+        ],
         exclude = ["**/*_test.py"],
     ),
     visibility = ["//:__subpackages__"],
@@ -51,7 +56,7 @@ py_library(
 
 py3_image(
     name = "image",
-    binary = "//projects/monolith/backend:main",
+    binary = "//projects/monolith:main",
     repository = "ghcr.io/jomcgi/homelab/projects/monolith/backend",
 )
 
@@ -84,7 +89,7 @@ py_test(
 
 py_test(
     name = "frontend_test",
-    srcs = ["frontend_test.py"],
+    srcs = ["app/frontend_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",

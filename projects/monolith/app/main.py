@@ -7,8 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .todo.router import router as todo_router
-from .todo.scheduler import run_scheduler
+from todo.router import router as todo_router
+from todo.scheduler import run_scheduler
 
 logger = logging.getLogger(__name__)
 
