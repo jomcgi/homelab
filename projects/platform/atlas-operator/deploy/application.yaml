@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://atlasgo.io/charts
+    - repoURL: ghcr.io/ariga/charts
       chart: atlas-operator
       targetRevision: 0.7.28
       helm:
