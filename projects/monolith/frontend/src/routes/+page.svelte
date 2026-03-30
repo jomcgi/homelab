@@ -29,6 +29,7 @@
 
   // ── Schedule ─────────────────────────────────
   let events = $state(data.schedule);
+  let eventListRef = $state(null);
 
   const LINKS = [
     { label: "ArgoCD", url: "#" },
@@ -43,6 +44,20 @@
     const [h, m] = timeStr.split(":").map(Number);
     return d.getHours() > h || (d.getHours() === h && d.getMinutes() >= m);
   }
+
+  // Auto-scroll to the first upcoming event
+  $effect(() => {
+    if (!eventListRef) return;
+    const rows = eventListRef.querySelectorAll(".event-row");
+    let target = rows.length - 1;
+    for (let i = 0; i < rows.length; i++) {
+      if (!rows[i].classList.contains("event-row--past")) {
+        target = Math.max(0, i - 1);
+        break;
+      }
+    }
+    rows[target]?.scrollIntoView({ block: "start" });
+  });
 
   // ── Todo ─────────────────────────────────────
   let goal = $state(data.todo.weekly.task);
@@ -169,7 +184,7 @@
     <!-- Schedule -->
     <section class="panel-section">
       <h2 class="section-label">today</h2>
-      <ul class="event-list">
+      <ul class="event-list" bind:this={eventListRef}>
         {#each events as ev}
           <li class="event-row" class:event-row--past={!ev.allDay && isPast(ev.time, now)}>
             {#if ev.allDay}
@@ -405,6 +420,19 @@
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
+    max-height: 10rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--fg-tertiary) transparent;
+  }
+
+  .event-list::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .event-list::-webkit-scrollbar-thumb {
+    background: var(--fg-tertiary);
+    border-radius: 2px;
   }
 
   .event-row {

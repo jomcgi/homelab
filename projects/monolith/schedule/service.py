@@ -19,6 +19,7 @@ def parse_events_for_date(ics_text: str, target_date: date, tz: ZoneInfo) -> lis
     cal = Calendar.from_ical(ics_text)
     all_day = []
     timed = []
+    seen: set[tuple[str | None, str]] = set()
 
     for component in cal.walk("VEVENT"):
         dtstart = component.get("DTSTART")
@@ -30,7 +31,10 @@ def parse_events_for_date(ics_text: str, target_date: date, tz: ZoneInfo) -> lis
         # All-day event: dtstart is a date, not datetime
         if isinstance(dt, date) and not isinstance(dt, datetime):
             if dt == target_date:
-                all_day.append({"time": None, "title": summary, "allDay": True})
+                key = (None, summary)
+                if key not in seen:
+                    seen.add(key)
+                    all_day.append({"time": None, "title": summary, "allDay": True})
             continue
 
         # Timed event: convert to target timezone
@@ -40,13 +44,17 @@ def parse_events_for_date(ics_text: str, target_date: date, tz: ZoneInfo) -> lis
             dt = dt.astimezone(tz)
 
         if dt.date() == target_date:
-            timed.append(
-                {
-                    "time": dt.strftime("%H:%M"),
-                    "title": summary,
-                    "allDay": False,
-                }
-            )
+            time_str = dt.strftime("%H:%M")
+            key = (time_str, summary)
+            if key not in seen:
+                seen.add(key)
+                timed.append(
+                    {
+                        "time": time_str,
+                        "title": summary,
+                        "allDay": False,
+                    }
+                )
 
     timed.sort(key=lambda e: e["time"])
     return all_day + timed
