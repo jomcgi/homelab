@@ -265,23 +265,20 @@ to measure behavioral correctness, not just syntactic validity.
 
 ```mermaid
 graph LR
-    subgraph "GRPO Generation (micro-batched)"
-        PROMPT["CVE/CWE<br/>description"] --> MODEL["Qwen 3.5 9B<br/>+ LoRA"]
-        MODEL --> MB1["Micro-batch 1<br/>(4 candidates)"]
-        MODEL --> MB2["Micro-batch 2<br/>(4 candidates)"]
-        MODEL --> MB3["Micro-batch 3<br/>(4 candidates)"]
-        MODEL --> MB4["Micro-batch 4<br/>(4 candidates)"]
+    subgraph "GRPO Generation (vLLM colocate)"
+        PROMPT["CVE/CWE<br/>description"] --> VLLM["vLLM PagedAttention<br/>on 4090"]
+        VLLM --> CANDS["16 candidate<br/>rules"]
     end
 
     subgraph "Reward Computation (CPU, 16-way parallel)"
-        MB1 & MB2 & MB3 & MB4 --> EXEC["semgrep-core<br/>-pro_inter_file<br/>× 16 candidates"]
+        CANDS --> EXEC["semgrep-core<br/>-pro_inter_file<br/>× 16 candidates"]
         FIXTURES["Test fixture<br/>group"] --> EXEC
         EXEC --> GATE["Hierarchical<br/>reward gates"]
     end
 
-    subgraph "GRPO Update"
+    subgraph "GRPO Update (Unsloth + TRL)"
         GATE --> REL["Relative reward<br/>across all 16"]
-        REL --> GRAD["Policy gradient<br/>update"]
+        REL --> GRAD["Liger GRPO loss<br/>+ LoRA update"]
     end
 ```
 
@@ -394,45 +391,63 @@ Single worker node in the homelab cluster:
 | CPU       | AMD Ryzen 5800X3D, 8C/16T  | Parallel semgrep-core reward computation  |
 | RAM       | 64GB DDR5                  | Test fixture caching, data loading        |
 
+#### Training Stack
+
+**Unsloth + TRL GRPOTrainer + vLLM colocate mode** on the single 4090:
+
+| Layer    | Component                     | Role                                                              |
+| -------- | ----------------------------- | ----------------------------------------------------------------- |
+| Kernels  | Unsloth (Triton)              | ~80% VRAM reduction for GRPO loss; ~1.8× training speed           |
+| Trainer  | TRL `GRPOTrainer`             | GRPO loop with native PEFT/QLoRA + custom reward function support |
+| Generate | vLLM (`vllm_mode="colocate"`) | PagedAttention KV cache management, colocated on same GPU         |
+| Reward   | Custom Python callable        | Shells out to semgrep-core, applies hierarchical gating           |
+
+TRL's `num_generations=16` parameter handles the N=16 group natively — vLLM's
+PagedAttention manages KV cache across all 16 generations more efficiently than
+manual micro-batching. No application-level batching logic needed.
+
+The Liger GRPO Loss optimization (integrated via Unsloth) avoids materializing
+full logit tensors during the policy gradient computation, which is the primary
+VRAM bottleneck during GRPO. This gives meaningful headroom on the 24GB budget.
+
 #### VRAM Budget (GRPO Phase)
 
-Generation and training are decoupled via micro-batching: generate 4 candidates
-at a time (4 micro-batches × 4 = 16 total per prompt), score all 16 on CPU,
-then compute GRPO update. VRAM is sized for the generation micro-batch, not the
-full group.
+| Component                                                    | Estimate     |
+| ------------------------------------------------------------ | ------------ |
+| Qwen 3.5 9B base (4-bit quantized via Unsloth)               | 5–6 GB       |
+| LoRA adapters (rank 64–128, with rsLoRA scaling)             | 1–2 GB       |
+| Optimizer states (AdamW)                                     | 2–3 GB       |
+| KV cache (vLLM PagedAttention, 16 candidates)                | 3–5 GB       |
+| Activations + gradients (Liger kernel, no full logit tensor) | 2–3 GB       |
+| **Total**                                                    | **13–19 GB** |
 
-| Component                                    | Estimate     |
-| -------------------------------------------- | ------------ |
-| Qwen 3.5 9B base (4-bit quantized)           | 5–6 GB       |
-| LoRA adapters (rank 64–128)                  | 1–2 GB       |
-| Optimizer states (AdamW)                     | 2–3 GB       |
-| KV cache (micro-batch of 4 candidates)       | 3–4 GB       |
-| Activations + gradients (with checkpointing) | 3–4 GB       |
-| **Total**                                    | **14–19 GB** |
+Fits within 24GB. Unsloth's Triton kernels and Liger loss reduce the
+activations/gradients footprint compared to vanilla TRL. If headroom allows,
+increase LoRA rank or micro-batch size.
 
-Fits within 24GB with margin. Generation is sequential across micro-batches, so
-the N=16 group size has no VRAM impact beyond a single micro-batch of 4.
+**rsLoRA scaling:** at LoRA rank 64+, standard alpha/r scaling causes gradient
+instability. rsLoRA (rank-stabilized) uses √r scaling instead, which is
+critical for the rank 64–128 range specified here.
 
-**Important:** `max_new_tokens` must be enforced at the generation level, not
-just at training. Without this, a candidate generating a 2,000+ token rule
-before truncation will spike KV cache and potentially OOM. The sequence length
-cap (to be profiled in Phase 0) is enforced via the generation config, not
-post-hoc truncation.
+**`max_new_tokens`** must be enforced at the generation level via vLLM config,
+not post-hoc truncation. The sequence length cap (profiled in Phase 0) prevents
+KV cache spikes from unexpectedly long candidates.
 
 #### Training Phases
 
-| Phase                | Method                      | Data                                     | Duration (est.) |
-| -------------------- | --------------------------- | ---------------------------------------- | --------------- |
-| 0: Data construction | CPU-only                    | 2,865 rules (all langs) → grouped JSONL  | ~3 hours        |
-| 1: SFT warmup        | QLoRA, early stopping       | ~8–14K prompt/rule pairs (all languages) | ~3–5 hours      |
-| 2: GRPO RL           | QLoRA + semgrep-core reward | ~1,000 Python train prompts, N=16 groups | ~16–28 hours    |
-| 3: Evaluation        | Inference + semgrep-core    | ~98 held-out 2026+ CVEs                  | ~30 minutes     |
-| **Total**            |                             |                                          | **~2–3 days**   |
+| Phase                | Method                              | Data                                     | Duration (est.) |
+| -------------------- | ----------------------------------- | ---------------------------------------- | --------------- |
+| 0: Data construction | CPU-only                            | 2,865 rules (all langs) → grouped JSONL  | ~3 hours        |
+| 1: SFT warmup        | Unsloth QLoRA, early stopping       | ~8–14K prompt/rule pairs (all languages) | ~2–3 hours      |
+| 2: GRPO RL           | Unsloth + TRL + vLLM + semgrep-core | ~1,000 Python train prompts, N=16 groups | ~12–20 hours    |
+| 3: Evaluation        | vLLM inference + semgrep-core       | ~98 held-out 2026+ CVEs                  | ~30 minutes     |
+| **Total**            |                                     |                                          | **~1.5–2 days** |
 
-Phase 2 is GPU-bound: 4 sequential generation micro-batches per step, each
-producing 4 candidates, dominate wall-clock time. Semgrep scoring of all 16
-candidates is negligible (~0.24s parallel). Generation and scoring are fully
-serial — the estimate assumes no overlap between them.
+Phase 2 is GPU-bound. vLLM colocate mode handles N=16 generation natively via
+PagedAttention — no manual micro-batching. Unsloth's ~1.8× speedup over vanilla
+TRL reduces wall-clock time. Semgrep scoring of all 16 candidates is negligible
+(~0.24s parallel on CPU). Generation and scoring are serial within TRL's
+synchronous GRPO loop.
 
 #### Semgrep Execution Budget
 
@@ -446,8 +461,7 @@ Full RL run:    1,000 prompts × 3 epochs × 0.24s ≈ 12 minutes
 Semgrep execution is negligible. Training is entirely GPU-bound — micro-batch
 generation (4 passes × inference time) dominates the step cost.
 
-**Future optimization (not needed at this scale):** for continuous training with
-millions of invocations, semgrep-core could be run as a long-lived process
+**Future optimization:** semgrep-core could be run as a long-lived process
 accepting rules via file-watch instead of spawning a new process per candidate.
 The 0.12s per invocation is dominated by OCaml binary startup (~109ms), not
 actual parse+match work (~11ms). A persistent process would approach the 11ms
@@ -463,7 +477,7 @@ deduplicated via hashing to skip redundant invocations.
 | **Qwen 3.5 9B** (not 7B or 14B)             | 9B fits in 4-bit on 24GB VRAM with room for GRPO; strong coding capabilities; 262K native context; Apache 2.0; larger models OOM during RL        |
 | **QLoRA** (not full finetune)               | Full finetune of 9B requires ~72GB VRAM (bf16); QLoRA fits in 14–19GB while preserving 90%+ of full finetune quality                              |
 | **GRPO** (not PPO)                          | No value network needed — simpler, less VRAM, more stable for tasks with programmatic reward signals. Proven by DeepSeek-R1 for code generation   |
-| **N=16 micro-batched**                      | Advantage estimate variance scales as ~1/N; N=16 balances signal quality against wall-clock cost. Micro-batching (4×4) keeps VRAM constant        |
+| **N=16 via vLLM**                           | Advantage estimate variance scales as ~1/N; N=16 balances signal quality against wall-clock cost. vLLM PagedAttention manages KV cache natively   |
 | **Hierarchical reward** (not flat weighted) | Gating on precision before optimizing recall prevents the model from trading FPs for detection; orthogonal failure modes need separate gradients  |
 | **SFT → RL** (not RL-only)                  | SFT warmup teaches Semgrep YAML syntax; RL on top teaches behavioral correctness. Direct RL from base model is too unstable for structured output |
 | **Multi-language SFT, Python-only RL**      | SFT on all 2,865 rules (taint structure is language-agnostic); RL on Python only (requires semgrep-core execution). 2.5× more SFT signal          |
@@ -474,6 +488,10 @@ deduplicated via hashing to skip redundant invocations.
 | **Pro engine for reward** (not OSS)         | 76% of Pro rules use cross-file taint; OSS engine would give wrong reward signals for the majority of training data                               |
 | **Exclude OpenGrep**                        | 99% overlap with community rules (263/266 identical IDs). Adds noise, not signal                                                                  |
 | **Frontier benchmark required**             | Finetuned model must justify itself against Claude Opus/Sonnet with good prompting. If frontier wins on all axes, use prompting instead           |
+| **Unsloth + TRL** (not OpenRLHF or verl)    | TRL GRPOTrainer has native PEFT/QLoRA + custom reward function support; Unsloth adds ~80% VRAM reduction + ~1.8× speed via Triton kernels         |
+| **vLLM colocate** (not HF generate)         | Single-GPU colocated vLLM for generation within TRL's GRPO loop; PagedAttention handles N=16 natively without manual micro-batching               |
+| **llama.cpp serving** (not vLLM/HF)         | Inference on the 4090 post-training via llama.cpp; zero marginal cost, sub-second latency, offline capable                                        |
+| **Single-rule output**                      | One rule per CVE for MVP. Multi-rule output (e.g. Django + Flask rules from one CVE) is a future extension once single-rule pipeline is validated |
 
 ---
 
@@ -524,7 +542,7 @@ deduplicated via hashing to skip redundant invocations.
 
 - [ ] Download [Qwen 3.5 9B](https://huggingface.co/Qwen/Qwen3.5-9B) base
       weights
-- [ ] Set up training environment (TRL or similar) on worker node
+- [ ] Set up training environment: Unsloth + TRL on worker node
 - [ ] Configure QLoRA: 4-bit quantization, LoRA rank 64–128, **LoRA dropout
       0.1–0.2** (critical for a dataset this small — 2,865 examples on a 9B
       model overfits fast), target modules (q_proj, k_proj, v_proj, o_proj,
@@ -551,13 +569,20 @@ deduplicated via hashing to skip redundant invocations.
 
 ### Phase 2: GRPO RL
 
-- [ ] Build hierarchical reward function: write candidate rule → call
-      semgrep-core → parse JSON results → apply gated scoring (parse →
-      precision constraint → recall optimization)
+- [ ] Install Unsloth + TRL with vLLM colocate support on worker node
+- [ ] Build hierarchical reward function as a Python callable for TRL's
+      `GRPOTrainer`: write candidate rule to disk → call semgrep-core → parse
+      JSON results → apply gated scoring (parse → precision → recall) → return
+      scalar
 - [ ] Stage semgrep-core-proprietary + semgrep-core binaries for reward
       computation
-- [ ] Configure GRPO: **group size 16** (4 micro-batches × 4 candidates),
-      gradient checkpointing, `max_new_tokens` from Phase 0 token profiling
+- [ ] Configure TRL `GRPOTrainer`: `num_generations=16`,
+      `vllm_mode="colocate"`, `max_new_tokens` from Phase 0 token profiling,
+      enable Liger GRPO loss via Unsloth
+- [ ] Configure QLoRA with **rsLoRA scaling** (√r instead of alpha/r) — critical
+      for rank 64+ to prevent gradient instability
+- [ ] Set RL learning rate to **5e-6** (not the 2e-4 used for SFT — Unsloth
+      recommendation for GRPO)
 - [ ] Implement soft parse gate: reward 0.05 for invalid YAML in epoch 1,
       anneal to hard zero gate after parse rate exceeds 95%
 - [ ] Train GRPO on top of SFT checkpoint, save checkpoints at each epoch
@@ -754,50 +779,41 @@ production scanning. The model is a drafting tool, not an autonomous scanner.
 
 ## Risks
 
-| Risk                                                                  | Likelihood | Impact   | Mitigation                                                                                                                                                      |
-| --------------------------------------------------------------------- | ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1,154 Python rules insufficient for RL                                | Medium     | Medium   | Multi-language SFT (2,865 rules) mitigates; prompt augmentation (5 specificity levels per rule); structural data augmentation (field shuffling)                 |
-| GRPO OOM on 4090 with 9B model                                        | Low        | High     | Micro-batched N=16 only needs VRAM for 4 concurrent candidates; reduce LoRA rank, enable gradient checkpointing. Fallback: use 4B model                         |
-| Model produces syntactically valid but semantically wrong taint rules | Medium     | High     | Hierarchical reward gates precision before recall; held-out fixture subset detects reward gaming                                                                |
-| CWE class imbalance (SSRF 283 vs XSS 41)                              | High       | Medium   | √(count)-proportional sampling reduces 7:1 to ~2.6:1 without overfitting sparse classes; per-CWE metrics tracked separately                                     |
-| Pro test fixtures lack sufficient negative examples                   | Medium     | Medium   | Generate additional negatives with LLM; oracle validation in Phase 0 catches broken fixtures before training                                                    |
-| Semgrep Pro license restricts model training                          | Low        | Critical | Verify internally — employee access may have different terms. Worst case: train on community-only (273 rules)                                                   |
-| Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium   | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization                                                                 |
-| Base model's pretraining data contaminates eval                       | Low        | High     | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                                                                   |
-| Reward signal too sparse for taint rules                              | Medium     | Medium   | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                                                                          |
-| Frontier model already solves the task well enough                    | Medium     | High     | Benchmark both zero-shot and 5-shot frontier prompting early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                       |
-| Overfitting to small dataset or specific test fixtures                | Medium     | High     | LoRA dropout 0.1–0.2; early stopping with 0.5-epoch patience; multi-language SFT; structural data augmentation; held-out fixture subset for RL overfitting      |
-| Token length cap truncates complex taint rules                        | Medium     | Medium   | Profile Pro rule token distribution in Phase 0; set `max_new_tokens` at p95 of actual rule lengths. Enforce at generation level to prevent KV cache VRAM spikes |
+| Risk                                                                  | Likelihood | Impact | Mitigation                                                                                                                                                      |
+| --------------------------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1,154 Python rules insufficient for RL                                | Medium     | Medium | Multi-language SFT (2,865 rules) mitigates; prompt augmentation (5 specificity levels per rule); structural data augmentation (field shuffling)                 |
+| GRPO OOM on 4090 with 9B model                                        | Low        | High   | Micro-batched N=16 only needs VRAM for 4 concurrent candidates; reduce LoRA rank, enable gradient checkpointing. Fallback: use 4B model                         |
+| Model produces syntactically valid but semantically wrong taint rules | Medium     | High   | Hierarchical reward gates precision before recall; held-out fixture subset detects reward gaming                                                                |
+| CWE class imbalance (SSRF 283 vs XSS 41)                              | High       | Medium | √(count)-proportional sampling reduces 7:1 to ~2.6:1 without overfitting sparse classes; per-CWE metrics tracked separately                                     |
+| Pro test fixtures lack sufficient negative examples                   | Medium     | Medium | Generate additional negatives with LLM; oracle validation in Phase 0 catches broken fixtures before training                                                    |
+| Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization                                                                 |
+| Base model's pretraining data contaminates eval                       | Low        | High   | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                                                                   |
+| Reward signal too sparse for taint rules                              | Medium     | Medium | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                                                                          |
+| Frontier model already solves the task well enough                    | Medium     | High   | Benchmark both zero-shot and 5-shot frontier prompting early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                       |
+| Overfitting to small dataset or specific test fixtures                | Medium     | High   | LoRA dropout 0.1–0.2; early stopping with 0.5-epoch patience; multi-language SFT; structural data augmentation; held-out fixture subset for RL overfitting      |
+| Token length cap truncates complex taint rules                        | Medium     | Medium | Profile Pro rule token distribution in Phase 0; set `max_new_tokens` at p95 of actual rule lengths. Enforce at generation level to prevent KV cache VRAM spikes |
 
 ---
 
-## Open Questions
+## Decided Questions
 
-1. **Semgrep Pro licensing for model training** — Does internal/employee access
-   permit using Pro rules as training data? This is a prerequisite blocker.
+1. **Training framework** — TRL `GRPOTrainer` with Unsloth (Triton kernels) and
+   vLLM colocate mode. TRL's native PEFT/QLoRA support and custom reward
+   function interface fit the single-GPU QLoRA setup. Unsloth provides ~80%
+   VRAM reduction and ~1.8× training speed via fused Triton kernels. vLLM
+   colocate mode handles generation on the same GPU with PagedAttention KV
+   cache management.
 
-2. **Test fixture generation for Pro rules without tests** — If some Pro rules
-   lack internal test fixtures, should we LLM-generate them? The community
-   rules' existing fixtures can validate the approach.
+2. **Serving infrastructure** — llama.cpp on the RTX 4090 post-training. The
+   4090 already hosts other inference workloads. llama.cpp supports GGUF
+   quantized models with minimal overhead and integrates with the existing
+   agent platform via OpenAI-compatible API.
 
-3. **GRPO framework choice** — TRL, OpenRLHF, and verl all support GRPO. TRL
-   is simplest but may lack advanced features. OpenRLHF has better multi-GPU
-   support but is heavier. verl is purpose-built for RL on code tasks. Need to
-   evaluate which fits best on single-GPU QLoRA.
-
-4. **Serving infrastructure** — Once trained, how is the model served? Options:
-   llama.cpp on the 4090 (already planned for other workloads), vLLM, or
-   direct HuggingFace inference. Depends on latency requirements and whether
-   it integrates with the existing agent platform.
-
-5. **Multi-rule output** — Should the model generate a single rule or multiple
-   rules per CVE? A CVE affecting Django and Flask might warrant two separate
-   rules. Training on single-rule output is simpler; multi-rule output is
-   more useful but harder to evaluate.
-
-6. **Continuous training** — As new Pro rules arrive via the daily update
-   pipeline, should the model be periodically re-finetuned? If so, what
-   cadence (weekly? monthly?) and how do we prevent catastrophic forgetting?
+3. **Multi-rule output** — Single rule per prompt for MVP. Training on
+   single-rule output simplifies reward computation (one rule → one
+   semgrep-core invocation → one score). Multi-rule generation (e.g., one rule
+   per framework for a CVE affecting both Django and Flask) is a natural future
+   extension once single-rule quality is validated.
 
 ---
 
