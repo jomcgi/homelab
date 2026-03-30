@@ -37,6 +37,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "monolith.fullname" . }}-pg-app
                   key: uri
+            {{- if .Values.onepassword.enabled }}
+            - name: ICAL_FEED_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monolith.fullname" . }}-secrets
+                  key: ICAL_FEED_URL
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
