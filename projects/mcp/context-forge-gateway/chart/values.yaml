@@ -92,3 +92,12 @@ secret:
 # Context Forge enforces auth at the application layer instead.
 networkPolicy:
   enabled: false
+
+# Temporary test route for Cloudflare Managed OAuth validation (ADR 011).
+# Enable in deploy/values.yaml to create an HTTPRoute for mcp-test.jomcgi.dev.
+oauthTest:
+  enabled: false
+  hostname: ""
+  gatewayRef:
+    name: cloudflare-ingress
+    namespace: envoy-gateway-system

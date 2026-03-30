@@ -35,3 +35,10 @@ mcp-stack:
 
 secret:
   itemPath: "vaults/k8s-homelab/items/context-forge"
+
+# ── Cloudflare Managed OAuth test (ADR 011) ──────────────────────────────
+# Temporary HTTPRoute for validating CF Managed OAuth before migrating
+# production mcp.jomcgi.dev. Remove after Phase 0 validation.
+oauthTest:
+  enabled: true
+  hostname: mcp-test.jomcgi.dev
