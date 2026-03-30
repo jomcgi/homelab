@@ -41,7 +41,7 @@ js_run_binary(
     chdir = package_name(),
     out_dirs = ["dist"],
     tool = ":vite",
-    visibility = ["//projects/monolith/backend:__pkg__"],
+    visibility = ["//projects/monolith:__pkg__"],
 )
 
 # Validate the frontend builds in CI without going through py3_image's

@@ -1,4 +1,6 @@
 # gazelle:ignore
+# gazelle:exclude app
+# gazelle:exclude todo
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/tools/js:exec_filegroup.bzl", "exec_filegroup")
