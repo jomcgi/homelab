@@ -7,6 +7,15 @@ postgres:
     size: 2Gi
 
 cfIngress:
+  private:
+    enabled: true
+    tier: trusted
+    hostname: private.jomcgi.dev
+    servicePort: 8000
+    gateway:
+      name: cloudflare-ingress
+      namespace: envoy-gateway-system
+    team: jomcgi
   todo:
     public:
       enabled: true

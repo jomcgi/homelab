@@ -1,0 +1,17 @@
+{{- if .Values.cfIngress.private.enabled }}
+{{- $params := dict
+  "name" (printf "%s-private" (include "monolith.fullname" .))
+  "tier" .Values.cfIngress.private.tier
+  "hostname" .Values.cfIngress.private.hostname
+  "serviceName" (include "monolith.fullname" .)
+  "servicePort" (.Values.cfIngress.private.servicePort | int)
+  "gateway" .Values.cfIngress.private.gateway
+}}
+{{- include "cf-ingress.httproute" $params }}
+---
+{{- $spParams := dict
+  "name" (printf "%s-private" (include "monolith.fullname" .))
+  "team" .Values.cfIngress.private.team
+}}
+{{- include "cf-ingress.security-policy" $spParams }}
+{{- end }}
