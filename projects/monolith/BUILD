@@ -1,4 +1,3 @@
-# gazelle:ignore
 # gazelle:exclude app
 # gazelle:exclude todo
 load("@aspect_rules_py//py:defs.bzl", "py_library")
@@ -32,6 +31,7 @@ py_venv_binary(
     deps = [
         "@pip//fastapi",
         "@pip//opentelemetry_instrumentation_fastapi",
+        "@pip//psycopg",
         "@pip//psycopg_binary",
         "@pip//pydantic",
         "@pip//sqlmodel",
@@ -53,6 +53,7 @@ py_library(
     deps = [
         "@pip//fastapi",
         "@pip//opentelemetry_instrumentation_fastapi",
+        "@pip//psycopg",
         "@pip//psycopg_binary",
         "@pip//pydantic",
         "@pip//sqlmodel",
