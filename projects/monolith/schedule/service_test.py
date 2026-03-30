@@ -62,3 +62,37 @@ def test_empty_calendar():
     ics = "BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR\n"
     events = parse_events_for_date(ics, date(2026, 3, 30), TZ)
     assert events == []
+
+
+DUPLICATE_ICS = """\
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:20260330T094500
+DTEND:20260330T103000
+SUMMARY:Infra Ops Review
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20260330T094500
+DTEND:20260330T103000
+SUMMARY:Infra Ops Review
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20260330
+DTEND;VALUE=DATE:20260331
+SUMMARY:Holiday
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20260330
+DTEND;VALUE=DATE:20260331
+SUMMARY:Holiday
+END:VEVENT
+END:VCALENDAR
+"""
+
+
+def test_deduplicates_events():
+    events = parse_events_for_date(DUPLICATE_ICS, date(2026, 3, 30), TZ)
+    assert len(events) == 2
+    assert events[0]["title"] == "Holiday"
+    assert events[1]["title"] == "Infra Ops Review"
