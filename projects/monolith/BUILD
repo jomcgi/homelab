@@ -26,6 +26,7 @@ py_venv_binary(
         exclude = ["**/*_test.py"],
     ),
     data = [":frontend_dist"],
+    imports = ["."],
     main = "app/main.py",
     visibility = ["//:__subpackages__"],
     deps = [
