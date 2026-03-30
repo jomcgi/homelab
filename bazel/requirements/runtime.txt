@@ -1143,6 +1143,10 @@ huggingface-hub==1.8.0 \
     # via
     #   fastembed
     #   tokenizers
+icalendar==6.3.2 \
+    --hash=sha256:d400e9c9bb8c025e5a3c77c236941bb690494be52528a0b43cc7e8b7c9505064 \
+    --hash=sha256:e0c10ecbfcebe958d33af7d491f6e6b7580d11d475f2eeb29532d0424f9110a1
+    # via homelab (pyproject.toml)
 idna==3.11 \
     --hash=sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea \
     --hash=sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902
@@ -2763,6 +2767,7 @@ python-dateutil==2.9.0.post0 \
     # via
     #   homelab (pyproject.toml)
     #   botocore
+    #   icalendar
     #   jsii
     #   pandas
     #   sqlite-utils
@@ -3372,6 +3377,7 @@ tzdata==2025.3 \
     # via
     #   homelab (pyproject.toml)
     #   astral
+    #   icalendar
     #   pandas
     #   psycopg
     #   tzlocal
