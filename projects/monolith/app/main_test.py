@@ -85,9 +85,7 @@ def test_healthz_content_type_is_json(client):
 
 def test_todo_router_registered():
     """Todo router is included — routes with /api/todo prefix exist in the app."""
-    paths = [
-        getattr(route, "path", "") for route in app.routes
-    ]
+    paths = [getattr(route, "path", "") for route in app.routes]
     assert any(p.startswith("/api/todo") for p in paths), (
         "No /api/todo routes found; todo_router may not be included"
     )
@@ -95,9 +93,7 @@ def test_todo_router_registered():
 
 def test_schedule_router_registered():
     """Schedule router is included — routes with /api/schedule prefix exist."""
-    paths = [
-        getattr(route, "path", "") for route in app.routes
-    ]
+    paths = [getattr(route, "path", "") for route in app.routes]
     assert any(p.startswith("/api/schedule") for p in paths), (
         "No /api/schedule routes found; schedule_router may not be included"
     )
