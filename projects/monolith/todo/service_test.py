@@ -118,9 +118,7 @@ class TestDailyReset:
         _seed_tasks(session, weekly_done=True)
         archive_and_reset(session, weekly_reset=False)
 
-        weekly = session.exec(
-            select(Task).where(Task.kind == "weekly")
-        ).first()
+        weekly = session.exec(select(Task).where(Task.kind == "weekly")).first()
         assert weekly is not None
         assert weekly.done is True
 
@@ -136,9 +134,7 @@ class TestWeeklyReset:
         _seed_tasks(session, weekly_text="Big project")
         archive_and_reset(session, weekly_reset=True)
 
-        weekly = session.exec(
-            select(Task).where(Task.kind == "weekly")
-        ).all()
+        weekly = session.exec(select(Task).where(Task.kind == "weekly")).all()
         assert weekly == []
 
     def test_clears_all_daily_tasks(self, session):
@@ -285,7 +281,5 @@ class TestEdgeCases:
         # Start with zero tasks
         archive_and_reset(session, weekly_reset=False)
 
-        daily = session.exec(
-            select(Task).where(Task.kind == "daily")
-        ).all()
+        daily = session.exec(select(Task).where(Task.kind == "daily")).all()
         assert len(daily) == 3
