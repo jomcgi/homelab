@@ -1,4 +1,5 @@
 # gazelle:exclude app
+# gazelle:exclude schedule
 # gazelle:exclude todo
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
@@ -21,6 +22,7 @@ py_venv_binary(
     srcs = glob(
         [
             "app/**/*.py",
+            "schedule/**/*.py",
             "todo/**/*.py",
         ],
         exclude = ["**/*_test.py"],
@@ -37,6 +39,7 @@ py_library(
     srcs = glob(
         [
             "app/**/*.py",
+            "schedule/**/*.py",
             "todo/**/*.py",
         ],
         exclude = ["**/*_test.py"],
@@ -44,6 +47,8 @@ py_library(
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//icalendar",
         "@pip//opentelemetry_instrumentation_fastapi",
         "@pip//psycopg",
         "@pip//psycopg_binary",
