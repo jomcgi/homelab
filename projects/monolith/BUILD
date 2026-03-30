@@ -150,6 +150,42 @@ py_test(
     ],
 )
 
+py_test(
+    name = "db_test",
+    srcs = ["app/db_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "main_test",
+    srcs = ["app/main_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
+    name = "models_test",
+    srcs = ["todo/models_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     rules = ["//bazel/semgrep/rules:python_rules"],
