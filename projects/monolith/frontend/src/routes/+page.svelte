@@ -28,11 +28,7 @@
   }
 
   // ── Schedule ─────────────────────────────────
-  const EVENTS = [
-    { time: "09:00", title: "Standup", meta: "Daily" },
-    { time: "10:30", title: "1:1 w/ Manager", meta: "Recurring" },
-    { time: "14:00", title: "Infra Review", meta: "Platform" },
-  ];
+  let events = $state(data.schedule);
 
   const LINKS = [
     { label: "ArgoCD", url: "#" },
@@ -174,11 +170,17 @@
     <section class="panel-section">
       <h2 class="section-label">today</h2>
       <ul class="event-list">
-        {#each EVENTS as ev}
-          <li class="event-row" class:event-row--past={isPast(ev.time, now)}>
-            <span class="event-time">{ev.time}</span>
-            <span class="event-title">{ev.title}</span>
-            <span class="event-meta">{ev.meta}</span>
+        {#each events as ev}
+          <li class="event-row" class:event-row--past={!ev.allDay && isPast(ev.time, now)}>
+            {#if ev.allDay}
+              <span class="event-time"></span>
+              <span class="event-title">{ev.title}</span>
+              <span class="event-meta">all day</span>
+            {:else}
+              <span class="event-time">{ev.time}</span>
+              <span class="event-title">{ev.title}</span>
+              <span class="event-meta"></span>
+            {/if}
           </li>
         {/each}
       </ul>
