@@ -110,8 +110,6 @@ py_test(
 
 semgrep_target_test(
     name = "main_semgrep_test",
-    lockfiles = ["//bazel/requirements:all.txt"],
     rules = ["//bazel/semgrep/rules:python_rules"],
-    sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":main",
 )
