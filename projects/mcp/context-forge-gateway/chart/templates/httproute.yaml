@@ -1,20 +1,16 @@
-{{- if .Values.oauthTest.enabled }}
-# Temporary HTTPRoute for validating Cloudflare Managed OAuth (ADR 011).
-# Routes mcp-test.jomcgi.dev directly to Context Forge, bypassing
-# mcp-oauth-proxy. CF Access handles auth at the edge.
-# Remove after Phase 0 validation is complete.
+{{- if .Values.httpRoute.enabled }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: {{ include "context-forge.fullname" . }}-oauth-test
+  name: {{ include "context-forge.fullname" . }}
   labels:
     {{- include "context-forge.labels" . | nindent 4 }}
 spec:
   parentRefs:
-    - name: {{ .Values.oauthTest.gatewayRef.name }}
-      namespace: {{ .Values.oauthTest.gatewayRef.namespace }}
+    - name: {{ .Values.httpRoute.gatewayRef.name }}
+      namespace: {{ .Values.httpRoute.gatewayRef.namespace }}
   hostnames:
-    - {{ .Values.oauthTest.hostname | quote }}
+    - {{ .Values.httpRoute.hostname | quote }}
   rules:
     - matches:
         - path:
