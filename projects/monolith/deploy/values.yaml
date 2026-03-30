@@ -8,7 +8,7 @@ postgres:
 
 onepassword:
   enabled: true
-  itemPath: "vaults/Homelab/items/private-homepage"
+  itemPath: "vaults/k8s-homelab/items/private-homepage"
 
 cfIngress:
   private:
