@@ -325,11 +325,10 @@ difference is entirely Python wrapper startup — the OCaml engine's actual pars
 
 #### Hierarchical Reward Scoring
 
-Reward is computed **per CWE group** using a **hierarchical gating** structure,
-not a flat weighted sum. This prevents the model from conflating fundamentally
-different failure modes — a high-recall rule with many false positives is
-structurally different from a precise rule with low recall, and a flat scalar
-averages them into the same reward.
+Reward is computed **per CWE group** using a **hierarchical gating** structure.
+Each gate isolates a distinct failure mode — a high-recall rule with many false
+positives is structurally different from a precise rule with low recall, and the
+reward function must treat them differently.
 
 ```
 Gate 1: Parse validity
@@ -355,10 +354,10 @@ Gate 1: Parse validity
 | 2    | Zero `core_negative` hits          | Caps reward at 0.1 if violated — "don't over-match" learned first |
 | 3    | `core_positive` + `variant` recall | Recall optimized only within the precision constraint             |
 
-**Why hierarchical, not weighted:** A flat score of 0.4×recall + 0.3×precision
-lets the model trade precision for recall. With gating, the model _must_ solve
-precision before recall optimization even begins. This creates a cleaner
-gradient — GRPO first learns "don't over-match," then pushes recall upward.
+**Why hierarchical gating:** With a flat weighted score, the model can trade
+precision for recall and still achieve a decent reward. Gating forces the model
+to solve precision before recall optimization begins — GRPO first learns "don't
+over-match," then pushes recall upward within that constraint.
 
 **Why soft parse gate in epoch 1:** If the SFT checkpoint produces rules that
 parse ~80% of the time, a hard zero gate gives 20% of GRPO samples zero reward
@@ -368,9 +367,9 @@ once parse rate stabilizes above 95%.
 
 GRPO computes relative rewards across all 16 candidates per prompt. No absolute
 reward model or value network is needed — this is simpler and more stable than
-PPO for programmatically-verifiable tasks. The group size of 16 (vs the
-originally planned 4) reduces advantage estimate variance by ~4× (variance
-scales as ~1/N), producing more stable policy gradients.
+PPO for programmatically-verifiable tasks. A group size of 16 keeps advantage
+estimate variance manageable (variance scales as ~1/N), producing stable policy
+gradients without requiring DeepSeek-R1's N=64.
 
 ### Training Configuration
 
@@ -400,8 +399,8 @@ full group.
 | Activations + gradients (with checkpointing) | 3–4 GB       |
 | **Total**                                    | **14–19 GB** |
 
-Fits within 24GB with margin. The N=16 group size does not increase VRAM —
-generation is sequential across micro-batches.
+Fits within 24GB with margin. Generation is sequential across micro-batches, so
+the N=16 group size has no VRAM impact beyond a single micro-batch of 4.
 
 **Important:** `max_new_tokens` must be enforced at the generation level, not
 just at training. Without this, a candidate generating a 2,000+ token rule
@@ -419,8 +418,8 @@ post-hoc truncation.
 | 3: Evaluation        | Inference + semgrep-core    | ~98 held-out 2026+ CVEs                  | ~30 minutes     |
 | **Total**            |                             |                                          | **~1–2 days**   |
 
-Phase 2 duration increases ~40% vs N=4 due to 4× more generation passes per
-step (micro-batched), but the reward signal quality improvement is worth it.
+Phase 2 is GPU-bound: 4 sequential generation micro-batches per step dominate
+wall-clock time. Semgrep scoring of all 16 candidates is negligible.
 
 #### Semgrep Execution Budget
 
@@ -431,8 +430,8 @@ Per GRPO step:  16 candidates × 0.12s = 1.92s serial → 0.24s parallel (8-way)
 Full RL run:    1,000 prompts × 3 epochs × 0.24s ≈ 12 minutes
 ```
 
-Semgrep execution is negligible even at N=16. Training is entirely GPU-bound —
-micro-batch generation (~4 passes × inference time) dominates the step cost.
+Semgrep execution is negligible. Training is entirely GPU-bound — micro-batch
+generation (4 passes × inference time) dominates the step cost.
 
 **Future optimization (not needed at this scale):** for continuous training with
 millions of invocations, semgrep-core could be run as a long-lived process
@@ -451,8 +450,8 @@ deduplicated via hashing to skip redundant invocations.
 | **Qwen 3.5 9B** (not 7B or 14B)             | 9B fits in 4-bit on 24GB VRAM with room for GRPO; strong code generation baseline; larger models OOM during RL                                    |
 | **QLoRA** (not full finetune)               | Full finetune of 9B requires ~72GB VRAM (bf16); QLoRA fits in 14–19GB while preserving 90%+ of full finetune quality                              |
 | **GRPO** (not PPO)                          | No value network needed — simpler, less VRAM, more stable for tasks with programmatic reward signals. Proven by DeepSeek-R1 for code generation   |
-| **N=16 micro-batched** (not N=4)            | Advantage estimate variance scales as ~1/N; N=4 is 16× noisier than DeepSeek-R1's N=64. Micro-batching (4×4) keeps VRAM at N=4 levels             |
-| **Hierarchical reward** (not flat weighted) | Gating on precision before optimizing recall prevents the model from trading FPs for detection; flat scalar conflates orthogonal failure modes    |
+| **N=16 micro-batched**                      | Advantage estimate variance scales as ~1/N; N=16 balances signal quality against wall-clock cost. Micro-batching (4×4) keeps VRAM constant        |
+| **Hierarchical reward** (not flat weighted) | Gating on precision before optimizing recall prevents the model from trading FPs for detection; orthogonal failure modes need separate gradients  |
 | **SFT → RL** (not RL-only)                  | SFT warmup teaches Semgrep YAML syntax; RL on top teaches behavioral correctness. Direct RL from base model is too unstable for structured output |
 | **Multi-language SFT, Python-only RL**      | SFT on all 2,865 rules (taint structure is language-agnostic); RL on Python only (requires semgrep-core execution). 2.5× more SFT signal          |
 | **Python-first for RL**                     | Largest corpus (881 Pro rules), richest taint coverage (90%), most CWE classes. Designed for LoRA-per-language expansion                          |
@@ -485,8 +484,8 @@ deduplicated via hashing to skip redundant invocations.
       for Phase 2
 - [ ] Integrate community test fixtures (co-located files already available)
 - [ ] Fetch CVE/CWE descriptions from NVD API for prompt construction
-- [ ] Build prompt variants at **multiple specificity levels** — not just
-      paraphrases of the same description, but varying input quality: 1. Generic CWE description (MITRE) 2. Specific CVE advisory text (NVD) 3. Partial vulnerability description with missing details 4. Ambiguous incident report (real-world input quality simulation) 5. Rule `message` field (terse, technical)
+- [ ] Build prompt variants at **multiple specificity levels** to simulate
+      real-world input quality variance: 1. Generic CWE description (MITRE) 2. Specific CVE advisory text (NVD) 3. Partial vulnerability description with missing details 4. Ambiguous incident report 5. Rule `message` field (terse, technical)
 - [ ] Apply time-based split using CVE publication dates (train: pre-2025,
       val: 2025, eval: 2026+)
 - [ ] **Profile token length distribution** of all Pro rules — determine
@@ -513,11 +512,11 @@ deduplicated via hashing to skip redundant invocations.
       0.1–0.2** (critical for a dataset this small — 2,865 examples on a 9B
       model overfits fast), target modules (q_proj, k_proj, v_proj, o_proj,
       gate_proj, up_proj, down_proj)
-- [ ] **Data augmentation before SFT** — not just prompt paraphrasing (which the
-      model quickly learns to ignore), but structural augmentation: shuffle YAML
-      field ordering (sources before sinks, sinks before sources), vary
-      indentation style, add/remove optional fields. This teaches the model that
-      rule structure is semantic, not positional
+- [ ] **Structural data augmentation before SFT**: shuffle YAML field ordering
+      (sources before sinks, sinks before sources), vary indentation style,
+      add/remove optional fields. This teaches the model that rule structure is
+      semantic, not positional — pure prompt paraphrasing is weak augmentation
+      that the model quickly learns to ignore
 - [ ] Train SFT on **all 2,865 rules across all languages** — taint rule
       structure is language-agnostic YAML; multi-language training provides 2.5×
       more signal for learning rule composition
@@ -734,20 +733,20 @@ production scanning. The model is a drafting tool, not an autonomous scanner.
 
 ## Risks
 
-| Risk                                                                  | Likelihood | Impact   | Mitigation                                                                                                                                                    |
-| --------------------------------------------------------------------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1,154 Python rules insufficient for RL                                | Medium     | Medium   | Multi-language SFT (2,865 rules) mitigates; prompt augmentation (5 specificity levels per rule); structural data augmentation (field shuffling)               |
-| GRPO OOM on 4090 with 9B model                                        | Low        | High     | Micro-batched N=16 keeps VRAM at N=4 levels; reduce LoRA rank, enable gradient checkpointing. Fallback: use 4B model                                          |
-| Model produces syntactically valid but semantically wrong taint rules | Medium     | High     | Hierarchical reward gates precision before recall; held-out fixture subset detects reward gaming                                                              |
-| CWE class imbalance (SSRF 283 vs XSS 41)                              | High       | Medium   | Per-CWE oversampling/undersampling in RL data; per-CWE metrics tracked separately — model must not sacrifice tail classes for dominant ones                   |
-| Pro test fixtures lack sufficient negative examples                   | Medium     | Medium   | Generate additional negatives with LLM; oracle validation in Phase 0 catches broken fixtures before training                                                  |
-| Semgrep Pro license restricts model training                          | Low        | Critical | Verify internally — employee access may have different terms. Worst case: train on community-only (273 rules)                                                 |
-| Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium   | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization                                                               |
-| Base model's pretraining data contaminates eval                       | Low        | High     | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                                                                 |
-| Reward signal too sparse for taint rules                              | Medium     | Medium   | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                                                                        |
-| Frontier model already solves the task well enough                    | Medium     | High     | Benchmark both zero-shot and 5-shot frontier prompting early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                     |
-| Overfitting to small dataset or specific test fixtures                | Medium     | High     | LoRA dropout 0.1–0.2; early stopping with 0.5-epoch patience; multi-language SFT; structural data augmentation; held-out fixture subset for RL overfitting    |
-| Token length cap truncates complex taint rules                        | Medium     | Medium   | Profile Pro rule token distribution in Phase 0; set `max_new_tokens` at p95, not arbitrary 1,024. Enforce at generation level to prevent KV cache VRAM spikes |
+| Risk                                                                  | Likelihood | Impact   | Mitigation                                                                                                                                                      |
+| --------------------------------------------------------------------- | ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1,154 Python rules insufficient for RL                                | Medium     | Medium   | Multi-language SFT (2,865 rules) mitigates; prompt augmentation (5 specificity levels per rule); structural data augmentation (field shuffling)                 |
+| GRPO OOM on 4090 with 9B model                                        | Low        | High     | Micro-batched N=16 only needs VRAM for 4 concurrent candidates; reduce LoRA rank, enable gradient checkpointing. Fallback: use 4B model                         |
+| Model produces syntactically valid but semantically wrong taint rules | Medium     | High     | Hierarchical reward gates precision before recall; held-out fixture subset detects reward gaming                                                                |
+| CWE class imbalance (SSRF 283 vs XSS 41)                              | High       | Medium   | Per-CWE oversampling/undersampling in RL data; per-CWE metrics tracked separately — model must not sacrifice tail classes for dominant ones                     |
+| Pro test fixtures lack sufficient negative examples                   | Medium     | Medium   | Generate additional negatives with LLM; oracle validation in Phase 0 catches broken fixtures before training                                                    |
+| Semgrep Pro license restricts model training                          | Low        | Critical | Verify internally — employee access may have different terms. Worst case: train on community-only (273 rules)                                                   |
+| Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium   | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization                                                                 |
+| Base model's pretraining data contaminates eval                       | Low        | High     | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                                                                   |
+| Reward signal too sparse for taint rules                              | Medium     | Medium   | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                                                                          |
+| Frontier model already solves the task well enough                    | Medium     | High     | Benchmark both zero-shot and 5-shot frontier prompting early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                       |
+| Overfitting to small dataset or specific test fixtures                | Medium     | High     | LoRA dropout 0.1–0.2; early stopping with 0.5-epoch patience; multi-language SFT; structural data augmentation; held-out fixture subset for RL overfitting      |
+| Token length cap truncates complex taint rules                        | Medium     | Medium   | Profile Pro rule token distribution in Phase 0; set `max_new_tokens` at p95 of actual rule lengths. Enforce at generation level to prevent KV cache VRAM spikes |
 
 ---
 
