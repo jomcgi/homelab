@@ -60,6 +60,12 @@ py_library(
 py3_image(
     name = "image",
     binary = "//projects/monolith:main",
+    env = {
+        # py3_image sets PYTHONPATH to the workspace root (_main/) but this
+        # project's sibling packages (app/, todo/) need the package directory
+        # on the path too, matching the imports = ["."] used by py_venv_binary.
+        "PYTHONPATH": "/projects/monolith/main.runfiles/_main:/projects/monolith/main.runfiles/_main/projects/monolith",
+    },
     main = "app/main.py",
     repository = "ghcr.io/jomcgi/homelab/projects/monolith/backend",
 )
