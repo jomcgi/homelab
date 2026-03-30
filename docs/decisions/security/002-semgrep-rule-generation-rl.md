@@ -46,8 +46,8 @@ that can read a security incident and produce a detection rule.
 
 ## Proposal
 
-Finetune **Qwen 3.5 9B** to generate Semgrep detection rules from security
-incident descriptions (CVE advisories, CWE descriptions, vulnerability
+Finetune **[Qwen 3.5 9B](https://huggingface.co/Qwen/Qwen3.5-9B)** to generate Semgrep detection rules from
+security incident descriptions (CVE advisories, CWE descriptions, vulnerability
 disclosures) using a two-phase approach: supervised finetuning (SFT) for syntax
 acquisition, followed by Group Relative Policy Optimization (GRPO) where the
 reward signal is **whether the generated rule actually detects the described
@@ -260,30 +260,22 @@ to measure behavioral correctness, not just syntactic validity.
 
 ```mermaid
 graph LR
-    subgraph "GRPO Generation"
+    subgraph "GRPO Generation (micro-batched)"
         PROMPT["CVE/CWE<br/>description"] --> MODEL["Qwen 3.5 9B<br/>+ LoRA"]
-        MODEL --> C1["Candidate 1"]
-        MODEL --> C2["Candidate 2"]
-        MODEL --> C3["Candidate 3"]
-        MODEL --> C4["Candidate 4"]
+        MODEL --> MB1["Micro-batch 1<br/>(4 candidates)"]
+        MODEL --> MB2["Micro-batch 2<br/>(4 candidates)"]
+        MODEL --> MB3["Micro-batch 3<br/>(4 candidates)"]
+        MODEL --> MB4["Micro-batch 4<br/>(4 candidates)"]
     end
 
-    subgraph "Reward Computation (CPU, parallel)"
-        C1 --> E1["semgrep-core<br/>-pro_inter_file"]
-        C2 --> E2["semgrep-core<br/>-pro_inter_file"]
-        C3 --> E3["semgrep-core<br/>-pro_inter_file"]
-        C4 --> E4["semgrep-core<br/>-pro_inter_file"]
-
-        FIXTURES["Test fixture<br/>group"] --> E1 & E2 & E3 & E4
-
-        E1 --> S1["Score"]
-        E2 --> S2["Score"]
-        E3 --> S3["Score"]
-        E4 --> S4["Score"]
+    subgraph "Reward Computation (CPU, 16-way parallel)"
+        MB1 & MB2 & MB3 & MB4 --> EXEC["semgrep-core<br/>-pro_inter_file<br/>× 16 candidates"]
+        FIXTURES["Test fixture<br/>group"] --> EXEC
+        EXEC --> GATE["Hierarchical<br/>reward gates"]
     end
 
     subgraph "GRPO Update"
-        S1 & S2 & S3 & S4 --> REL["Relative reward<br/>within group"]
+        GATE --> REL["Relative reward<br/>across all 16"]
         REL --> GRAD["Policy gradient<br/>update"]
     end
 ```
@@ -331,27 +323,54 @@ difference is entirely Python wrapper startup — the OCaml engine's actual pars
 | semgrep-core (OCaml, direct) | 0.12s  |
 | Actual parse + match work    | 0.011s |
 
-#### Grouped Reward Scoring
+#### Hierarchical Reward Scoring
 
-Reward is computed **per CWE group**, not per individual test snippet. This
-prevents reward noise from over-indexing on any single test case and explicitly
-penalizes over-matching.
+Reward is computed **per CWE group** using a **hierarchical gating** structure,
+not a flat weighted sum. This prevents the model from conflating fundamentally
+different failure modes — a high-recall rule with many false positives is
+structurally different from a precise rule with low recall, and a flat scalar
+averages them into the same reward.
 
-| Component                            | Weight                   | Signal                            |
-| ------------------------------------ | ------------------------ | --------------------------------- |
-| Parses as valid Semgrep YAML         | **Gate** (0 or continue) | Syntactic validity                |
-| Catches all `core_positive` fixtures | **0.4**                  | Understands the vulnerability     |
-| Catches `variant_positive` fixtures  | **0.2**                  | Generalizes beyond the obvious    |
-| Avoids all `core_negative` fixtures  | **0.3**                  | Precision — doesn't over-match    |
-| Handles `edge_negative` correctly    | **0.1**                  | Nuanced precision on tricky cases |
+```
+Gate 1: Parse validity
+│
+├─ FAIL → soft penalty (0.05 during epoch 1, hard 0 thereafter)
+│
+└─ PASS → Gate 2: Precision constraint
+             │
+             ├─ ANY core_negative hit → reward capped at 0.1
+             │   (prevents over-broad rules from scoring well)
+             │
+             └─ ZERO core_negative hits → Gate 3: Detection recall
+                  │
+                  ├─ core_positive recall × 0.5
+                  ├─ variant_positive recall × 0.2
+                  └─ edge_negative avoidance × 0.1
+                       (bonus: 0.8 base + 0.2 × avoidance rate)
+```
 
-The 0.3 weight on `core_negative` avoidance is deliberate: without it, the
-model would learn to write maximally broad rules that catch everything —
-technically high recall, but useless in practice due to false positive noise.
+| Gate | Condition                          | Effect                                                            |
+| ---- | ---------------------------------- | ----------------------------------------------------------------- |
+| 1    | Valid Semgrep YAML                 | Soft penalty (0.05) in RL epoch 1, hard zero thereafter           |
+| 2    | Zero `core_negative` hits          | Caps reward at 0.1 if violated — "don't over-match" learned first |
+| 3    | `core_positive` + `variant` recall | Recall optimized only within the precision constraint             |
 
-GRPO computes relative rewards within each group of 4 candidates. No absolute
+**Why hierarchical, not weighted:** A flat score of 0.4×recall + 0.3×precision
+lets the model trade precision for recall. With gating, the model _must_ solve
+precision before recall optimization even begins. This creates a cleaner
+gradient — GRPO first learns "don't over-match," then pushes recall upward.
+
+**Why soft parse gate in epoch 1:** If the SFT checkpoint produces rules that
+parse ~80% of the time, a hard zero gate gives 20% of GRPO samples zero reward
+regardless of how close they were to valid YAML. A soft penalty (0.05) preserves
+gradient signal for near-misses during early RL, then anneals to a hard gate
+once parse rate stabilizes above 95%.
+
+GRPO computes relative rewards across all 16 candidates per prompt. No absolute
 reward model or value network is needed — this is simpler and more stable than
-PPO for programmatically-verifiable tasks.
+PPO for programmatically-verifiable tasks. The group size of 16 (vs the
+originally planned 4) reduces advantage estimate variance by ~4× (variance
+scales as ~1/N), producing more stable policy gradients.
 
 ### Training Configuration
 
@@ -367,64 +386,82 @@ Single worker node in the homelab cluster:
 
 #### VRAM Budget (GRPO Phase)
 
+Generation and training are decoupled via micro-batching: generate 4 candidates
+at a time (4 micro-batches × 4 = 16 total per prompt), score all 16 on CPU,
+then compute GRPO update. VRAM is sized for the generation micro-batch, not the
+full group.
+
 | Component                                    | Estimate     |
 | -------------------------------------------- | ------------ |
 | Qwen 3.5 9B base (4-bit quantized)           | 5–6 GB       |
 | LoRA adapters (rank 64–128)                  | 1–2 GB       |
 | Optimizer states (AdamW)                     | 2–3 GB       |
-| KV cache (batch of 4 candidates)             | 3–4 GB       |
+| KV cache (micro-batch of 4 candidates)       | 3–4 GB       |
 | Activations + gradients (with checkpointing) | 3–4 GB       |
 | **Total**                                    | **14–19 GB** |
 
-Fits within 24GB with margin. If tight: reduce GRPO group size from 4 to 3,
-reduce LoRA rank, or enable more aggressive gradient checkpointing.
+Fits within 24GB with margin. The N=16 group size does not increase VRAM —
+generation is sequential across micro-batches.
+
+**Important:** `max_new_tokens` must be enforced at the generation level, not
+just at training. Without this, a candidate generating a 2,000+ token rule
+before truncation will spike KV cache and potentially OOM. The sequence length
+cap (to be profiled in Phase 0) is enforced via the generation config, not
+post-hoc truncation.
 
 #### Training Phases
 
 | Phase                | Method                      | Data                                     | Duration (est.) |
 | -------------------- | --------------------------- | ---------------------------------------- | --------------- |
 | 0: Data construction | CPU-only                    | 2,865 rules (all langs) → grouped JSONL  | ~3 hours        |
-| 1: SFT warmup        | QLoRA, 3–5 epochs           | ~8–14K prompt/rule pairs (all languages) | ~4–6 hours      |
-| 2: GRPO RL           | QLoRA + semgrep-core reward | ~1,000 Python train prompts, 3 epochs    | ~6–10 hours     |
+| 1: SFT warmup        | QLoRA, early stopping       | ~8–14K prompt/rule pairs (all languages) | ~3–5 hours      |
+| 2: GRPO RL           | QLoRA + semgrep-core reward | ~1,000 Python train prompts, N=16 groups | ~8–14 hours     |
 | 3: Evaluation        | Inference + semgrep-core    | ~98 held-out 2026+ CVEs                  | ~30 minutes     |
 | **Total**            |                             |                                          | **~1–2 days**   |
+
+Phase 2 duration increases ~40% vs N=4 due to 4× more generation passes per
+step (micro-batched), but the reward signal quality improvement is worth it.
 
 #### Semgrep Execution Budget
 
 With direct semgrep-core invocation and 8-way CPU parallelism:
 
 ```
-Per GRPO step:  4 candidates × 0.12s = 0.48s serial → 0.06s parallel
-Full RL run:    1,100 prompts × 3 epochs × 0.06s ≈ 3.3 minutes
+Per GRPO step:  16 candidates × 0.12s = 1.92s serial → 0.24s parallel (8-way)
+Full RL run:    1,000 prompts × 3 epochs × 0.24s ≈ 12 minutes
 ```
 
-Semgrep execution is negligible. Training is entirely GPU-bound.
+Semgrep execution is negligible even at N=16. Training is entirely GPU-bound —
+micro-batch generation (~4 passes × inference time) dominates the step cost.
 
-**Future optimization (not needed at this scale):** candidate rules with
-structurally identical ASTs could be deduplicated via hashing to skip redundant
-semgrep-core invocations. The `-parse_rules` flag exists for syntax-only
-validation but takes the same 0.12s (OCaml binary startup dominates), so it's
-not a useful fast gate. These optimizations only matter if scaling to continuous
-training with millions of invocations.
+**Future optimization (not needed at this scale):** for continuous training with
+millions of invocations, semgrep-core could be run as a long-lived process
+accepting rules via file-watch instead of spawning a new process per candidate.
+The 0.12s per invocation is dominated by OCaml binary startup (~109ms), not
+actual parse+match work (~11ms). A persistent process would approach the 11ms
+floor. Candidate rules with structurally identical ASTs could also be
+deduplicated via hashing to skip redundant invocations.
 
 ---
 
 ## Key Decisions
 
-| Decision                                | Rationale                                                                                                                                         |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Qwen 3.5 9B** (not 7B or 14B)         | 9B fits in 4-bit on 24GB VRAM with room for GRPO; strong code generation baseline; larger models OOM during RL                                    |
-| **QLoRA** (not full finetune)           | Full finetune of 9B requires ~72GB VRAM (bf16); QLoRA fits in 14–19GB while preserving 90%+ of full finetune quality                              |
-| **GRPO** (not PPO)                      | No value network needed — simpler, less VRAM, more stable for tasks with programmatic reward signals. Proven by DeepSeek-R1 for code generation   |
-| **SFT → RL** (not RL-only)              | SFT warmup teaches Semgrep YAML syntax; RL on top teaches behavioral correctness. Direct RL from base model is too unstable for structured output |
-| **Multi-language SFT, Python-only RL**  | SFT on all 2,865 rules (taint structure is language-agnostic); RL on Python only (requires semgrep-core execution). 2.5× more SFT signal          |
-| **Python-first for RL**                 | Largest corpus (881 Pro rules), richest taint coverage (90%), most CWE classes. Designed for LoRA-per-language expansion                          |
-| **CWE-grouped reward** (not per-rule)   | Trains the model to reason about vulnerability classes, not memorize specific rule patterns. Produces more generalizable rules                    |
-| **CVE date-based eval split**           | Prevents data contamination from base model pretraining. 2026+ CVEs are guaranteed unseen                                                         |
-| **semgrep-core direct** (not pysemgrep) | 16× faster (0.12s vs 2.0s). Matches existing Bazel pipeline approach ([ADR 001](001-bazel-semgrep.md)). Makes reward computation negligible       |
-| **Pro engine for reward** (not OSS)     | 76% of Pro rules use cross-file taint; OSS engine would give wrong reward signals for the majority of training data                               |
-| **Exclude OpenGrep**                    | 99% overlap with community rules (263/266 identical IDs). Adds noise, not signal                                                                  |
-| **Frontier benchmark required**         | Finetuned model must justify itself against Claude Opus/Sonnet with good prompting. If frontier wins on all axes, use prompting instead           |
+| Decision                                    | Rationale                                                                                                                                         |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Qwen 3.5 9B** (not 7B or 14B)             | 9B fits in 4-bit on 24GB VRAM with room for GRPO; strong code generation baseline; larger models OOM during RL                                    |
+| **QLoRA** (not full finetune)               | Full finetune of 9B requires ~72GB VRAM (bf16); QLoRA fits in 14–19GB while preserving 90%+ of full finetune quality                              |
+| **GRPO** (not PPO)                          | No value network needed — simpler, less VRAM, more stable for tasks with programmatic reward signals. Proven by DeepSeek-R1 for code generation   |
+| **N=16 micro-batched** (not N=4)            | Advantage estimate variance scales as ~1/N; N=4 is 16× noisier than DeepSeek-R1's N=64. Micro-batching (4×4) keeps VRAM at N=4 levels             |
+| **Hierarchical reward** (not flat weighted) | Gating on precision before optimizing recall prevents the model from trading FPs for detection; flat scalar conflates orthogonal failure modes    |
+| **SFT → RL** (not RL-only)                  | SFT warmup teaches Semgrep YAML syntax; RL on top teaches behavioral correctness. Direct RL from base model is too unstable for structured output |
+| **Multi-language SFT, Python-only RL**      | SFT on all 2,865 rules (taint structure is language-agnostic); RL on Python only (requires semgrep-core execution). 2.5× more SFT signal          |
+| **Python-first for RL**                     | Largest corpus (881 Pro rules), richest taint coverage (90%), most CWE classes. Designed for LoRA-per-language expansion                          |
+| **CWE-grouped reward** (not per-rule)       | Trains the model to reason about vulnerability classes, not memorize specific rule patterns. Produces more generalizable rules                    |
+| **CVE date-based eval split**               | Prevents data contamination from base model pretraining. 2026+ CVEs are guaranteed unseen                                                         |
+| **semgrep-core direct** (not pysemgrep)     | 16× faster (0.12s vs 2.0s). Matches existing Bazel pipeline approach ([ADR 001](001-bazel-semgrep.md)). Makes reward computation negligible       |
+| **Pro engine for reward** (not OSS)         | 76% of Pro rules use cross-file taint; OSS engine would give wrong reward signals for the majority of training data                               |
+| **Exclude OpenGrep**                        | 99% overlap with community rules (263/266 identical IDs). Adds noise, not signal                                                                  |
+| **Frontier benchmark required**             | Finetuned model must justify itself against Claude Opus/Sonnet with good prompting. If frontier wins on all axes, use prompting instead           |
 
 ---
 
@@ -441,32 +478,52 @@ training with millions of invocations.
 - [ ] Obtain Pro internal test fixtures (Semgrep employee access)
 - [ ] Map test fixtures to CWE groups: categorize as core_positive,
       variant_positive, core_negative, edge_negative
+- [ ] **Fixture oracle validation**: run existing Pro rules against their own
+      test fixtures using the reward function and confirm they score 100%. If
+      the oracle doesn't score perfectly on its own test data, the reward
+      function is broken before training starts. This is a prerequisite gate
+      for Phase 2
 - [ ] Integrate community test fixtures (co-located files already available)
 - [ ] Fetch CVE/CWE descriptions from NVD API for prompt construction
-- [ ] Build prompt variants: CWE description, CVE advisory text, rule message
-      field, combined variants
+- [ ] Build prompt variants at **multiple specificity levels** — not just
+      paraphrases of the same description, but varying input quality: 1. Generic CWE description (MITRE) 2. Specific CVE advisory text (NVD) 3. Partial vulnerability description with missing details 4. Ambiguous incident report (real-world input quality simulation) 5. Rule `message` field (terse, technical)
 - [ ] Apply time-based split using CVE publication dates (train: pre-2025,
       val: 2025, eval: 2026+)
+- [ ] **Profile token length distribution** of all Pro rules — determine
+      appropriate `max_new_tokens` cap for generation. Complex taint rules
+      with multiple sources/sinks/propagators/sanitizers may exceed 1,024
+      tokens. Set cap at p95 of the distribution to avoid truncation artifacts
+- [ ] **CWE class rebalancing**: compute per-CWE sample counts and apply
+      oversampling for sparse classes (e.g. CWE-79 with 41 rules) and
+      undersampling for dense classes (e.g. CWE-918 with 283 rules) in the
+      RL training data. Without this, the model will over-index on SSRF and
+      underperform on everything else
 - [ ] Output `sft_data.jsonl` — all 2,865 rules across all languages for
-      multi-language SFT
+      multi-language SFT (with data augmentation: field order shuffling,
+      prompt paraphrases)
 - [ ] Output `rl_data.jsonl` — 1,154 Python-only rules with test fixtures for
-      GRPO reward computation
+      GRPO reward computation, CWE-rebalanced
 
 ### Phase 1: SFT Warmup (Multi-Language)
 
-- [ ] Download Qwen 3.5 9B base weights
+- [ ] Download [Qwen 3.5 9B](https://huggingface.co/Qwen/Qwen3.5-9B) base
+      weights
 - [ ] Set up training environment (TRL or similar) on worker node
-- [ ] Configure QLoRA: 4-bit quantization, LoRA rank 64–128, target modules
-      (q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj)
+- [ ] Configure QLoRA: 4-bit quantization, LoRA rank 64–128, **LoRA dropout
+      0.1–0.2** (critical for a dataset this small — 2,865 examples on a 9B
+      model overfits fast), target modules (q_proj, k_proj, v_proj, o_proj,
+      gate_proj, up_proj, down_proj)
+- [ ] **Data augmentation before SFT** — not just prompt paraphrasing (which the
+      model quickly learns to ignore), but structural augmentation: shuffle YAML
+      field ordering (sources before sinks, sinks before sources), vary
+      indentation style, add/remove optional fields. This teaches the model that
+      rule structure is semantic, not positional
 - [ ] Train SFT on **all 2,865 rules across all languages** — taint rule
       structure is language-agnostic YAML; multi-language training provides 2.5×
       more signal for learning rule composition
-- [ ] Save checkpoints at each epoch
-- [ ] Validate: measure parse rate and basic CWE coverage on validation split
-      **at each epoch** — track train loss vs validation loss divergence
-- [ ] Run eval on validation set per epoch to find the optimal stopping point
-      (overfitting risk lower with 2,865 multi-language examples vs 1,154
-      Python-only)
+- [ ] **Early stopping with patience of 0.5 epochs** — expect overfitting well
+      before epoch 3 for a 9B model on ~14K examples. Monitor validation loss
+      at sub-epoch granularity (every 500 steps)
 - [ ] Track per-CWE-class metrics across epochs — sparse classes (e.g. CWE-79
       with 41 rules) will overfit faster than dense classes (CWE-918 with 283)
 - [ ] Save best SFT LoRA adapter checkpoint (by validation detection recall,
@@ -474,16 +531,20 @@ training with millions of invocations.
 
 ### Phase 2: GRPO RL
 
-- [ ] Build reward function: write candidate rule → call semgrep-core → parse
-      JSON results → compute grouped score
+- [ ] Build hierarchical reward function: write candidate rule → call
+      semgrep-core → parse JSON results → apply gated scoring (parse →
+      precision constraint → recall optimization)
 - [ ] Stage semgrep-core-proprietary + semgrep-core binaries for reward
       computation
-- [ ] Configure GRPO: group size 4, gradient checkpointing, sequence length cap
-      1024 tokens
+- [ ] Configure GRPO: **group size 16** (4 micro-batches × 4 candidates),
+      gradient checkpointing, `max_new_tokens` from Phase 0 token profiling
+- [ ] Implement soft parse gate: reward 0.05 for invalid YAML in epoch 1,
+      anneal to hard zero gate after parse rate exceeds 95%
 - [ ] Train GRPO on top of SFT checkpoint, save checkpoints at each epoch
-- [ ] Monitor reward curves: parse rate should plateau early, detection recall
-      should climb steadily — watch for reward plateau or decline (overfitting
-      to specific test fixtures)
+- [ ] Monitor reward curves per gate level: parse rate should plateau early,
+      precision gate pass rate should climb next, then detection recall —
+      watch for reward plateau or decline (overfitting to specific test
+      fixtures)
 - [ ] **Reward overfitting check**: hold out a subset of test fixtures from the
       reward function and evaluate the model against them separately. If the
       model scores well on reward fixtures but poorly on held-out fixtures for
@@ -503,8 +564,13 @@ training with millions of invocations.
       (Opus/Sonnet via Max subscription) with identical system prompt and
       scoring methodology — this is the bar the finetuned model must beat or
       match at lower cost/latency
-- [ ] Compare finetuned 9B vs frontier across all metrics, document where each
-      wins
+- [ ] **Frontier few-shot variant**: also test frontier models with 3–5
+      Pro-quality taint rules stuffed into the prompt as few-shot examples.
+      This represents the strongest realistic prompting baseline — if Claude
+      Opus with 5-shot taint examples already hits 90%+ detection recall, that
+      significantly changes the success criteria math
+- [ ] Compare finetuned 9B vs frontier (zero-shot and few-shot) across all
+      metrics, document where each wins
 - [ ] Document results and identify weak CWE classes for potential data
       augmentation
 
@@ -552,22 +618,27 @@ set:
 2. Same scoring (semgrep-core execution against grouped test fixtures)
 3. Same metrics (parse rate, detection recall, false positive rate per CWE)
 
-For frontier, use a system prompt that includes Semgrep pattern syntax
-documentation and 2–3 few-shot examples of Pro-quality taint rules. This
-represents the best realistic prompting effort — not a strawman.
+For frontier, test **two prompting configurations** to avoid a strawman
+comparison:
+
+1. **Zero-shot**: system prompt with Semgrep pattern syntax documentation only
+2. **Few-shot**: system prompt + 3–5 Pro-quality taint rules as in-context
+   examples (the strongest realistic prompting effort)
 
 ```
 Eval matrix:
 
-                      Parse    Detection   FP      Latency   Cost/rule
-                      rate     recall      rate    (p50)     (marginal)
-───────────────────────────────────────────────────────────────────────
-Claude Opus            ?%       ?%         ?%      ~5s       ~$0.10
-Claude Sonnet          ?%       ?%         ?%      ~2s       ~$0.03
-Qwen 9B (base)         ?%       ?%         ?%      <1s       $0
-Qwen 9B (SFT only)    ?%       ?%         ?%      <1s       $0
-Qwen 9B (SFT+RL)      ?%       ?%         ?%      <1s       $0
-Pro rule oracle       100%     100%        0%       —         —
+                              Parse    Detection   FP      Latency   Cost/rule
+                              rate     recall      rate    (p50)     (marginal)
+─────────────────────────────────────────────────────────────────────────────────
+Claude Opus (zero-shot)        ?%       ?%         ?%      ~5s       ~$0.10
+Claude Opus (5-shot)           ?%       ?%         ?%      ~8s       ~$0.15
+Claude Sonnet (zero-shot)      ?%       ?%         ?%      ~2s       ~$0.03
+Claude Sonnet (5-shot)         ?%       ?%         ?%      ~3s       ~$0.05
+Qwen 9B (base)                 ?%       ?%         ?%      <1s       $0
+Qwen 9B (SFT only)            ?%       ?%         ?%      <1s       $0
+Qwen 9B (SFT+RL)              ?%       ?%         ?%      <1s       $0
+Pro rule oracle               100%     100%        0%       —         —
 ```
 
 The **base → SFT → SFT+RL** progression is as important as the absolute
@@ -663,18 +734,20 @@ production scanning. The model is a drafting tool, not an autonomous scanner.
 
 ## Risks
 
-| Risk                                                                  | Likelihood | Impact   | Mitigation                                                                                                                                                  |
-| --------------------------------------------------------------------- | ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1,154 Python rules insufficient for RL                                | Medium     | Medium   | Multi-language SFT (2,865 rules) mitigates; prompt augmentation (3–5 variants per rule)                                                                     |
-| GRPO OOM on 4090 with 9B model                                        | Low        | High     | Reduce group size to 2–3, reduce LoRA rank, enable gradient checkpointing. Fallback: use 4B model                                                           |
-| Model produces syntactically valid but semantically wrong taint rules | Medium     | High     | Grouped reward with 0.3 weight on false positive penalty; taint-specific eval metrics                                                                       |
-| Pro test fixtures lack sufficient negative examples                   | Medium     | Medium   | Generate additional negatives with LLM, validate against Pro rule oracle                                                                                    |
-| Semgrep Pro license restricts model training                          | Low        | Critical | Verify internally — employee access may have different terms. Worst case: train on community-only (266 rules)                                               |
-| Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium   | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization                                                             |
-| Base model's pretraining data contaminates eval                       | Low        | High     | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                                                               |
-| Reward signal too sparse for taint rules                              | Medium     | Medium   | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                                                                      |
-| Frontier model already solves the task well enough                    | Medium     | High     | Benchmark early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                                                                |
-| Overfitting to small dataset or specific test fixtures                | Medium     | High     | Multi-language SFT (2,865 rules) reduces SFT risk; per-epoch validation eval; per-CWE tracking; held-out fixture subset for RL reward overfitting detection |
+| Risk                                                                  | Likelihood | Impact   | Mitigation                                                                                                                                                    |
+| --------------------------------------------------------------------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1,154 Python rules insufficient for RL                                | Medium     | Medium   | Multi-language SFT (2,865 rules) mitigates; prompt augmentation (5 specificity levels per rule); structural data augmentation (field shuffling)               |
+| GRPO OOM on 4090 with 9B model                                        | Low        | High     | Micro-batched N=16 keeps VRAM at N=4 levels; reduce LoRA rank, enable gradient checkpointing. Fallback: use 4B model                                          |
+| Model produces syntactically valid but semantically wrong taint rules | Medium     | High     | Hierarchical reward gates precision before recall; held-out fixture subset detects reward gaming                                                              |
+| CWE class imbalance (SSRF 283 vs XSS 41)                              | High       | Medium   | Per-CWE oversampling/undersampling in RL data; per-CWE metrics tracked separately — model must not sacrifice tail classes for dominant ones                   |
+| Pro test fixtures lack sufficient negative examples                   | Medium     | Medium   | Generate additional negatives with LLM; oracle validation in Phase 0 catches broken fixtures before training                                                  |
+| Semgrep Pro license restricts model training                          | Low        | Critical | Verify internally — employee access may have different terms. Worst case: train on community-only (273 rules)                                                 |
+| Model memorizes specific Pro rules instead of generalizing            | Medium     | Medium   | CWE-grouped training encourages class-level reasoning; eval on unseen CVEs catches memorization                                                               |
+| Base model's pretraining data contaminates eval                       | Low        | High     | Time-based split on CVE publication date; 2026+ eval set is guaranteed unseen                                                                                 |
+| Reward signal too sparse for taint rules                              | Medium     | Medium   | Start with 10–15 fixtures per rule group; expand for CWE classes where reward is noisy                                                                        |
+| Frontier model already solves the task well enough                    | Medium     | High     | Benchmark both zero-shot and 5-shot frontier prompting early (Phase 3); if frontier dominates, pivot to prompt engineering + eval harness                     |
+| Overfitting to small dataset or specific test fixtures                | Medium     | High     | LoRA dropout 0.1–0.2; early stopping with 0.5-epoch patience; multi-language SFT; structural data augmentation; held-out fixture subset for RL overfitting    |
+| Token length cap truncates complex taint rules                        | Medium     | Medium   | Profile Pro rule token distribution in Phase 0; set `max_new_tokens` at p95, not arbitrary 1,024. Enforce at generation level to prevent KV cache VRAM spikes |
 
 ---
 
@@ -714,7 +787,7 @@ production scanning. The model is a drafting tool, not an autonomous scanner.
 | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | [ADR 001: Bazel Semgrep](001-bazel-semgrep.md)                                            | semgrep-core direct invocation, OCI vendoring, Bazel caching                |
 | [DeepSeek-R1 (2025)](https://arxiv.org/abs/2501.12948)                                    | GRPO methodology for code generation with programmatic rewards              |
-| [Qwen 3.5 Technical Report](https://qwenlm.github.io/)                                    | Base model architecture and capabilities                                    |
+| [Qwen 3.5 9B (HuggingFace)](https://huggingface.co/Qwen/Qwen3.5-9B)                       | Base model weights and architecture                                         |
 | [Semgrep pattern syntax](https://semgrep.dev/docs/writing-rules/pattern-syntax/)          | Target output format for generated rules                                    |
 | [Semgrep taint analysis](https://semgrep.dev/docs/writing-rules/data-flow/taint-mode/)    | Sources, sinks, propagators, sanitizers — the core of Pro rules             |
 | [TRL GRPO Trainer](https://huggingface.co/docs/trl/main/en/grpo_trainer)                  | Training framework for GRPO with programmatic rewards                       |
