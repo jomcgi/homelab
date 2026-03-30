@@ -177,8 +177,12 @@ class TestArchiveBehaviour:
         _seed_tasks(session, weekly_text="First weekly")
         archive_and_reset(session, weekly_reset=False)
 
-        # Re-seed and reset again (same day)
-        session.add(Task(task="Second weekly", done=False, kind="weekly", position=0))
+        # Update the preserved weekly task and reset again (same day).
+        # After a daily reset the weekly task is preserved; update it in place
+        # rather than adding a duplicate which would make .first() non-deterministic.
+        weekly = session.exec(select(Task).where(Task.kind == "weekly")).first()
+        assert weekly is not None, "daily reset should preserve the weekly task"
+        weekly.task = "Second weekly"
         session.commit()
         archive_and_reset(session, weekly_reset=False)
 
