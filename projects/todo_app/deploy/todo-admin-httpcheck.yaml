@@ -1,0 +1,54 @@
+# HTTPCheck and Alert for todo-admin endpoint.
+# Uses monitoring.jomcgi.dev/v1alpha1 CRDs (see projects/platform/signoz-addons/operator/).
+# The authSecretRef pulls CF-Access service token credentials from the synthetic-tests
+# Secret (created by synthetic-monitor-secret.yaml) to bypass Cloudflare Zero Trust
+# when probing the trusted-tier admin endpoint.
+apiVersion: monitoring.jomcgi.dev/v1alpha1
+kind: HTTPCheck
+metadata:
+  name: todo-admin
+  namespace: todo
+spec:
+  endpoint: https://todo-admin.jomcgi.dev
+  interval: 2m
+  timeout: 10s
+  expectedStatusCode: 200
+  authSecretRef:
+    name: synthetic-tests
+    keys:
+      - secretKey: cloudflare-client-id
+        headerName: CF-Access-Client-Id
+      - secretKey: cloudflare-client-secret
+        headerName: CF-Access-Client-Secret
+  labels:
+    service: todo-admin
+    environment: production
+---
+apiVersion: monitoring.jomcgi.dev/v1alpha1
+kind: Alert
+metadata:
+  name: todo-admin-unreachable
+  namespace: todo
+spec:
+  alertName: "todo-admin Unreachable"
+  summary: "todo-admin at https://todo-admin.jomcgi.dev is unreachable"
+  description: >
+    HTTP health check has failed 5 consecutive times over 10 minutes.
+    Common causes: (1) service is down or OOMKilled, (2) Cloudflare Access
+    auth failing (check synthetic-tests secret in todo namespace),
+    (3) duplicate HTTPRoute conflict (another chart also claiming
+    todo-admin.jomcgi.dev — check all HTTPRoute resources for this hostname).
+  httpCheckRef:
+    name: todo-admin
+  condition:
+    operator: "<"
+    threshold: 1
+  evalWindow: 10m
+  frequency: 2m
+  consecutiveFailures: 5
+  severity: critical
+  notificationChannels:
+    - incidentio
+  labels:
+    service: todo-admin
+    environment: production
