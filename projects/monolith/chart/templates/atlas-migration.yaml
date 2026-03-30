@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "monolith.labels" . | nindent 4 }}
 spec:
-  url:
+  urlFrom:
     secretKeyRef:
       name: {{ include "monolith.fullname" . }}-pg-app
       key: uri
