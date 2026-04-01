@@ -1,5 +1,6 @@
 backend:
   replicas: 1
+  vaultApiUrl: ""
   image:
     repository: ghcr.io/jomcgi/homelab/projects/monolith/backend
     tag: main

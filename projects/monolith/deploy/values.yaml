@@ -1,5 +1,6 @@
 backend:
   replicas: 1
+  vaultApiUrl: "http://obsidian-vault.obsidian.svc.cluster.local:8000"
 
 postgres:
   instances: 1
