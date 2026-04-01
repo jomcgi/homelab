@@ -6,6 +6,7 @@
   "serviceName" (include "monolith.fullname" .)
   "servicePort" (.Values.cfIngress.private.servicePort | int)
   "gateway" .Values.cfIngress.private.gateway
+  "rewritePrefix" "/private/"
 }}
 {{- include "cf-ingress.httproute" $params }}
 ---

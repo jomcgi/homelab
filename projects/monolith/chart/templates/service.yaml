@@ -9,7 +9,7 @@ spec:
   ports:
     - name: http
       port: {{ .Values.service.port }}
-      targetPort: api
+      targetPort: http
       protocol: TCP
   selector:
     {{- include "monolith.selectorLabels" . | nindent 4 }}
