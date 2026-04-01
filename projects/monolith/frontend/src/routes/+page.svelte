@@ -120,13 +120,15 @@
   function scheduleSave() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      fetch("/api/todo", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          weekly: { task: goal, done: goalDone },
-          daily: daily.map((text, i) => ({ task: text, done: dailyDone[i] })),
-        }),
+      const body = JSON.stringify({
+        weekly: { task: goal, done: goalDone },
+        daily: daily.map((text, i) => ({ task: text, done: dailyDone[i] })),
+      });
+      const formData = new FormData();
+      formData.append("body", body);
+      fetch("?/save", {
+        method: "POST",
+        body: formData,
       });
     }, 400);
   }
