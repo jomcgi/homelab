@@ -295,10 +295,6 @@ apko.translate_lock(
     lock = "//projects/grimoire/frontend:apko.lock.json",
 )
 apko.translate_lock(
-    name = "todo_lock",
-    lock = "//projects/todo_app/image:apko.lock.json",
-)
-apko.translate_lock(
     name = "goose_agent_lock",
     lock = "//projects/agent_platform/goose_agent/image:apko.lock.json",
 )
