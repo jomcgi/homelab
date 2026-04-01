@@ -48,9 +48,21 @@ def parse_events_for_date(ics_text: str, target_date: date, tz: ZoneInfo) -> lis
             key = (time_str, summary)
             if key not in seen:
                 seen.add(key)
+                # Parse end time
+                dtend = component.get("DTEND")
+                end_str = None
+                if dtend is not None:
+                    dte = dtend.dt
+                    if isinstance(dte, datetime):
+                        if dte.tzinfo is None:
+                            dte = dte.replace(tzinfo=tz)
+                        else:
+                            dte = dte.astimezone(tz)
+                        end_str = dte.strftime("%H:%M")
                 timed.append(
                     {
                         "time": time_str,
+                        "endTime": end_str,
                         "title": summary,
                         "allDay": False,
                     }

@@ -7,7 +7,7 @@ from app.main import app
 
 MOCK_EVENTS = [
     {"time": None, "title": "Holiday", "allDay": True},
-    {"time": "09:00", "title": "Standup", "allDay": False},
+    {"time": "09:00", "endTime": "09:30", "title": "Standup", "allDay": False},
 ]
 
 

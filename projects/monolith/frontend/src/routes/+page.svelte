@@ -40,23 +40,54 @@
     { label: "GitHub", url: "#" },
   ];
 
-  function isPast(timeStr, d) {
+  function timeToMinutes(timeStr) {
     const [h, m] = timeStr.split(":").map(Number);
-    return d.getHours() > h || (d.getHours() === h && d.getMinutes() >= m);
+    return h * 60 + m;
   }
 
-  // Auto-scroll to the first upcoming event
+  function nowMinutes(d) {
+    return d.getHours() * 60 + d.getMinutes();
+  }
+
+  function isPast(ev, d) {
+    if (ev.allDay) return false;
+    const end = ev.endTime ?? ev.time;
+    return nowMinutes(d) >= timeToMinutes(end);
+  }
+
+  function isActive(ev, d) {
+    if (ev.allDay || !ev.endTime) return false;
+    const n = nowMinutes(d);
+    return n >= timeToMinutes(ev.time) && n < timeToMinutes(ev.endTime);
+  }
+
+  // Scroll to the first active/upcoming event, re-run every 10 minutes
+  let scrollTick = $state(0);
   $effect(() => {
+    const id = setInterval(() => (scrollTick = Date.now()), 600_000);
+    return () => clearInterval(id);
+  });
+
+  function scrollToRelevant() {
     if (!eventListRef) return;
     const rows = eventListRef.querySelectorAll(".event-row");
     let target = rows.length - 1;
     for (let i = 0; i < rows.length; i++) {
-      if (!rows[i].classList.contains("event-row--past")) {
+      if (
+        rows[i].classList.contains("event-row--active") ||
+        (!rows[i].classList.contains("event-row--past") &&
+          !rows[i].classList.contains("event-row--allday"))
+      ) {
         target = Math.max(0, i - 1);
         break;
       }
     }
     rows[target]?.scrollIntoView({ block: "start" });
+  }
+
+  $effect(() => {
+    scrollTick;
+    scrollToRelevant();
   });
 
   // ── Todo ─────────────────────────────────────
@@ -129,7 +160,7 @@
   // ── Clock ────────────────────────────────────
   let now = $state(new Date());
   $effect(() => {
-    const id = setInterval(() => (now = new Date()), 30_000);
+    const id = setInterval(() => (now = new Date()), 60_000);
     return () => clearInterval(id);
   });
 
@@ -186,7 +217,12 @@
       <h2 class="section-label">today</h2>
       <ul class="event-list" bind:this={eventListRef}>
         {#each events as ev}
-          <li class="event-row" class:event-row--past={!ev.allDay && isPast(ev.time, now)}>
+          <li
+            class="event-row"
+            class:event-row--past={isPast(ev, now)}
+            class:event-row--active={isActive(ev, now)}
+            class:event-row--allday={ev.allDay}
+          >
             {#if ev.allDay}
               <span class="event-time"></span>
               <span class="event-title">{ev.title}</span>
@@ -194,7 +230,7 @@
             {:else}
               <span class="event-time">{ev.time}</span>
               <span class="event-title">{ev.title}</span>
-              <span class="event-meta"></span>
+              <span class="event-meta">{ev.endTime ? ev.endTime : ""}</span>
             {/if}
           </li>
         {/each}
@@ -462,6 +498,14 @@
     letter-spacing: 0.08em;
     color: var(--fg-tertiary);
     flex-shrink: 0;
+  }
+
+  .event-row--active {
+    font-weight: 700;
+  }
+
+  .event-row--active .event-time {
+    color: var(--fg);
   }
 
   .event-row--past .event-time,

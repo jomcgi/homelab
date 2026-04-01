@@ -35,6 +35,7 @@ def test_parse_timed_event():
     timed = [e for e in events if not e["allDay"]]
     assert len(timed) == 1
     assert timed[0]["time"] == "09:00"
+    assert timed[0]["endTime"] == "09:30"
     assert timed[0]["title"] == "Standup"
 
 
@@ -96,3 +97,21 @@ def test_deduplicates_events():
     assert len(events) == 2
     assert events[0]["title"] == "Holiday"
     assert events[1]["title"] == "Infra Ops Review"
+    assert events[1]["endTime"] == "10:30"
+
+
+NO_DTEND_ICS = """\
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:20260330T120000
+SUMMARY:Lunch
+END:VEVENT
+END:VCALENDAR
+"""
+
+
+def test_missing_dtend_returns_none():
+    events = parse_events_for_date(NO_DTEND_ICS, date(2026, 3, 30), TZ)
+    assert len(events) == 1
+    assert events[0]["endTime"] is None
