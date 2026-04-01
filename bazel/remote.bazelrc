@@ -21,6 +21,7 @@ build:ci --remote_cache=grpcs://remote.buildbuddy.io
 build:ci --jobs=80  # Use all 80 available cores for remote execution
 build:ci --remote_cache_compression  # Faster transfers
 build:ci --remote_download_minimal  # Don't download unnecessary outputs
+build:ci --noexperimental_check_output_files  # Skip local stat() for remote-cached outputs
 build:ci --remote_retries=7  # Retry transient gRPC failures (default 5)
 build:ci --grpc_keepalive_timeout=10s  # Detect dead connections faster (default 20s)
 
