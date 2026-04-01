@@ -1,6 +1,6 @@
 actions:
   # Format check - runs formatters and gazelle, auto-commits fixes on PR branches
-  # Runs in parallel with Build action
+  # Runs in parallel with Test and Push images
   - name: "Format check"
     container_image: "ubuntu-24.04"
     max_retries: 2
@@ -63,37 +63,8 @@ actions:
           git push origin HEAD:"$current_branch"
           echo "Formatting fixes pushed to $current_branch"
 
-  # Build — compiles all targets and populates the remote cache.
-  # Test, Push images, and Push pages all depend on this so they get
-  # remote cache hits for build actions and only execute novel work
-  # (running tests / pushing artifacts) in parallel.
-  - name: "Build"
-    container_image: "ubuntu-24.04"
-    max_retries: 1
-    resource_requests:
-      cpu: "6"
-      memory: "10GB"
-      disk: "60GB"
-    triggers:
-      push:
-        branches:
-          - "main"
-      pull_request:
-        branches:
-          - "*"
-        merge_with_base: false
-    steps:
-      - run: |
-          # Skip automated commits
-          AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ]; then
-            echo "Skipping automated commit from $AUTHOR"
-            exit 0
-          fi
-          bazel build //... --config=ci --deleted_packages=bazel/tools/python
-
-  # Test — runs the full test suite. Build actions are remote cache hits
-  # from the Build step; only test execution happens here.
+  # Test — runs in parallel with Push images (no dependency between them).
+  # PR merge is gated on Test passing; Push images is informational on PRs.
   - name: "Test"
     container_image: "ubuntu-24.04"
     max_retries: 1
@@ -101,7 +72,6 @@ actions:
       cpu: "6"
       memory: "10GB"
       disk: "60GB"
-    depends_on: ["Build"]
     triggers:
       push:
         branches:
@@ -120,7 +90,7 @@ actions:
           fi
           bazel test //... --config=ci --deleted_packages=bazel/tools/python --test_tag_filters=-external
 
-  # Push images — runs in parallel with Test, after Build populates cache.
+  # Push images — runs in parallel with Test (no dependency).
   # PR images are tagged with the source branch name (not "main"),
   # so ArgoCD Image Updater ignores them. This ensures image builds are
   # verified before merge. PR merge is still gated on Test passing.
@@ -131,7 +101,6 @@ actions:
       cpu: "6"
       memory: "10GB"
       disk: "60GB"
-    depends_on: ["Build"]
     triggers:
       push:
         branches:
@@ -153,13 +122,12 @@ actions:
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
           bazel run //bazel/images:push_all --config=ci --stamp
 
-  # Push pages — runs on main only, parallel with Test and Push images
+  # Push pages — runs on main only, in parallel with Test and Push images
   - name: "Push pages"
     container_image: "ubuntu-24.04"
     max_retries: 1
     resource_requests:
       disk: "20GB"
-    depends_on: ["Build"]
     triggers:
       push:
         branches:
