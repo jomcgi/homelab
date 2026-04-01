@@ -1,4 +1,4 @@
-import adapter from "@sveltejs/adapter-static";
+import adapter from "@sveltejs/adapter-node";
 import { mdsvex } from "mdsvex";
 
 const config = {
@@ -6,13 +6,8 @@ const config = {
   preprocess: [mdsvex()],
   kit: {
     adapter: adapter({
-      fallback: "index.html",
-      pages: "dist",
-      assets: "dist",
+      out: "build",
     }),
-    paths: {
-      base: "",
-    },
   },
 };
 
