@@ -13,6 +13,10 @@ Required values:
   gateway:
     name: "cloudflare-ingress"
     namespace: "envoy-gateway-system"
+
+Optional values:
+  pathPrefix: "/todo" (defaults to "/")
+  rewritePrefix: "/public/" (rewrites matched pathPrefix to this value)
 */}}
 {{- define "cf-ingress.httproute" -}}
 apiVersion: gateway.networking.k8s.io/v1
@@ -31,7 +35,15 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /
+            value: {{ .pathPrefix | default "/" }}
+      {{- if .rewritePrefix }}
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: {{ .rewritePrefix }}
+      {{- end }}
       backendRefs:
         - name: {{ .serviceName }}
           port: {{ .servicePort }}
