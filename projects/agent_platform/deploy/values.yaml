@@ -23,8 +23,6 @@ agent-platform-mcp-servers:
         repository: docker.io/signoz/signoz-mcp-server
         tag: "v0.0.5"
       port: 8000
-      podAnnotations:
-        instrumentation.opentelemetry.io/inject-python: "python"
       env:
         - name: SIGNOZ_URL
           value: "http://signoz.signoz.svc.cluster.local:8080"
@@ -122,39 +120,11 @@ agent-platform-mcp-servers:
         enabled: true
         url: "http://argocd-mcp.agent-platform.svc.cluster.local:3000/mcp"
 
-    - name: todo-mcp
-      image:
-        repository: ghcr.io/jomcgi/homelab/projects/todo_app
-        tag: main
-      port: 8000
-      podAnnotations:
-        instrumentation.opentelemetry.io/inject-python: "python"
-      env:
-        - name: TODO_URL
-          value: "http://todo-admin.todo.svc.cluster.local:8080"
-      resources:
-        requests:
-          cpu: 10m
-          memory: 64Mi
-        limits:
-          cpu: 100m
-          memory: 128Mi
-      translate:
-        enabled: false
-      registration:
-        enabled: true
-        transport: "STREAMABLEHTTP"
-      alert:
-        enabled: true
-        url: "http://todo-mcp.agent-platform.svc.cluster.local:8000/health"
-
     - name: agent-orchestrator-mcp
       image:
         repository: ghcr.io/jomcgi/homelab/projects/agent_platform/orchestrator/mcp
         tag: main
       port: 8000
-      podAnnotations:
-        instrumentation.opentelemetry.io/inject-python: "python"
       env:
         - name: ORCHESTRATOR_URL
           value: "http://agent-platform-agent-orchestrator.agent-platform.svc.cluster.local:8080"
