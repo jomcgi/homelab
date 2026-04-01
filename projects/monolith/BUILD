@@ -1,8 +1,8 @@
 # gazelle:exclude chat
 # gazelle:exclude app
+# gazelle:exclude home
 # gazelle:exclude notes
-# gazelle:exclude schedule
-# gazelle:exclude todo
+# gazelle:exclude shared
 # gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,tainted-fastapi-http-request-httpx
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
@@ -26,9 +26,9 @@ py_venv_binary(
         [
             "app/**/*.py",
             "chat/**/*.py",
+            "home/**/*.py",
             "notes/**/*.py",
-            "schedule/**/*.py",
-            "todo/**/*.py",
+            "shared/**/*.py",
         ],
         exclude = ["**/*_test.py"],
     ),
@@ -45,9 +45,9 @@ py_library(
         [
             "app/**/*.py",
             "chat/**/*.py",
+            "home/**/*.py",
             "notes/**/*.py",
-            "schedule/**/*.py",
-            "todo/**/*.py",
+            "shared/**/*.py",
         ],
         exclude = ["**/*_test.py"],
     ),
@@ -74,7 +74,7 @@ py3_image(
     binary = "//projects/monolith:main",
     env = {
         # py3_image sets PYTHONPATH to the workspace root (_main/) but this
-        # project's sibling packages (app/, todo/) need the package directory
+        # project's sibling packages (app/, home/) need the package directory
         # on the path too, matching the imports = ["."] used by py_venv_binary.
         "PYTHONPATH": "/projects/monolith/main.runfiles/_main:/projects/monolith/main.runfiles/_main/projects/monolith",
         # The minimal ubuntu base image has no CA certificates; point OpenSSL
@@ -86,8 +86,8 @@ py3_image(
 )
 
 py_test(
-    name = "todo_router_test",
-    srcs = ["todo/router_test.py"],
+    name = "home_router_test",
+    srcs = ["home/router_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -100,8 +100,8 @@ py_test(
 )
 
 py_test(
-    name = "todo_scheduler_test",
-    srcs = ["todo/scheduler_test.py"],
+    name = "home_scheduler_test",
+    srcs = ["home/scheduler_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -127,8 +127,8 @@ py_test(
 )
 
 py_test(
-    name = "schedule_service_test",
-    srcs = ["schedule/service_test.py"],
+    name = "shared_service_test",
+    srcs = ["shared/service_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -141,8 +141,8 @@ py_test(
 )
 
 py_test(
-    name = "schedule_router_test",
-    srcs = ["schedule/router_test.py"],
+    name = "shared_router_test",
+    srcs = ["shared/router_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -180,8 +180,8 @@ py_test(
 )
 
 py_test(
-    name = "todo_service_test",
-    srcs = ["todo/service_test.py"],
+    name = "home_service_test",
+    srcs = ["home/service_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -219,7 +219,7 @@ py_test(
 
 py_test(
     name = "models_test",
-    srcs = ["todo/models_test.py"],
+    srcs = ["home/models_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",

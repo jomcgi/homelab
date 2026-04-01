@@ -1,4 +1,4 @@
-"""Unit tests for todo business logic — archive_and_reset()."""
+"""Unit tests for home business logic — archive_and_reset()."""
 
 from datetime import date
 from unittest.mock import patch
@@ -7,8 +7,8 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
-from todo.models import Archive, Task
-from todo.service import archive_and_reset
+from home.models import Archive, Task
+from home.service import archive_and_reset
 
 
 @pytest.fixture(name="session")
@@ -19,7 +19,7 @@ def session_fixture():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    # SQLite doesn't support schemas (e.g. "todo.tasks"), so strip them
+    # SQLite doesn't support schemas (e.g. "home.tasks"), so strip them
     # before creating tables and restore after.
     original_schemas = {}
     for table in SQLModel.metadata.tables.values():
@@ -194,7 +194,7 @@ class TestArchiveBehaviour:
         """Archive markdown starts with a date heading."""
         _seed_tasks(session)
         fixed_date = date(2026, 3, 28)
-        with patch("todo.service.date") as mock_date:
+        with patch("home.service.date") as mock_date:
             mock_date.today.return_value = fixed_date
             archive_and_reset(session, weekly_reset=False)
 

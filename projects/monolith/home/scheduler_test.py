@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from todo import scheduler
+from home import scheduler
 
 TZ = ZoneInfo("America/Vancouver")
 

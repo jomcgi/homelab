@@ -10,10 +10,10 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.log import configure_logging
+from home.router import router as home_router
+from home.scheduler import run_scheduler
 from notes.router import router as notes_router
-from schedule.router import router as schedule_router
-from todo.router import router as todo_router
-from todo.scheduler import run_scheduler
+from shared.router import router as schedule_router
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ def _log_task_exception(task: "asyncio.Task[object]") -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from schedule.service import poll_calendar
+    from shared.service import poll_calendar
 
     # Initial fetch, then poll every 5 minutes
     async def calendar_loop():
@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Monolith", lifespan=lifespan)
 
-app.include_router(todo_router)
+app.include_router(home_router)
 app.include_router(schedule_router)
 app.include_router(notes_router)
 
