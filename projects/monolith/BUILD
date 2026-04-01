@@ -1,4 +1,5 @@
 # gazelle:exclude app
+# gazelle:exclude notes
 # gazelle:exclude schedule
 # gazelle:exclude todo
 load("@aspect_rules_py//py:defs.bzl", "py_library")
@@ -22,6 +23,7 @@ py_venv_binary(
     srcs = glob(
         [
             "app/**/*.py",
+            "notes/**/*.py",
             "schedule/**/*.py",
             "todo/**/*.py",
         ],
@@ -39,6 +41,7 @@ py_library(
     srcs = glob(
         [
             "app/**/*.py",
+            "notes/**/*.py",
             "schedule/**/*.py",
             "todo/**/*.py",
         ],
@@ -135,6 +138,32 @@ py_test(
         "@pip//httpx",
         "@pip//pytest",
         "@pip//tzdata",
+    ],
+)
+
+py_test(
+    name = "notes_router_test",
+    srcs = ["notes/router_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
+    name = "notes_service_test",
+    srcs = ["notes/service_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
     ],
 )
 
