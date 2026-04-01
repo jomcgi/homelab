@@ -8,6 +8,19 @@ backend:
     limits:
       memory: "512Mi"
 
+frontend:
+  image:
+    repository: ghcr.io/jomcgi/homelab/projects/monolith/frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
 postgres:
   instances: 1
   storage:
@@ -18,11 +31,22 @@ onepassword:
   itemPath: "vaults/k8s-homelab/items/private-homepage"
 
 cfIngress:
+  public:
+    enabled: false
+    tier: public
+    hostname: public.jomcgi.dev
+    servicePort: 3000
+    gateway:
+      name: cloudflare-ingress
+      namespace: envoy-gateway-system
+    rateLimit:
+      requests: 100
+      unit: Minute
   private:
     enabled: true
     tier: trusted
     hostname: private.jomcgi.dev
-    servicePort: 8000
+    servicePort: 3000
     gateway:
       name: cloudflare-ingress
       namespace: envoy-gateway-system

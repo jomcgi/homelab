@@ -1,0 +1,18 @@
+{{- if .Values.cfIngress.public.enabled }}
+{{- $params := dict
+  "name" (printf "%s-public" (include "monolith.fullname" .))
+  "tier" .Values.cfIngress.public.tier
+  "hostname" .Values.cfIngress.public.hostname
+  "serviceName" (include "monolith.fullname" .)
+  "servicePort" (.Values.cfIngress.public.servicePort | int)
+  "gateway" .Values.cfIngress.public.gateway
+  "rewritePrefix" "/public/"
+}}
+{{- include "cf-ingress.httproute" $params }}
+---
+{{- $rlParams := dict
+  "name" (printf "%s-public" (include "monolith.fullname" .))
+  "rateLimit" .Values.cfIngress.public.rateLimit
+}}
+{{- include "cf-ingress.rate-limit" $rlParams }}
+{{- end }}
