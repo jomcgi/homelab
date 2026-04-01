@@ -60,13 +60,14 @@ genrule(
         set -euo pipefail
         mkdir -p tmp/app/build
         cp -rL $(location :build)/* tmp/app/build/
-        tar -C tmp -cf $@ .
+        chown -R 65532:65532 tmp/app 2>/dev/null || true
+        tar -C tmp --owner=65532 --group=65532 -cf $@ .
     """,
 )
 
 apko_image(
     name = "image",
-    config = "//projects/monolith/frontend:image.yaml",
+    config = "//projects/monolith/frontend:apko.yaml",
     contents = "@monolith_frontend_lock//:contents",
     repository = "ghcr.io/jomcgi/homelab/projects/monolith/frontend",
     tars = [":build_tar"],
