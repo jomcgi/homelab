@@ -11,44 +11,49 @@ Consolidate lightweight web apps into a single "Nexus" monolith: one FastAPI bac
 ## Architecture
 
 ```
-            Cloudflare (CDN + Access SSO + Cache)
-                         |
-                Gateway API (Envoy)
-               +---------+-----------+
-               |  HTTPRoutes per     |
-               |  hostname + tier    |
-               |  (cf-ingress-lib)   |
-               +---------+-----------+
-                         |
-           +-------------+---------------+
-           |       Nexus Pod (N replicas) |
-           |  +---------+ +------------+ |
-           |  | FastAPI  | | Caddy      | |
-           |  | :8000    | | :3000      | |
-           |  |          | | (SvelteKit | |
-           |  |/api/todo | |  static)   | |
-           |  |/api/trips| |            | |
-           |  |/api/ships| | /todo/     | |
-           |  |/api/star | | /trips/    | |
-           |  +----+-----+ | /ships/    | |
-           |       |       +------------+ |
-           +-------+---------------------+
-                   |
-        +----------+----------+
-        |  CloudNativePG      |    +----------+
-        |  (Postgres cluster) |    |   NATS   |
-        |  schema: todo       |    | (exists) |
-        |  schema: trips      |    +----------+
-        |  schema: ships      |
-        |  schema: stargazer  |
-        +---------------------+
+   Cloudflare Pages (resilient to cluster downtime):
+   +----------------------------+
+   | jomcgi.dev      (portfolio)|
+   | docs.jomcgi.dev (docs)     |
+   +----------------------------+
 
-   Separately on Cloudflare Pages (resilient to cluster downtime):
-   +----------------------------+
-   | jomcgi.dev (SvelteKit)     |
-   | docs.jomcgi.dev (SvelteKit)|
-   +----------------------------+
+   Cloudflare (CDN + Access SSO + Cache)
+        |
+        +-- public.jomcgi.dev  → rate-limited, cached, no auth
+        +-- private.jomcgi.dev → Cloudflare Access SSO (single policy)
+        |
+   Gateway API (Envoy)
+   +--------------------+
+   | 2 HTTPRoutes:      |
+   |  public  (public.) |
+   |  private (private.)|
+   +--------------------+
+        |
+   +----+---------------------------+
+   |       Nexus Pod (N replicas)   |
+   |  +---------+  +-----------+   |
+   |  | FastAPI  |  | Caddy     |  |
+   |  | :8000    |  | :3000     |  |
+   |  |          |  | (SvelteKit|  |
+   |  |/api/todo |  |  static)  |  |
+   |  |/api/trips|  |           |  |
+   |  |/api/ships|  | /todo/    |  |
+   |  |/api/star |  | /trips/   |  |
+   |  +----+-----+  | /ships/   |  |
+   |       |        +-----------+  |
+   +-------+-----------------------+
+           |
+   +-------+--------+
+   |  CloudNativePG  |    +----------+
+   | (Postgres)      |    |   NATS   |
+   | schema: todo    |    | (exists) |
+   | schema: trips   |    +----------+
+   | schema: ships   |
+   | schema: stargazer|
+   +-----------------+
 ```
+
+API routes are internal only — Caddy reverse-proxies `/api/*` to FastAPI on localhost:8000 within the pod. No API endpoints are publicly exposed outside the cluster.
 
 ## Key Decisions
 
@@ -80,13 +85,15 @@ Consolidate lightweight web apps into a single "Nexus" monolith: one FastAPI bac
 - Atlas Kubernetes Operator applies pending migrations on deploy via `AtlasMigration` CRD
 - Bazel test enforces models and migrations stay in sync: runs `atlas migrate diff` and fails if new migration files are produced
 
-### Gateway Routing: Envoy + cf-ingress-library
+### Gateway Routing: Two-Hostname Model
 
-- Reuses existing `cf-ingress-library` Helm templates for HTTPRoute + rate limiting
-- Each service hostname gets its own HTTPRoute (e.g., `todo.jomcgi.dev`, `todo-admin.jomcgi.dev`)
-- Public routes: rate limited via Envoy BackendTrafficPolicy, cached at Cloudflare edge
-- Private routes: behind Cloudflare Access SSO (JWT validation), no rate limiting
+- **`public.jomcgi.dev`** — rate-limited via Envoy BackendTrafficPolicy, cached at Cloudflare edge, no auth
+- **`private.jomcgi.dev`** — behind Cloudflare Access SSO (single policy covers all paths), no rate limiting
+- Only **two HTTPRoutes** total (one per hostname), regardless of how many services the monolith contains
+- Adding a new service to the monolith requires zero Cloudflare or gateway config — just add SvelteKit routes and FastAPI sub-routers
 - Caddy is the pod entry point — reverse-proxies `/api/*` to FastAPI on localhost:8000
+- API routes are internal to the pod; only the frontend is externally routable
+- Portfolio (`jomcgi.dev`) and docs (`docs.jomcgi.dev`) remain on Cloudflare Pages, resilient to cluster downtime
 
 ### Deployment
 
@@ -190,24 +197,30 @@ env "nexus" {
 ## Gateway Routing Config
 
 ```yaml
-# values.yaml (example for todo)
+# values.yaml
 cfIngress:
-  todo:
-    public:
-      enabled: true
-      tier: public
-      hostname: todo.jomcgi.dev
-      servicePort: 3000
-      rateLimit:
-        requests: 100
-        unit: Minute
-    admin:
-      enabled: true
-      tier: trusted
-      hostname: todo-admin.jomcgi.dev
-      servicePort: 3000
-      team: jomcgi
+  public:
+    enabled: true
+    tier: public
+    hostname: public.jomcgi.dev
+    servicePort: 3000
+    rateLimit:
+      requests: 100
+      unit: Minute
+  private:
+    enabled: true
+    tier: trusted
+    hostname: private.jomcgi.dev
+    servicePort: 3000
+    team: jomcgi
 ```
+
+| Hostname             | Tier    | Auth                  | Rate Limited | Cached                         |
+| -------------------- | ------- | --------------------- | ------------ | ------------------------------ |
+| `public.jomcgi.dev`  | public  | None                  | Yes          | Yes (stale-while-revalidate)   |
+| `private.jomcgi.dev` | trusted | Cloudflare Access SSO | No           | No                             |
+| `jomcgi.dev`         | —       | None                  | —            | Cloudflare Pages (not cluster) |
+| `docs.jomcgi.dev`    | —       | None                  | —            | Cloudflare Pages (not cluster) |
 
 ## MVP Scope
 
@@ -247,21 +260,41 @@ cfIngress:
 
 ### Deploy Downtime Strategy
 
-- **Public routes (todo.jomcgi.dev):** Cloudflare cache (`s-maxage`) serves stale during the ~5s rolling update window
-- **Private routes (todo-admin.jomcgi.dev):** accept brief blip (only user is the operator)
+- **Public routes (`public.jomcgi.dev`):** Cloudflare cache (`s-maxage`) serves stale during the ~5s rolling update window
+- **Private routes (`private.jomcgi.dev`):** accept brief blip (only user is the operator)
+- **Portfolio (`jomcgi.dev`):** unaffected — served from Cloudflare Pages, independent of cluster
 
 ## Post-MVP Roadmap
 
 1. **Trips** — migrate FastAPI routes + React → SvelteKit, add `trips` schema
 2. **Ships** — migrate FastAPI routes + React → SvelteKit, add `ships` schema
 3. **Stargazer** — migrate Python server + web UI → SvelteKit, add `stargazer` schema
-4. **Public sites** — migrate jomcgi.dev (Astro) and docs.jomcgi.dev (VitePress) to SvelteKit on Cloudflare Pages
+4. **Retire api_gateway** — once trips + stargazer are migrated, nothing routes through it; remove chart, deploy, image pipeline, SLO alerts, and `api.jomcgi.dev` DNS record
+5. **Public sites** — migrate jomcgi.dev (Astro) and docs.jomcgi.dev (VitePress) to SvelteKit on Cloudflare Pages
+
+### Services Retired by Consolidation
+
+Once the monolith absorbs all planned services, the following are removed:
+
+| Retired Service                        | What Goes Away                            |
+| -------------------------------------- | ----------------------------------------- |
+| `projects/todo_app/`                   | Chart, deploy, image pipeline (MVP)       |
+| `projects/trips/`                      | Chart, deploy, image pipeline             |
+| `projects/ships/`                      | Chart, deploy, image pipeline             |
+| `projects/stargazer/`                  | Chart, deploy, image pipeline             |
+| `projects/agent_platform/api_gateway/` | Chart, deploy, image pipeline, SLO alerts |
+| `api.jomcgi.dev`                       | DNS record, Cloudflare config             |
+
+Total: 5 Helm charts, 5 ArgoCD apps, 5 image pipelines, 1 public hostname eliminated.
 
 ## Services NOT Consolidated
 
-| Service        | Reason                                               |
-| -------------- | ---------------------------------------------------- |
-| grimoire       | Go + Firestore, different language and DB — poor fit |
-| hikes          | Batch processing + Cloudflare Pages, no API server   |
-| sextant        | Dev CLI tool, not a service                          |
-| advent_of_code | Dev tool, not a service                              |
+| Service                            | Reason                                                                         |
+| ---------------------------------- | ------------------------------------------------------------------------------ |
+| agent_platform (excl. api_gateway) | GPU/AI workloads, different scaling profile, already consolidated as one chart |
+| obsidian_vault                     | PVC-heavy, git-sidecar, different lifecycle                                    |
+| context-forge-gateway              | Cloudflare OAuth flow requires dedicated process                               |
+| grimoire                           | Go + Firestore, different language and DB — poor fit                           |
+| hikes                              | Batch processing + Cloudflare Pages, no API server                             |
+| sextant                            | Dev CLI tool, not a service                                                    |
+| advent_of_code                     | Dev tool, not a service                                                        |
