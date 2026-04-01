@@ -104,6 +104,23 @@ spec:
           env:
             - name: ORT_DISABLE_ARENA
               value: "1"
+            # Git config via env vars — the git-sidecar's ~/.gitconfig is not
+            # visible from this container, so we must configure safe.directory
+            # and committer identity here for MCP git operations to succeed.
+            - name: GIT_CONFIG_COUNT
+              value: "3"
+            - name: GIT_CONFIG_KEY_0
+              value: safe.directory
+            - name: GIT_CONFIG_VALUE_0
+              value: /vault
+            - name: GIT_CONFIG_KEY_1
+              value: user.email
+            - name: GIT_CONFIG_VALUE_1
+              value: vault-mcp@homelab.local
+            - name: GIT_CONFIG_KEY_2
+              value: user.name
+            - name: GIT_CONFIG_VALUE_2
+              value: vault-mcp
             - name: VAULT_PATH
               value: /vault
             - name: VAULT_PORT
