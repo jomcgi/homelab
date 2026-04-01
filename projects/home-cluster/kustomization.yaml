@@ -11,5 +11,4 @@ resources:
   - ../../projects/platform
   - ../../projects/ships/deploy
   - ../../projects/stargazer/deploy
-  - ../../projects/todo_app/deploy
   - ../../projects/trips/deploy
