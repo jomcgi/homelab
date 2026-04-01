@@ -19,7 +19,7 @@ onepassword:
 
 cfIngress:
   public:
-    enabled: false
+    enabled: true
     tier: public
     hostname: public.jomcgi.dev
     servicePort: 3000
