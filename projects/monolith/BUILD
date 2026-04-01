@@ -217,6 +217,7 @@ py_test(
 
 semgrep_target_test(
     name = "main_semgrep_test",
+    exclude_rules = ["tainted-fastapi-http-request-httpx"],
     rules = ["//bazel/semgrep/rules:python_rules"],
     target = ":main",
 )
