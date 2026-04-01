@@ -17,6 +17,7 @@ from projects.obsidian_vault.vault_mcp.app.main import (
     _git_commit,
     _validate_path,
     configure,
+    create_note,
     delete_note,
     edit_note,
     get_history,
@@ -520,8 +521,10 @@ class TestMain:
 
         mock_settings_cls.assert_called_once_with()
         mock_configure.assert_called_once_with(mock_settings)
-        mock_app.add_route.assert_called_once()
-        assert mock_app.add_route.call_args[0][0] == "/healthz"
+        assert mock_app.add_route.call_count == 2
+        route_names = [c.args[0] for c in mock_app.add_route.call_args_list]
+        assert "/healthz" in route_names
+        assert "/api/notes" in route_names
         mock_uvicorn_run.assert_called_once_with(
             mock_app, host="0.0.0.0", port=mock_settings.port
         )
@@ -544,7 +547,10 @@ class TestMain:
             _mod.main()
 
         # Extract the handler registered with add_route("/healthz", <handler>)
-        handler = mock_app.add_route.call_args[0][1]
+        healthz_call = [
+            c for c in mock_app.add_route.call_args_list if c.args[0] == "/healthz"
+        ][0]
+        handler = healthz_call.args[1]
         mock_request = MagicMock()
         response = await handler(mock_request)
 
@@ -666,3 +672,61 @@ class TestSettingsEmbedding:
         assert s.qdrant_collection == "obsidian_vault"
         assert s.embed_model == "nomic-ai/nomic-embed-text-v1.5"
         assert s.reconcile_interval_seconds == 300
+
+
+class TestCreateNoteAPI:
+    """Tests for the POST /api/notes REST endpoint."""
+
+    async def test_creates_fleeting_note(self, tmp_path):
+        result = await create_note("Hello world", source="web-ui")
+        assert "error" not in result
+        assert result["path"].startswith("Fleeting/")
+        assert result["path"].endswith(".md")
+        written = (tmp_path / result["path"]).read_text()
+        assert "tags: fleeting" in written
+        assert "source: web-ui" in written
+        assert "Hello world" in written
+
+    async def test_creates_parent_directory(self, tmp_path):
+        result = await create_note("Test note", source="web-ui")
+        assert "error" not in result
+        assert (tmp_path / result["path"]).exists()
+
+    async def test_empty_content_returns_error(self, tmp_path):
+        result = await create_note("", source="web-ui")
+        assert "error" in result
+
+    async def test_whitespace_only_returns_error(self, tmp_path):
+        result = await create_note("   \n  ", source="web-ui")
+        assert "error" in result
+
+    async def test_default_source_is_api(self, tmp_path):
+        result = await create_note("A note")
+        assert "error" not in result
+        written = (tmp_path / result["path"]).read_text()
+        assert "source: api" in written
+
+    async def test_frontmatter_format(self, tmp_path):
+        result = await create_note("My thought", source="mcp")
+        assert "error" not in result
+        written = (tmp_path / result["path"]).read_text()
+        lines = written.split("\n")
+        assert lines[0] == "---"
+        assert "up:" in written
+        assert "tags: fleeting" in written
+        assert "source: mcp" in written
+        second_fence = written.index("---", 4)
+        assert "My thought" in written[second_fence:]
+
+    async def test_commits_to_git(self, tmp_path):
+        import subprocess
+
+        result = await create_note("Committed note", source="web-ui")
+        assert "error" not in result
+        log = subprocess.run(
+            ["git", "log", "--oneline", "-1"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert "fleeting note from web-ui" in log.stdout
