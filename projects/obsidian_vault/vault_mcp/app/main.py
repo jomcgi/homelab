@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -327,6 +328,23 @@ async def restore_note(path: str, commit: str) -> dict:
         )
 
 
+async def create_note(content: str, source: str = "api") -> dict:
+    """Create a fleeting note with timestamped filename and YAML frontmatter."""
+    if not content or not content.strip():
+        return {"error": "content is required"}
+
+    now = datetime.now(timezone.utc)
+    filename = f"Fleeting/{now.strftime('%Y-%m-%d %H%M')}.md"
+    body = f"---\nup:\ntags: fleeting\nsource: {source}\n---\n\n{content.strip()}\n"
+
+    result = await write_note(
+        path=filename, content=body, reason=f"fleeting note from {source}"
+    )
+    if "error" in result:
+        return result
+    return {"path": filename}
+
+
 async def _reconcile_loop(settings: Settings) -> None:
     """Background loop that reconciles vault with Qdrant."""
     global _embedder, _qdrant
@@ -395,6 +413,24 @@ def main():
         return JSONResponse({"status": "ok"})
 
     app.add_route("/healthz", healthz)
+
+    async def api_create_note(request):
+        from starlette.responses import JSONResponse
+
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+        content = body.get("content", "")
+        source = body.get("source", "api")
+        result = await create_note(content, source=source)
+
+        if "error" in result:
+            return JSONResponse(result, status_code=400)
+        return JSONResponse(result, status_code=201)
+
+    app.add_route("/api/notes", api_create_note, methods=["POST"])
 
     import uvicorn
 
