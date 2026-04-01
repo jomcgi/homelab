@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from notes.router import router as notes_router
 from schedule.router import router as schedule_router
 from todo.router import router as todo_router
 from todo.scheduler import run_scheduler
@@ -38,6 +39,7 @@ app = FastAPI(title="Monolith", lifespan=lifespan)
 
 app.include_router(todo_router)
 app.include_router(schedule_router)
+app.include_router(notes_router)
 
 
 @app.get("/healthz")
