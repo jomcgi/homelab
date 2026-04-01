@@ -3,6 +3,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//projects/monolith/frontend:vite/package_json.bzl", vite_bin = "bin")
+load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
 npm_link_all_packages(name = "node_modules")
 
@@ -22,7 +23,7 @@ js_library(
         "vite.config.js",
     ],
     deps = [
-        ":node_modules/@sveltejs/adapter-static",
+        ":node_modules/@sveltejs/adapter-node",
         ":node_modules/@sveltejs/kit",
         ":node_modules/@sveltejs/vite-plugin-svelte",
         ":node_modules/mdsvex",
@@ -39,7 +40,7 @@ js_run_binary(
     srcs = [":src"],
     args = ["build"],
     chdir = package_name(),
-    out_dirs = ["dist"],
+    out_dirs = ["build"],
     tool = ":vite",
     visibility = ["//projects/monolith:__pkg__"],
 )
@@ -49,4 +50,24 @@ js_run_binary(
 build_test(
     name = "build_test",
     targets = [":build"],
+)
+
+genrule(
+    name = "build_tar",
+    srcs = [":build"],
+    outs = ["build_tar.tar"],
+    cmd = """
+        set -euo pipefail
+        mkdir -p tmp/app/build
+        cp -rL $(location :build)/* tmp/app/build/
+        tar -C tmp -cf $@ .
+    """,
+)
+
+apko_image(
+    name = "image",
+    config = "//projects/monolith/frontend:image.yaml",
+    contents = "@monolith_frontend_lock//:contents",
+    repository = "ghcr.io/jomcgi/homelab/projects/monolith/frontend",
+    tars = [":build_tar"],
 )

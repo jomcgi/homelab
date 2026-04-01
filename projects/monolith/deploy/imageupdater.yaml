@@ -15,6 +15,15 @@ spec:
             helm:
               name: backend.image.repository
               tag: backend.image.tag
+        - alias: frontend
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/projects/monolith/frontend:main
+          manifestTargets:
+            helm:
+              name: frontend.image.repository
+              tag: frontend.image.tag
       namePattern: monolith
   namespace: argocd
   writeBackConfig:
