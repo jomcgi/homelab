@@ -10,14 +10,30 @@
     captureRef?.focus();
   });
 
-  function submitCapture() {
+  let error = $state(false);
+
+  async function submitCapture() {
     if (!note.trim()) return;
-    sent = true;
-    setTimeout(() => {
-      note = "";
-      sent = false;
-      captureRef?.focus();
-    }, 500);
+    try {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: note }),
+      });
+      if (!res.ok) throw new Error();
+      sent = true;
+      setTimeout(() => {
+        note = "";
+        sent = false;
+        captureRef?.focus();
+      }, 500);
+    } catch {
+      error = true;
+      setTimeout(() => {
+        error = false;
+        captureRef?.focus();
+      }, 2000);
+    }
   }
 
   function captureKeyDown(e) {
@@ -196,8 +212,16 @@
       aria-label="Quick note"
     ></textarea>
     <footer class="capture-footer">
-      <span class="capture-hint">
-        {sent ? "sent" : note.trim() ? "\u2318 enter" : "\u00a0"}
+      <span class="capture-hint" class:capture-hint--error={error}>
+        {#if error}
+          failed
+        {:else if sent}
+          sent
+        {:else if note.trim()}
+          ⌘ enter
+        {:else}
+          &nbsp;
+        {/if}
       </span>
       {#if note.length > 0}
         <span class="capture-count">{note.length}</span>
@@ -384,6 +408,10 @@
     color: var(--fg-tertiary);
     letter-spacing: 0.04em;
     transition: opacity 0.2s ease;
+  }
+
+  .capture-hint--error {
+    color: var(--danger);
   }
 
   .capture-count {
