@@ -2,6 +2,7 @@
 # gazelle:exclude notes
 # gazelle:exclude schedule
 # gazelle:exclude todo
+# gazelle:semgrep_exclude_rules tainted-fastapi-http-request-httpx
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
@@ -217,6 +218,7 @@ py_test(
 
 semgrep_target_test(
     name = "main_semgrep_test",
+    exclude_rules = ["tainted-fastapi-http-request-httpx"],  # keep
     rules = ["//bazel/semgrep/rules:python_rules"],
     target = ":main",
 )
