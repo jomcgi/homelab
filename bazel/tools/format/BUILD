@@ -51,6 +51,7 @@ multirun(
         "//bazel/images:generate-home-cluster",
         "//bazel/images:generate-push-all",
         "//bazel/images:generate-push-all-pages",
+        "//projects/monolith:generate-routes",
         ":format_code",
         "//:gazelle",
     ],

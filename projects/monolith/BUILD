@@ -8,6 +8,7 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
 load("//bazel/tools/js:exec_filegroup.bzl", "exec_filegroup")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
@@ -541,6 +542,12 @@ py_test(
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],
+)
+
+sh_binary(
+    name = "generate-routes",
+    srcs = ["generate-routes.sh"],
+    visibility = ["//bazel/tools/format:__pkg__"],
 )
 
 semgrep_target_test(
