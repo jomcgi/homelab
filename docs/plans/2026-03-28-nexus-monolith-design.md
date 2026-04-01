@@ -6,7 +6,7 @@ The homelab has accumulated many small services (trips, ships, stargazer, todo_a
 
 ## Decision
 
-Consolidate lightweight web apps into a single "Nexus" monolith: one FastAPI backend, one SvelteKit frontend, one Helm chart, one deploy pipeline. Services get logical isolation via Postgres schemas and route namespacing, not physical isolation via separate pods.
+Consolidate lightweight web apps into a single monolith: one SvelteKit frontend (SSR), one FastAPI backend (internal data layer), one Helm chart, one deploy pipeline. Services get logical isolation via Postgres schemas and colocated service directories, not physical isolation via separate pods.
 
 ## Architecture
 
@@ -23,57 +23,81 @@ Consolidate lightweight web apps into a single "Nexus" monolith: one FastAPI bac
         +-- private.jomcgi.dev → Cloudflare Access SSO (single policy)
         |
    Gateway API (Envoy)
-   +--------------------+
-   | 2 HTTPRoutes:      |
-   |  public  (public.) |
-   |  private (private.)|
-   +--------------------+
+   +-------------------------------+
+   | 2 HTTPRoutes with URL Rewrite:|
+   |  public.*  → /public/*       |
+   |  private.* → /private/*      |
+   +-------------------------------+
         |
-   +----+---------------------------+
-   |       Nexus Pod (N replicas)   |
-   |  +---------+  +-----------+   |
-   |  | FastAPI  |  | Caddy     |  |
-   |  | :8000    |  | :3000     |  |
-   |  |          |  | (SvelteKit|  |
-   |  |/api/todo |  |  static)  |  |
-   |  |/api/trips|  |           |  |
-   |  |/api/ships|  | /todo/    |  |
-   |  |/api/star |  | /trips/   |  |
-   |  +----+-----+  | /ships/   |  |
-   |       |        +-----------+  |
-   +-------+-----------------------+
-           |
-   +-------+--------+
+   +----+------------------------------+
+   |       Monolith Pod (N replicas)   |
+   |                                   |
+   |  +-----------------------------+  |
+   |  | SvelteKit (adapter-node)    |  |
+   |  | :3000 ← K8s Service        |  |
+   |  |                             |  |
+   |  | /public/ships/   (SSR)      |  |
+   |  | /private/home/   (SSR)      |  |
+   |  |                             |  |
+   |  | +page.server.js calls:      |  |
+   |  |   fetch("localhost:8000/…") |  |
+   |  +-----------------------------+  |
+   |                                   |
+   |  +-----------------------------+  |
+   |  | FastAPI                     |  |
+   |  | :8000 ← no K8s Service     |  |
+   |  |         (internal only)     |  |
+   |  |                             |  |
+   |  | /api/home/*                 |  |
+   |  | /api/ships/*                |  |
+   |  | /healthz                    |  |
+   |  +-----------------------------+  |
+   |              |                    |
+   +--------------+--------------------+
+                  |
+   +--------------+--+
    |  CloudNativePG  |    +----------+
    | (Postgres)      |    |   NATS   |
-   | schema: todo    |    | (exists) |
+   | schema: home    |    | (exists) |
    | schema: trips   |    +----------+
    | schema: ships   |
    | schema: stargazer|
    +-----------------+
 ```
 
-API routes are internal only — Caddy reverse-proxies `/api/*` to FastAPI on localhost:8000 within the pod. No API endpoints are publicly exposed outside the cluster.
-
 ## Key Decisions
 
-### Backend: FastAPI
+### Two-Layer Architecture: SvelteKit + FastAPI
+
+- **SvelteKit** is the only user-facing surface — all HTTP from users hits SvelteKit
+- **FastAPI** is an internal data layer — no K8s Service, no gateway route, unreachable from outside the pod
+- SvelteKit's `+page.server.js` loads data by calling FastAPI on `localhost:8000` — server-side only, never exposed to the browser
+- Users never see JSON APIs — every URL returns a rendered webpage
+- Public pages get SSR with data baked in server-side; the browser sees only HTML
+- This eliminates API attack surface: there are no public or private API endpoints to probe
+
+### Frontend: SvelteKit SSR with Colocated Service Routes
+
+- Replaces React 19 (trips, ships), vanilla JS (todo), and lightweight Python server (stargazer)
+- SvelteKit runs with `adapter-node` for SSR — required for public pages that need data without exposing APIs
+- Each service's frontend code lives colocated with its backend (`{service}/frontend/`)
+- Service frontend directories declare visibility via `private/` and `public/` subdirectories
+- The `format` command generates symlinks from the SvelteKit `src/routes/` tree into each service's frontend directory — service directories are the single source of truth
+- Shared components live in `shared/frontend/components/`, symlinked to `src/lib/`
+- Public static sites (jomcgi.dev, docs.jomcgi.dev) deploy to Cloudflare Pages — same framework, different deploy target
+
+### Backend: FastAPI (Internal Data Layer)
 
 - Trips and ships are already FastAPI; todo_app migrates from Go
 - Single test harness (pytest), single dependency tree, single image
-- Sub-routers per service: `/api/todo/*`, `/api/trips/*`, `/api/ships/*`, `/api/stargazer/*`
-
-### Frontend: SvelteKit + mdsvex
-
-- Replaces React 19 (trips, ships), vanilla JS (todo), and lightweight Python server (stargazer)
-- SvelteKit with `adapter-static` builds to static files, served by Caddy sidecar
-- mdsvex enables markdown content where needed
-- Public static sites (jomcgi.dev, docs.jomcgi.dev) also migrate to SvelteKit but deploy to Cloudflare Pages via wrangler — same framework, different deploy target
+- No visibility middleware — FastAPI is an internal data layer (like Postgres), not user-facing
+- Simple routers per service: `/api/home/*`, `/api/ships/*`, `/api/trips/*`
+- SvelteKit decides what data to expose on which pages — visibility is a frontend concern
 
 ### Database: CloudNativePG + Postgres
 
 - New Postgres instance managed by CloudNativePG operator
-- One database, separate schemas per service (`todo`, `trips`, `ships`, `stargazer`)
+- One database, separate schemas per service (`home`, `trips`, `ships`, `stargazer`)
 - Stateless app pods — enables `RollingUpdate` with multiple replicas, zero-downtime deploys
 - Replaces: SQLite (trips, ships), JSON files (stargazer), git-backed files (todo)
 
@@ -85,22 +109,50 @@ API routes are internal only — Caddy reverse-proxies `/api/*` to FastAPI on lo
 - Atlas Kubernetes Operator applies pending migrations on deploy via `AtlasMigration` CRD
 - Bazel test enforces models and migrations stay in sync: runs `atlas migrate diff` and fails if new migration files are produced
 
-### Gateway Routing: Two-Hostname Model
+### Gateway Routing: Two-Hostname Model with URL Rewrite
 
 - **`public.jomcgi.dev`** — rate-limited via Envoy BackendTrafficPolicy, cached at Cloudflare edge, no auth
 - **`private.jomcgi.dev`** — behind Cloudflare Access SSO (single policy covers all paths), no rate limiting
 - Only **two HTTPRoutes** total (one per hostname), regardless of how many services the monolith contains
-- Adding a new service to the monolith requires zero Cloudflare or gateway config — just add SvelteKit routes and FastAPI sub-routers
-- Caddy is the pod entry point — reverse-proxies `/api/*` to FastAPI on localhost:8000
-- API routes are internal to the pod; only the frontend is externally routable
+- Each HTTPRoute uses Gateway API `URLRewrite` (`ReplacePrefixMatch`) to prepend `/public/` or `/private/` to the request path before it reaches SvelteKit
+- SvelteKit filesystem routing handles the rest — `src/routes/public/` and `src/routes/private/` directories
+- Adding a new service requires zero Cloudflare or gateway config — just add SvelteKit routes and FastAPI data endpoints
 - Portfolio (`jomcgi.dev`) and docs (`docs.jomcgi.dev`) remain on Cloudflare Pages, resilient to cluster downtime
+
+#### Path Convention
+
+```
+External:                          SvelteKit receives:
+public.jomcgi.dev/ships/page   →   /public/ships/page    → src/routes/public/ships/
+private.jomcgi.dev/home        →   /private/home         → src/routes/private/home/
+private.jomcgi.dev/            →   /private/             → src/routes/private/
+```
+
+SvelteKit `+page.server.js` then calls FastAPI internally:
+
+```
+fetch("http://localhost:8000/api/home/tasks")   // never exposed to browser
+fetch("http://localhost:8000/api/ships")         // never exposed to browser
+```
+
+#### Isolation Enforcement
+
+| Layer                       | What it enforces                   | How                                            |
+| --------------------------- | ---------------------------------- | ---------------------------------------------- |
+| Gateway (Envoy)             | Hostname → path prefix mapping     | URL rewrite prepends `/public/` or `/private/` |
+| SvelteKit filesystem        | Which pages exist per visibility   | `src/routes/public/` vs `src/routes/private/`  |
+| SvelteKit `+page.server.js` | What data each page shows          | Developer chooses what to fetch from FastAPI   |
+| Cloudflare Access           | Authentication on private hostname | SSO policy on `private.jomcgi.dev`             |
+| FastAPI                     | Nothing about visibility           | Internal data layer — like Postgres            |
 
 ### Deployment
 
-- Single Helm chart at `projects/nexus/chart/`
+- Single Helm chart at `projects/monolith/chart/`
 - Single ArgoCD Application
 - ArgoCD Image Updater for both backend and frontend images
 - Rolling updates with zero downtime (stateless pods + Postgres)
+- Two containers in pod: SvelteKit (`adapter-node`) + FastAPI
+- One K8s Service pointing at SvelteKit :3000 only
 
 ## New Platform Infrastructure
 
@@ -114,43 +166,74 @@ Two upstream Helm charts, no custom charts:
 ## Project Structure
 
 ```
-projects/nexus/
-├── backend/
-│   ├── main.py                # FastAPI app, mounts sub-routers
-│   ├── todo/
-│   │   ├── router.py          # /api/todo/* routes
-│   │   ├── models.py          # SQLModel table definitions
-│   │   └── scheduler.py       # Daily/weekly reset logic
-│   ├── trips/                 # (post-MVP)
-│   ├── ships/                 # (post-MVP)
-│   └── stargazer/             # (post-MVP)
-├── frontend/
+projects/monolith/
+├── home/                         # Home/notes service (colocated backend + frontend)
+│   ├── router.py                 # /api/home/* FastAPI routes
+│   ├── models.py                 # SQLModel table definitions
+│   ├── service.py                # Business logic
+│   └── frontend/
+│       └── private/              # Pages for private.jomcgi.dev/home
+│           ├── +page.svelte
+│           └── +page.server.js   # SSR: calls FastAPI on localhost:8000
+├── ships/                        # (post-MVP, example of public + private)
+│   ├── router.py
+│   └── frontend/
+│       ├── private/              # Pages for private.jomcgi.dev/ships
+│       │   └── +page.svelte
+│       └── public/               # Pages for public.jomcgi.dev/ships
+│           ├── +page.svelte
+│           └── +page.server.js   # SSR: fetches data server-side, no public API
+├── shared/
+│   ├── scheduler.py              # Reusable scheduling logic
+│   └── frontend/
+│       └── components/           # Shared Svelte components
+│           └── NavBar.svelte
+├── app/
+│   ├── main.py                   # FastAPI app, mounts service routers
+│   └── db.py                     # Database engine + session
+├── frontend/                     # SvelteKit shell (routes are generated symlinks)
 │   ├── svelte.config.js
-│   ├── src/
-│   │   ├── routes/
-│   │   │   ├── todo/          # Todo SvelteKit pages
-│   │   │   ├── trips/         # (post-MVP)
-│   │   │   ├── ships/         # (post-MVP)
-│   │   │   └── stargazer/     # (post-MVP)
-│   │   └── lib/               # Shared components
-│   └── static/
-├── migrations/                # Atlas versioned migration files
-│   └── atlas.sum              # Migration integrity file
-├── atlas.hcl                  # Atlas config pointing to SQLModel models
+│   ├── vite.config.js
+│   ├── package.json
+│   └── src/
+│       ├── app.html
+│       ├── routes/               # GENERATED by format — symlinks to service dirs
+│       │   ├── private/
+│       │   │   └── home/ → ../../../home/frontend/private/
+│       │   └── public/
+│       │       └── ships/ → ../../../ships/frontend/public/
+│       └── lib/ → ../../shared/frontend/components/
+├── migrations/                   # Atlas versioned migration files
+│   └── atlas.sum                 # Migration integrity file
+├── atlas.hcl                     # Atlas config pointing to SQLModel models
 ├── chart/
 │   ├── Chart.yaml
 │   └── templates/
-│       ├── deployment.yaml    # 2-container pod (FastAPI + Caddy)
-│       ├── services.yaml
-│       ├── cnpg-cluster.yaml  # CloudNativePG Cluster CRD
-│       └── atlas-migration.yaml # AtlasMigration CRD
+│       ├── deployment.yaml       # 2-container pod (SvelteKit + FastAPI)
+│       ├── service.yaml          # K8s Service → SvelteKit :3000 only
+│       ├── httproute-public.yaml # public.jomcgi.dev → rewrite /public/*
+│       ├── httproute-private.yaml# private.jomcgi.dev → rewrite /private/*
+│       ├── cnpg-cluster.yaml     # CloudNativePG Cluster CRD
+│       └── atlas-migration.yaml  # AtlasMigration CRD
 ├── deploy/
-│   ├── application.yaml       # ArgoCD Application
+│   ├── application.yaml          # ArgoCD Application
 │   ├── kustomization.yaml
 │   ├── values.yaml
 │   └── imageupdater.yaml
 └── BUILD
 ```
+
+### Route Symlink Generation
+
+The `format` command generates symlinks from each service's `frontend/` directory into the SvelteKit `src/routes/` tree. This runs as part of the existing format pipeline (same pattern as gazelle BUILD file generation).
+
+```bash
+# Scans projects/monolith/*/frontend/{private,public}/ directories
+# Creates symlinks: frontend/src/routes/{visibility}/{service}/ → {service}/frontend/{visibility}/
+# Also links: frontend/src/lib/ → shared/frontend/components/
+```
+
+Adding a new service: create `{service}/frontend/private/+page.svelte`, run `format`, commit the symlink. Zero boilerplate elsewhere.
 
 ## Migration Schema: Atlas + SQLModel Flow
 
@@ -196,6 +279,8 @@ env "nexus" {
 
 ## Gateway Routing Config
 
+The gateway rewrites paths based on hostname — `public.jomcgi.dev/*` → `/public/*`, `private.jomcgi.dev/*` → `/private/*`. Both route to SvelteKit on port 3000:
+
 ```yaml
 # values.yaml
 cfIngress:
@@ -224,39 +309,40 @@ cfIngress:
 
 ## MVP Scope
 
-**Goal:** todo_app fully migrated — proves the entire stack end-to-end.
+**Goal:** Home service (notes/calendar) on private + empty public homepage — proves the full public/private stack end-to-end.
 
 ### MVP Deliverables
 
 1. **Platform:** CloudNativePG operator + Atlas operator (upstream charts)
-2. **Nexus backend:** FastAPI with `todo` router, SQLModel models, daily/weekly scheduler
-3. **Nexus frontend:** SvelteKit with todo pages (public read view + admin edit view)
-4. **Nexus chart:** Helm chart with 2-container pod, CNPG Cluster, AtlasMigration, HTTPRoutes
-5. **Nexus deploy:** ArgoCD application, values, image updater config
-6. **CI:** Bazel test for migration drift, image build rules
+2. **Monolith backend:** FastAPI with `home` router, SQLModel models, scheduler (internal data layer)
+3. **Monolith frontend:** SvelteKit SSR with home pages (private) + empty public homepage
+4. **Monolith chart:** Helm chart with 2-container pod, CNPG Cluster, AtlasMigration, HTTPRoutes
+5. **Monolith deploy:** ArgoCD application, values, image updater config
+6. **CI:** Bazel test for migration drift, image build rules, route symlink generation in `format`
 7. **Retire:** `projects/todo_app/` removed after migration verified
 
-### What Migrates (todo_app)
+### What Migrates (todo_app → home)
 
-| Current (Go + files)     | MVP (FastAPI + Postgres)              |
-| ------------------------ | ------------------------------------- |
-| `data.json` on PVC       | `todo.tasks` table                    |
-| `YYYY/MM/DD.md` archives | `todo.archives` table                 |
-| Git commit on reset      | DB writes only                        |
-| Go goroutine scheduler   | FastAPI BackgroundTask or APScheduler |
-| Nginx sidecar (static)   | Caddy sidecar (SvelteKit build)       |
-| Vanilla JS frontend      | SvelteKit + mdsvex                    |
+| Current (Go + files)     | MVP (FastAPI + Postgres + SvelteKit)      |
+| ------------------------ | ----------------------------------------- |
+| `data.json` on PVC       | `home.tasks` table                        |
+| `YYYY/MM/DD.md` archives | `home.archives` table                     |
+| Git commit on reset      | DB writes only                            |
+| Go goroutine scheduler   | Shared scheduler in `shared/`             |
+| Nginx sidecar (static)   | SvelteKit SSR container (adapter-node)    |
+| Vanilla JS frontend      | SvelteKit (colocated in `home/frontend/`) |
 
-### API Contract (preserved)
+### Internal API Contract (FastAPI, not user-facing)
 
-- `GET /api/todo/weekly` — current weekly task
-- `GET /api/todo/daily` — current daily tasks
-- `GET /api/todo` — full todo state
-- `PUT /api/todo` — update todo state
-- `POST /api/todo/reset/daily` — archive + clear daily
-- `POST /api/todo/reset/weekly` — archive + clear all
-- `GET /api/todo/dates` — available archive dates
-- `GET /api/todo/archive/{date}` — rendered archive for date
+- `GET /api/home/weekly` — current weekly task
+- `GET /api/home/daily` — current daily tasks
+- `GET /api/home` — full todo state
+- `PUT /api/home` — update todo state
+- `POST /api/home/reset/daily` — archive + clear daily
+- `POST /api/home/reset/weekly` — archive + clear all
+- `GET /api/home/dates` — available archive dates
+- `GET /api/home/archive/{date}` — rendered archive for date
+- `GET /api/home/schedule/today` — today's calendar events
 
 ### Deploy Downtime Strategy
 
