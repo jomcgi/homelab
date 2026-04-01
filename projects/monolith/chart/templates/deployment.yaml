@@ -44,6 +44,10 @@ spec:
                   name: {{ include "monolith.fullname" . }}-secrets
                   key: ICAL_FEED_URL
             {{- end }}
+            {{- if .Values.backend.vaultApiUrl }}
+            - name: VAULT_API_URL
+              value: {{ .Values.backend.vaultApiUrl | quote }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
