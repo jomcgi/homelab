@@ -19,6 +19,8 @@ from projects.obsidian_vault.vault_mcp.app.embedder import VaultEmbedder
 from projects.obsidian_vault.vault_mcp.app.qdrant_client import QdrantClient
 from projects.obsidian_vault.vault_mcp.app.reconciler import VaultReconciler
 
+logger = logging.getLogger(__name__)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="VAULT_")
@@ -176,9 +178,13 @@ async def search_semantic(query: str, limit: int = 5) -> dict:
 
 def _git_commit(files: list[str], message: str) -> dict:
     """Stage files and commit with the given message."""
-    for f in files:
-        _git("add", f)
-    _git("commit", "-m", message)
+    try:
+        for f in files:
+            _git("add", f)
+        _git("commit", "-m", message)
+    except subprocess.CalledProcessError as exc:
+        logger.error("git failed: %s\nstderr: %s", exc, exc.stderr)
+        return {"error": f"git failed: {exc.stderr.strip() or exc}"}
     return {"status": "ok", "commit_message": message}
 
 
