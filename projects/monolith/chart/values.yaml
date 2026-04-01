@@ -34,7 +34,7 @@ postgres:
     image: ghcr.io/cloudnative-pg/pgvector:0.8.2-202604021427-18-trixie
 
 service:
-  port: 8000
+  port: 3000
 
 podSecurityContext:
   seccompProfile:
@@ -65,29 +65,19 @@ cfIngress:
     enabled: true
     tier: trusted
     hostname: private.jomcgi.dev
-    servicePort: 8000
+    servicePort: 3000
     gateway:
       name: cloudflare-ingress
       namespace: envoy-gateway-system
     team: jomcgi
-  todo:
-    public:
-      enabled: true
-      tier: public
-      hostname: todo.jomcgi.dev
-      servicePort: 8000
-      gateway:
-        name: cloudflare-ingress
-        namespace: envoy-gateway-system
-      rateLimit:
-        requests: 100
-        unit: Minute
-    admin:
-      enabled: true
-      tier: trusted
-      hostname: todo-admin.jomcgi.dev
-      servicePort: 8000
-      gateway:
-        name: cloudflare-ingress
-        namespace: envoy-gateway-system
-      team: jomcgi
+  public:
+    enabled: false
+    tier: public
+    hostname: public.jomcgi.dev
+    servicePort: 3000
+    gateway:
+      name: cloudflare-ingress
+      namespace: envoy-gateway-system
+    rateLimit:
+      requests: 100
+      unit: Minute
