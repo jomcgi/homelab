@@ -1,4 +1,4 @@
-"""Unit tests for todo/models.py — Task and Archive field defaults, table metadata."""
+"""Unit tests for home/models.py — Task and Archive field defaults, table metadata."""
 
 from datetime import date
 
@@ -6,7 +6,7 @@ import pytest
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
-from todo.models import Archive, Task
+from home.models import Archive, Task
 
 
 # ---------------------------------------------------------------------------
@@ -107,11 +107,11 @@ class TestTaskTableMetadata:
         """Task.__tablename__ is 'tasks'."""
         assert Task.__tablename__ == "tasks"
 
-    def test_schema_is_todo(self):
-        """Task table lives in the 'todo' schema."""
+    def test_schema_is_home(self):
+        """Task table lives in the 'home' schema."""
         args = Task.__table_args__
         assert isinstance(args, dict)
-        assert args.get("schema") == "todo"
+        assert args.get("schema") == "home"
 
 
 # ---------------------------------------------------------------------------
@@ -169,11 +169,11 @@ class TestArchiveTableMetadata:
         """Archive.__tablename__ is 'archives'."""
         assert Archive.__tablename__ == "archives"
 
-    def test_schema_is_todo(self):
-        """Archive table lives in the 'todo' schema."""
+    def test_schema_is_home(self):
+        """Archive table lives in the 'home' schema."""
         args = Archive.__table_args__
         assert isinstance(args, dict)
-        assert args.get("schema") == "todo"
+        assert args.get("schema") == "home"
 
 
 # ---------------------------------------------------------------------------

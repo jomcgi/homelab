@@ -5,8 +5,8 @@ from zoneinfo import ZoneInfo
 import httpx
 import pytest
 
-import schedule.service as svc
-from schedule.service import parse_events_for_date, poll_calendar
+import shared.service as svc
+from shared.service import parse_events_for_date, poll_calendar
 
 TZ = ZoneInfo("America/Vancouver")
 
@@ -156,7 +156,7 @@ async def test_poll_calendar_handles_network_failure():
 
         with (
             patch.object(svc, "ICAL_FEED_URL", "http://example.com/calendar.ics"),
-            patch("schedule.service.httpx.AsyncClient", return_value=mock_client),
+            patch("shared.service.httpx.AsyncClient", return_value=mock_client),
         ):
             await poll_calendar()
 
@@ -190,7 +190,7 @@ async def test_poll_calendar_handles_http_error_response():
 
         with (
             patch.object(svc, "ICAL_FEED_URL", "http://example.com/calendar.ics"),
-            patch("schedule.service.httpx.AsyncClient", return_value=mock_client),
+            patch("shared.service.httpx.AsyncClient", return_value=mock_client),
         ):
             await poll_calendar()
 
@@ -225,7 +225,7 @@ async def test_poll_calendar_handles_malformed_ical():
 
         with (
             patch.object(svc, "ICAL_FEED_URL", "http://example.com/calendar.ics"),
-            patch("schedule.service.httpx.AsyncClient", return_value=mock_client),
+            patch("shared.service.httpx.AsyncClient", return_value=mock_client),
         ):
             await poll_calendar()
 
@@ -254,7 +254,7 @@ async def test_poll_calendar_updates_cache_on_success():
 
         with (
             patch.object(svc, "ICAL_FEED_URL", "http://example.com/calendar.ics"),
-            patch("schedule.service.httpx.AsyncClient", return_value=mock_client),
+            patch("shared.service.httpx.AsyncClient", return_value=mock_client),
             patch.object(svc, "parse_events_for_date", return_value=valid_events),
         ):
             await poll_calendar()

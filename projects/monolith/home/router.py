@@ -11,7 +11,7 @@ from .models import Archive, Task
 from .service import archive_and_reset
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/todo", tags=["todo"])
+router = APIRouter(prefix="/api/home", tags=["home"])
 
 ROLLING_WINDOW_DAYS = 14
 

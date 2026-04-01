@@ -1,4 +1,4 @@
-"""Todo business logic — the module's internal interface.
+"""Home business logic — the module's internal interface.
 
 Other modules should import from here, never from router.py.
 """
