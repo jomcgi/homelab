@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
 MONOLITH_DIR="projects/monolith"
 ROUTES_DIR="${MONOLITH_DIR}/frontend/src/routes"
