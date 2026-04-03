@@ -1,14 +1,14 @@
 fullnameOverride: "llama-cpp"
 
 image:
-  tag: "server-cuda@sha256:a8ad9d1fd95640cec092d2ac27cb16d71183114c776f2a342e65a1196195c873"
+  tag: "server-cuda"
 
 imagePullSecret:
   enabled: true
 
 modelVolume:
   enabled: true
-  reference: "hf.co/unsloth/Qwen3.5-35B-A3B-GGUF:Qwen3.5-35B-A3B-Q3_K_M"
+  reference: "ghcr.io/jomcgi/models/google/gemma-4-26b-a4b-it:unsloth-gguf-ud-q4-k-m"
   mountPath: "/model-image"
 
 server:
@@ -28,7 +28,7 @@ server:
     - "1"
     - "--metrics"
     - "--alias"
-    - "qwen3.5-35b-a3b"
+    - "gemma-4-26b-a4b"
 
 nodeSelector:
   kubernetes.io/hostname: node-4

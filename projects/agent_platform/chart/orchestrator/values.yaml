@@ -62,7 +62,7 @@ config:
   jobMaxDuration: "168h"
   reconcileInterval: "60s"
   inferenceUrl: ""
-  inferenceModel: "qwen3.5-35b-a3b"
+  inferenceModel: "gemma-4-26b-a4b"
 
 httpRoute:
   enabled: false
