@@ -225,6 +225,18 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_models_test",
+    srcs = ["chat/models_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     exclude_rules = ["tainted-fastapi-http-request-httpx"],  # keep
