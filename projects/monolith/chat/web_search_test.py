@@ -1,6 +1,6 @@
 """Tests for SearXNG web search client."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -11,7 +11,7 @@ class TestSearchWeb:
     @pytest.mark.asyncio
     async def test_returns_formatted_results(self):
         """search_web returns formatted string of top results."""
-        fake_response = AsyncMock()
+        fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
             "results": [
@@ -27,7 +27,6 @@ class TestSearchWeb:
                 },
             ]
         }
-        fake_response.raise_for_status = AsyncMock()
 
         with patch("chat.web_search.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
@@ -49,10 +48,9 @@ class TestSearchWeb:
             {"title": f"R{i}", "content": f"C{i}", "url": f"http://example.com/{i}"}
             for i in range(10)
         ]
-        fake_response = AsyncMock()
+        fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {"results": fake_results}
-        fake_response.raise_for_status = AsyncMock()
 
         with patch("chat.web_search.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
