@@ -15,6 +15,7 @@ spec:
     parameters:
       shared_buffers: "64MB"
       effective_cache_size: "128MB"
+      shared_preload_libraries: "vector"
   bootstrap:
     initdb:
       database: monolith

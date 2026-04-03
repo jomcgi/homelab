@@ -37,6 +37,12 @@ onepassword:
   enabled: false
   itemPath: ""
 
+chat:
+  enabled: false
+  llamaCppUrl: ""
+  embeddingUrl: ""
+  searxngUrl: ""
+
 cfIngress:
   private:
     enabled: true

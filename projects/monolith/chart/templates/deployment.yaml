@@ -48,6 +48,19 @@ spec:
             - name: VAULT_API_URL
               value: {{ .Values.backend.vaultApiUrl | quote }}
             {{- end }}
+            {{- if .Values.chat.enabled }}
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monolith.fullname" . }}-secrets
+                  key: DISCORD_BOT_TOKEN
+            - name: LLAMA_CPP_URL
+              value: {{ .Values.chat.llamaCppUrl | quote }}
+            - name: EMBEDDING_URL
+              value: {{ .Values.chat.embeddingUrl | quote }}
+            - name: SEARXNG_URL
+              value: {{ .Values.chat.searxngUrl | quote }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
