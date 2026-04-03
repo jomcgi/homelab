@@ -1,3 +1,4 @@
+# gazelle:exclude chat
 # gazelle:exclude app
 # gazelle:exclude notes
 # gazelle:exclude schedule
@@ -24,6 +25,7 @@ py_venv_binary(
     srcs = glob(
         [
             "app/**/*.py",
+            "chat/**/*.py",
             "notes/**/*.py",
             "schedule/**/*.py",
             "todo/**/*.py",
@@ -42,6 +44,7 @@ py_library(
     srcs = glob(
         [
             "app/**/*.py",
+            "chat/**/*.py",
             "notes/**/*.py",
             "schedule/**/*.py",
             "todo/**/*.py",
@@ -50,13 +53,16 @@ py_library(
     ),
     visibility = ["//:__subpackages__"],
     deps = [
+        "@pip//discord_py",
         "@pip//fastapi",
         "@pip//httpx",
         "@pip//icalendar",
         "@pip//opentelemetry_instrumentation_fastapi",
+        "@pip//pgvector",
         "@pip//psycopg",
         "@pip//psycopg_binary",
         "@pip//pydantic",
+        "@pip//pydantic_ai",
         "@pip//sqlmodel",
         "@pip//tzdata",
         "@pip//uvicorn",
