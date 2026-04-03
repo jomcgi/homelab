@@ -246,6 +246,19 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_store_test",
+    srcs = ["chat/store_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     exclude_rules = ["tainted-fastapi-http-request-httpx"],  # keep
