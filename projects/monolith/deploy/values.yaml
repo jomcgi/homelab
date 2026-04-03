@@ -1,6 +1,12 @@
 backend:
   replicas: 1
   vaultApiUrl: "http://obsidian-vault.obsidian.svc.cluster.local:8000"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "10m"
+    limits:
+      memory: "512Mi"
 
 postgres:
   instances: 1
@@ -42,3 +48,9 @@ cfIngress:
         name: cloudflare-ingress
         namespace: envoy-gateway-system
       team: jomcgi
+
+chat:
+  enabled: true
+  llamaCppUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
+  embeddingUrl: "http://llama-cpp-embeddings.llama-cpp.svc.cluster.local:8080"
+  searxngUrl: "http://monolith-searxng:8080"
