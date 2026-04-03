@@ -63,6 +63,10 @@ linkerd-control-plane:
       request: 50Mi
       limit: 100Mi
 
+  # Fail pod creation if the proxy injector is unavailable, rather than
+  # silently creating pods without sidecars (which then crash-loop for days).
+  webhookFailurePolicy: Fail
+
   # Proxy injector
   proxyInjectorResources:
     cpu:
