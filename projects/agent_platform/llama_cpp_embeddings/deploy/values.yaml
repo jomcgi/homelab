@@ -1,0 +1,38 @@
+fullnameOverride: "llama-cpp-embeddings"
+
+image:
+  tag: "server-cuda-b8643"
+
+imagePullSecret:
+  enabled: true
+
+modelVolume:
+  enabled: true
+  reference: "ghcr.io/jomcgi/models/voyageai/voyage-4-nano:gguf-q8-0"
+  mountPath: "/model-image"
+
+server:
+  nGpuLayers: 999
+  ctxSize: 8192
+  flashAttn: "on"
+  threads: 4
+  jinja: false
+  extraArgs:
+    - "--embedding"
+    - "--alias"
+    - "voyage-4-nano"
+
+nodeSelector:
+  kubernetes.io/hostname: node-4
+
+podAnnotations:
+  linkerd.io/inject: disabled
+
+resources:
+  requests:
+    cpu: 1
+    memory: "1Gi"
+    nvidia.com/gpu: 1
+  limits:
+    memory: "2Gi"
+    nvidia.com/gpu: 1

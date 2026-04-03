@@ -7,3 +7,4 @@ resources:
   - ./chat_bot/deploy
   - ./cluster_agents/deploy
   - ./llama_cpp/deploy
+  - ./llama_cpp_embeddings/deploy
