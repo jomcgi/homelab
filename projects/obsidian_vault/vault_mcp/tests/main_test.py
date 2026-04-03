@@ -755,7 +755,9 @@ class TestApiCreateNoteHandler:
     def _get_api_notes_handler(self):
         """Extract the api_create_note handler by calling main() with mocks."""
         mock_settings = MagicMock(spec=Settings)
-        mock_settings.path = _mod._settings.path  # use the vault path set by autouse fixture
+        mock_settings.path = (
+            _mod._settings.path
+        )  # use the vault path set by autouse fixture
         mock_settings.port = 8000
         mock_app = MagicMock()
 
@@ -800,7 +802,10 @@ class TestApiCreateNoteHandler:
 
         handler = self._get_api_notes_handler()
         mock_request = AsyncMock()
-        mock_request.json.return_value = {"content": "My fleeting thought", "source": "web-ui"}
+        mock_request.json.return_value = {
+            "content": "My fleeting thought",
+            "source": "web-ui",
+        }
         response = await handler(mock_request)
         assert response.status_code == 201
         body = json.loads(response.body)
