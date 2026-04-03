@@ -123,8 +123,10 @@ py_test(
     imports = ["."],
     deps = [
         ":monolith_backend",
+        "@pip//httpx",
         "@pip//icalendar",
         "@pip//pytest",
+        "@pip//pytest_asyncio",
         "@pip//tzdata",
     ],
 )
@@ -200,6 +202,7 @@ py_test(
         "@pip//fastapi",
         "@pip//httpx",
         "@pip//pytest",
+        "@pip//pytest_asyncio",
         "@pip//sqlmodel",
         "@pip//tzdata",
     ],
