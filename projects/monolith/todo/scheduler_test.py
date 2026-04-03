@@ -50,7 +50,9 @@ async def test_scheduler_exception_is_caught_and_loop_continues():
         patch.object(scheduler, "datetime") as mock_dt,
         patch.object(scheduler, "asyncio") as mock_asyncio,
         patch.object(
-            scheduler, "archive_and_reset", side_effect=RuntimeError("DB connection failed")
+            scheduler,
+            "archive_and_reset",
+            side_effect=RuntimeError("DB connection failed"),
         ),
         patch.object(scheduler, "Session", return_value=mock_session_cm),
         patch.object(scheduler, "get_engine"),
