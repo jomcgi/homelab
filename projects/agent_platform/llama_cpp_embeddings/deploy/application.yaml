@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llama-cpp-embeddings
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/jomcgi/homelab.git
+      path: projects/agent_platform/llama_cpp/deploy
+      targetRevision: HEAD
+      helm:
+        releaseName: llama-cpp-embeddings
+        valueFiles:
+          - $values/projects/agent_platform/llama_cpp_embeddings/deploy/values.yaml
+    - repoURL: https://github.com/jomcgi/homelab.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: llama-cpp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
