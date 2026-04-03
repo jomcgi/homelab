@@ -65,7 +65,7 @@ class MessageStore:
         Note: This uses raw SQL because SQLModel doesn't natively support
         pgvector's <=> operator. Falls back gracefully in SQLite tests.
         """
-        from sqlalchemy import text  # nosemgrep: avoid-sqlalchemy-text
+        from sqlalchemy import text
 
         exclude = exclude_ids or []
         params: dict[str, object] = {
@@ -90,7 +90,7 @@ class MessageStore:
             filters += " AND user_id = :user_id"
             params["user_id"] = user_id
 
-        sql = text(  # nosemgrep: avoid-sqlalchemy-text
+        sql = text(
             f"SELECT * FROM chat.messages WHERE {filters} "
             "ORDER BY embedding <=> :embedding LIMIT :limit"
         )
