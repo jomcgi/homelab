@@ -271,6 +271,19 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_agent_test",
+    srcs = ["chat/agent_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     exclude_rules = ["tainted-fastapi-http-request-httpx"],  # keep
