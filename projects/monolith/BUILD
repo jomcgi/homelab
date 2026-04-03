@@ -62,7 +62,7 @@ py_library(
         "@pip//psycopg",
         "@pip//psycopg_binary",
         "@pip//pydantic",
-        "@pip//pydantic_ai",
+        "@pip//pydantic_ai_slim",
         "@pip//sqlmodel",
         "@pip//tzdata",
         "@pip//uvicorn",

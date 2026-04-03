@@ -6,10 +6,6 @@ affine==2.4.0 \
     --hash=sha256:8a3df80e2b2378aef598a83c1392efd47967afec4242021a0b06b4c7cbc61a92 \
     --hash=sha256:a24d818d6a836c131976d22f8c27b8d3ca32d0af64c1d8d29deb7bafa4da1eea
     # via rasterio
-ag-ui-protocol==0.1.15 \
-    --hash=sha256:5e23c1042c7d4e364d685e68d2fb74d37c16bc83c66d270102d8eaedce56ad82 \
-    --hash=sha256:85cde077023ccbc37b5ce2ad953537883c262d210320f201fc2ec4e85408b06a
-    # via pydantic-ai-slim
 aiofile==3.9.0 \
     --hash=sha256:ce2f6c1571538cbdfa0143b04e16b208ecb0e9cb4148e528af8a640ed51cc8aa \
     --hash=sha256:e5ad718bb148b265b6df1b3752c4d1d83024b93da9bd599df74b9d9ffcf7919b
@@ -142,7 +138,6 @@ aiohttp==3.13.3 \
     # via
     #   homelab (pyproject.toml)
     #   discord-py
-    #   xai-sdk
 aiosignal==1.4.0 \
     --hash=sha256:053243f8b92b990551949e63930a839ff0cf0b0ebbe0597b0f3fb19e1a0fe82e \
     --hash=sha256:f47eecd9468083c2029cc99945502cb7708b082c232f9aca65da147157b251c7
@@ -161,22 +156,15 @@ annotated-types==0.7.0 \
     --hash=sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53 \
     --hash=sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89
     # via pydantic
-anthropic==0.89.0 \
-    --hash=sha256:c6d23854af798f2471ca3bc653cca394d392cc272fe803d3da9d63575b8445f0 \
-    --hash=sha256:f3d75b8ccef4b35f3702639519e461eba437d4bcdfabb69378c65a02ab7bda66
-    # via pydantic-ai-slim
 anyio==4.12.1 \
     --hash=sha256:41cfcc3a4c85d3f05c932da7c26d0201ac36f72abd4435ba90d0464a3ffed703 \
     --hash=sha256:d405828884fc140aa80a3c667b8beed277f1dfedec42ba031bd6ac3db606ab6c
     # via
-    #   anthropic
     #   google-genai
-    #   groq
     #   httpx
     #   mcp
     #   openai
     #   py-key-value-aio
-    #   pydantic-evals
     #   sse-starlette
     #   starlette
     #   watchfiles
@@ -184,10 +172,6 @@ apscheduler==3.11.2 \
     --hash=sha256:2a9966b052ec805f020c8c4c3ae6e6a06e24b1bf19f2e11d91d8cca0473eef41 \
     --hash=sha256:ce005177f741409db4e4dd40a7431b76feb856b9dd69d57e0da49d6715bfd26d
     # via homelab (pyproject.toml)
-argcomplete==3.6.3 \
-    --hash=sha256:62e8ed4fd6a45864acc8235409461b72c9a28ee785a2011cc5eb78318786c89c \
-    --hash=sha256:f5007b3a600ccac5d25bbce33089211dfd49eab4a7718da3f10e3082525a92ce
-    # via pydantic-ai-slim
 asgiref==3.11.1 \
     --hash=sha256:5f184dc43b7e763efe848065441eac62229c9f7b0475f41f80e207a114eda4ce \
     --hash=sha256:e8667a091e69529631969fd45dc268fa79b99c92c5fcdda727757e52146ec133
@@ -285,9 +269,7 @@ bng-latlon==1.1 \
 boto3==1.42.61 \
     --hash=sha256:117ebfc597c95bfb64c6d37ba77bd1c2a97a1885c1dcac2a8be1a14e2139a76d \
     --hash=sha256:156efcc298a33206be6dfd220815c64aa8b09424017534cabe717636961fc306
-    # via
-    #   homelab (pyproject.toml)
-    #   pydantic-ai-slim
+    # via homelab (pyproject.toml)
 botocore==1.42.61 \
     --hash=sha256:476059beb3f462042742950cf195d26bc313461a77189c16e37e205b0a924b26 \
     --hash=sha256:702d6011ace2b5b652a0dbb45053d4d9f79da2c5b184463042434e1754bdd601
@@ -665,10 +647,6 @@ cligj==0.7.2 \
     --hash=sha256:a4bc13d623356b373c2c27c53dbd9c68cae5d526270bfa71f6c6fa69669c6b27 \
     --hash=sha256:c1ca117dbce1fe20a5809dc96f01e1c2840f6dcc939b3ddbb1111bf330ba82df
     # via rasterio
-cohere==5.21.1 ; sys_platform != 'emscripten' \
-    --hash=sha256:e5ade4423b928b01ff2038980e1b62b2a5bb412c8ab83e30882753b810a5509f \
-    --hash=sha256:f15592ec60d8cf12f01563db94ec28c388c61269d9617f23c2d6d910e505344e
-    # via pydantic-ai-slim
 colorama==0.4.6 ; sys_platform == 'win32' \
     --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
@@ -800,9 +778,7 @@ distro==1.9.0 \
     --hash=sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed \
     --hash=sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2
     # via
-    #   anthropic
     #   google-genai
-    #   groq
     #   openai
 dnspython==2.8.0 \
     --hash=sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af \
@@ -811,9 +787,7 @@ dnspython==2.8.0 \
 docstring-parser==0.17.0 \
     --hash=sha256:583de4a309722b3315439bb31d64ba3eebada841f2e2cee23b99df001434c912 \
     --hash=sha256:cf2569abd23dce8099b300f9b4fa8191e9582dda731fd533daf54c4551658708
-    # via
-    #   anthropic
-    #   cyclopts
+    # via cyclopts
 docutils==0.22.4 \
     --hash=sha256:4db53b1fde9abecbb74d91230d32ab626d94f6badfc575d6db9194a49df29968 \
     --hash=sha256:d0013f540772d1420576855455d050a2180186c91c15779301ac2ccb3eeb68de
@@ -822,10 +796,6 @@ email-validator==2.3.0 \
     --hash=sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4 \
     --hash=sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426
     # via pydantic
-eval-type-backport==0.3.1 \
-    --hash=sha256:279ab641905e9f11129f56a8a78f493518515b83402b860f6f06dd7c011fdfa8 \
-    --hash=sha256:57e993f7b5b69d271e37482e62f74e76a0276c82490cf8e4f0dffeb6b332d5ed
-    # via mistralai
 exceptiongroup==1.3.1 \
     --hash=sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219 \
     --hash=sha256:a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598
@@ -836,62 +806,10 @@ exceptiongroup==1.3.1 \
     #   fastmcp
     #   pydantic-ai-slim
     #   pytest
-executing==2.2.1 \
-    --hash=sha256:3632cc370565f6648cc328b32435bd120a1e4ebb20c77e3fdde9a13cd1e533c4 \
-    --hash=sha256:760643d3452b4d777d295bb167ccc74c64a81df23fb5e08eff250c425a4b2017
-    # via logfire
 fastapi==0.135.1 \
     --hash=sha256:46e2fc5745924b7c840f71ddd277382af29ce1cdb7d5eab5bf697e3fb9999c9e \
     --hash=sha256:d04115b508d936d254cea545b7312ecaa58a7b3a0f84952535b4c9afae7668cd
     # via homelab (pyproject.toml)
-fastavro==1.12.1 ; sys_platform != 'emscripten' \
-    --hash=sha256:00650ca533907361edda22e6ffe8cf87ab2091c5d8aee5c8000b0f2dcdda7ed3 \
-    --hash=sha256:02281432dcb11c78b3280da996eff61ee0eff39c5de06c6e0fbf19275093e6d4 \
-    --hash=sha256:0714b285160fcd515eb0455540f40dd6dac93bdeacdb03f24e8eac3d8aa51f8d \
-    --hash=sha256:089e155c0c76e0d418d7e79144ce000524dd345eab3bc1e9c5ae69d500f71b14 \
-    --hash=sha256:120aaf82ac19d60a1016afe410935fe94728752d9c2d684e267e5b7f0e70f6d9 \
-    --hash=sha256:123fb221df3164abd93f2d042c82f538a1d5a43ce41375f12c91ce1355a9141e \
-    --hash=sha256:1f55eef18c41d4476bd32a82ed5dd86aabc3f614e1b66bdb09ffa291612e1670 \
-    --hash=sha256:1f81011d54dd47b12437b51dd93a70a9aa17b61307abf26542fc3c13efbc6c51 \
-    --hash=sha256:2de72d786eb38be6b16d556b27232b1bf1b2797ea09599507938cdb7a9fe3e7c \
-    --hash=sha256:2f285be49e45bc047ab2f6bed040bb349da85db3f3c87880e4b92595ea093b2b \
-    --hash=sha256:3100ad643e7fa658469a2a2db229981c1a000ff16b8037c0b58ce3ec4d2107e8 \
-    --hash=sha256:3616e2f0e1c9265e92954fa099db79c6e7817356d3ff34f4bcc92699ae99697c \
-    --hash=sha256:3b1921ac35f3d89090a5816b626cf46e67dbecf3f054131f84d56b4e70496f45 \
-    --hash=sha256:4128978b930aaf930332db4b3acc290783183f3be06a241ae4a482f3ed8ce892 \
-    --hash=sha256:43ded16b3f4a9f1a42f5970c2aa618acb23ea59c4fcaa06680bdf470b255e5a8 \
-    --hash=sha256:44cbff7518901c91a82aab476fcab13d102e4999499df219d481b9e15f61af34 \
-    --hash=sha256:469fecb25cba07f2e1bfa4c8d008477cd6b5b34a59d48715e1b1a73f6160097d \
-    --hash=sha256:509818cb24b98a804fc80be9c5fed90f660310ae3d59382fc811bfa187122167 \
-    --hash=sha256:5217f773492bac43dae15ff2931432bce2d7a80be7039685a78d3fab7df910bd \
-    --hash=sha256:546ffffda6610fca672f0ed41149808e106d8272bb246aa7539fa8bb6f117f17 \
-    --hash=sha256:5aa777b8ee595b50aa084104cd70670bf25a7bbb9fd8bb5d07524b0785ee1699 \
-    --hash=sha256:632a4e3ff223f834ddb746baae0cc7cee1068eb12c32e4d982c2fee8a5b483d0 \
-    --hash=sha256:64961ab15b74b7c168717bbece5660e0f3d457837c3cc9d9145181d011199fa7 \
-    --hash=sha256:6b632b713bc5d03928a87d811fa4a11d5f25cd43e79c161e291c7d3f7aa740fd \
-    --hash=sha256:780476c23175d2ae457c52f45b9ffa9d504593499a36cd3c1929662bf5b7b14b \
-    --hash=sha256:78df838351e4dff9edd10a1c41d1324131ffecbadefb9c297d612ef5363c049a \
-    --hash=sha256:792356d320f6e757e89f7ac9c22f481e546c886454a6709247f43c0dd7058004 \
-    --hash=sha256:81563e1f93570e6565487cdb01ba241a36a00e58cff9c5a0614af819d1155d8f \
-    --hash=sha256:83e6caf4e7a8717d932a3b1ff31595ad169289bbe1128a216be070d3a8391671 \
-    --hash=sha256:9090f0dee63fe022ee9cc5147483366cc4171c821644c22da020d6b48f576b4f \
-    --hash=sha256:9445da127751ba65975d8e4bdabf36bfcfdad70fc35b2d988e3950cce0ec0e7c \
-    --hash=sha256:a275e48df0b1701bb764b18a8a21900b24cf882263cb03d35ecdba636bbc830b \
-    --hash=sha256:a38607444281619eda3a9c1be9f5397634012d1b237142eee1540e810b30ac8b \
-    --hash=sha256:a7d840ccd9aacada3ddc80fbcc4ea079b658107fe62e9d289a0de9d54e95d366 \
-    --hash=sha256:a8bc2dcec5843d499f2489bfe0747999108f78c5b29295d877379f1972a3d41a \
-    --hash=sha256:ac76d6d95f909c72ee70d314b460b7e711d928845771531d823eb96a10952d26 \
-    --hash=sha256:b6a3462934b20a74f9ece1daa49c2e4e749bd9a35fa2657b53bf62898fba80f5 \
-    --hash=sha256:b81fc04e85dfccf7c028e0580c606e33aa8472370b767ef058aae2c674a90746 \
-    --hash=sha256:b91a0fe5a173679a6c02d53ca22dcaad0a2c726b74507e0c1c2e71a7c3f79ef9 \
-    --hash=sha256:bec207360f76f0b3de540758a297193c5390e8e081c43c3317f610b1414d8c8f \
-    --hash=sha256:c0390bfe4a9f8056a75ac6785fbbff8f5e317f5356481d2e29ec980877d2314b \
-    --hash=sha256:c3d67c47f177e486640404a56f2f50b165fe892cc343ac3a34673b80cc7f1dd6 \
-    --hash=sha256:cb0337b42fd3c047fcf0e9b7597bd6ad25868de719f29da81eabb6343f08d399 \
-    --hash=sha256:d71c8aa841ef65cfab709a22bb887955f42934bced3ddb571e98fdbdade4c609 \
-    --hash=sha256:eaa7ab3769beadcebb60f0539054c7755f63bd9cf7666e2c15e615ab605f89a8 \
-    --hash=sha256:ed924233272719b5d5a6a0b4d80ef3345fc7e84fc7a382b6232192a9112d38a6
-    # via cohere
 fastembed==0.8.0 \
     --hash=sha256:40bee672657574a1009e35ec50030a55f2b426842cb011845379817641bbbbd0 \
     --hash=sha256:75966edfa8b006ee78514c726bd7f6a50721dadc89305279052be9db72fd53e8
@@ -899,9 +817,7 @@ fastembed==0.8.0 \
 fastmcp==3.1.0 \
     --hash=sha256:b1f73b56fd3b0cb2bd9e2a144fc650d5cc31587ed129d996db7710e464ae8010 \
     --hash=sha256:e25264794c734b9977502a51466961eeecff92a0c2f3b49c40c070993628d6d0
-    # via
-    #   homelab (pyproject.toml)
-    #   pydantic-ai-slim
+    # via homelab (pyproject.toml)
 filelock==3.25.2 \
     --hash=sha256:b64ece2b38f4ca29dd3e810287aa8c48182bbecd1ae6e9ae126c9b35f1382694 \
     --hash=sha256:ca8afb0da15f229774c9ad1b455ed96e85a81373065fb10446672f64444ddf70
@@ -1058,22 +974,17 @@ geopandas==1.1.2 \
 google-auth[requests]==2.48.0 \
     --hash=sha256:2e2a537873d449434252a9632c28bfc268b0adb1e53f9fb62afc5333a975903f \
     --hash=sha256:4f7e706b0cd3208a3d940a19a822c37a476ddba5450156c3e6624a71f7c841ce
-    # via
-    #   google-genai
-    #   pydantic-ai-slim
+    # via google-genai
 google-genai==1.66.0 \
     --hash=sha256:7f127a39cf695277104ce4091bb26e417c59bb46e952ff3699c3a982d9c474ee \
     --hash=sha256:ffc01647b65046bca6387320057aa51db0ad64bcc72c8e3e914062acfa5f7c49
-    # via
-    #   homelab (pyproject.toml)
-    #   pydantic-ai-slim
+    # via homelab (pyproject.toml)
 googleapis-common-protos==1.72.0 \
     --hash=sha256:4299c5a82d5ae1a9702ada957347726b167f9f8d1fc352477702a1e851ff4038 \
     --hash=sha256:e55a601c1b32b52d7a3e65f43563e2aa61bcd737998ee672ac9b951cd49319f5
     # via
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
-    #   xai-sdk
 greenlet==3.3.2 ; platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64' \
     --hash=sha256:02b0a8682aecd4d3c6c18edf52bc8e51eacdd75c8eac52a790a210b06aa295fd \
     --hash=sha256:18cb1b7337bca281915b3c5d5ae19f4e76d35e1df80f4ad3c1a7be91fadf1082 \
@@ -1132,10 +1043,6 @@ greenlet==3.3.2 ; platform_machine == 'AMD64' or platform_machine == 'WIN32' or 
 griffelib==2.0.2 \
     --hash=sha256:3cf20b3bc470e83763ffbf236e0076b1211bac1bc67de13daf494640f2de707e \
     --hash=sha256:925c857658fb1ba40c0772c37acbc2ab650bd794d9c1b9726922e36ea4117ea1
-    # via pydantic-ai-slim
-groq==1.1.2 \
-    --hash=sha256:348cb7a674b6aa7105719b533f6fc48fd32b503bc9256924aaed6dc186f778b5 \
-    --hash=sha256:9ec2b5b6a1c4856a8c6c38741353c5ab37472a4e3fded02af783750d849cc988
     # via pydantic-ai-slim
 grpcio==1.78.0 \
     --hash=sha256:082653eecbdf290e6e3e2c276ab2c54b9e7c299e07f4221872380312d8cf395e \
@@ -1199,9 +1106,7 @@ grpcio==1.78.0 \
     --hash=sha256:fbe6e89c7ffb48518384068321621b2a69cab509f58e40e4399fdd378fa6d074 \
     --hash=sha256:fd5f135b1bd58ab088930b3c613455796dfa0393626a6972663ccdda5b4ac6ce \
     --hash=sha256:ff870aebe9a93a85283837801d35cd5f8814fe2ad01e606861a7fb47c762a2b7
-    # via
-    #   opentelemetry-exporter-otlp-proto-grpc
-    #   xai-sdk
+    # via opentelemetry-exporter-otlp-proto-grpc
 h11==0.16.0 \
     --hash=sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1 \
     --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
@@ -1293,15 +1198,11 @@ httpx==0.28.1 \
     --hash=sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad
     # via
     #   homelab (pyproject.toml)
-    #   anthropic
-    #   cohere
     #   fastmcp
     #   genai-prices
     #   google-genai
-    #   groq
     #   huggingface-hub
     #   mcp
-    #   mistralai
     #   openai
     #   pydantic-ai-slim
     #   pydantic-graph
@@ -1314,7 +1215,6 @@ huggingface-hub==1.8.0 \
     --hash=sha256:d3eb5047bd4e33c987429de6020d4810d38a5bef95b3b40df9b17346b7f353f2
     # via
     #   fastembed
-    #   pydantic-ai-slim
     #   tokenizers
 icalendar==6.3.2 \
     --hash=sha256:d400e9c9bb8c025e5a3c77c236941bb690494be52528a0b43cc7e8b7c9505064 \
@@ -1346,10 +1246,6 @@ iniconfig==2.3.0 \
     --hash=sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730 \
     --hash=sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12
     # via pytest
-invoke==2.2.1 \
-    --hash=sha256:2413bc441b376e5cd3f55bb5d364f973ad8bdd7bf87e53c79de3c11bf3feecc8 \
-    --hash=sha256:515bf49b4a48932b79b024590348da22f39c4942dff991ad1fb8b8baea1be707
-    # via mistralai
 jaraco-classes==3.4.0 \
     --hash=sha256:47a024b51d0239c0dd8c8540c6c7f484be3b8fcf0b2d85c13825780d3b3f3acd \
     --hash=sha256:f662826b6bed8cace05e7ff873ce0f9283b5c924470fe664fff1c2f00f581790
@@ -1475,9 +1371,7 @@ jiter==0.13.0 \
     --hash=sha256:fa476ab5dd49f3bf3a168e05f89358c75a17608dbabb080ef65f96b27c19ab10 \
     --hash=sha256:fe49d3ff6db74321f144dff9addd4a5874d3105ac5ba7c5b77fac099cfae31ae \
     --hash=sha256:ff732bd0a0e778f43d5009840f20b935e79087b4dc65bd36f1cd0f9b04b8ff7f
-    # via
-    #   anthropic
-    #   openai
+    # via openai
 jmespath==1.1.0 \
     --hash=sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d \
     --hash=sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64
@@ -1512,16 +1406,10 @@ keyring==25.7.0 \
     --hash=sha256:be4a0b195f149690c166e850609a477c532ddbfbaed96a404d4e43f8d5e2689f \
     --hash=sha256:fe01bd85eb3f8fb3dd0405defdeac9a5b4f6f0439edbb3149577f244a2e8245b
     # via py-key-value-aio
-logfire[httpx]==4.31.0 \
-    --hash=sha256:361bfda17c9d70ada5d220211033bae06b871ddac9d5b06978bc0ceca6b8e658 \
-    --hash=sha256:49fad38b5e6f199a98e9c8814e860c8a42595bb81479b52a20413e53ee475b72
-    # via pydantic-ai-slim
 logfire-api==4.31.0 \
     --hash=sha256:3c1f502fd4eb8ef0996427a5cf275fd8f327f38600650a1f53071a8171c812db \
     --hash=sha256:fc4b01257ebd4ce297ad374ed201eb1a9213b999f6ae6df45cfca5bd0ef378f8
-    # via
-    #   pydantic-evals
-    #   pydantic-graph
+    # via pydantic-graph
 loguru==0.7.3 \
     --hash=sha256:19480589e77d47b8d85b2c827ad95d49bf31b0dcde16593892eb51dd18706eb6 \
     --hash=sha256:31a33c10c8e1e10422bfd431aeb5d351c7cf7fa671e3c4df004162264b28220c
@@ -1633,15 +1521,10 @@ mcp==1.26.0 \
     # via
     #   --override bazel/requirements/overrides.txt
     #   fastmcp
-    #   pydantic-ai-slim
 mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
     # via markdown-it-py
-mistralai==1.12.4 \
-    --hash=sha256:7b69fcbc306436491ad3377fbdead527c9f3a0ce145ec029bf04c6308ff2cca6 \
-    --hash=sha256:e52b53bab58025dcd208eeac13e3c3df5778d4112eeca1f08124096c7738929f
-    # via pydantic-ai-slim
 mmh3==5.2.1 \
     --hash=sha256:022aa1a528604e6c83d0a7705fdef0b5355d897a9e0fa3a8d26709ceaa06965d \
     --hash=sha256:0634581290e6714c068f4aa24020acf7880927d1f0084fa753d9799ae9610082 \
@@ -1963,10 +1846,6 @@ networkx==3.6.1 \
     --hash=sha256:26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509 \
     --hash=sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762
     # via homelab (pyproject.toml)
-nexus-rpc==1.4.0 \
-    --hash=sha256:14c953d3519113f8ccec533a9efdb6b10c28afef75d11cdd6d422640c40b3a49 \
-    --hash=sha256:3b8b373d4865671789cc43623e3dc0bcbf192562e40e13727e17f1c149050fba
-    # via temporalio
 numpy==2.4.2 \
     --hash=sha256:00ab83c56211a1d7c07c25e3217ea6695e50a3e2f255053686b081dc0b091a82 \
     --hash=sha256:068cdb2d0d644cdb45670810894f6a0600797a69c05f1ac478e8d31670b8ee75 \
@@ -2105,7 +1984,6 @@ opentelemetry-api==1.40.0 \
     #   --override bazel/requirements/overrides.txt
     #   homelab (pyproject.toml)
     #   fastmcp
-    #   mistralai
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-instrumentation
@@ -2134,14 +2012,11 @@ opentelemetry-exporter-otlp-proto-http==1.40.0 \
     --hash=sha256:db48f5e0f33217588bbc00274a31517ba830da576e59503507c839b38fa0869c
     # via
     #   --override bazel/requirements/overrides.txt
-    #   logfire
-    #   mistralai
     #   opentelemetry-exporter-otlp
 opentelemetry-instrumentation==0.61b0 \
     --hash=sha256:92a93a280e69788e8f88391247cc530fd81f16f2b011979d4d6398f805cfbc63 \
     --hash=sha256:cb21b48db738c9de196eba6b805b4ff9de3b7f187e4bbf9a466fa170514f1fc7
     # via
-    #   logfire
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-httpx
@@ -2156,9 +2031,7 @@ opentelemetry-instrumentation-fastapi==0.61b0 \
 opentelemetry-instrumentation-httpx==0.61b0 \
     --hash=sha256:6569ec097946c5551c2a4252f74c98666addd1bf047c1dde6b4ef426719ff8dd \
     --hash=sha256:dee05c93a6593a5dc3ae5d9d5c01df8b4e2c5d02e49275e5558534ee46343d5e
-    # via
-    #   homelab (pyproject.toml)
-    #   logfire
+    # via homelab (pyproject.toml)
 opentelemetry-proto==1.40.0 \
     --hash=sha256:03f639ca129ba513f5819810f5b1f42bcb371391405d99c168fe6937c62febcd \
     --hash=sha256:266c4385d88923a23d63e353e9761af0f47a6ed0d486979777fe4de59dc9b25f
@@ -2172,11 +2045,8 @@ opentelemetry-sdk==1.40.0 \
     # via
     #   --override bazel/requirements/overrides.txt
     #   homelab (pyproject.toml)
-    #   logfire
-    #   mistralai
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
-    #   xai-sdk
 opentelemetry-semantic-conventions==0.61b0 \
     --hash=sha256:072f65473c5d7c6dc0355b27d6c9d1a679d63b6d4b4b16a9773062cb7e31192a \
     --hash=sha256:fa530a96be229795f8cef353739b618148b0fe2b4b3f005e60e262926c4d38e2
@@ -2262,7 +2132,6 @@ packaging==25.0 \
     #   pyogrio
     #   pytest
     #   pytest-bdd
-    #   xai-sdk
 pandas==3.0.1 \
     --hash=sha256:06aff2ad6f0b94a17822cf8b83bbb563b090ed82ff4fe7712db2ce57cd50d9b8 \
     --hash=sha256:0ab749dfba921edf641d4036c4c21c0b3ea70fea478165cb98a998fb2a261955 \
@@ -2452,10 +2321,6 @@ pluggy==1.6.0 \
     # via
     #   pytest
     #   sqlite-utils
-prompt-toolkit==3.0.52 \
-    --hash=sha256:28cde192929c8e7321de85de1ddbe736f1375148b02f2e17edd840042b1be855 \
-    --hash=sha256:9aac639a3bbd33284347de5ad8d68ecc044b91a762dc39b7c21095fcd6a19955
-    # via pydantic-ai-slim
 propcache==0.4.1 \
     --hash=sha256:0002004213ee1f36cfb3f9a42b5066100c44276b9b72b4e1504cddd3d692e86e \
     --hash=sha256:0013cb6f8dde4b2a2f66903b8ba740bdfe378c943c4377a200551ceb27f379e4 \
@@ -2595,12 +2460,9 @@ protobuf==6.33.5 \
     --hash=sha256:d71b040839446bac0f4d162e758bea99c8251161dae9d0983a3b88dee345153b
     # via
     #   googleapis-common-protos
-    #   logfire
     #   onnxruntime
     #   open-gopro
     #   opentelemetry-proto
-    #   temporalio
-    #   xai-sdk
 psycopg[binary]==3.3.3 \
     --hash=sha256:5e9a47458b3c1583326513b2556a2a9473a1001a56c9efe9e587245b43148dd9 \
     --hash=sha256:f96525a72bcfade6584ab17e89de415ff360748c766f0106959144dcbb38c698
@@ -2763,38 +2625,24 @@ pydantic[email]==2.12.5 \
     --hash=sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d
     # via
     #   homelab (pyproject.toml)
-    #   ag-ui-protocol
-    #   anthropic
-    #   cohere
     #   fastapi
     #   fastmcp
     #   genai-prices
     #   google-genai
-    #   groq
     #   mcp
-    #   mistralai
     #   open-gopro
     #   openai
     #   openapi-pydantic
     #   pydantic-ai-slim
-    #   pydantic-evals
     #   pydantic-extra-types
     #   pydantic-graph
-    #   pydantic-handlebars
     #   pydantic-settings
     #   pydantic-sqlite
     #   sqlmodel
-    #   xai-sdk
-pydantic-ai==1.75.0 \
-    --hash=sha256:06cbe1843a3a584ba071e7ed9219a2637ab158a6d6c4df5e4163d0a396358c0e \
-    --hash=sha256:9e267c7e86b5f77f9e9e2cd3b3d658f89905e504716da55f91fe4cbea1cb1a17
-    # via homelab (pyproject.toml)
-pydantic-ai-slim[ag-ui, anthropic, bedrock, cli, cohere, evals, fastmcp, google, groq, huggingface, logfire, mcp, mistral, openai, retries, spec, temporal, ui, vertexai, xai]==1.75.0 \
+pydantic-ai-slim[openai]==1.75.0 \
     --hash=sha256:5132e7fc135e062cde13ecd389940bccd84feadabd4ed810f61a099068d271a7 \
     --hash=sha256:8ba5ad332be6c2f8c62e0778504086a2d9441cc28064bb335a3caf6d270b463f
-    # via
-    #   pydantic-ai
-    #   pydantic-evals
+    # via homelab (pyproject.toml)
 pydantic-core==2.41.5 \
     --hash=sha256:0177272f88ab8312479336e1d777f6b124537d47f2123f89cb37e0accea97f90 \
     --hash=sha256:01a3d0ab748ee531f4ea6c3e48ad9dac84ddba4b0d82291f87248f2f9de8d740 \
@@ -2917,13 +2765,7 @@ pydantic-core==2.41.5 \
     --hash=sha256:f41a7489d32336dbf2199c8c0a215390a751c5b014c2c1c5366e817202e9cdf7 \
     --hash=sha256:f41eb9797986d6ebac5e8edff36d5cef9de40def462311b3eb3eeded1431e425 \
     --hash=sha256:f547144f2966e1e16ae626d8ce72b4cfa0caedc7fa28052001c94fb2fcaa1c52
-    # via
-    #   cohere
-    #   pydantic
-pydantic-evals==1.75.0 \
-    --hash=sha256:65c06b7e7ded266d7e754cd03782e76002f80639c079f9d1b834a7c7117de8b4 \
-    --hash=sha256:789ef1a52af6bf5b7a2ad48490f04925f59ebccb5844ae795b94d190a6f5927e
-    # via pydantic-ai-slim
+    # via pydantic
 pydantic-extra-types==2.11.0 \
     --hash=sha256:4e9991959d045b75feb775683437a97991d02c138e00b59176571db9ce634f0e \
     --hash=sha256:84b864d250a0fc62535b7ec591e36f2c5b4d1325fa0017eb8cda9aeb63b374a6
@@ -2931,10 +2773,6 @@ pydantic-extra-types==2.11.0 \
 pydantic-graph==1.75.0 \
     --hash=sha256:c46feb2a0d0e87a4487324ea91e5e547114996bd4026542eebddcaee3e4989bd \
     --hash=sha256:ea290452de13477699fe60745fe70f01ae3d16c5e50457e0b3d65a1ea1c9c703
-    # via pydantic-ai-slim
-pydantic-handlebars==0.1.0 \
-    --hash=sha256:1931c54946add1b5e3796c9bf6a005ed7662cef0109bb05c352f0b3d031a1260 \
-    --hash=sha256:8a436fe8bc607295eb04bec58bd6e2c9498c9e069c557ff0b505e3d568c783bc
     # via pydantic-ai-slim
 pydantic-settings==2.13.1 \
     --hash=sha256:b4c11847b15237fb0171e1462bf540e294affb9b86db4d9aa5c01730bdbe4025 \
@@ -3053,9 +2891,7 @@ pyparsing==3.3.2 \
 pyperclip==1.11.0 \
     --hash=sha256:244035963e4428530d9e3a6101a1ef97209c6825edab1567beac148ccc1db1b6 \
     --hash=sha256:299403e9ff44581cb9ba2ffeed69c7aa96a008622ad0c46cb575ca75b5b84273
-    # via
-    #   fastmcp
-    #   pydantic-ai-slim
+    # via fastmcp
 pyproj==3.7.2 \
     --hash=sha256:0a9bb26a6356fb5b033433a6d1b4542158fb71e3c51de49b4c318a1dff3aeaab \
     --hash=sha256:0b7cb633565129677b2a183c4d807c727d1c736fcb0568a12299383056e67433 \
@@ -3136,7 +2972,6 @@ python-dateutil==2.9.0.post0 \
     #   botocore
     #   icalendar
     #   jsii
-    #   mistralai
     #   pandas
     #   sqlite-utils
 python-dotenv==1.2.2 \
@@ -3263,9 +3098,6 @@ pyyaml==6.0.3 \
     #   fastmcp
     #   huggingface-hub
     #   jsonschema-path
-    #   mistralai
-    #   pydantic-ai-slim
-    #   pydantic-evals
     #   uvicorn
 rasterio==1.5.0 \
     --hash=sha256:015c1ab6e5453312c5e29692752e7ad73568fe4d13567cbd448d7893128cbd2d \
@@ -3428,17 +3260,14 @@ requests==2.33.0 \
     --hash=sha256:c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652
     # via
     #   homelab (pyproject.toml)
-    #   cohere
     #   fastembed
     #   google-auth
     #   google-genai
     #   open-gopro
     #   opentelemetry-exporter-otlp-proto-http
     #   osmium
-    #   pydantic-ai-slim
     #   requests-cache
     #   tiktoken
-    #   xai-sdk
 requests-cache==1.3.1 \
     --hash=sha256:43a67448c3b2964c631ac7027b84607f2f63438e28104b68ad2211f32d9f606c \
     --hash=sha256:784e9d07f72db4fe234830a065230c59eb446489528f271ba288c640897e47c4
@@ -3454,10 +3283,7 @@ rich==14.3.3 \
     #   --override bazel/requirements/overrides.txt
     #   cyclopts
     #   fastmcp
-    #   logfire
     #   open-gopro
-    #   pydantic-ai-slim
-    #   pydantic-evals
     #   rich-rst
     #   typer
 rich-rst==1.3.2 \
@@ -3670,9 +3496,7 @@ sniffio==1.3.1 \
     --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
     --hash=sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc
     # via
-    #   anthropic
     #   google-genai
-    #   groq
     #   openai
 soupsieve==2.8.3 \
     --hash=sha256:3267f1eeea4251fb42728b6dfb746edc9acaffc4a45b27e19450b676586e8349 \
@@ -3766,7 +3590,6 @@ starlette==0.52.1 \
     #   homelab (pyproject.toml)
     #   fastapi
     #   mcp
-    #   pydantic-ai-slim
     #   sse-starlette
 sunrisesunset==1.0.2 \
     --hash=sha256:14c3dd6acec8368236419117081c2e17edc15b8892455fe7009aace6cf092505 \
@@ -3780,20 +3603,10 @@ tabulate==0.10.0 \
     --hash=sha256:e2cfde8f79420f6deeffdeda9aaec3b6bc5abce947655d17ac662b126e48a60d \
     --hash=sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3
     # via sqlite-utils
-temporalio==1.24.0 \
-    --hash=sha256:52f6833647eceddbebcc376e2ea663a9f73b2b3a42675f503aeb27c98fd4daeb \
-    --hash=sha256:5cff75a0ca922575b808a7fca1b0de38f6eea061f49e026664b8be9d5bb06ab8 \
-    --hash=sha256:7f11e7b4f4d09bafba499b43188353e23dc128b1fe3f3160014476e3dce70760 \
-    --hash=sha256:aa71b9bfa42f951dd04ade97ce7f92ecedee8903047b4b41b122bb8cbd87a337 \
-    --hash=sha256:e534e2e71b4a721193ec4ff3dae521146d093554bd47a64f5605d4ca33e56718 \
-    --hash=sha256:ee7c13b6724dd0c304aa846aecf6da72a8550f4ade40a0a7f6dcc1c92ef35710
-    # via pydantic-ai-slim
 tenacity==9.1.4 \
     --hash=sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55 \
     --hash=sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a
-    # via
-    #   google-genai
-    #   pydantic-ai-slim
+    # via google-genai
 tiktoken==0.12.0 \
     --hash=sha256:01d99484dc93b129cd0964f9d34eee953f2737301f18b3c7257bf368d7615baa \
     --hash=sha256:04f0e6a985d95913cabc96a741c5ffec525a2c72e9df086ff17ebe35985c800e \
@@ -3885,9 +3698,7 @@ tokenizers==0.22.2 \
     --hash=sha256:df6c4265b289083bf710dff49bc51ef252f9d5be33a45ee2bed151114a56207b \
     --hash=sha256:e10bf9113d209be7cd046d40fbabbaf3278ff6d18eb4da4c500443185dc1896c \
     --hash=sha256:f01a9c019878532f98927d2bacb79bbb404b43d3437455522a00a30718cdedb5
-    # via
-    #   cohere
-    #   fastembed
+    # via fastembed
 tqdm==4.67.3 \
     --hash=sha256:7d825f03f89244ef73f1d4ce193cb1774a8179fd96f31d7e1dcde62092b960bb \
     --hash=sha256:ee1e4c0e59148062281c49d80b25b67771a127c85fc9676d3be5f243206826bf
@@ -3908,32 +3719,19 @@ typer==0.24.1 \
     # via
     #   homelab (pyproject.toml)
     #   huggingface-hub
-types-protobuf==7.34.1.20260403 \
-    --hash=sha256:16d9bbca52ab0f306279958878567df2520f3f5579059419b0ce149a0ad1e332 \
-    --hash=sha256:8d7881867888e667eb9563c08a916fccdc12bdb5f9f34c31d217cce876e36765
-    # via temporalio
-types-requests==2.33.0.20260402 ; sys_platform != 'emscripten' \
-    --hash=sha256:1bdd3ada9b869741c5c4b887d2c8b4e38284a1449751823b5ebbccba3eefd9da \
-    --hash=sha256:c98372d7124dd5d10af815ee25c013897592ff92af27b27e22c98984102c3254
-    # via cohere
 typing-extensions==4.15.0 \
     --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \
     --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548
     # via
-    #   anthropic
     #   beautifulsoup4
     #   cattrs
-    #   cohere
     #   fastapi
     #   google-genai
-    #   groq
     #   grpcio
     #   huggingface-hub
     #   jsii
-    #   logfire
     #   mcp
     #   mypy
-    #   nexus-rpc
     #   openai
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-grpc
@@ -3947,7 +3745,6 @@ typing-extensions==4.15.0 \
     #   pytest-bdd
     #   returns
     #   sqlalchemy
-    #   temporalio
     #   typing-inspection
 typing-inspection==0.4.2 \
     --hash=sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7 \
@@ -3955,7 +3752,6 @@ typing-inspection==0.4.2 \
     # via
     #   fastapi
     #   mcp
-    #   mistralai
     #   pydantic
     #   pydantic-ai-slim
     #   pydantic-graph
@@ -3991,7 +3787,6 @@ urllib3==2.6.3 \
     #   botocore
     #   requests
     #   requests-cache
-    #   types-requests
 uvicorn[standard]==0.41.0 \
     --hash=sha256:09d11cf7008da33113824ee5a1c6422d89fbc2ff476540d69a34c87fab8b571a \
     --hash=sha256:29e35b1d2c36a04b9e180d4007ede3bcb32a85fbdfd6c6aeb3f26839de088187
@@ -4163,10 +3958,6 @@ watchfiles==1.1.1 \
     # via
     #   fastmcp
     #   uvicorn
-wcwidth==0.6.0 \
-    --hash=sha256:1a3a1e510b553315f8e146c54764f4fb6264ffad731b3d78088cdb1478ffbdad \
-    --hash=sha256:cdc4e4262d6ef9a1a57e018384cbeb1208d8abbc64176027e2c2455c81313159
-    # via prompt-toolkit
 websockets==16.0 \
     --hash=sha256:0298d07ee155e2e9fda5be8a9042200dd2e3bb0b8a38482156576f863a9d457c \
     --hash=sha256:04cdd5d2d1dacbad0a7bf36ccbcd3ccd5a30ee188f2560b7a62a30d14107b31a \
@@ -4476,10 +4267,6 @@ wrapt==1.17.3 \
     #   open-gopro
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-httpx
-xai-sdk==1.11.0 \
-    --hash=sha256:ca87a830d310fb8e06fba44fb2a8c5cdf0d9f716b61126eddd51b7f416a63932 \
-    --hash=sha256:fe58ce6d8f8115ae8bd57ded57bcd847d0bb7cb28bb7b236abefd4626df1ed8d
-    # via pydantic-ai-slim
 yarl==1.23.0 \
     --hash=sha256:03214408cfa590df47728b84c679ae4ef00be2428e11630277be0727eba2d7cc \
     --hash=sha256:041b1a4cefacf65840b4e295c6985f334ba83c30607441ae3cf206a0eed1a2e4 \

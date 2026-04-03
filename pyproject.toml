@@ -75,7 +75,7 @@ dependencies = [
     "sqlmodel~=0.0.22",
     # Chat module dependencies
     "discord.py>=2.4",
-    "pydantic-ai>=0.2",
+    "pydantic-ai-slim[openai]>=0.2",
     "pgvector>=0.3",
     "psycopg[binary]>=3.1",
     "icalendar~=6.0",
