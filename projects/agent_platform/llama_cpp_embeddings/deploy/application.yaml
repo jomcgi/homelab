@@ -6,6 +6,7 @@ metadata:
 spec:
   project: default
   sources:
+    # Reuses the llama-cpp chart (shared Helm chart, separate values).
     - repoURL: https://github.com/jomcgi/homelab.git
       path: projects/agent_platform/llama_cpp/deploy
       targetRevision: HEAD
@@ -20,6 +21,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: llama-cpp
   syncPolicy:
+    managedNamespaceMetadata:
+      labels:
+        oci-model-cache.jomcgi.dev/enabled: "true"
     automated:
       prune: true
       selfHeal: true
