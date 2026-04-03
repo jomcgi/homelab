@@ -10,4 +10,3 @@ packages:
   - projects/grimoire/frontend
   - projects/monolith/frontend
   - projects/agent_platform/orchestrator/ui
-  - projects/agent_platform/chat_bot
