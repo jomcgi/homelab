@@ -31,8 +31,13 @@ class TestGetTracer:
             mock_trace = MagicMock()
             mock_trace.get_tracer.return_value = mock_tracer
 
-            with patch.dict("sys.modules", {"opentelemetry": MagicMock(), "opentelemetry.trace": mock_trace}):
-                with patch("projects.stargazer.backend.main.trace", mock_trace, create=True):
+            with patch.dict(
+                "sys.modules",
+                {"opentelemetry": MagicMock(), "opentelemetry.trace": mock_trace},
+            ):
+                with patch(
+                    "projects.stargazer.backend.main.trace", mock_trace, create=True
+                ):
                     # Reset the cached tracer
                     main_module._tracer = None
                     tracer = _get_tracer()
@@ -82,7 +87,9 @@ class TestTraceSpan:
         mock_tracer.start_as_current_span.return_value = mock_ctx_manager
 
         with patch.dict(os.environ, {"OTEL_ENABLED": "true"}):
-            with patch("projects.stargazer.backend.main._get_tracer", return_value=mock_tracer):
+            with patch(
+                "projects.stargazer.backend.main._get_tracer", return_value=mock_tracer
+            ):
                 with trace_span("test.span") as span:
                     assert span is mock_span
 
@@ -118,7 +125,9 @@ class TestSetupTelemetry:
             {
                 "opentelemetry.sdk.resources": MagicMock(Resource=mock_resource_cls),
                 "opentelemetry.sdk.trace": MagicMock(TracerProvider=mock_provider_cls),
-                "opentelemetry.sdk.trace.export": MagicMock(BatchSpanProcessor=mock_batch_processor),
+                "opentelemetry.sdk.trace.export": MagicMock(
+                    BatchSpanProcessor=mock_batch_processor
+                ),
                 "opentelemetry.exporter.otlp.proto.grpc.trace_exporter": MagicMock(),
             },
         ):
@@ -133,7 +142,10 @@ class TestSetupTelemetry:
         """Test that setup_telemetry handles ImportError when OTEL unavailable."""
         settings.otel_enabled = True
 
-        with patch("builtins.__import__", side_effect=ImportError("No module named opentelemetry")):
+        with patch(
+            "builtins.__import__",
+            side_effect=ImportError("No module named opentelemetry"),
+        ):
             with patch("projects.stargazer.backend.main.logger") as mock_logger:
                 # The function catches ImportError internally
                 # Since the import in the function body will fail, it should warn
@@ -205,22 +217,61 @@ class TestRunPipeline:
         async def mock_fetch_all_forecasts(s):
             calls.append("fetch_all_forecasts")
 
-        with patch("projects.stargazer.backend.main.acquisition.download_lp_atlas", mock_download_lp_atlas), \
-             patch("projects.stargazer.backend.main.acquisition.download_colorbar", mock_download_colorbar), \
-             patch("projects.stargazer.backend.main.acquisition.download_osm_roads", mock_download_osm_roads), \
-             patch("projects.stargazer.backend.main.acquisition.download_dem", mock_download_dem), \
-             patch("projects.stargazer.backend.main.preprocessing.georeference_raster") as mock_georeference, \
-             patch("projects.stargazer.backend.main.preprocessing.extract_palette") as mock_extract_palette, \
-             patch("projects.stargazer.backend.main.preprocessing.extract_roads") as mock_extract_roads, \
-             patch("projects.stargazer.backend.main.preprocessing.clip_dem") as mock_clip_dem, \
-             patch("projects.stargazer.backend.main.spatial.extract_dark_regions") as mock_dark_regions, \
-             patch("projects.stargazer.backend.main.spatial.buffer_roads") as mock_buffer_roads, \
-             patch("projects.stargazer.backend.main.spatial.intersect_dark_accessible") as mock_intersect, \
-             patch("projects.stargazer.backend.main.spatial.generate_sample_grid") as mock_grid, \
-             patch("projects.stargazer.backend.main.spatial.enrich_points") as mock_enrich, \
-             patch("projects.stargazer.backend.main.weather.fetch_all_forecasts", mock_fetch_all_forecasts), \
-             patch("projects.stargazer.backend.main.weather.score_locations") as mock_score, \
-             patch("projects.stargazer.backend.main.weather.output_best_locations") as mock_output:
+        with (
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_lp_atlas",
+                mock_download_lp_atlas,
+            ),
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_colorbar",
+                mock_download_colorbar,
+            ),
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_osm_roads",
+                mock_download_osm_roads,
+            ),
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_dem",
+                mock_download_dem,
+            ),
+            patch(
+                "projects.stargazer.backend.main.preprocessing.georeference_raster"
+            ) as mock_georeference,
+            patch(
+                "projects.stargazer.backend.main.preprocessing.extract_palette"
+            ) as mock_extract_palette,
+            patch(
+                "projects.stargazer.backend.main.preprocessing.extract_roads"
+            ) as mock_extract_roads,
+            patch(
+                "projects.stargazer.backend.main.preprocessing.clip_dem"
+            ) as mock_clip_dem,
+            patch(
+                "projects.stargazer.backend.main.spatial.extract_dark_regions"
+            ) as mock_dark_regions,
+            patch(
+                "projects.stargazer.backend.main.spatial.buffer_roads"
+            ) as mock_buffer_roads,
+            patch(
+                "projects.stargazer.backend.main.spatial.intersect_dark_accessible"
+            ) as mock_intersect,
+            patch(
+                "projects.stargazer.backend.main.spatial.generate_sample_grid"
+            ) as mock_grid,
+            patch(
+                "projects.stargazer.backend.main.spatial.enrich_points"
+            ) as mock_enrich,
+            patch(
+                "projects.stargazer.backend.main.weather.fetch_all_forecasts",
+                mock_fetch_all_forecasts,
+            ),
+            patch(
+                "projects.stargazer.backend.main.weather.score_locations"
+            ) as mock_score,
+            patch(
+                "projects.stargazer.backend.main.weather.output_best_locations"
+            ) as mock_output,
+        ):
             await run_pipeline(settings)
 
         # Verify all acquisition calls happened
@@ -252,33 +303,60 @@ class TestRunPipeline:
         """Test that pipeline runs correctly with OTEL disabled."""
         settings.otel_enabled = False
 
-        with patch("projects.stargazer.backend.main.acquisition.download_lp_atlas", AsyncMock()), \
-             patch("projects.stargazer.backend.main.acquisition.download_colorbar", AsyncMock()), \
-             patch("projects.stargazer.backend.main.acquisition.download_osm_roads", AsyncMock()), \
-             patch("projects.stargazer.backend.main.acquisition.download_dem", AsyncMock()), \
-             patch("projects.stargazer.backend.main.preprocessing.georeference_raster"), \
-             patch("projects.stargazer.backend.main.preprocessing.extract_palette"), \
-             patch("projects.stargazer.backend.main.preprocessing.extract_roads"), \
-             patch("projects.stargazer.backend.main.preprocessing.clip_dem"), \
-             patch("projects.stargazer.backend.main.spatial.extract_dark_regions"), \
-             patch("projects.stargazer.backend.main.spatial.buffer_roads"), \
-             patch("projects.stargazer.backend.main.spatial.intersect_dark_accessible"), \
-             patch("projects.stargazer.backend.main.spatial.generate_sample_grid"), \
-             patch("projects.stargazer.backend.main.spatial.enrich_points"), \
-             patch("projects.stargazer.backend.main.weather.fetch_all_forecasts", AsyncMock()), \
-             patch("projects.stargazer.backend.main.weather.score_locations"), \
-             patch("projects.stargazer.backend.main.weather.output_best_locations"), \
-             patch.dict(os.environ, {"OTEL_ENABLED": "false"}):
+        with (
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_lp_atlas",
+                AsyncMock(),
+            ),
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_colorbar",
+                AsyncMock(),
+            ),
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_osm_roads",
+                AsyncMock(),
+            ),
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_dem", AsyncMock()
+            ),
+            patch("projects.stargazer.backend.main.preprocessing.georeference_raster"),
+            patch("projects.stargazer.backend.main.preprocessing.extract_palette"),
+            patch("projects.stargazer.backend.main.preprocessing.extract_roads"),
+            patch("projects.stargazer.backend.main.preprocessing.clip_dem"),
+            patch("projects.stargazer.backend.main.spatial.extract_dark_regions"),
+            patch("projects.stargazer.backend.main.spatial.buffer_roads"),
+            patch("projects.stargazer.backend.main.spatial.intersect_dark_accessible"),
+            patch("projects.stargazer.backend.main.spatial.generate_sample_grid"),
+            patch("projects.stargazer.backend.main.spatial.enrich_points"),
+            patch(
+                "projects.stargazer.backend.main.weather.fetch_all_forecasts",
+                AsyncMock(),
+            ),
+            patch("projects.stargazer.backend.main.weather.score_locations"),
+            patch("projects.stargazer.backend.main.weather.output_best_locations"),
+            patch.dict(os.environ, {"OTEL_ENABLED": "false"}),
+        ):
             # Should complete without error
             await run_pipeline(settings)
 
     @pytest.mark.asyncio
     async def test_pipeline_propagates_exceptions(self, settings: Settings):
         """Test that pipeline exceptions propagate to the caller."""
-        with patch("projects.stargazer.backend.main.acquisition.download_lp_atlas", AsyncMock(side_effect=RuntimeError("Network error"))), \
-             patch("projects.stargazer.backend.main.acquisition.download_colorbar", AsyncMock()), \
-             patch("projects.stargazer.backend.main.acquisition.download_osm_roads", AsyncMock()), \
-             patch.dict(os.environ, {"OTEL_ENABLED": "false"}):
+        with (
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_lp_atlas",
+                AsyncMock(side_effect=RuntimeError("Network error")),
+            ),
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_colorbar",
+                AsyncMock(),
+            ),
+            patch(
+                "projects.stargazer.backend.main.acquisition.download_osm_roads",
+                AsyncMock(),
+            ),
+            patch.dict(os.environ, {"OTEL_ENABLED": "false"}),
+        ):
             with pytest.raises(RuntimeError, match="Network error"):
                 await run_pipeline(settings)
 
@@ -288,63 +366,80 @@ class TestMain:
 
     def test_returns_zero_on_success(self, settings: Settings):
         """Test that main() returns 0 on successful pipeline run."""
-        with patch("projects.stargazer.backend.main.Settings", return_value=settings), \
-             patch("projects.stargazer.backend.main.setup_telemetry"), \
-             patch("projects.stargazer.backend.main.ensure_directories"), \
-             patch("projects.stargazer.backend.main.asyncio.run"):
+        with (
+            patch("projects.stargazer.backend.main.Settings", return_value=settings),
+            patch("projects.stargazer.backend.main.setup_telemetry"),
+            patch("projects.stargazer.backend.main.ensure_directories"),
+            patch("projects.stargazer.backend.main.asyncio.run"),
+        ):
             result = main()
 
         assert result == 0
 
     def test_returns_one_on_settings_error(self):
         """Test that main() returns 1 when settings fail to load."""
-        with patch("projects.stargazer.backend.main.Settings", side_effect=ValueError("Bad config")):
+        with patch(
+            "projects.stargazer.backend.main.Settings",
+            side_effect=ValueError("Bad config"),
+        ):
             result = main()
 
         assert result == 1
 
     def test_returns_one_on_pipeline_error(self, settings: Settings):
         """Test that main() returns 1 when pipeline raises an exception."""
-        with patch("projects.stargazer.backend.main.Settings", return_value=settings), \
-             patch("projects.stargazer.backend.main.setup_telemetry"), \
-             patch("projects.stargazer.backend.main.ensure_directories"), \
-             patch("projects.stargazer.backend.main.asyncio.run", side_effect=RuntimeError("Pipeline failed")):
+        with (
+            patch("projects.stargazer.backend.main.Settings", return_value=settings),
+            patch("projects.stargazer.backend.main.setup_telemetry"),
+            patch("projects.stargazer.backend.main.ensure_directories"),
+            patch(
+                "projects.stargazer.backend.main.asyncio.run",
+                side_effect=RuntimeError("Pipeline failed"),
+            ),
+        ):
             result = main()
 
         assert result == 1
 
     def test_calls_setup_telemetry_with_settings(self, settings: Settings):
         """Test that main() calls setup_telemetry with the loaded settings."""
-        with patch("projects.stargazer.backend.main.Settings", return_value=settings), \
-             patch("projects.stargazer.backend.main.setup_telemetry") as mock_setup, \
-             patch("projects.stargazer.backend.main.ensure_directories"), \
-             patch("projects.stargazer.backend.main.asyncio.run"):
+        with (
+            patch("projects.stargazer.backend.main.Settings", return_value=settings),
+            patch("projects.stargazer.backend.main.setup_telemetry") as mock_setup,
+            patch("projects.stargazer.backend.main.ensure_directories"),
+            patch("projects.stargazer.backend.main.asyncio.run"),
+        ):
             main()
 
         mock_setup.assert_called_once_with(settings)
 
     def test_calls_ensure_directories_with_settings(self, settings: Settings):
         """Test that main() calls ensure_directories with the loaded settings."""
-        with patch("projects.stargazer.backend.main.Settings", return_value=settings), \
-             patch("projects.stargazer.backend.main.setup_telemetry"), \
-             patch("projects.stargazer.backend.main.ensure_directories") as mock_ensure, \
-             patch("projects.stargazer.backend.main.asyncio.run"):
+        with (
+            patch("projects.stargazer.backend.main.Settings", return_value=settings),
+            patch("projects.stargazer.backend.main.setup_telemetry"),
+            patch("projects.stargazer.backend.main.ensure_directories") as mock_ensure,
+            patch("projects.stargazer.backend.main.asyncio.run"),
+        ):
             main()
 
         mock_ensure.assert_called_once_with(settings)
 
     def test_calls_asyncio_run_with_pipeline(self, settings: Settings):
         """Test that main() runs the pipeline via asyncio.run."""
-        with patch("projects.stargazer.backend.main.Settings", return_value=settings), \
-             patch("projects.stargazer.backend.main.setup_telemetry"), \
-             patch("projects.stargazer.backend.main.ensure_directories"), \
-             patch("projects.stargazer.backend.main.asyncio.run") as mock_run:
+        with (
+            patch("projects.stargazer.backend.main.Settings", return_value=settings),
+            patch("projects.stargazer.backend.main.setup_telemetry"),
+            patch("projects.stargazer.backend.main.ensure_directories"),
+            patch("projects.stargazer.backend.main.asyncio.run") as mock_run,
+        ):
             main()
 
         mock_run.assert_called_once()
         # The first arg to asyncio.run should be a coroutine
         call_args = mock_run.call_args[0][0]
         import inspect
+
         assert inspect.iscoroutine(call_args)
         # Clean up the coroutine to avoid warnings
         call_args.close()

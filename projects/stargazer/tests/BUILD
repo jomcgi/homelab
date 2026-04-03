@@ -86,8 +86,6 @@ py_test(
         ":conftest",
         "//projects/stargazer/backend",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
-        "@pip//httpx",
     ],
 )
 
