@@ -300,7 +300,8 @@ py_test(
 
 semgrep_target_test(
     name = "main_semgrep_test",
-    exclude_rules = [  # keep
+    exclude_rules = [
+        # keep
         "avoid-sqlalchemy-text",
         "tainted-fastapi-http-request-httpx",
     ],
