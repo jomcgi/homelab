@@ -1,6 +1,6 @@
 """Tests for the embedding client (calls voyage-4-nano via llama.cpp)."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -16,10 +16,9 @@ class TestEmbeddingClient:
     @pytest.mark.asyncio
     async def test_embed_returns_vector(self, client):
         """embed() returns a list of floats from the API response."""
-        fake_response = AsyncMock()
+        fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {"data": [{"embedding": [0.1] * 512}]}
-        fake_response.raise_for_status = AsyncMock()
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
@@ -36,10 +35,9 @@ class TestEmbeddingClient:
     @pytest.mark.asyncio
     async def test_embed_sends_correct_payload(self, client):
         """embed() sends the text to /v1/embeddings with the right model."""
-        fake_response = AsyncMock()
+        fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {"data": [{"embedding": [0.0] * 512}]}
-        fake_response.raise_for_status = AsyncMock()
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
