@@ -202,7 +202,12 @@ async def test_poll_calendar_handles_http_error_response():
 
 @pytest.mark.asyncio
 async def test_poll_calendar_handles_malformed_ical():
-    """A parse error from malformed iCal data is caught; _cached_events is not cleared."""
+    """A parse error from malformed iCal bytes is caught; _cached_events is not cleared.
+
+    This test exercises the real parse path: Calendar.from_ical() raises when given
+    garbage data, and poll_calendar()'s broad except clause must absorb that error and
+    leave the existing cache intact.
+    """
     original = svc._cached_events
     try:
         sentinel_events = [{"title": "Keep me", "time": None, "allDay": True}]
@@ -210,7 +215,8 @@ async def test_poll_calendar_handles_malformed_ical():
 
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock(return_value=None)
-        mock_response.text = "THIS IS NOT VALID ICAL DATA @@@@"
+        # Provide genuinely malformed iCal bytes so Calendar.from_ical() raises
+        mock_response.text = "NOT-ICAL\x00\xff garbage data that no parser can handle"
 
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=mock_response)
@@ -220,11 +226,6 @@ async def test_poll_calendar_handles_malformed_ical():
         with (
             patch.object(svc, "ICAL_FEED_URL", "http://example.com/calendar.ics"),
             patch("schedule.service.httpx.AsyncClient", return_value=mock_client),
-            patch.object(
-                svc,
-                "parse_events_for_date",
-                side_effect=ValueError("malformed iCal"),
-            ),
         ):
             await poll_calendar()
 

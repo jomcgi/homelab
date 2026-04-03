@@ -204,8 +204,8 @@ async def test_lifespan_cancels_all_tasks_on_shutdown():
 
 
 @pytest.mark.asyncio
-async def test_lifespan_cancels_calendar_task_before_scheduler_task():
-    """Calendar task (index 0 = second created) and scheduler task are both cancelled on exit."""
+async def test_lifespan_no_tasks_cancelled_before_shutdown():
+    """Tasks are created but not cancelled until the lifespan context manager exits."""
     from app.main import lifespan
 
     mock_tasks = []
@@ -219,7 +219,7 @@ async def test_lifespan_cancels_calendar_task_before_scheduler_task():
 
     with patch("asyncio.create_task", side_effect=capture_create_task):
         async with lifespan(app):
-            # Both tasks should exist at this point, neither yet cancelled
+            # Both tasks should exist at this point (index 0 = scheduler, index 1 = calendar)
             assert len(mock_tasks) == 2
             for task in mock_tasks:
                 task.cancel.assert_not_called()
