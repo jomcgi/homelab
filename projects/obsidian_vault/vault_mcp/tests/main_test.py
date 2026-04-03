@@ -730,3 +730,79 @@ class TestCreateNoteAPI:
             text=True,
         )
         assert "fleeting note from web-ui" in log.stdout
+
+
+class TestGitCommitCalledProcessError:
+    def test_returns_error_dict_on_called_process_error(self):
+        """_git_commit returns {'error': ...} when git raises CalledProcessError."""
+        exc = subprocess.CalledProcessError(1, "git", stderr="nothing to commit")
+        with patch.object(_mod, "_git", side_effect=exc):
+            result = _git_commit(["file.md"], "some message")
+        assert "error" in result
+        assert "git failed" in result["error"]
+
+    def test_error_message_includes_stderr(self):
+        """The error dict includes stderr output from the failed git command."""
+        exc = subprocess.CalledProcessError(1, "git", stderr="fatal: bad object")
+        with patch.object(_mod, "_git", side_effect=exc):
+            result = _git_commit(["note.md"], "commit message")
+        assert "fatal: bad object" in result["error"]
+
+
+class TestApiCreateNoteHandler:
+    """Tests for the POST /api/notes HTTP handler (api_create_note closure in main())."""
+
+    def _get_api_notes_handler(self):
+        """Extract the api_create_note handler by calling main() with mocks."""
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.path = _mod._settings.path  # use the vault path set by autouse fixture
+        mock_settings.port = 8000
+        mock_app = MagicMock()
+
+        with (
+            patch.object(_mod, "Settings", return_value=mock_settings),
+            patch.object(_mod, "configure"),
+            patch.object(_mod.mcp, "http_app", return_value=mock_app),
+            patch("uvicorn.run"),
+        ):
+            _mod.main()
+
+        api_notes_call = [
+            c for c in mock_app.add_route.call_args_list if c.args[0] == "/api/notes"
+        ][0]
+        return api_notes_call.args[1]
+
+    async def test_invalid_json_returns_400(self):
+        """POST /api/notes with invalid JSON body returns 400."""
+        import json
+
+        handler = self._get_api_notes_handler()
+        mock_request = AsyncMock()
+        mock_request.json.side_effect = Exception("invalid json")
+        response = await handler(mock_request)
+        assert response.status_code == 400
+        assert json.loads(response.body)["error"] == "invalid JSON"
+
+    async def test_empty_content_returns_400(self):
+        """POST /api/notes with empty content returns 400."""
+        import json
+
+        handler = self._get_api_notes_handler()
+        mock_request = AsyncMock()
+        mock_request.json.return_value = {"content": ""}
+        response = await handler(mock_request)
+        assert response.status_code == 400
+        assert "error" in json.loads(response.body)
+
+    async def test_valid_content_returns_201_with_path(self):
+        """POST /api/notes with valid content returns 201 with path in response."""
+        import json
+
+        handler = self._get_api_notes_handler()
+        mock_request = AsyncMock()
+        mock_request.json.return_value = {"content": "My fleeting thought", "source": "web-ui"}
+        response = await handler(mock_request)
+        assert response.status_code == 201
+        body = json.loads(response.body)
+        assert "path" in body
+        assert body["path"].startswith("Fleeting/")
