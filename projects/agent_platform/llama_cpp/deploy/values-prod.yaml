@@ -1,7 +1,7 @@
 fullnameOverride: "llama-cpp"
 
 image:
-  tag: "server-cuda"
+  tag: "server-cuda-b8643"
 
 imagePullSecret:
   enabled: true
