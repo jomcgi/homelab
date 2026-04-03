@@ -65,23 +65,32 @@ class MessageStore:
         Note: This uses raw SQL because SQLModel doesn't natively support
         pgvector's <=> operator. Falls back gracefully in SQLite tests.
         """
-        from sqlalchemy import text
+        from sqlalchemy import text  # nosemgrep: avoid-sqlalchemy-text
 
         exclude = exclude_ids or []
-        params = {
+        params: dict[str, object] = {
             "channel_id": channel_id,
             "embedding": str(query_embedding),
             "limit": limit,
         }
 
+        # Raw SQL is required here because pgvector's <=> cosine distance
+        # operator has no SQLModel/SQLAlchemy ORM equivalent.
         filters = "channel_id = :channel_id"
         if exclude:
-            filters += " AND id NOT IN (" + ",".join(str(i) for i in exclude) + ")"
+            # Bind each excluded ID as a separate parameter to avoid
+            # string interpolation in the SQL statement.
+            placeholders = []
+            for idx, eid in enumerate(exclude):
+                key = f"excl_{idx}"
+                placeholders.append(f":{key}")
+                params[key] = int(eid)
+            filters += f" AND id NOT IN ({', '.join(placeholders)})"
         if user_id:
             filters += " AND user_id = :user_id"
             params["user_id"] = user_id
 
-        sql = text(
+        sql = text(  # nosemgrep: avoid-sqlalchemy-text
             f"SELECT * FROM chat.messages WHERE {filters} "
             "ORDER BY embedding <=> :embedding LIMIT :limit"
         )
