@@ -1,9 +1,12 @@
 from datetime import date, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 
-from schedule.service import parse_events_for_date
+import schedule.service as svc
+from schedule.service import parse_events_for_date, poll_calendar
 
 TZ = ZoneInfo("America/Vancouver")
 
@@ -115,3 +118,146 @@ def test_missing_dtend_returns_none():
     events = parse_events_for_date(NO_DTEND_ICS, date(2026, 3, 30), TZ)
     assert len(events) == 1
     assert events[0]["endTime"] is None
+
+
+# ---------------------------------------------------------------------------
+# poll_calendar() — async function tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_poll_calendar_skips_when_url_not_set():
+    """poll_calendar returns immediately without touching the cache when ICAL_FEED_URL is empty."""
+    original = svc._cached_events
+    try:
+        svc._cached_events = [{"sentinel": True}]
+        with patch.object(svc, "ICAL_FEED_URL", ""):
+            await poll_calendar()
+        # Cache must be untouched
+        assert svc._cached_events == [{"sentinel": True}]
+    finally:
+        svc._cached_events = original
+
+
+@pytest.mark.asyncio
+async def test_poll_calendar_handles_network_failure():
+    """Network error during calendar fetch is caught; _cached_events is not cleared."""
+    original = svc._cached_events
+    try:
+        sentinel_events = [{"title": "Keep me", "time": None, "allDay": True}]
+        svc._cached_events = sentinel_events.copy()
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(
+            side_effect=httpx.ConnectError("connection refused")
+        )
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.object(svc, "ICAL_FEED_URL", "http://example.com/calendar.ics"),
+            patch("schedule.service.httpx.AsyncClient", return_value=mock_client),
+        ):
+            await poll_calendar()
+
+        # Cache must be preserved after a network failure
+        assert svc._cached_events == sentinel_events
+    finally:
+        svc._cached_events = original
+
+
+@pytest.mark.asyncio
+async def test_poll_calendar_handles_http_error_response():
+    """HTTP error status (e.g. 500) is caught via raise_for_status; cache is preserved."""
+    original = svc._cached_events
+    try:
+        sentinel_events = [{"title": "Keep me", "time": None, "allDay": True}]
+        svc._cached_events = sentinel_events.copy()
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "500 Internal Server Error",
+                request=MagicMock(),
+                response=MagicMock(),
+            )
+        )
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.object(svc, "ICAL_FEED_URL", "http://example.com/calendar.ics"),
+            patch("schedule.service.httpx.AsyncClient", return_value=mock_client),
+        ):
+            await poll_calendar()
+
+        # Cache must be preserved after an HTTP error
+        assert svc._cached_events == sentinel_events
+    finally:
+        svc._cached_events = original
+
+
+@pytest.mark.asyncio
+async def test_poll_calendar_handles_malformed_ical():
+    """A parse error from malformed iCal data is caught; _cached_events is not cleared."""
+    original = svc._cached_events
+    try:
+        sentinel_events = [{"title": "Keep me", "time": None, "allDay": True}]
+        svc._cached_events = sentinel_events.copy()
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock(return_value=None)
+        mock_response.text = "THIS IS NOT VALID ICAL DATA @@@@"
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.object(svc, "ICAL_FEED_URL", "http://example.com/calendar.ics"),
+            patch("schedule.service.httpx.AsyncClient", return_value=mock_client),
+            patch.object(
+                svc,
+                "parse_events_for_date",
+                side_effect=ValueError("malformed iCal"),
+            ),
+        ):
+            await poll_calendar()
+
+        # Cache must be preserved after a parse error
+        assert svc._cached_events == sentinel_events
+    finally:
+        svc._cached_events = original
+
+
+@pytest.mark.asyncio
+async def test_poll_calendar_updates_cache_on_success():
+    """On a successful fetch, _cached_events is replaced with parsed events."""
+    original = svc._cached_events
+    try:
+        svc._cached_events = []
+
+        valid_events = [{"title": "Standup", "time": "09:00", "allDay": False}]
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock(return_value=None)
+        mock_response.text = "BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR\n"
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.object(svc, "ICAL_FEED_URL", "http://example.com/calendar.ics"),
+            patch("schedule.service.httpx.AsyncClient", return_value=mock_client),
+            patch.object(svc, "parse_events_for_date", return_value=valid_events),
+        ):
+            await poll_calendar()
+
+        assert svc._cached_events == valid_events
+    finally:
+        svc._cached_events = original

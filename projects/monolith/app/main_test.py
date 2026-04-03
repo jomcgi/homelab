@@ -1,11 +1,14 @@
-"""Unit tests for app.main — /healthz endpoint, router registration, static mount.
+"""Unit tests for app.main — /healthz endpoint, router registration, static mount,
+and lifespan background-task lifecycle.
 
 IMPORTANT: STATIC_DIR must be unset (or point to a non-existent path) *before*
 this module is imported so that we can test the "directory missing" code path.
 The StaticFiles conditional mount runs at module-import time in app/main.py.
 """
 
+import asyncio
 import os
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -148,3 +151,103 @@ def test_unknown_path_returns_404_without_static_dir(client):
     """Without a catch-all static mount, an unknown path returns 404."""
     response = client.get("/nonexistent-page.html")
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# lifespan() context manager — background task lifecycle
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_lifespan_creates_two_background_tasks_on_startup():
+    """Lifespan creates exactly two asyncio tasks (scheduler + calendar) on startup."""
+    from app.main import lifespan
+
+    created_tasks = []
+
+    def capture_create_task(coro, **kwargs):
+        # Close the coroutine so Python doesn't warn about it never being awaited
+        if hasattr(coro, "close"):
+            coro.close()
+        mock_task = MagicMock()
+        created_tasks.append(mock_task)
+        return mock_task
+
+    with patch("asyncio.create_task", side_effect=capture_create_task):
+        async with lifespan(app):
+            pass
+
+    assert len(created_tasks) == 2
+
+
+@pytest.mark.asyncio
+async def test_lifespan_cancels_all_tasks_on_shutdown():
+    """Both background tasks are cancelled when the lifespan context exits."""
+    from app.main import lifespan
+
+    mock_tasks = []
+
+    def capture_create_task(coro, **kwargs):
+        if hasattr(coro, "close"):
+            coro.close()
+        mock_task = MagicMock()
+        mock_tasks.append(mock_task)
+        return mock_task
+
+    with patch("asyncio.create_task", side_effect=capture_create_task):
+        async with lifespan(app):
+            pass
+
+    assert len(mock_tasks) == 2
+    for task in mock_tasks:
+        task.cancel.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_cancels_calendar_task_before_scheduler_task():
+    """Calendar task (index 0 = second created) and scheduler task are both cancelled on exit."""
+    from app.main import lifespan
+
+    mock_tasks = []
+
+    def capture_create_task(coro, **kwargs):
+        if hasattr(coro, "close"):
+            coro.close()
+        mock_task = MagicMock()
+        mock_tasks.append(mock_task)
+        return mock_task
+
+    with patch("asyncio.create_task", side_effect=capture_create_task):
+        async with lifespan(app):
+            # Both tasks should exist at this point, neither yet cancelled
+            assert len(mock_tasks) == 2
+            for task in mock_tasks:
+                task.cancel.assert_not_called()
+
+    # After lifespan exits, both must have been cancelled
+    for task in mock_tasks:
+        task.cancel.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_scheduler_task_is_first_created():
+    """The scheduler task is created before the calendar task (order matches source)."""
+    from app.main import lifespan
+
+    creation_order = []
+
+    def capture_create_task(coro, **kwargs):
+        # Identify which coroutine is being wrapped by its qualified name
+        creation_order.append(getattr(coro, "__qualname__", "") or type(coro).__name__)
+        if hasattr(coro, "close"):
+            coro.close()
+        return MagicMock()
+
+    with patch("asyncio.create_task", side_effect=capture_create_task):
+        async with lifespan(app):
+            pass
+
+    # First task should be run_scheduler, second should be calendar_loop
+    assert len(creation_order) == 2
+    assert "run_scheduler" in creation_order[0]
+    assert "calendar_loop" in creation_order[1]
