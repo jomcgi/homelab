@@ -80,6 +80,18 @@ py_test(
 )
 
 py_test(
+    name = "main_test",
+    srcs = ["main_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/stargazer/backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//httpx",
+    ],
+)
+
+py_test(
     name = "weather_test",
     srcs = ["weather_test.py"],
     deps = [
@@ -113,6 +125,12 @@ semgrep_test(
 semgrep_test(
     name = "conftest_semgrep_test",
     srcs = ["conftest.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "main_test_semgrep_test",
+    srcs = ["main_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
