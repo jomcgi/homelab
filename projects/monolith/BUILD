@@ -272,6 +272,17 @@ py_test(
 )
 
 py_test(
+    name = "chat_bot_test",
+    srcs = ["chat/bot_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "chat_agent_test",
     srcs = ["chat/agent_test.py"],
     imports = ["."],

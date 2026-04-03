@@ -28,8 +28,24 @@ async def lifespan(app: FastAPI):
 
     scheduler_task = asyncio.create_task(run_scheduler())
     calendar_task = asyncio.create_task(calendar_loop())
+
+    # Start Discord bot if token is configured
+    bot = None
+    bot_task = None
+    discord_token = os.environ.get("DISCORD_BOT_TOKEN", "")
+    if discord_token:
+        from chat.bot import create_bot
+
+        bot = create_bot()
+        bot_task = asyncio.create_task(bot.start(discord_token))
+        logger.info("Discord bot starting")
+
     logger.info("Monolith started")
     yield
+    if bot:
+        await bot.close()
+    if bot_task:
+        bot_task.cancel()
     calendar_task.cancel()
     scheduler_task.cancel()
     logger.info("Monolith shutting down")
