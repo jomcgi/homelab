@@ -374,6 +374,36 @@ func TestRunGenerate_AutoDerivesAPIPathFromModule(t *testing.T) {
 	}
 }
 
+// TestRunGenerate_CodeGenerationFailed verifies that runGenerate wraps the
+// error with "code generation failed:" when the generator's Generate call
+// fails. We trigger this by pointing --output at a path where a regular file
+// already exists at the location the generator would use as a directory,
+// causing os.MkdirAll to fail inside Generate().
+func TestRunGenerate_CodeGenerationFailed(t *testing.T) {
+	defer resetGenerateFlags()
+
+	// Create a regular file where the output directory is expected.
+	// os.MkdirAll will fail because the path is a file, not a directory.
+	parent := t.TempDir()
+	blockerFile := filepath.Join(parent, "output")
+	if err := os.WriteFile(blockerFile, []byte("blocker"), 0o644); err != nil {
+		t.Fatalf("failed to create blocker file: %v", err)
+	}
+
+	// Point the output directory at the file so MkdirAll fails.
+	generateOutputDir = filepath.Join(blockerFile, "subdir")
+	generatePackage = "testpkg"
+
+	filePath := writeYAMLFile(t, validStateMachineYAML)
+	err := runGenerate(&cobra.Command{}, []string{filePath})
+	if err == nil {
+		t.Fatal("expected error when output dir is beneath a file, got nil")
+	}
+	if !strings.Contains(err.Error(), "code generation failed:") {
+		t.Errorf("expected error to contain 'code generation failed:', got: %v", err)
+	}
+}
+
 // TestRunValidate_OutputFileWriteError verifies that runValidate returns an
 // error when --xstate and --output are set but the output path is not writable
 // (e.g., the parent directory does not exist).
