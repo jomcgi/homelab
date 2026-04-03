@@ -99,6 +99,14 @@ def test_schedule_router_registered():
     )
 
 
+def test_notes_router_registered():
+    """Notes router is included — routes with /api/notes prefix exist in the app."""
+    paths = [getattr(route, "path", "") for route in app.routes]
+    assert any(p.startswith("/api/notes") for p in paths), (
+        "No /api/notes routes found; notes_router may not be included"
+    )
+
+
 def test_todo_router_daily_endpoint_responds(client):
     """GET /api/todo/daily from the todo router returns a 200 response."""
     response = client.get("/api/todo/daily")
