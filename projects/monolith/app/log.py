@@ -4,6 +4,14 @@ import logging
 import sys
 
 
+class _HealthzFilter(logging.Filter):
+    """Suppress Uvicorn access log entries for health check probes."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return "/healthz" not in msg
+
+
 def configure_logging(level: int = logging.INFO) -> None:
     """Configure the root logger with a structured format.
 
@@ -22,3 +30,5 @@ def configure_logging(level: int = logging.INFO) -> None:
     logging.getLogger("discord.client").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    # Suppress healthcheck probe noise
+    logging.getLogger("uvicorn.access").addFilter(_HealthzFilter())
