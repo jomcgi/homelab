@@ -1,11 +1,12 @@
 """Message store -- persist and recall chat messages with pgvector."""
 
+import hashlib
 import logging
 
 from sqlmodel import Session, select
 
 from chat.embedding import EmbeddingClient
-from chat.models import Attachment, Message, UserChannelSummary
+from chat.models import Attachment, Blob, Message, UserChannelSummary
 
 logger = logging.getLogger(__name__)
 
@@ -55,14 +56,24 @@ class MessageStore:
             self.session.flush()
             if attachments:
                 for a in attachments:
-                    att = Attachment(
-                        message_id=msg.id,
-                        data=a["data"],
-                        content_type=a["content_type"],
-                        filename=a["filename"],
-                        description=a.get("description", ""),
+                    sha = hashlib.sha256(a["data"]).hexdigest()
+                    existing_blob = self.session.get(Blob, sha)
+                    if not existing_blob:
+                        self.session.add(
+                            Blob(
+                                sha256=sha,
+                                data=a["data"],
+                                content_type=a["content_type"],
+                                description=a.get("description", ""),
+                            )
+                        )
+                    self.session.add(
+                        Attachment(
+                            message_id=msg.id,
+                            blob_sha256=sha,
+                            filename=a["filename"],
+                        )
                     )
-                    self.session.add(att)
             self.session.commit()
             self.session.refresh(msg)
             return msg
@@ -127,15 +138,25 @@ class MessageStore:
         result = self.session.exec(sql, params=params)
         return [Message.model_validate(row) for row in result]
 
-    def get_attachments(self, message_ids: list[int]) -> dict[int, list[Attachment]]:
-        """Load attachments for a set of message IDs, keyed by message_id."""
+    def get_attachments(
+        self, message_ids: list[int]
+    ) -> dict[int, list[tuple[Attachment, Blob]]]:
+        """Load attachments with their blobs for a set of message IDs."""
         if not message_ids:
             return {}
-        stmt = select(Attachment).where(Attachment.message_id.in_(message_ids))
-        result: dict[int, list[Attachment]] = {}
-        for att in self.session.exec(stmt).all():
-            result.setdefault(att.message_id, []).append(att)
+        stmt = (
+            select(Attachment, Blob)
+            .join(Blob, Attachment.blob_sha256 == Blob.sha256)
+            .where(Attachment.message_id.in_(message_ids))
+        )
+        result: dict[int, list[tuple[Attachment, Blob]]] = {}
+        for att, blob in self.session.exec(stmt).all():
+            result.setdefault(att.message_id, []).append((att, blob))
         return result
+
+    def get_blob(self, sha256: str) -> Blob | None:
+        """Look up a blob by its content hash."""
+        return self.session.get(Blob, sha256)
 
     def find_user_id_by_username(self, channel_id: str, username: str) -> str | None:
         """Look up a user_id by username within a channel. Returns None if not found."""

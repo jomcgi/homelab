@@ -97,3 +97,65 @@ class TestDownloadImageAttachments:
         result = await download_image_attachments([att], vision_client)
 
         assert len(result) == 0
+
+    @pytest.mark.asyncio
+    async def test_blob_cache_hit_skips_vision_call(self):
+        """download_image_attachments reuses blob description when store has a cache hit."""
+        att = MagicMock()
+        att.content_type = "image/png"
+        att.filename = "cached.png"
+        att.read = AsyncMock(return_value=b"\x89PNG")
+
+        vision_client = AsyncMock()
+
+        mock_blob = MagicMock()
+        mock_blob.description = "Cached description"
+        mock_store = MagicMock()
+        mock_store.get_blob.return_value = mock_blob
+
+        result = await download_image_attachments(
+            [att], vision_client, store=mock_store
+        )
+
+        assert len(result) == 1
+        assert result[0]["description"] == "Cached description"
+        vision_client.describe.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_blob_cache_miss_calls_vision(self):
+        """download_image_attachments calls vision when store has no matching blob."""
+        att = MagicMock()
+        att.content_type = "image/png"
+        att.filename = "new.png"
+        att.read = AsyncMock(return_value=b"\x89PNG_NEW")
+
+        vision_client = AsyncMock()
+        vision_client.describe.return_value = "A new image"
+
+        mock_store = MagicMock()
+        mock_store.get_blob.return_value = None
+
+        result = await download_image_attachments(
+            [att], vision_client, store=mock_store
+        )
+
+        assert len(result) == 1
+        assert result[0]["description"] == "A new image"
+        vision_client.describe.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_store_always_calls_vision(self):
+        """download_image_attachments calls vision when no store is provided."""
+        att = MagicMock()
+        att.content_type = "image/jpeg"
+        att.filename = "photo.jpg"
+        att.read = AsyncMock(return_value=b"\xff\xd8\xff")
+
+        vision_client = AsyncMock()
+        vision_client.describe.return_value = "A sunset"
+
+        result = await download_image_attachments([att], vision_client, store=None)
+
+        assert len(result) == 1
+        assert result[0]["description"] == "A sunset"
+        vision_client.describe.assert_called_once()

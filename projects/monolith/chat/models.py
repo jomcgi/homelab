@@ -32,16 +32,24 @@ class Message(SQLModel, table=True):
         return v
 
 
+class Blob(SQLModel, table=True):
+    __tablename__ = "blobs"
+    __table_args__ = {"schema": "chat"}
+
+    sha256: str = Field(primary_key=True, max_length=64)
+    data: bytes
+    content_type: str
+    description: str = Field(default="")
+
+
 class Attachment(SQLModel, table=True):
     __tablename__ = "attachments"
     __table_args__ = {"schema": "chat"}
 
     id: int | None = Field(default=None, primary_key=True)
     message_id: int = Field(foreign_key="chat.messages.id")
-    data: bytes
-    content_type: str
+    blob_sha256: str = Field(foreign_key="chat.blobs.sha256", max_length=64)
     filename: str
-    description: str
 
 
 class UserChannelSummary(SQLModel, table=True):

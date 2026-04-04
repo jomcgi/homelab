@@ -8,7 +8,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from chat.embedding import EmbeddingClient
-from chat.models import Attachment, Message
+from chat.models import Attachment, Blob, Message
 from chat.store import MessageStore
 from chat.web_search import search_web
 
@@ -41,7 +41,7 @@ def build_system_prompt() -> str:
 
 def format_context_messages(
     messages: list[Message],
-    attachments_by_msg: dict[int, list[Attachment]] | None = None,
+    attachments_by_msg: dict[int, list[tuple[Attachment, Blob]]] | None = None,
 ) -> str:
     """Format a list of messages into a context string for the prompt."""
     att_map = attachments_by_msg or {}
@@ -53,8 +53,8 @@ def format_context_messages(
         else:
             lines.append(f"[{timestamp}] {msg.username}: {msg.content}")
         # Append image descriptions if present
-        for att in att_map.get(msg.id, []):
-            lines.append(f"  [Image: {att.description}]")
+        for _att, blob in att_map.get(msg.id, []):
+            lines.append(f"  [Image: {blob.description}]")
     return "\n".join(lines)
 
 

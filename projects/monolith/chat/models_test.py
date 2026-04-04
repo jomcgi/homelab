@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 from sqlmodel import SQLModel
 
-from chat.models import Attachment, Message
+from chat.models import Attachment, Blob, Message
 
 
 class TestMessageModel:
@@ -126,10 +126,8 @@ class TestAttachmentModel:
         expected = {
             "id",
             "message_id",
-            "data",
-            "content_type",
+            "blob_sha256",
             "filename",
-            "description",
         }
         assert expected == columns
 
@@ -137,10 +135,47 @@ class TestAttachmentModel:
         """Attachment can be constructed with all fields."""
         att = Attachment(
             message_id=1,
+            blob_sha256="abc123",
+            filename="photo.png",
+        )
+        assert att.blob_sha256 == "abc123"
+        assert att.filename == "photo.png"
+
+
+class TestBlobModel:
+    def test_blob_table_name(self):
+        """Blob model maps to chat.blobs table."""
+        assert Blob.__tablename__ == "blobs"
+        assert Blob.__table_args__["schema"] == "chat"
+
+    def test_blob_has_required_fields(self):
+        """Blob model has all expected columns."""
+        columns = {c.name for c in Blob.__table__.columns}
+        expected = {
+            "sha256",
+            "data",
+            "content_type",
+            "description",
+        }
+        assert expected == columns
+
+    def test_blob_construction(self):
+        """Blob can be constructed with all fields."""
+        blob = Blob(
+            sha256="deadbeef" * 8,
             data=b"\x89PNG",
             content_type="image/png",
-            filename="photo.png",
             description="A photo of a cat",
         )
-        assert att.content_type == "image/png"
-        assert att.data == b"\x89PNG"
+        assert blob.content_type == "image/png"
+        assert blob.data == b"\x89PNG"
+        assert blob.description == "A photo of a cat"
+
+    def test_blob_description_defaults_empty(self):
+        """Blob.description defaults to empty string."""
+        blob = Blob(
+            sha256="abcd1234" * 8,
+            data=b"",
+            content_type="image/gif",
+        )
+        assert blob.description == ""

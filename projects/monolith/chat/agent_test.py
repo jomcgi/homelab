@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 
 from chat.agent import build_system_prompt, format_context_messages
-from chat.models import Attachment, Message
+from chat.models import Attachment, Blob, Message
 
 
 class TestBuildSystemPrompt:
@@ -67,13 +67,19 @@ class TestFormatContextMessages:
         )
         attachments_map = {
             1: [
-                Attachment(
-                    id=1,
-                    message_id=1,
-                    data=b"",
-                    content_type="image/png",
-                    filename="cat.png",
-                    description="A cat on a keyboard",
+                (
+                    Attachment(
+                        id=1,
+                        message_id=1,
+                        blob_sha256="abc123",
+                        filename="cat.png",
+                    ),
+                    Blob(
+                        sha256="abc123",
+                        data=b"",
+                        content_type="image/png",
+                        description="A cat on a keyboard",
+                    ),
                 ),
             ]
         }
