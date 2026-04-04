@@ -89,3 +89,20 @@ semgrep_test(
     srcs = ["publish_images_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+# gazelle:resolve py main_test //projects/trips/tools/publish-trip-images:publish-trip-images
+py_test(
+    name = "main_test",
+    srcs = ["main_test.py"],
+    imports = ["."],
+    deps = [
+        "//projects/trips/tools/publish-trip-images",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "main_test_semgrep_test",
+    srcs = ["main_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)

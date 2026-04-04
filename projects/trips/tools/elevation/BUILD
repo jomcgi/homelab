@@ -43,3 +43,21 @@ semgrep_test(
     srcs = ["elevation_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+# gazelle:resolve py client_test //projects/trips/tools/elevation:elevation
+py_test(
+    name = "client_test",
+    srcs = ["client_test.py"],
+    imports = ["."],
+    deps = [
+        "//projects/trips/tools/elevation",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "client_test_semgrep_test",
+    srcs = ["client_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
