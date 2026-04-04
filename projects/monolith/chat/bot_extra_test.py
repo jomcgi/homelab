@@ -104,14 +104,18 @@ class TestGenerateResponseEmbedFailure:
         mock_store = AsyncMock()
         mock_store.save_message = AsyncMock()
 
-        bot.embed_client.embed = AsyncMock(side_effect=RuntimeError("embed service down"))
+        bot.embed_client.embed = AsyncMock(
+            side_effect=RuntimeError("embed service down")
+        )
 
         with (
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
         ):
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=MagicMock())
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=MagicMock()
+            )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             # Should not raise — on_message wraps _generate_response in try/except
             await bot.on_message(message)
@@ -142,7 +146,9 @@ class TestGenerateResponseEmbedFailure:
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
         ):
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=MagicMock())
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=MagicMock()
+            )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             # Should not raise — on_message wraps the whole respond block
             await bot.on_message(message)
