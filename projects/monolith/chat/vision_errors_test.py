@@ -93,9 +93,7 @@ class TestVisionClientErrorPaths:
         """describe() calls raise_for_status() on the response before parsing JSON."""
         fake_response = MagicMock()
         fake_response.raise_for_status = MagicMock()
-        fake_response.json.return_value = {
-            "choices": [{"message": {"content": "ok"}}]
-        }
+        fake_response.json.return_value = {"choices": [{"message": {"content": "ok"}}]}
 
         with patch("chat.vision.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = _make_mock_http_client(fake_response)

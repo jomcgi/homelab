@@ -154,9 +154,7 @@ class TestGetAttachmentsEdgeCases:
 
 class TestSaveMessageWithAttachmentsAdditional:
     @pytest.mark.asyncio
-    async def test_saves_multiple_attachments_for_single_message(
-        self, store, session
-    ):
+    async def test_saves_multiple_attachments_for_single_message(self, store, session):
         """save_message() persists multiple attachments all linked to the same message."""
         attachments = [
             {
