@@ -441,7 +441,9 @@ class TestObjectExistsWithHash:
         s3 = MagicMock()
         s3.head_object.return_value = {"ETag": '"hash"'}
         object_exists_with_hash(s3, "my-bucket", "path/to/key.jpg", "hash")
-        s3.head_object.assert_called_once_with(Bucket="my-bucket", Key="path/to/key.jpg")
+        s3.head_object.assert_called_once_with(
+            Bucket="my-bucket", Key="path/to/key.jpg"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -458,8 +460,9 @@ class TestUploadImage:
 
         # Mock: object exists with same hash
         s3 = MagicMock()
-        with patch("main.calculate_md5", return_value="abc123"), patch(
-            "main.object_exists_with_hash", return_value=True
+        with (
+            patch("main.calculate_md5", return_value="abc123"),
+            patch("main.object_exists_with_hash", return_value=True),
         ):
             result = upload_image(s3, "bucket", img, "img_abc.jpg")
 
@@ -471,8 +474,9 @@ class TestUploadImage:
         img.write_bytes(b"new image data")
 
         s3 = MagicMock()
-        with patch("main.calculate_md5", return_value="newhash"), patch(
-            "main.object_exists_with_hash", return_value=False
+        with (
+            patch("main.calculate_md5", return_value="newhash"),
+            patch("main.object_exists_with_hash", return_value=False),
         ):
             result = upload_image(s3, "bucket", img, "img_abc.jpg")
 
@@ -484,8 +488,9 @@ class TestUploadImage:
         img.write_bytes(b"data")
 
         s3 = MagicMock()
-        with patch("main.calculate_md5", return_value="h"), patch(
-            "main.object_exists_with_hash", return_value=False
+        with (
+            patch("main.calculate_md5", return_value="h"),
+            patch("main.object_exists_with_hash", return_value=False),
         ):
             upload_image(s3, "bucket", img, "img.jpg")
 
@@ -497,8 +502,9 @@ class TestUploadImage:
         img.write_bytes(b"data")
 
         s3 = MagicMock()
-        with patch("main.calculate_md5", return_value="h"), patch(
-            "main.object_exists_with_hash", return_value=False
+        with (
+            patch("main.calculate_md5", return_value="h"),
+            patch("main.object_exists_with_hash", return_value=False),
         ):
             upload_image(s3, "bucket", img, "img.png")
 
@@ -510,8 +516,9 @@ class TestUploadImage:
         img.write_bytes(b"data")
 
         s3 = MagicMock()
-        with patch("main.calculate_md5", return_value="h"), patch(
-            "main.object_exists_with_hash", return_value=False
+        with (
+            patch("main.calculate_md5", return_value="h"),
+            patch("main.object_exists_with_hash", return_value=False),
         ):
             upload_image(s3, "bucket", img, "img.jpg")
 
@@ -523,8 +530,9 @@ class TestUploadImage:
         img.write_bytes(b"data")
 
         s3 = MagicMock()
-        with patch("main.calculate_md5", return_value="h"), patch(
-            "main.object_exists_with_hash", return_value=False
+        with (
+            patch("main.calculate_md5", return_value="h"),
+            patch("main.object_exists_with_hash", return_value=False),
         ):
             upload_image(s3, "my-bucket", img, "trips/img_abc.jpg")
 
@@ -627,7 +635,11 @@ class TestPublishToNats:
     async def test_payload_includes_optics_fields_when_present(self):
         js = AsyncMock()
         optics = OpticsData(
-            light_value=8.6, iso=400, shutter_speed="1/240", aperture=2.8, focal_length_35mm=16
+            light_value=8.6,
+            iso=400,
+            shutter_speed="1/240",
+            aperture=2.8,
+            focal_length_35mm=16,
         )
         record = self._make_record(optics=optics)
         await publish_to_nats(js, record, "gopro")
@@ -651,7 +663,13 @@ class TestPublishToNats:
     async def test_payload_omits_individual_none_optics_fields(self):
         """Optics fields with None values are not included in the payload."""
         js = AsyncMock()
-        optics = OpticsData(light_value=None, iso=400, shutter_speed=None, aperture=None, focal_length_35mm=None)
+        optics = OpticsData(
+            light_value=None,
+            iso=400,
+            shutter_speed=None,
+            aperture=None,
+            focal_length_35mm=None,
+        )
         record = self._make_record(optics=optics)
         await publish_to_nats(js, record, "gopro")
         payload = json.loads(js.publish.call_args[0][1].decode())
@@ -699,7 +717,9 @@ class TestUploadQueueAdd:
         return UploadQueue(tmp_path / "q.db")
 
     def test_returns_integer_id(self, queue, tmp_path):
-        rid = queue.add(tmp_path / "photo.jpg", "img_abc.jpg", 49.0, -123.0, "2025-07-01T12:00:00")
+        rid = queue.add(
+            tmp_path / "photo.jpg", "img_abc.jpg", 49.0, -123.0, "2025-07-01T12:00:00"
+        )
         assert isinstance(rid, int)
         assert rid >= 1
 
@@ -731,7 +751,9 @@ class TestUploadQueueAdd:
         assert pending[0].timestamp == "2025-07-01T12:00:00"
 
     def test_stores_tags(self, queue, tmp_path):
-        queue.add(tmp_path / "a.jpg", "img_abc.jpg", None, None, None, tags=["wildlife"])
+        queue.add(
+            tmp_path / "a.jpg", "img_abc.jpg", None, None, None, tags=["wildlife"]
+        )
         pending = queue.get_pending()
         assert pending[0].tags == ["wildlife"]
 
@@ -757,14 +779,18 @@ class TestUploadQueueStateTransitions:
         q, rid = queue_with_record
         q.mark_uploading(rid)
         with sqlite3.connect(q.db_path) as conn:
-            row = conn.execute("SELECT status FROM images WHERE id = ?", (rid,)).fetchone()
+            row = conn.execute(
+                "SELECT status FROM images WHERE id = ?", (rid,)
+            ).fetchone()
         assert row[0] == UploadStatus.UPLOADING.value
 
     def test_mark_completed_changes_status(self, queue_with_record):
         q, rid = queue_with_record
         q.mark_completed(rid)
         with sqlite3.connect(q.db_path) as conn:
-            row = conn.execute("SELECT status, completed_at FROM images WHERE id = ?", (rid,)).fetchone()
+            row = conn.execute(
+                "SELECT status, completed_at FROM images WHERE id = ?", (rid,)
+            ).fetchone()
         assert row[0] == UploadStatus.COMPLETED.value
         assert row[1] is not None
 
@@ -773,7 +799,8 @@ class TestUploadQueueStateTransitions:
         q.mark_failed(rid, "network error")
         with sqlite3.connect(q.db_path) as conn:
             row = conn.execute(
-                "SELECT status, error_message, retry_count FROM images WHERE id = ?", (rid,)
+                "SELECT status, error_message, retry_count FROM images WHERE id = ?",
+                (rid,),
             ).fetchone()
         assert row[0] == UploadStatus.FAILED.value
         assert row[1] == "network error"
@@ -784,7 +811,9 @@ class TestUploadQueueStateTransitions:
         q.mark_failed(rid, "err1")
         q.mark_failed(rid, "err2")
         with sqlite3.connect(q.db_path) as conn:
-            row = conn.execute("SELECT retry_count FROM images WHERE id = ?", (rid,)).fetchone()
+            row = conn.execute(
+                "SELECT retry_count FROM images WHERE id = ?", (rid,)
+            ).fetchone()
         assert row[0] == 2
 
 
@@ -872,7 +901,10 @@ class TestUploadQueueResetUploading:
         assert any(r.id == rid for r in pending)
 
     def test_returns_number_of_records_reset(self, queue, tmp_path):
-        ids = [queue.add(tmp_path / f"{i}.jpg", f"img_{i}.jpg", None, None, None) for i in range(3)]
+        ids = [
+            queue.add(tmp_path / f"{i}.jpg", f"img_{i}.jpg", None, None, None)
+            for i in range(3)
+        ]
         for rid in ids:
             queue.mark_uploading(rid)
         assert queue.reset_uploading() == 3
@@ -985,7 +1017,10 @@ class TestSampleImagesByTime:
 
     def test_result_tuples_have_5_elements(self, tmp_path):
         imgs = self._make_images(tmp_path, 1)
-        with patch("main.extract_exif", return_value=(49.0, -123.0, "2025-07-01T12:00:00", None)):
+        with patch(
+            "main.extract_exif",
+            return_value=(49.0, -123.0, "2025-07-01T12:00:00", None),
+        ):
             result = sample_images_by_time(imgs, 0)
         assert len(result) == 1
         assert len(result[0]) == 5  # (path, lat, lng, timestamp, optics)

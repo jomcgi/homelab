@@ -76,7 +76,6 @@ py_test(
     srcs = ["publish_images_test.py"],
     imports = ["."],
     deps = [
-        "//projects/trips/tools/elevation",
         "//projects/trips/tools/publish-trip-images",
         "@pip//botocore",
         "@pip//pillow",
