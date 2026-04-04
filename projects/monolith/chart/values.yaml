@@ -44,6 +44,8 @@ chat:
   llamaCppUrl: ""
   embeddingUrl: ""
   searxngUrl: ""
+  onepassword:
+    itemPath: ""
 
 cfIngress:
   private:
