@@ -237,7 +237,9 @@ class TestCapturePhoto:
         queue = CaptureQueue(tmp_path / "q.db")
         event = asyncio.Event()
 
-        _, capture_time = await capture_photo(gopro, queue, tmp_path, media_before, event)
+        _, capture_time = await capture_photo(
+            gopro, queue, tmp_path, media_before, event
+        )
         assert isinstance(capture_time, float)
         assert capture_time >= 0
 
@@ -346,8 +348,10 @@ class TestConnectGopro:
         )
         mock_gopro.close = AsyncMock()
 
-        with patch("main.WiredGoPro", return_value=mock_gopro), \
-             patch("asyncio.sleep", new_callable=AsyncMock):
+        with (
+            patch("main.WiredGoPro", return_value=mock_gopro),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             async with connect_gopro():
                 pass
 
@@ -360,8 +364,10 @@ class TestConnectGopro:
         mock_gopro.open = AsyncMock(side_effect=Exception("unreachable"))
         mock_gopro.close = AsyncMock()
 
-        with patch("main.WiredGoPro", return_value=mock_gopro), \
-             patch("asyncio.sleep", new_callable=AsyncMock):
+        with (
+            patch("main.WiredGoPro", return_value=mock_gopro),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             with pytest.raises(Exception, match="unreachable"):
                 async with connect_gopro():
                     pass
