@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 from sqlmodel import SQLModel
 
-from chat.models import Message
+from chat.models import Attachment, Message
 
 
 class TestMessageModel:
@@ -112,3 +112,35 @@ class TestMessageModel:
                     "embedding": bad_value,
                 }
             )
+
+
+class TestAttachmentModel:
+    def test_attachment_table_name(self):
+        """Attachment model maps to chat.attachments table."""
+        assert Attachment.__tablename__ == "attachments"
+        assert Attachment.__table_args__["schema"] == "chat"
+
+    def test_attachment_has_required_fields(self):
+        """Attachment model has all expected columns."""
+        columns = {c.name for c in Attachment.__table__.columns}
+        expected = {
+            "id",
+            "message_id",
+            "data",
+            "content_type",
+            "filename",
+            "description",
+        }
+        assert expected == columns
+
+    def test_attachment_construction(self):
+        """Attachment can be constructed with all fields."""
+        att = Attachment(
+            message_id=1,
+            data=b"\x89PNG",
+            content_type="image/png",
+            filename="photo.png",
+            description="A photo of a cat",
+        )
+        assert att.content_type == "image/png"
+        assert att.data == b"\x89PNG"
