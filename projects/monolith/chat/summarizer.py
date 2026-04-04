@@ -25,69 +25,75 @@ async def generate_summaries(
     ).all()
 
     for channel_id, user_id, username in pairs:
-        existing = session.exec(
-            select(UserChannelSummary).where(
-                UserChannelSummary.channel_id == channel_id,
-                UserChannelSummary.user_id == user_id,
-            )
-        ).first()
-
-        high_water = existing.last_message_id if existing else 0
-
-        new_messages = list(
-            session.exec(
-                select(Message)
-                .where(
-                    Message.channel_id == channel_id,
-                    Message.user_id == user_id,
-                    Message.is_bot == False,  # noqa: E712
-                    Message.id > high_water,
+        try:
+            existing = session.exec(
+                select(UserChannelSummary).where(
+                    UserChannelSummary.channel_id == channel_id,
+                    UserChannelSummary.user_id == user_id,
                 )
-                .order_by(Message.created_at.asc())
-            ).all()
-        )
+            ).first()
 
-        if not new_messages:
+            high_water = existing.last_message_id if existing else 0
+
+            new_messages = list(
+                session.exec(
+                    select(Message)
+                    .where(
+                        Message.channel_id == channel_id,
+                        Message.user_id == user_id,
+                        Message.is_bot == False,  # noqa: E712
+                        Message.id > high_water,
+                    )
+                    .order_by(Message.created_at.asc())
+                ).all()
+            )
+
+            if not new_messages:
+                continue
+
+            new_max_id = max(m.id for m in new_messages)
+            messages_text = "\n".join(
+                f"[{m.created_at.strftime('%Y-%m-%d %H:%M')}] {m.content}"
+                for m in new_messages
+            )
+
+            if existing:
+                prompt = (
+                    f"Current summary of {username}'s messages:\n{existing.summary}\n\n"
+                    f"New messages from {username}:\n{messages_text}\n\n"
+                    "Update the summary to incorporate the new messages. "
+                    "Keep it to 2-4 concise sentences."
+                )
+            else:
+                prompt = (
+                    f"Messages from {username}:\n{messages_text}\n\n"
+                    "Write a 2-4 sentence summary of what this user has been discussing."
+                )
+
+            summary_text = await llm_call(prompt)
+
+            if existing:
+                existing.summary = summary_text
+                existing.username = username
+                existing.last_message_id = new_max_id
+                existing.updated_at = datetime.now(timezone.utc)
+                session.add(existing)
+            else:
+                session.add(
+                    UserChannelSummary(
+                        channel_id=channel_id,
+                        user_id=user_id,
+                        username=username,
+                        summary=summary_text,
+                        last_message_id=new_max_id,
+                    )
+                )
+            session.commit()
+        except Exception:
+            logger.exception(
+                "Failed to generate summary for %s/%s", channel_id, username
+            )
             continue
-
-        new_max_id = max(m.id for m in new_messages)
-        messages_text = "\n".join(
-            f"[{m.created_at.strftime('%Y-%m-%d %H:%M')}] {m.content}"
-            for m in new_messages
-        )
-
-        if existing:
-            prompt = (
-                f"Current summary of {username}'s messages:\n{existing.summary}\n\n"
-                f"New messages from {username}:\n{messages_text}\n\n"
-                "Update the summary to incorporate the new messages. "
-                "Keep it to 2-4 concise sentences."
-            )
-        else:
-            prompt = (
-                f"Messages from {username}:\n{messages_text}\n\n"
-                "Write a 2-4 sentence summary of what this user has been discussing."
-            )
-
-        summary_text = await llm_call(prompt)
-
-        if existing:
-            existing.summary = summary_text
-            existing.username = username
-            existing.last_message_id = new_max_id
-            existing.updated_at = datetime.now(timezone.utc)
-            session.add(existing)
-        else:
-            session.add(
-                UserChannelSummary(
-                    channel_id=channel_id,
-                    user_id=user_id,
-                    username=username,
-                    summary=summary_text,
-                    last_message_id=new_max_id,
-                )
-            )
-        session.commit()
 
     logger.info("Summary generation complete for %d user-channel pairs", len(pairs))
 
@@ -95,21 +101,21 @@ async def generate_summaries(
 def build_llm_caller(base_url: str | None = None) -> Callable[[str], Awaitable[str]]:
     """Create an async callable that sends a prompt to Gemma via llama.cpp."""
     url = base_url or os.environ.get("LLAMA_CPP_URL", "")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(60.0))
 
     async def call_llm(prompt: str) -> str:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
-            resp = await client.post(
-                f"{url}/v1/chat/completions",
-                json={
-                    "model": "gemma-4-26b-a4b",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 256,
-                },
-            )
-            resp.raise_for_status()
-            try:
-                return resp.json()["choices"][0]["message"]["content"]
-            except (KeyError, IndexError, ValueError) as e:
-                raise RuntimeError(f"Unexpected LLM response structure: {e}") from e
+        resp = await client.post(
+            f"{url}/v1/chat/completions",
+            json={
+                "model": "gemma-4-26b-a4b",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 256,
+            },
+        )
+        resp.raise_for_status()
+        try:
+            return resp.json()["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, ValueError) as e:
+            raise RuntimeError(f"unexpected LLM response shape: {e}") from e
 
     return call_llm
