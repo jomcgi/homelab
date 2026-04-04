@@ -4,6 +4,7 @@ helm_chart(
     name = "chart",
     images = {
         "backend.image": "//projects/monolith:image.info",
+        "frontend.image": "//projects/monolith/frontend:image.info",
     },
     lint = False,
     publish = True,
