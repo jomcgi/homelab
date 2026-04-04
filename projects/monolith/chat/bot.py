@@ -125,55 +125,44 @@ class ChatBot(discord.Client):
         current_attachments: list[dict] | None = None,
     ) -> str:
         """Build context and run the PydanticAI agent."""
+        from chat.agent import ChatDeps
+
         with Session(get_engine()) as session:
             store = MessageStore(session=session, embed_client=self.embed_client)
 
-            # Recent window
+            # Recent window only — semantic recall is now on-demand via tools
             recent = store.get_recent(str(message.channel.id), limit=20)
-            recent_ids = [m.id for m in recent if m.id is not None]
 
-            # Semantic recall
-            query_embedding = await self.embed_client.embed(message.content)
-            similar = store.search_similar(
+            # Run agent with deps so tools can access store + embeddings
+            deps = ChatDeps(
                 channel_id=str(message.channel.id),
-                query_embedding=query_embedding,
-                limit=5,
-                exclude_ids=recent_ids,
+                store=store,
+                embed_client=self.embed_client,
             )
 
-            # Load attachments for recalled messages
-            all_msg_ids = [m.id for m in (similar + recent) if m.id is not None]
+            # Load attachments for recent messages
+            all_msg_ids = [m.id for m in recent if m.id is not None]
             attachments_by_msg = store.get_attachments(all_msg_ids)
 
-        # Build context
-        context_parts = []
-        if similar:
-            context_parts.append(
-                "Relevant older messages:\n"
-                + format_context_messages(similar, attachments_by_msg)
+            context = "Recent conversation:\n" + format_context_messages(
+                recent, attachments_by_msg
             )
-        context_parts.append(
-            "Recent conversation:\n"
-            + format_context_messages(recent, attachments_by_msg)
-        )
-        context = "\n\n---\n\n".join(context_parts)
 
-        # Run agent
-        user_prompt = (
-            f"{context}\n\nCurrent message from "
-            f"{message.author.display_name}: {message.content}"
-        )
-
-        # Include current message images in prompt
-        if current_attachments:
-            image_context = "\n".join(
-                f"[Attached image '{a['filename']}': {a['description']}]"
-                for a in current_attachments
+            user_prompt = (
+                f"{context}\n\nCurrent message from "
+                f"{message.author.display_name}: {message.content}"
             )
-            user_prompt += f"\n{image_context}"
 
-        result = await self.agent.run(user_prompt)
-        return result.output
+            # Include current message images in prompt
+            if current_attachments:
+                image_context = "\n".join(
+                    f"[Attached image '{a['filename']}': {a['description']}]"
+                    for a in current_attachments
+                )
+                user_prompt += f"\n{image_context}"
+
+            result = await self.agent.run(user_prompt, deps=deps)
+            return result.output
 
 
 def create_bot() -> ChatBot:
