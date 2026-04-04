@@ -455,9 +455,7 @@ class TestApiPointsEndpoints:
             patch.object(trips_main, "TRIP_API_KEY", "my-secret"),
         ):
             client = TestClient(app)
-            response = client.get(
-                "/api/points", headers={"X-API-Key": "my-secret"}
-            )
+            response = client.get("/api/points", headers={"X-API-Key": "my-secret"})
 
         assert response.status_code == 200
 

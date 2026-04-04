@@ -128,8 +128,7 @@ class TestByIdDryRun:
 
         assert mock_js.publish.call_count == 3
         published_ids = [
-            json.loads(c[0][1].decode())["id"]
-            for c in mock_js.publish.call_args_list
+            json.loads(c[0][1].decode())["id"] for c in mock_js.publish.call_args_list
         ]
         assert published_ids == point_ids
 

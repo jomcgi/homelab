@@ -76,7 +76,6 @@ py_test(
     imports = ["."],
     deps = [
         "//projects/trips/tools/backfill-elevation",
-        "@pip//nats_py",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],
