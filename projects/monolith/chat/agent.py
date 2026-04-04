@@ -96,7 +96,7 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
         results = deps.store.search_similar(
             channel_id=deps.channel_id,
             query_embedding=query_embedding,
-            limit=limit,
+            limit=min(limit, 20),
             user_id=user_id,
         )
         if not results:
