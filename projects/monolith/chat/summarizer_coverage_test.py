@@ -140,14 +140,14 @@ class TestBuildLlmCaller:
         mock_instance = MagicMock()
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": "ok"}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": "ok"}}]}
         mock_instance.post = AsyncMock(return_value=mock_response)
 
         with patch("chat.summarizer.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_instance
-            with patch("chat.summarizer.os.environ.get", return_value="http://env:9090"):
+            with patch(
+                "chat.summarizer.os.environ.get", return_value="http://env:9090"
+            ):
                 caller = build_llm_caller()
                 await caller("prompt")
 
