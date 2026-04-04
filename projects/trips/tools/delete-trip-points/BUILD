@@ -54,3 +54,21 @@ semgrep_test(
     srcs = ["delete_trip_points_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+# gazelle:resolve py main_test //projects/trips/tools/delete-trip-points:delete-trip-points
+py_test(
+    name = "main_test",
+    srcs = ["main_test.py"],
+    imports = ["."],
+    deps = [
+        "//projects/trips/tools/delete-trip-points",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "main_test_semgrep_test",
+    srcs = ["main_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)

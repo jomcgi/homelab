@@ -79,6 +79,27 @@ semgrep_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
+# gazelle:resolve py main_test //projects/trips/backend:trips_api
+py_test(
+    name = "main_test",
+    srcs = ["main_test.py"],
+    imports = ["."],
+    deps = [
+        ":trips_api",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//nats_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "main_test_semgrep_test",
+    srcs = ["main_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     lockfiles = ["//bazel/requirements:all.txt"],
