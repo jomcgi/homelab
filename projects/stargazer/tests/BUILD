@@ -162,10 +162,8 @@ py_test(
     deps = [
         ":conftest",
         "//projects/stargazer/backend",
-        "@pip//geopandas",
         "@pip//pytest",
         "@pip//pytest_asyncio",
-        "@pip//shapely",
     ],
 )
 

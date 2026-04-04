@@ -47,7 +47,9 @@ class TestExtractRoadsAddsMatchingWays:
             way = MagicMock()
             way.is_way.return_value = True
             way.tags = {"highway": highway_tag}
-            way.tags.get = lambda key, default=None: highway_tag if key == "highway" else default
+            way.tags.get = lambda key, default=None: (
+                highway_tag if key == "highway" else default
+            )
             return way
 
         matching_way_primary = make_mock_way("primary")
