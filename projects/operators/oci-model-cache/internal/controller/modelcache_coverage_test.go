@@ -253,7 +253,7 @@ func TestJobFailureReason_TableDriven(t *testing.T) {
 // than the "no op" RequeueAfter from the no-change path.
 func TestReconcile_Ready_SpecChanged_TriggersResync(t *testing.T) {
 	mc := makeReadyMC("llama")
-	mc.Generation = 2             // spec changed
+	mc.Generation = 2                // spec changed
 	mc.Status.ObservedGeneration = 1 // mismatch → HasSpecChanged() = true
 
 	r := newReconcilerWith(t, &fakeResolver{}, mc)
