@@ -557,6 +557,7 @@ func TestCopyGGUFWithFileSelectorAndMMProj(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, result.FileCount)               // model + mmproj
 	assert.Equal(t, int64(1024+512), result.TotalSize) // model + mmproj sizes
+	assert.Equal(t, "ghcr.io/test/bartowski/model-gguf:bartowski-gguf-model-q4-k-m-mmproj", result.Ref)
 }
 
 func TestCopyGGUFMultiFileWithMMProjNoSelectorNeeded(t *testing.T) {
@@ -588,6 +589,7 @@ func TestCopyGGUFMultiFileWithMMProjNoSelectorNeeded(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, result.FileCount) // model + mmproj
 	assert.Equal(t, int64(1024+512), result.TotalSize)
+	assert.Equal(t, "ghcr.io/test/org/model-gguf:rev-main-mmproj", result.Ref)
 }
 
 func TestCopyGGUFFileSelectorNoMatch(t *testing.T) {
