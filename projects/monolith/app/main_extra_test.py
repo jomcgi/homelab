@@ -94,7 +94,7 @@ class TestLifespanPollCalendarException:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": ""}),
             patch(
-                "schedule.service.poll_calendar",
+                "shared.service.poll_calendar",
                 side_effect=failing_poll_calendar,
             ),
         ):
@@ -115,7 +115,7 @@ class TestLifespanPollCalendarException:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": ""}),
             patch(
-                "schedule.service.poll_calendar",
+                "shared.service.poll_calendar",
                 side_effect=failing_poll_calendar,
             ),
         ):
@@ -141,7 +141,7 @@ class TestLifespanRunSchedulerException:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": ""}),
             patch("app.main.run_scheduler", new=failing_run_scheduler),
-            patch("schedule.service.poll_calendar", new_callable=AsyncMock),
+            patch("shared.service.poll_calendar", new_callable=AsyncMock),
         ):
             async with lifespan(app):
                 await asyncio.sleep(0)
@@ -159,7 +159,7 @@ class TestLifespanRunSchedulerException:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": ""}),
             patch("app.main.run_scheduler", new=failing_run_scheduler),
-            patch("schedule.service.poll_calendar", new_callable=AsyncMock),
+            patch("shared.service.poll_calendar", new_callable=AsyncMock),
         ):
             # Should not raise — background task exceptions are not re-raised
             async with lifespan(app):
