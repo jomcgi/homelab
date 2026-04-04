@@ -8,7 +8,7 @@ imagePullSecret:
 
 modelVolume:
   enabled: true
-  reference: "ghcr.io/jomcgi/models/voyageai/voyage-4-nano:gguf-q8-0"
+  reference: "ghcr.io/jomcgi/models/voyageai/voyage-4-nano:jsonmartin-gguf-q8-0"
   mountPath: "/model-image"
 
 server:
