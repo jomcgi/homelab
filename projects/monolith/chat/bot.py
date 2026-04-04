@@ -45,7 +45,11 @@ class ChatBot(discord.Client):
         logger.info("Discord bot connected as %s", self.user)
 
     async def on_message(self, message: discord.Message):
-        # Always store messages (for memory)
+        # Skip own messages — bot responses are stored explicitly after sending
+        if message.author.id == self.user.id:
+            return
+
+        # Store incoming messages for memory/context
         try:
             with Session(get_engine()) as session:
                 store = MessageStore(session=session, embed_client=self.embed_client)
