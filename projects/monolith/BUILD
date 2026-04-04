@@ -648,6 +648,19 @@ py_test(
 )
 
 py_test(
+    name = "chat_bot_error_handling_test",
+    srcs = ["chat/bot_error_handling_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "chat_agent_tools_test",
     srcs = ["chat/agent_tools_test.py"],
     imports = ["."],
