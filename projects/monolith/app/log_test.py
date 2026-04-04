@@ -13,28 +13,28 @@ class TestHealthzFilter:
         """_HealthzFilter.filter() returns False for records containing '/healthz'."""
         f = _HealthzFilter()
         record = MagicMock(spec=logging.LogRecord)
-        record.getMessage.return_value = 'GET /healthz HTTP/1.1 200'
+        record.getMessage.return_value = "GET /healthz HTTP/1.1 200"
         assert f.filter(record) is False
 
     def test_passes_non_healthz_records(self):
         """_HealthzFilter.filter() returns True for records not containing '/healthz'."""
         f = _HealthzFilter()
         record = MagicMock(spec=logging.LogRecord)
-        record.getMessage.return_value = 'GET /api/todo/daily HTTP/1.1 200'
+        record.getMessage.return_value = "GET /api/todo/daily HTTP/1.1 200"
         assert f.filter(record) is True
 
     def test_passes_empty_message(self):
         """_HealthzFilter.filter() returns True for empty log messages."""
         f = _HealthzFilter()
         record = MagicMock(spec=logging.LogRecord)
-        record.getMessage.return_value = ''
+        record.getMessage.return_value = ""
         assert f.filter(record) is True
 
     def test_suppresses_when_healthz_in_path_only(self):
         """_HealthzFilter.filter() suppresses any message containing '/healthz' substring."""
         f = _HealthzFilter()
         record = MagicMock(spec=logging.LogRecord)
-        record.getMessage.return_value = 'some prefix /healthz suffix'
+        record.getMessage.return_value = "some prefix /healthz suffix"
         assert f.filter(record) is False
 
     def test_passes_healthz_in_unrelated_context(self):
@@ -42,7 +42,7 @@ class TestHealthzFilter:
         f = _HealthzFilter()
         record = MagicMock(spec=logging.LogRecord)
         # Note: '/healthz' substring present — should be suppressed
-        record.getMessage.return_value = 'debug: probing /healthz endpoint'
+        record.getMessage.return_value = "debug: probing /healthz endpoint"
         assert f.filter(record) is False
 
 

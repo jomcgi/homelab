@@ -27,7 +27,9 @@ class TestSaveMessageIntegrityError:
         mock_session.commit.side_effect = IntegrityError(
             statement="INSERT ...",
             params={},
-            orig=Exception("UNIQUE constraint failed: chat.messages.discord_message_id"),
+            orig=Exception(
+                "UNIQUE constraint failed: chat.messages.discord_message_id"
+            ),
         )
 
         result = await store.save_message(

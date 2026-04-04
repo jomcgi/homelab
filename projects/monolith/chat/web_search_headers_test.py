@@ -49,7 +49,9 @@ class TestSearchWebHeaders:
         """search_web creates the AsyncClient with X-Forwarded-For: 127.0.0.1 header."""
         fake_client = _FakeAsyncClient(_fake_response())
 
-        with patch("chat.web_search.httpx.AsyncClient", return_value=fake_client) as mock_cls:
+        with patch(
+            "chat.web_search.httpx.AsyncClient", return_value=fake_client
+        ) as mock_cls:
             await search_web("test query", base_url="http://fake:8080")
 
         # Check the headers passed to AsyncClient constructor
@@ -102,7 +104,9 @@ class TestSearchWebHeaders:
         """Both X-Forwarded-For header and format=json param are sent in the same request."""
         fake_client = _FakeAsyncClient(_fake_response())
 
-        with patch("chat.web_search.httpx.AsyncClient", return_value=fake_client) as mock_cls:
+        with patch(
+            "chat.web_search.httpx.AsyncClient", return_value=fake_client
+        ) as mock_cls:
             await search_web("combined check", base_url="http://fake:8080")
 
         # Verify header in constructor
