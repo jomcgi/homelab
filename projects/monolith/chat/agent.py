@@ -1,7 +1,9 @@
 """PydanticAI agent -- assembles context and runs Gemma with tool calling."""
 
+import logging
 import os
 from dataclasses import dataclass
+from typing import Any
 
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -13,6 +15,27 @@ from chat.store import MessageStore
 from chat.web_search import search_web
 
 LLAMA_CPP_URL = os.environ.get("LLAMA_CPP_URL", "")
+
+logger = logging.getLogger(__name__)
+
+
+def _coerce_username(value: Any) -> str | None:
+    """Coerce a username value to a string.
+
+    LLMs sometimes pass a dict (e.g. a Discord user object) instead of a plain
+    string for the username parameter. Extract a usable string when possible.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        for key in ("username", "name", "display_name"):
+            if key in value and isinstance(value[key], str):
+                return value[key]
+        logger.warning("Could not extract username from dict: %s", value)
+        return None
+    return str(value)
 
 
 @dataclass
@@ -84,11 +107,12 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
     async def search_history(
         ctx: RunContext[ChatDeps],
         query: str,
-        username: str | None = None,
+        username: Any = None,
         limit: int = 5,
     ) -> str:
         """Search older messages in this channel by topic. Optionally filter by username."""
         deps = ctx.deps
+        username = _coerce_username(username)
         query_embedding = await deps.embed_client.embed(query)
         user_id = None
         if username:
@@ -106,10 +130,15 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
     @agent.tool
     async def get_user_summary(
         ctx: RunContext[ChatDeps],
-        username: str,
+        username: Any,
     ) -> str:
         """Get a summary of what a user has been discussing in this channel."""
         deps = ctx.deps
+        username = _coerce_username(username)
+        if not username:
+            return (
+                "Could not determine username. Please provide a plain username string."
+            )
         summary = deps.store.get_user_summary(deps.channel_id, username)
         if not summary:
             return f"No summary available for {username}."
