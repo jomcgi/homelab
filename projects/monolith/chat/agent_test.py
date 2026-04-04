@@ -1,6 +1,9 @@
 """Tests for PydanticAI chat agent."""
 
+from datetime import datetime, timezone
+
 from chat.agent import build_system_prompt, format_context_messages
+from chat.models import Attachment, Message
 
 
 class TestBuildSystemPrompt:
@@ -18,10 +21,6 @@ class TestBuildSystemPrompt:
 class TestFormatContextMessages:
     def test_formats_user_message(self):
         """User messages include username and content."""
-        from datetime import datetime, timezone
-
-        from chat.models import Message
-
         msg = Message(
             id=1,
             discord_message_id="1",
@@ -39,10 +38,6 @@ class TestFormatContextMessages:
 
     def test_formats_bot_message(self):
         """Bot messages are labeled as assistant."""
-        from datetime import datetime, timezone
-
-        from chat.models import Message
-
         msg = Message(
             id=2,
             discord_message_id="2",
@@ -56,3 +51,49 @@ class TestFormatContextMessages:
         )
         formatted = format_context_messages([msg])
         assert "Hi!" in formatted
+
+    def test_format_with_image_descriptions(self):
+        """format_context_messages includes image descriptions when attachments present."""
+        msg = Message(
+            id=1,
+            discord_message_id="1",
+            channel_id="ch1",
+            user_id="u1",
+            username="Alice",
+            content="Check this out",
+            is_bot=False,
+            embedding=[0.0] * 1024,
+            created_at=datetime(2026, 4, 4, 12, 0, tzinfo=timezone.utc),
+        )
+        attachments_map = {
+            1: [
+                Attachment(
+                    id=1,
+                    message_id=1,
+                    data=b"",
+                    content_type="image/png",
+                    filename="cat.png",
+                    description="A cat on a keyboard",
+                ),
+            ]
+        }
+        result = format_context_messages([msg], attachments_map)
+        assert "Alice: Check this out" in result
+        assert "[Image: A cat on a keyboard]" in result
+
+    def test_format_without_attachments(self):
+        """format_context_messages works with empty attachments map."""
+        msg = Message(
+            id=2,
+            discord_message_id="2",
+            channel_id="ch1",
+            user_id="u1",
+            username="Bob",
+            content="Just text",
+            is_bot=False,
+            embedding=[0.0] * 1024,
+            created_at=datetime(2026, 4, 4, 12, 0, tzinfo=timezone.utc),
+        )
+        result = format_context_messages([msg])
+        assert "Bob: Just text" in result
+        assert "[Image:" not in result

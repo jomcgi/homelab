@@ -143,15 +143,19 @@ class ChatBot(discord.Client):
 
             # Load attachments for recalled messages
             all_msg_ids = [m.id for m in (similar + recent) if m.id is not None]
-            attachments_by_msg = store.get_attachments(all_msg_ids)  # noqa: F841
+            attachments_by_msg = store.get_attachments(all_msg_ids)
 
         # Build context
         context_parts = []
         if similar:
             context_parts.append(
-                "Relevant older messages:\n" + format_context_messages(similar)
+                "Relevant older messages:\n"
+                + format_context_messages(similar, attachments_by_msg)
             )
-        context_parts.append("Recent conversation:\n" + format_context_messages(recent))
+        context_parts.append(
+            "Recent conversation:\n"
+            + format_context_messages(recent, attachments_by_msg)
+        )
         context = "\n\n---\n\n".join(context_parts)
 
         # Run agent
