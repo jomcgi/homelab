@@ -104,7 +104,9 @@ class TestLifespanWithDiscordToken:
             created_tasks.append(mock_task)
             return mock_task
 
-        env_without_token = {k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"}
+        env_without_token = {
+            k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
+        }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
         with (
