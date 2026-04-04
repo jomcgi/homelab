@@ -66,7 +66,9 @@ async def test_wait_for_sidecar_returns_immediately_when_url_empty():
 @pytest.mark.asyncio
 async def test_wait_for_sidecar_returns_immediately_when_url_unset():
     """_wait_for_sidecar returns at once when FRONTEND_HEALTH_URL is absent."""
-    env_without_url = {k: v for k, v in os.environ.items() if k != "FRONTEND_HEALTH_URL"}
+    env_without_url = {
+        k: v for k, v in os.environ.items() if k != "FRONTEND_HEALTH_URL"
+    }
     with patch.dict(os.environ, env_without_url, clear=True):
         await _wait_for_sidecar()
 
@@ -422,7 +424,9 @@ async def test_start_bot_when_ready_not_scheduled_when_no_token():
         created_tasks.append(t)
         return t
 
-    env_without_token = {k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"}
+    env_without_token = {
+        k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
+    }
 
     with (
         patch.dict(os.environ, env_without_token, clear=True),
