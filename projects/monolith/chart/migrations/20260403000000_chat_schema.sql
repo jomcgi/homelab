@@ -1,5 +1,6 @@
--- Enable pgvector extension and create chat schema for Discord chatbot.
-CREATE EXTENSION IF NOT EXISTS vector;
+-- Create chat schema for Discord chatbot.
+-- Note: pgvector extension is managed by CNPG via image volume extensions
+-- (see cnpg-cluster.yaml) and does not need to be created here.
 
 CREATE SCHEMA IF NOT EXISTS chat;
 
