@@ -50,7 +50,7 @@ cfIngress:
       team: jomcgi
 
 chat:
-  enabled: true
+  enabled: false # re-enable after adding DISCORD_BOT_TOKEN to 1Password
   llamaCppUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
   embeddingUrl: "http://llama-cpp-embeddings.llama-cpp.svc.cluster.local:8080"
   searxngUrl: "http://monolith-searxng:8080"
