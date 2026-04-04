@@ -1,5 +1,6 @@
 """Discord bot -- gateway listener and message handler."""
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -17,6 +18,9 @@ from sqlmodel import Session
 logger = logging.getLogger(__name__)
 
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
+
+LLM_MAX_RETRIES = 3
+LLM_RETRY_BASE_DELAY = 1.0  # seconds
 
 
 def should_respond(message: discord.Message, bot_user: discord.User) -> bool:
@@ -128,6 +132,15 @@ class ChatBot(discord.Client):
                 )
         except Exception:
             logger.exception("Failed to respond to message %s", message.id)
+            try:
+                await message.reply(
+                    "Sorry, I'm having trouble reaching the language model right now. "
+                    "Please try again in a moment."
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to send error reply for message %s", message.id
+                )
 
     async def _generate_response(
         self,
@@ -171,8 +184,24 @@ class ChatBot(discord.Client):
                 )
                 user_prompt += f"\n{image_context}"
 
-            result = await self.agent.run(user_prompt, deps=deps)
-            return result.output
+            last_exc: Exception | None = None
+            for attempt in range(LLM_MAX_RETRIES):
+                try:
+                    result = await self.agent.run(user_prompt, deps=deps)
+                    return result.output
+                except Exception as exc:
+                    last_exc = exc
+                    if attempt < LLM_MAX_RETRIES - 1:
+                        delay = LLM_RETRY_BASE_DELAY * (2**attempt)
+                        logger.warning(
+                            "LLM call failed (attempt %d/%d), retrying in %.1fs: %s",
+                            attempt + 1,
+                            LLM_MAX_RETRIES,
+                            delay,
+                            exc,
+                        )
+                        await asyncio.sleep(delay)
+            raise last_exc
 
 
 def create_bot() -> ChatBot:
