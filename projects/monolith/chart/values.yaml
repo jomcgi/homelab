@@ -8,7 +8,7 @@ backend:
   resources:
     requests:
       memory: "128Mi"
-      cpu: "10m"
+      cpu: "200m"
     limits:
       memory: "256Mi"
 

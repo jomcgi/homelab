@@ -1,4 +1,17 @@
 {{- if .Values.chat.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "monolith.fullname" . }}-searxng-settings
+  labels:
+    {{- include "monolith.labels" . | nindent 4 }}
+data:
+  settings.yml: |
+    use_default_settings: true
+    server:
+      limiter: false
+      public_instance: false
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,6 +41,11 @@ spec:
           env:
             - name: SEARXNG_BASE_URL
               value: "http://localhost:8080"
+          volumeMounts:
+            - name: settings
+              mountPath: /etc/searxng/settings.yml
+              subPath: settings.yml
+              readOnly: true
           livenessProbe:
             httpGet:
               path: /healthz
@@ -40,6 +58,10 @@ spec:
               memory: 64Mi
             limits:
               memory: 128Mi
+      volumes:
+        - name: settings
+          configMap:
+            name: {{ include "monolith.fullname" . }}-searxng-settings
 ---
 apiVersion: v1
 kind: Service
