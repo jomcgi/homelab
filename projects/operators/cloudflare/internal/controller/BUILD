@@ -47,6 +47,7 @@ go_test(
     srcs = [
         "cloudflareaccesspolicy_controller_test.go",
         "cloudflaretunnel_controller_test.go",
+        "cloudflaretunnel_coverage_test.go",
         "gateway_controller_test.go",
         "gatewayclass_controller_test.go",
         "httproute_controller_test.go",
@@ -58,8 +59,10 @@ go_test(
     deps = [
         "//projects/operators/cloudflare/api/v1:api",
         "//projects/operators/cloudflare/internal/cloudflare",
+        "//projects/operators/cloudflare/internal/statemachine",
         "//projects/operators/cloudflare/internal/telemetry",
         "@com_github_cloudflare_cloudflare_go//:cloudflare-go",
+        "@com_github_go_logr_logr//:logr",
         "@com_github_onsi_ginkgo_v2//:ginkgo",
         "@com_github_onsi_gomega//:gomega",
         "@io_k8s_api//core/v1:core",
