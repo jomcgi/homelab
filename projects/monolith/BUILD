@@ -485,6 +485,16 @@ py_test(
 )
 
 py_test(
+    name = "log_config_test",
+    srcs = ["app/log_config_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "main_log_task_test",
     srcs = ["app/main_log_task_test.py"],
     imports = ["."],
