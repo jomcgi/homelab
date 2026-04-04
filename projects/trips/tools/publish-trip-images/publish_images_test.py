@@ -135,10 +135,11 @@ class TestCalculateLightValue:
     """LV = log2(N²/t) - log2(ISO/100)."""
 
     def test_typical_values(self):
-        # f/2.8, 1/250s, ISO 100 → LV ≈ 12.8
+        # f/2.8, 1/250s, ISO 100
+        # LV = log2(2.8^2 / (1/250)) - log2(100/100) = log2(1960) - 0 ≈ 10.9
         result = calculate_light_value(2.8, 1 / 250, 100)
         assert result is not None
-        assert 12 < result < 14
+        assert 10 < result < 12
 
     def test_returns_none_when_aperture_is_none(self):
         assert calculate_light_value(None, 1 / 100, 200) is None
