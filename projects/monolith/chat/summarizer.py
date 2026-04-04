@@ -1,0 +1,115 @@
+"""Rolling summary generator -- incrementally updates per-user-per-channel summaries."""
+
+import logging
+import os
+from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
+
+import httpx
+from sqlmodel import Session, select
+
+from chat.models import Message, UserChannelSummary
+
+logger = logging.getLogger(__name__)
+
+
+async def generate_summaries(
+    session: Session,
+    llm_call: Callable[[str], Awaitable[str]],
+) -> None:
+    """Update rolling summaries for all (channel, user) pairs with new messages."""
+    pairs = session.exec(
+        select(Message.channel_id, Message.user_id, Message.username)
+        .where(Message.is_bot == False)  # noqa: E712
+        .group_by(Message.channel_id, Message.user_id, Message.username)
+    ).all()
+
+    for channel_id, user_id, username in pairs:
+        existing = session.exec(
+            select(UserChannelSummary).where(
+                UserChannelSummary.channel_id == channel_id,
+                UserChannelSummary.user_id == user_id,
+            )
+        ).first()
+
+        high_water = existing.last_message_id if existing else 0
+
+        new_messages = list(
+            session.exec(
+                select(Message)
+                .where(
+                    Message.channel_id == channel_id,
+                    Message.user_id == user_id,
+                    Message.is_bot == False,  # noqa: E712
+                    Message.id > high_water,
+                )
+                .order_by(Message.created_at.asc())
+            ).all()
+        )
+
+        if not new_messages:
+            continue
+
+        new_max_id = max(m.id for m in new_messages)
+        messages_text = "\n".join(
+            f"[{m.created_at.strftime('%Y-%m-%d %H:%M')}] {m.content}"
+            for m in new_messages
+        )
+
+        if existing:
+            prompt = (
+                f"Current summary of {username}'s messages:\n{existing.summary}\n\n"
+                f"New messages from {username}:\n{messages_text}\n\n"
+                "Update the summary to incorporate the new messages. "
+                "Keep it to 2-4 concise sentences."
+            )
+        else:
+            prompt = (
+                f"Messages from {username}:\n{messages_text}\n\n"
+                "Write a 2-4 sentence summary of what this user has been discussing."
+            )
+
+        summary_text = await llm_call(prompt)
+
+        if existing:
+            existing.summary = summary_text
+            existing.username = username
+            existing.last_message_id = new_max_id
+            existing.updated_at = datetime.now(timezone.utc)
+            session.add(existing)
+        else:
+            session.add(
+                UserChannelSummary(
+                    channel_id=channel_id,
+                    user_id=user_id,
+                    username=username,
+                    summary=summary_text,
+                    last_message_id=new_max_id,
+                )
+            )
+        session.commit()
+
+    logger.info("Summary generation complete for %d user-channel pairs", len(pairs))
+
+
+def build_llm_caller(base_url: str | None = None) -> Callable[[str], Awaitable[str]]:
+    """Create an async callable that sends a prompt to Gemma via llama.cpp."""
+    url = base_url or os.environ.get("LLAMA_CPP_URL", "")
+
+    async def call_llm(prompt: str) -> str:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+            resp = await client.post(
+                f"{url}/v1/chat/completions",
+                json={
+                    "model": "gemma-4-26b-a4b",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 256,
+                },
+            )
+            resp.raise_for_status()
+            try:
+                return resp.json()["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, ValueError) as e:
+                raise RuntimeError(f"Unexpected LLM response structure: {e}") from e
+
+    return call_llm
