@@ -23,7 +23,7 @@ def _make_message(
         username="Alice",
         content=content,
         is_bot=False,
-        embedding=[0.0] * 512,
+        embedding=[0.0] * 1024,
         created_at=datetime(2026, 4, 1, 12, 0, tzinfo=timezone.utc),
     )
 
@@ -36,7 +36,7 @@ def mock_session():
 @pytest.fixture
 def store(mock_session):
     embed_client = AsyncMock()
-    embed_client.embed.return_value = [0.0] * 512
+    embed_client.embed.return_value = [0.0] * 1024
     return MessageStore(session=mock_session, embed_client=embed_client)
 
 
@@ -48,7 +48,7 @@ class TestSearchSimilar:
 
         results = store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.1] * 512,
+            query_embedding=[0.1] * 1024,
         )
 
         assert results == [msg]
@@ -60,7 +60,7 @@ class TestSearchSimilar:
 
         results = store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
         )
 
         assert results == []
@@ -71,7 +71,7 @@ class TestSearchSimilar:
 
         store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
             exclude_ids=[10, 20],
         )
 
@@ -86,7 +86,7 @@ class TestSearchSimilar:
 
         store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
             user_id="u42",
         )
 
@@ -100,7 +100,7 @@ class TestSearchSimilar:
 
         store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
         )
 
         call_kwargs = mock_session.exec.call_args
@@ -113,7 +113,7 @@ class TestSearchSimilar:
 
         store.search_similar(
             channel_id="my-channel",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
         )
 
         call_kwargs = mock_session.exec.call_args
@@ -126,7 +126,7 @@ class TestSearchSimilar:
 
         store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
             limit=3,
         )
 
@@ -140,7 +140,7 @@ class TestSearchSimilar:
 
         store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
             exclude_ids=[],
         )
 

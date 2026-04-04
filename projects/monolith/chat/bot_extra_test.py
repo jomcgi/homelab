@@ -138,7 +138,7 @@ class TestGenerateResponseEmbedFailure:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 512)
+        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         bot.agent.run = AsyncMock(side_effect=RuntimeError("model unavailable"))
 
         with (
@@ -212,7 +212,7 @@ class TestOnMessageDoubleSave:
         sent_msg.id = 777
         message.reply = AsyncMock(return_value=sent_msg)
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 512)
+        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Here's my answer!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
@@ -267,7 +267,7 @@ class TestGenerateResponseEmptyContext:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 512)
+        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Not much context, but here you go!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
@@ -299,7 +299,7 @@ class TestGenerateResponseEmptyContext:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 512)
+        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Hello!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
@@ -331,7 +331,7 @@ class TestGenerateResponseEmptyContext:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 512)
+        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         mock_agent_result = MagicMock()
         mock_agent_result.output = "It's time!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)

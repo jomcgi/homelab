@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -6,18 +9,26 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.log import configure_logging
 from notes.router import router as notes_router
 from schedule.router import router as schedule_router
 from todo.router import router as todo_router
 from todo.scheduler import run_scheduler
 
+configure_logging()
 logger = logging.getLogger(__name__)
+
+
+def _log_task_exception(task: "asyncio.Task[object]") -> None:
+    """Log unhandled exceptions from background tasks instead of silently dropping them."""
+    if not task.cancelled() and task.exception():
+        logger.error(
+            "Background task %s failed", task.get_name(), exc_info=task.exception()
+        )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    import asyncio
-
     from schedule.service import poll_calendar
 
     # Initial fetch, then poll every 5 minutes
@@ -38,6 +49,7 @@ async def lifespan(app: FastAPI):
 
         bot = create_bot()
         bot_task = asyncio.create_task(bot.start(discord_token))
+        bot_task.add_done_callback(_log_task_exception)
         logger.info("Discord bot starting")
 
     logger.info("Monolith started")

@@ -18,7 +18,7 @@ class TestEmbeddingClient:
         """embed() returns a list of floats from the API response."""
         fake_response = MagicMock()
         fake_response.status_code = 200
-        fake_response.json.return_value = {"data": [{"embedding": [0.1] * 512}]}
+        fake_response.json.return_value = {"data": [{"embedding": [0.1] * 1024}]}
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
@@ -29,7 +29,7 @@ class TestEmbeddingClient:
 
             result = await client.embed("hello world")
 
-        assert len(result) == 512
+        assert len(result) == 1024
         assert result[0] == pytest.approx(0.1)
 
     @pytest.mark.asyncio
@@ -37,7 +37,7 @@ class TestEmbeddingClient:
         """embed() sends the text to /v1/embeddings with the right model."""
         fake_response = MagicMock()
         fake_response.status_code = 200
-        fake_response.json.return_value = {"data": [{"embedding": [0.0] * 512}]}
+        fake_response.json.return_value = {"data": [{"embedding": [0.0] * 1024}]}
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()

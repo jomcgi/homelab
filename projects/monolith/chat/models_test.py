@@ -36,6 +36,6 @@ class TestMessageModel:
             user_id="789",
             username="test",
             content="hello",
-            embedding=[0.0] * 512,
+            embedding=[0.0] * 1024,
         )
         assert msg.is_bot is False
