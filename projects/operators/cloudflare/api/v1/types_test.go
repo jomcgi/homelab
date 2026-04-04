@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -363,8 +364,16 @@ func TestCloudflareTunnelStatusJSONRoundTrip(t *testing.T) {
 			if err := json.Unmarshal(data, &got); err != nil {
 				t.Fatalf("Unmarshal() error = %v", err)
 			}
-			if !reflect.DeepEqual(tt.status, got) {
-				t.Errorf("round-trip mismatch:\n  want: %+v\n  got:  %+v", tt.status, got)
+			// Use JSON byte comparison instead of reflect.DeepEqual to avoid
+			// spurious failures caused by metav1.Time.UnmarshalJSON calling
+			// pt.Local(), which produces a different *time.Location pointer
+			// than time.UTC even when both represent UTC.
+			gotData, err := json.Marshal(got)
+			if err != nil {
+				t.Fatalf("re-Marshal() error = %v", err)
+			}
+			if !bytes.Equal(data, gotData) {
+				t.Errorf("round-trip mismatch:\n  want: %s\n  got:  %s", data, gotData)
 			}
 		})
 	}
@@ -950,8 +959,16 @@ func TestCloudflareAccessPolicyStatusJSONRoundTrip(t *testing.T) {
 			if err := json.Unmarshal(data, &got); err != nil {
 				t.Fatalf("Unmarshal() error = %v", err)
 			}
-			if !reflect.DeepEqual(tt.status, got) {
-				t.Errorf("round-trip mismatch:\n  want: %+v\n  got:  %+v", tt.status, got)
+			// Use JSON byte comparison instead of reflect.DeepEqual to avoid
+			// spurious failures caused by metav1.Time.UnmarshalJSON calling
+			// pt.Local(), which produces a different *time.Location pointer
+			// than time.UTC even when both represent UTC.
+			gotData, err := json.Marshal(got)
+			if err != nil {
+				t.Fatalf("re-Marshal() error = %v", err)
+			}
+			if !bytes.Equal(data, gotData) {
+				t.Errorf("round-trip mismatch:\n  want: %s\n  got:  %s", data, gotData)
 			}
 		})
 	}
