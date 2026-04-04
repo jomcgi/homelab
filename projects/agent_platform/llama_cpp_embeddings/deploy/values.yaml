@@ -28,9 +28,13 @@ nodeSelector:
 podAnnotations:
   linkerd.io/inject: disabled
 
+runtimeClassName: null
+
 resources:
   requests:
     cpu: 2
     memory: "2Gi"
+    nvidia.com/gpu: null
   limits:
     memory: "4Gi"
+    nvidia.com/gpu: null
