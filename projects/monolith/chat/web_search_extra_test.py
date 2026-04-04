@@ -114,7 +114,9 @@ class TestSearchWebMalformedJson:
             mock_client.get.return_value = fake_response
             mock_cls.return_value = mock_client
 
-            with pytest.raises(Exception):  # json.JSONDecodeError is a subclass of ValueError
+            with pytest.raises(
+                Exception
+            ):  # json.JSONDecodeError is a subclass of ValueError
                 await search_web("query", base_url="http://fake:8080")
 
     @pytest.mark.asyncio
@@ -122,7 +124,9 @@ class TestSearchWebMalformedJson:
         """search_web raises KeyError when the JSON body has no 'results' key."""
         fake_response = MagicMock()
         fake_response.raise_for_status = MagicMock()
-        fake_response.json.return_value = {"error": "backend unavailable"}  # no 'results'
+        fake_response.json.return_value = {
+            "error": "backend unavailable"
+        }  # no 'results'
 
         with patch("chat.web_search.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
@@ -161,7 +165,9 @@ class TestSearchWebMalformedJson:
         fake_response = MagicMock()
         fake_response.raise_for_status = MagicMock()
         fake_response.json.return_value = {
-            "results": [{"title": "Real Title", "content": None, "url": "http://ex.com"}]
+            "results": [
+                {"title": "Real Title", "content": None, "url": "http://ex.com"}
+            ]
         }
 
         with patch("chat.web_search.httpx.AsyncClient") as mock_cls:
