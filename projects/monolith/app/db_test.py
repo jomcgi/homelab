@@ -183,8 +183,12 @@ class TestGetSession:
             gen = db_module.get_session()
             session = next(gen)
             assert isinstance(session, Session)
-            # Simulate an exception raised inside the caller (e.g. inside a route)
-            with pytest.raises(RuntimeError, match="caller error"):
-                gen.throw(RuntimeError("caller error"))
-            # The session should now be closed
-            assert not session.is_active
+            # Wrap close() to track whether it is called during cleanup.
+            # SQLAlchemy 2.x Session.is_active does NOT become False after close()
+            # (it resets to True for potential re-use), so we track the call directly.
+            with patch.object(session, "close", wraps=session.close) as mock_close:
+                # Simulate an exception raised inside the caller (e.g. inside a route)
+                with pytest.raises(RuntimeError, match="caller error"):
+                    gen.throw(RuntimeError("caller error"))
+                # The with-Session context manager must have called close() on exit
+                mock_close.assert_called_once()
