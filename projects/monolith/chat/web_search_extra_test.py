@@ -121,7 +121,7 @@ class TestSearchWebMalformedJson:
 
     @pytest.mark.asyncio
     async def test_raises_on_missing_results_key(self):
-        """search_web raises KeyError when the JSON body has no 'results' key."""
+        """search_web raises ValueError when the JSON body has no 'results' key."""
         fake_response = MagicMock()
         fake_response.raise_for_status = MagicMock()
         fake_response.json.return_value = {
@@ -135,7 +135,7 @@ class TestSearchWebMalformedJson:
             mock_client.get.return_value = fake_response
             mock_cls.return_value = mock_client
 
-            with pytest.raises(KeyError):
+            with pytest.raises(ValueError, match="unexpected search response shape"):
                 await search_web("query", base_url="http://fake:8080")
 
     @pytest.mark.asyncio

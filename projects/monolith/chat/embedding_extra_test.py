@@ -73,8 +73,8 @@ class TestEmbedMalformedJson:
 
 class TestEmbedMissingDataKey:
     @pytest.mark.asyncio
-    async def test_raises_key_error_when_data_key_absent(self, client):
-        """embed() raises KeyError when the JSON body has no 'data' key."""
+    async def test_raises_value_error_when_data_key_absent(self, client):
+        """embed() raises ValueError when the JSON body has no 'data' key."""
         fake_response = _make_ok_response({"error": "model not loaded"})
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
@@ -84,12 +84,12 @@ class TestEmbedMissingDataKey:
             mock_client.post.return_value = fake_response
             mock_cls.return_value = mock_client
 
-            with pytest.raises(KeyError):
+            with pytest.raises(ValueError, match="unexpected embedding response shape"):
                 await client.embed("hello")
 
     @pytest.mark.asyncio
-    async def test_raises_key_error_when_embedding_key_absent(self, client):
-        """embed() raises KeyError when 'data[0]' exists but has no 'embedding' key."""
+    async def test_raises_value_error_when_embedding_key_absent(self, client):
+        """embed() raises ValueError when 'data[0]' exists but has no 'embedding' key."""
         fake_response = _make_ok_response({"data": [{"index": 0}]})  # no 'embedding'
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
@@ -99,7 +99,7 @@ class TestEmbedMissingDataKey:
             mock_client.post.return_value = fake_response
             mock_cls.return_value = mock_client
 
-            with pytest.raises(KeyError):
+            with pytest.raises(ValueError, match="unexpected embedding response shape"):
                 await client.embed("hello")
 
 
@@ -110,8 +110,8 @@ class TestEmbedMissingDataKey:
 
 class TestEmbedEmptyDataArray:
     @pytest.mark.asyncio
-    async def test_raises_index_error_when_data_is_empty(self, client):
-        """embed() raises IndexError when 'data' is an empty list."""
+    async def test_raises_value_error_when_data_is_empty(self, client):
+        """embed() raises ValueError when 'data' is an empty list."""
         fake_response = _make_ok_response({"data": []})
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
@@ -121,25 +121,5 @@ class TestEmbedEmptyDataArray:
             mock_client.post.return_value = fake_response
             mock_cls.return_value = mock_client
 
-            with pytest.raises(IndexError):
+            with pytest.raises(ValueError, match="unexpected embedding response shape"):
                 await client.embed("no vectors here")
-
-    @pytest.mark.asyncio
-    async def test_raises_index_error_not_key_error_for_empty_data(self, client):
-        """The exception is specifically IndexError (list index out of range), not KeyError."""
-        fake_response = _make_ok_response({"data": []})
-
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
-            mock_client = AsyncMock()
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client.post.return_value = fake_response
-            mock_cls.return_value = mock_client
-
-            try:
-                await client.embed("empty")
-                pytest.fail("Expected IndexError was not raised")
-            except IndexError:
-                pass  # correct exception type
-            except KeyError:
-                pytest.fail("Got KeyError instead of expected IndexError")
