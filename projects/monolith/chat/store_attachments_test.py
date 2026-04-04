@@ -6,7 +6,7 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
-from chat.models import Attachment, Message
+from chat.models import Attachment, Blob, Message
 from chat.store import MessageStore
 
 
@@ -100,11 +100,12 @@ class TestGetAttachmentsEdgeCases:
 
         assert msg1.id in result
         assert len(result[msg1.id]) == 1
-        assert result[msg1.id][0].description == "A cat"
+        att, blob = result[msg1.id][0]
+        assert blob.description == "A cat"
 
         assert msg2.id in result
         assert len(result[msg2.id]) == 2
-        descriptions = {a.description for a in result[msg2.id]}
+        descriptions = {blob.description for _att, blob in result[msg2.id]}
         assert descriptions == {"A dog", "A bird"}
 
     @pytest.mark.asyncio
@@ -214,8 +215,8 @@ class TestSaveMessageWithAttachmentsAdditional:
         assert len(saved) == 0
 
     @pytest.mark.asyncio
-    async def test_attachment_data_is_preserved_exactly(self, store, session):
-        """save_message() stores attachment bytes without modification."""
+    async def test_blob_data_is_preserved_exactly(self, store, session):
+        """save_message() stores attachment bytes in the Blob without modification."""
         raw_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
         msg = await store.save_message(
             discord_message_id="bytes_check",
@@ -234,11 +235,13 @@ class TestSaveMessageWithAttachmentsAdditional:
             ],
         )
 
-        saved = session.exec(
+        saved_att = session.exec(
             select(Attachment).where(Attachment.message_id == msg.id)
         ).first()
-        assert saved is not None
-        assert saved.data == raw_bytes
+        assert saved_att is not None
+        saved_blob = session.get(Blob, saved_att.blob_sha256)
+        assert saved_blob is not None
+        assert saved_blob.data == raw_bytes
 
 
 # ---------------------------------------------------------------------------
@@ -251,25 +254,74 @@ class TestAttachmentModelInstantiation:
         """Attachment can be instantiated with all required fields set correctly."""
         att = Attachment(
             message_id=42,
-            data=b"\x89PNG",
-            content_type="image/png",
+            blob_sha256="abc123",
             filename="screenshot.png",
-            description="A screenshot of the dashboard",
         )
         assert att.message_id == 42
-        assert att.data == b"\x89PNG"
-        assert att.content_type == "image/png"
+        assert att.blob_sha256 == "abc123"
         assert att.filename == "screenshot.png"
-        assert att.description == "A screenshot of the dashboard"
         assert att.id is None  # Not persisted yet; primary key is None
 
     def test_attachment_id_defaults_to_none(self):
         """Attachment.id is None before DB persistence."""
         att = Attachment(
             message_id=1,
-            data=b"",
-            content_type="image/gif",
+            blob_sha256="def456",
             filename="anim.gif",
-            description="Animated",
         )
         assert att.id is None
+
+
+# ---------------------------------------------------------------------------
+# TestBlobDeduplication -- same image data in two messages
+# ---------------------------------------------------------------------------
+
+
+class TestBlobDeduplication:
+    @pytest.mark.asyncio
+    async def test_same_image_data_deduplicates_blob(self, store, session):
+        """Saving the same image bytes in two messages creates one Blob but two Attachments."""
+        shared_data = b"\x89PNG\x00SHARED_IMAGE_DATA"
+        attachment_dict = {
+            "data": shared_data,
+            "content_type": "image/png",
+            "filename": "photo.png",
+            "description": "A shared photo",
+        }
+
+        msg1 = await store.save_message(
+            discord_message_id="dedup1",
+            channel_id="ch1",
+            user_id="u1",
+            username="Alice",
+            content="First post",
+            is_bot=False,
+            attachments=[attachment_dict],
+        )
+        msg2 = await store.save_message(
+            discord_message_id="dedup2",
+            channel_id="ch1",
+            user_id="u2",
+            username="Bob",
+            content="Repost",
+            is_bot=False,
+            attachments=[{**attachment_dict, "filename": "repost.png"}],
+        )
+
+        assert msg1 is not None
+        assert msg2 is not None
+
+        # Two attachment rows, one per message
+        all_atts = session.exec(select(Attachment)).all()
+        att_for_msg1 = [a for a in all_atts if a.message_id == msg1.id]
+        att_for_msg2 = [a for a in all_atts if a.message_id == msg2.id]
+        assert len(att_for_msg1) == 1
+        assert len(att_for_msg2) == 1
+
+        # Both attachments point to the same blob
+        assert att_for_msg1[0].blob_sha256 == att_for_msg2[0].blob_sha256
+
+        # Only one blob row exists
+        all_blobs = session.exec(select(Blob)).all()
+        assert len(all_blobs) == 1
+        assert all_blobs[0].data == shared_data

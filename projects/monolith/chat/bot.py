@@ -1,5 +1,6 @@
 """Discord bot -- gateway listener and message handler."""
 
+import hashlib
 import logging
 import os
 
@@ -37,15 +38,26 @@ def should_respond(message: discord.Message, bot_user: discord.User) -> bool:
 async def download_image_attachments(
     attachments: list[discord.Attachment],
     vision_client: VisionClient,
+    store: MessageStore | None = None,
 ) -> list[dict]:
-    """Download image attachments and describe them with Gemma 4 vision."""
+    """Download image attachments and describe them with Gemma 4 vision.
+
+    When a store is provided, checks for an existing blob by content hash
+    and reuses its description instead of calling the vision model again.
+    """
     results = []
     for att in attachments:
         if not att.content_type or not att.content_type.startswith("image/"):
             continue
         try:
             data = await att.read()
-            description = await vision_client.describe(data, att.content_type)
+            sha = hashlib.sha256(data).hexdigest()
+            existing = store.get_blob(sha) if store else None
+            if existing:
+                description = existing.description
+                logger.info("Blob cache hit for %s (%s)", att.filename, sha[:12])
+            else:
+                description = await vision_client.describe(data, att.content_type)
             results.append(
                 {
                     "data": data,
@@ -76,15 +88,13 @@ class ChatBot(discord.Client):
         if message.author.id == self.user.id:
             return
 
-        # Process image attachments
-        attachments = await download_image_attachments(
-            message.attachments, self.vision_client
-        )
-
-        # Store incoming messages for memory/context
+        # Process image attachments (pass store for blob dedup)
         try:
             with Session(get_engine()) as session:
                 store = MessageStore(session=session, embed_client=self.embed_client)
+                attachments = await download_image_attachments(
+                    message.attachments, self.vision_client, store=store
+                )
                 await store.save_message(
                     discord_message_id=str(message.id),
                     channel_id=str(message.channel.id),
