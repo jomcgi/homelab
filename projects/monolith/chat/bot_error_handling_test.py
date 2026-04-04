@@ -295,9 +295,7 @@ class TestGenerateResponseRetry:
         mock_result = MagicMock()
         mock_result.output = "Recovered!"
         # First attempt fails, second succeeds.
-        bot.agent.run = AsyncMock(
-            side_effect=[RuntimeError("transient"), mock_result]
-        )
+        bot.agent.run = AsyncMock(side_effect=[RuntimeError("transient"), mock_result])
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
