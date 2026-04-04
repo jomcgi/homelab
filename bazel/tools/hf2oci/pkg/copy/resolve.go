@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -19,11 +20,12 @@ import (
 
 // ResolveOptions configures the resolve operation.
 type ResolveOptions struct {
-	Repo     string // HuggingFace repo (e.g. "Org/Model")
-	Registry string // Target OCI registry
-	Revision string // HF revision (default "main")
-	Tag      string // OCI tag override
-	File     string // GGUF filename prefix selector
+	Repo          string // HuggingFace repo (e.g. "Org/Model")
+	Registry      string // Target OCI registry
+	Revision      string // HF revision (default "main")
+	Tag           string // OCI tag override
+	File          string // GGUF filename prefix selector
+	IncludeMMProj bool   // Include mmproj GGUF alongside file-selected weights
 
 	HFClient   *hf.Client
 	RemoteOpts []remote.Option
@@ -43,9 +45,14 @@ type resolvedModel struct {
 	remoteOpts []remote.Option
 }
 
+// isMMProj returns true if the filename is a multimodal projector GGUF.
+func isMMProj(path string) bool {
+	return strings.HasPrefix(strings.ToLower(filepath.Base(path)), "mmproj")
+}
+
 // resolveModel runs the shared list → classify → filter → derive-tag → parse-ref
 // pipeline used by both Copy and Resolve.
-func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revision, tag, file string, remoteOpts []remote.Option) (*resolvedModel, error) {
+func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revision, tag, file string, includeMMProj bool, remoteOpts []remote.Option) (*resolvedModel, error) {
 	// 1. List files.
 	entries, err := client.Tree(ctx, repo, revision)
 	if err != nil {
@@ -72,6 +79,8 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 			for _, w := range weights {
 				if strings.EqualFold(w.Path, target) {
 					filtered = append(filtered, w)
+				} else if includeMMProj && isMMProj(w.Path) {
+					filtered = append(filtered, w)
 				}
 			}
 			if len(filtered) == 0 {
@@ -79,7 +88,17 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 			}
 			weights = filtered
 		} else if len(weights) > 1 {
-			return nil, Permanent(fmt.Errorf("GGUF repo has %d quantization variants; specify one with :filename (e.g., :ModelName-Q4_K_M). Available: %s", len(weights), ggufFileList(weights)))
+			// When no file selector, check if the "extra" files are just mmproj.
+			// If so, no ambiguity — the user wants the model + projector.
+			nonMMProj := 0
+			for _, w := range weights {
+				if !isMMProj(w.Path) {
+					nonMMProj++
+				}
+			}
+			if nonMMProj > 1 {
+				return nil, Permanent(fmt.Errorf("GGUF repo has %d quantization variants; specify one with :filename (e.g., :ModelName-Q4_K_M). Available: %s", len(weights), ggufFileList(weights)))
+			}
 		}
 	}
 
@@ -158,7 +177,7 @@ func Resolve(ctx context.Context, opts ResolveOptions) (*Result, error) {
 		return nil, fmt.Errorf("HFClient is required")
 	}
 
-	rm, err := resolveModel(ctx, opts.HFClient, opts.Repo, opts.Registry, opts.Revision, opts.Tag, opts.File, opts.RemoteOpts)
+	rm, err := resolveModel(ctx, opts.HFClient, opts.Repo, opts.Registry, opts.Revision, opts.Tag, opts.File, opts.IncludeMMProj, opts.RemoteOpts)
 	if err != nil {
 		return nil, err
 	}

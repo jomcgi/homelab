@@ -52,15 +52,16 @@ func AutoParallel() int {
 
 // Options configures the copy operation.
 type Options struct {
-	Repo         string // HuggingFace repo (e.g. "NousResearch/Hermes-3-8B")
-	Registry     string // Target registry (e.g. "ghcr.io/jomcgi/models")
-	Revision     string // HF revision (default "main")
-	Tag          string // OCI tag override (default "rev-{revision[:12]}")
-	ModelDir     string // In-image model path (default "/")
-	File         string // GGUF filename prefix selector (e.g. "ModelName-Q4_K_M")
-	MaxShardSize int64  // Max bytes per GGUF shard layer (0 = no splitting)
-	MaxParallel  int    // Max concurrent layer uploads/downloads (0 = default 100)
-	DryRun       bool
+	Repo          string // HuggingFace repo (e.g. "NousResearch/Hermes-3-8B")
+	Registry      string // Target registry (e.g. "ghcr.io/jomcgi/models")
+	Revision      string // HF revision (default "main")
+	Tag           string // OCI tag override (default "rev-{revision[:12]}")
+	ModelDir      string // In-image model path (default "/")
+	File          string // GGUF filename prefix selector (e.g. "ModelName-Q4_K_M")
+	IncludeMMProj bool   // Include mmproj GGUF alongside file-selected weights
+	MaxShardSize  int64  // Max bytes per GGUF shard layer (0 = no splitting)
+	MaxParallel   int    // Max concurrent layer uploads/downloads (0 = default 100)
+	DryRun        bool
 
 	// Callbacks for progress reporting.
 	OnResolve      func(repo, revision string)
@@ -111,7 +112,7 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	// 1-3. List, classify, filter, derive ref.
-	rm, err := resolveModel(ctx, client, opts.Repo, opts.Registry, opts.Revision, opts.Tag, opts.File, opts.RemoteOpts)
+	rm, err := resolveModel(ctx, client, opts.Repo, opts.Registry, opts.Revision, opts.Tag, opts.File, opts.IncludeMMProj, opts.RemoteOpts)
 	if err != nil {
 		return nil, err
 	}
