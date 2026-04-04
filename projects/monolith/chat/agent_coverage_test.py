@@ -20,10 +20,10 @@ class TestCreateAgent:
     def test_agent_has_web_search_tool(self):
         """The agent registers a tool named 'web_search'."""
         agent = create_agent(base_url="http://llama-fake:8080")
-        tool_names = [t.name for t in agent.tools]
-        assert "web_search" in tool_names
+        # PydanticAI stores function tools in _function_tools dict keyed by name
+        assert "web_search" in agent._function_tools
 
     def test_agent_has_exactly_one_tool(self):
         """The agent has exactly one registered tool (web_search)."""
         agent = create_agent(base_url="http://llama-fake:8080")
-        assert len(agent.tools) == 1
+        assert len(agent._function_tools) == 1

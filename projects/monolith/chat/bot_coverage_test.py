@@ -111,8 +111,8 @@ class TestOnReady:
     async def test_on_ready_logs_without_error(self):
         """on_ready() completes without raising even with a mock user."""
         bot = _make_bot()
-        bot.user = MagicMock()
-        bot.user.__str__ = lambda self: "BotUser#0001"
+        # _make_bot() already sets bot._connection.user; user is a read-only property
+        bot._connection.user.__str__ = MagicMock(return_value="BotUser#0001")
         await bot.on_ready()  # should not raise
 
 
@@ -126,8 +126,7 @@ class TestOnMessageStoreAlways:
     async def test_stores_every_message_even_when_not_responding(self):
         """on_message always calls save_message regardless of should_respond."""
         bot = _make_bot()
-        bot.user = MagicMock()
-        bot.user.id = 999
+        # user is a read-only property; _make_bot() sets _connection.user with id=999
 
         message = _make_message(author_bot=False, mentions=[])
         message.reference = None
@@ -152,8 +151,7 @@ class TestOnMessageStoreAlways:
     async def test_swallows_store_exception(self):
         """on_message does not propagate exceptions from the store phase."""
         bot = _make_bot()
-        bot.user = MagicMock()
-        bot.user.id = 999
+        # user is a read-only property; _make_bot() sets _connection.user with id=999
 
         message = _make_message(author_bot=False, mentions=[])
         message.reference = None
@@ -184,8 +182,7 @@ class TestOnMessageShouldRespondGuard:
     async def test_does_not_reply_to_bot_messages(self):
         """on_message returns early and does not call reply for bot-authored messages."""
         bot = _make_bot()
-        bot.user = MagicMock()
-        bot.user.id = 999
+        # user is a read-only property; _make_bot() sets _connection.user with id=999
 
         message = _make_message(author_bot=True)
 
@@ -214,10 +211,10 @@ class TestOnMessageGenerateReply:
     async def test_replies_when_mentioned(self):
         """on_message sends a reply when the bot is mentioned."""
         bot = _make_bot()
-        bot_user = MagicMock()
-        bot_user.id = 999
-        bot_user.display_name = "BotUser"
-        bot.user = bot_user
+        # user is a read-only property — configure via _connection.user
+        bot._connection.user.id = 999
+        bot._connection.user.display_name = "BotUser"
+        bot_user = bot.user
 
         message = _make_message(content="Hey bot!", mentions=[bot_user])
         message.reference = None
@@ -249,10 +246,10 @@ class TestOnMessageGenerateReply:
     async def test_swallows_reply_exception(self):
         """on_message does not propagate exceptions from the reply phase."""
         bot = _make_bot()
-        bot_user = MagicMock()
-        bot_user.id = 999
-        bot_user.display_name = "BotUser"
-        bot.user = bot_user
+        # user is a read-only property — configure via _connection.user
+        bot._connection.user.id = 999
+        bot._connection.user.display_name = "BotUser"
+        bot_user = bot.user
 
         message = _make_message(content="Hey bot!", mentions=[bot_user])
         message.reference = None
@@ -295,9 +292,8 @@ class TestGenerateResponse:
         from chat.models import Message
 
         bot = _make_bot()
-        bot_user = MagicMock()
-        bot_user.id = 999
-        bot.user = bot_user
+        # user is a read-only property — configure via _connection.user
+        bot._connection.user.id = 999
 
         msg = _make_message(content="What is the weather?")
 
@@ -345,8 +341,8 @@ class TestGenerateResponse:
         from chat.models import Message
 
         bot = _make_bot()
-        bot.user = MagicMock()
-        bot.user.id = 999
+        # user is a read-only property — configure via _connection.user
+        bot._connection.user.id = 999
 
         msg = _make_message(content="Tell me something")
 
