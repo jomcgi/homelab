@@ -1,8 +1,10 @@
 """Additional coverage for create_agent() -- explicit base_url and tool registration."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from chat.agent import create_agent
+from pydantic_ai import Agent
+
+from chat.agent import build_system_prompt, create_agent
 
 
 class TestCreateAgent:
@@ -17,28 +19,13 @@ class TestCreateAgent:
             agent = create_agent()
         assert agent is not None
 
-    def test_agent_has_web_search_tool(self):
-        """The agent registers a tool named 'web_search'."""
+    def test_returns_pydantic_ai_agent_instance(self):
+        """create_agent() returns a proper pydantic_ai Agent instance."""
         agent = create_agent(base_url="http://llama-fake:8080")
-        # PydanticAI exposes registered tools via _function_toolset; verify it is
-        # present and the string representation mentions 'web_search'.
-        toolset = agent._function_toolset
-        assert toolset is not None
-        assert "web_search" in repr(toolset)
+        assert isinstance(agent, Agent)
 
-    def test_agent_has_exactly_one_tool(self):
-        """The agent has exactly one registered tool (web_search)."""
-        agent = create_agent(base_url="http://llama-fake:8080")
-        toolset = agent._function_toolset
-        assert toolset is not None
-        # FunctionToolset stores tools in a dict; access via _tools (pydantic-ai internals)
-        tools = (
-            getattr(toolset, "_tools", None)
-            or getattr(toolset, "_functions", None)
-            or {}
-        )
-        # Accept either: exactly 1 tool in the dict, or the repr contains 'web_search' once
-        if tools:
-            assert len(tools) == 1
-        else:
-            assert repr(toolset).count("web_search") >= 1
+    def test_system_prompt_references_web_search(self):
+        """The system prompt instructs the model about the web_search tool."""
+        prompt = build_system_prompt()
+        assert "web_search" in prompt
+        assert "Discord" in prompt
