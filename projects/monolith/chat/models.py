@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from pgvector.sqlalchemy import Vector
 from pydantic import field_validator
-from sqlalchemy import Column
+from sqlalchemy import Column, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -42,3 +42,19 @@ class Attachment(SQLModel, table=True):
     content_type: str
     filename: str
     description: str
+
+
+class UserChannelSummary(SQLModel, table=True):
+    __tablename__ = "user_channel_summaries"
+    __table_args__ = (
+        UniqueConstraint("channel_id", "user_id"),
+        {"schema": "chat"},
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    channel_id: str
+    user_id: str
+    username: str
+    summary: str
+    last_message_id: int
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

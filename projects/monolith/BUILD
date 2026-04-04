@@ -560,6 +560,17 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_models_summary_test",
+    srcs = ["chat/models_summary_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
