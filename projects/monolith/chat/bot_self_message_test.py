@@ -119,3 +119,5 @@ class TestOnMessageSelfMessageEarlyReturn:
 
         # Store should have been called for the non-self message
         mock_store.save_message.assert_called_once()
+        # Non-mention messages should not trigger a reply
+        message.reply.assert_not_called()

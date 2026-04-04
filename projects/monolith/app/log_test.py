@@ -37,7 +37,7 @@ class TestHealthzFilter:
         record.getMessage.return_value = "some prefix /healthz suffix"
         assert f.filter(record) is False
 
-    def test_passes_healthz_in_unrelated_context(self):
+    def test_suppresses_healthz_in_any_context(self):
         """_HealthzFilter.filter() suppresses any message that contains '/healthz'."""
         f = _HealthzFilter()
         record = MagicMock(spec=logging.LogRecord)
@@ -47,6 +47,15 @@ class TestHealthzFilter:
 
 
 class TestConfigureLogging:
+    def setup_method(self):
+        """Clear uvicorn.access filters before each test to prevent _HealthzFilter accumulation.
+
+        configure_logging() calls addFilter() without deduplication, so repeated calls
+        across tests would stack multiple _HealthzFilter instances on the global logger.
+        Resetting here keeps each test isolated regardless of execution order.
+        """
+        logging.getLogger("uvicorn.access").filters.clear()
+
     def test_sets_root_logger_level(self):
         """configure_logging() sets the root logger to the specified level."""
         configure_logging(logging.DEBUG)
