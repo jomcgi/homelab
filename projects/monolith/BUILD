@@ -709,6 +709,16 @@ py_test(
 )
 
 py_test(
+    name = "chat_store_embed_text_test",
+    srcs = ["chat/store_embed_text_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "chat_bot_backoff_test",
     srcs = ["chat/bot_backoff_test.py"],
     imports = ["."],
