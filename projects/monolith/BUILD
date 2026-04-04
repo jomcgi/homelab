@@ -353,6 +353,19 @@ py_test(
 )
 
 py_test(
+    name = "chat_agent_deps_test",
+    srcs = ["chat/agent_deps_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "chat_agent_coverage_test",
     srcs = ["chat/agent_coverage_test.py"],
     imports = ["."],
