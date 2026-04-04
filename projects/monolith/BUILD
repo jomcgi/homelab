@@ -377,6 +377,72 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_agent_extra_test",
+    srcs = ["chat/agent_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "chat_bot_extra_test",
+    srcs = ["chat/bot_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "chat_web_search_extra_test",
+    srcs = ["chat/web_search_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "chat_store_extra_test",
+    srcs = ["chat/store_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "main_otel_test",
+    srcs = ["app/main_otel_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     exclude_rules = [
