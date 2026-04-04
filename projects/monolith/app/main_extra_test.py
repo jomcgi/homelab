@@ -108,6 +108,7 @@ class TestLifespanPollCalendarException:
     @pytest.mark.asyncio
     async def test_lifespan_shuts_down_cleanly_after_poll_calendar_failure(self):
         """Lifespan cleans up (cancels tasks) even when poll_calendar already failed."""
+
         async def failing_poll_calendar():
             raise RuntimeError("calendar service down")
 
@@ -151,6 +152,7 @@ class TestLifespanRunSchedulerException:
     @pytest.mark.asyncio
     async def test_lifespan_shuts_down_cleanly_after_run_scheduler_failure(self):
         """Lifespan completes shutdown even when run_scheduler already raised."""
+
         async def failing_run_scheduler():
             raise RuntimeError("scheduler db error")
 
