@@ -100,7 +100,7 @@ sequenceDiagram
 
 ## Security
 
-- The endpoint should be **internal-only** — not exposed via Cloudflare tunnel. Since the monolith's Envoy Gateway routes are explicit, this is the default.
+- The endpoint is exposed on `private.jomcgi.dev`, gated by Cloudflare Access SSO — no additional auth needed.
 - No new secrets required — reuses existing `DISCORD_BOT_TOKEN` from 1Password.
 - Image data stored in PostgreSQL is limited to what's already accessible via the bot's Discord permissions.
 
@@ -117,10 +117,10 @@ sequenceDiagram
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. Should the backfill endpoint require an API key or other auth, even if internal-only?
-2. Maximum image size cutoff — should we skip very large attachments (e.g. >10MB)?
+1. **Auth:** Endpoint lives on `private.jomcgi.dev`, gated by Cloudflare Access SSO — no per-endpoint auth needed.
+2. **Image size cutoff:** No limit — store all attachments regardless of size.
 
 ---
 
