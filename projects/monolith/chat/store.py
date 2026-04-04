@@ -23,8 +23,10 @@ class MessageStore:
         username: str,
         content: str,
         is_bot: bool,
-    ) -> Message:
-        """Embed and persist a message."""
+    ) -> Message | None:
+        """Embed and persist a message. Returns None if already stored."""
+        from sqlalchemy.exc import IntegrityError
+
         embedding = await self.embed_client.embed(content)
         msg = Message(
             discord_message_id=discord_message_id,
@@ -35,10 +37,14 @@ class MessageStore:
             is_bot=is_bot,
             embedding=embedding,
         )
-        self.session.add(msg)
-        self.session.commit()
-        self.session.refresh(msg)
-        return msg
+        try:
+            self.session.add(msg)
+            self.session.commit()
+            self.session.refresh(msg)
+            return msg
+        except IntegrityError:
+            self.session.rollback()
+            return None
 
     def get_recent(self, channel_id: str, limit: int = 20) -> list[Message]:
         """Return the most recent messages in a channel, oldest first."""
