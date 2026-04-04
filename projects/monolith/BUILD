@@ -6,9 +6,9 @@
 # gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,tainted-fastapi-http-request-httpx
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
 load("//bazel/tools/js:exec_filegroup.bzl", "exec_filegroup")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
