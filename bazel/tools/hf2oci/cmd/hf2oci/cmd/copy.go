@@ -13,14 +13,15 @@ import (
 )
 
 var (
-	copyRegistry     string
-	copyRevision     string
-	copyTag          string
-	copyModelDir     string
-	copyFile         string
-	copyMaxShardSize string
-	copyMaxParallel  int
-	copyDryRun       bool
+	copyRegistry      string
+	copyRevision      string
+	copyTag           string
+	copyModelDir      string
+	copyFile          string
+	copyIncludeMMProj bool
+	copyMaxShardSize  string
+	copyMaxParallel   int
+	copyDryRun        bool
 )
 
 var copyCmd = &cobra.Command{
@@ -60,6 +61,7 @@ func init() {
 	copyCmd.Flags().StringVarP(&copyTag, "tag", "t", "", "Override OCI tag (default: rev-{revision[:12]})")
 	copyCmd.Flags().StringVar(&copyModelDir, "model-dir", "", "In-image model path (default: /)")
 	copyCmd.Flags().StringVar(&copyFile, "file", "", "GGUF filename prefix selector (e.g. ModelName-Q4_K_M)")
+	copyCmd.Flags().BoolVar(&copyIncludeMMProj, "include-mmproj", false, "Include mmproj GGUF (multimodal projector) alongside file-selected weights")
 	copyCmd.Flags().StringVar(&copyMaxShardSize, "max-shard-size", "500M", "Max size per GGUF shard layer (e.g. 4G, 500M). 0 disables splitting.")
 	copyCmd.Flags().IntVar(&copyMaxParallel, "max-parallel", 0, "Max concurrent layer uploads/downloads (0 = auto from GOMEMLIMIT, fallback 100)")
 	copyCmd.Flags().BoolVar(&copyDryRun, "dry-run", false, "List files without downloading or pushing")
@@ -96,16 +98,17 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := copy.Options{
-		Repo:         repo,
-		Registry:     copyRegistry,
-		Revision:     copyRevision,
-		Tag:          copyTag,
-		ModelDir:     copyModelDir,
-		File:         copyFile,
-		MaxShardSize: maxShard,
-		MaxParallel:  parallel,
-		DryRun:       copyDryRun,
-		HFClient:     client,
+		Repo:          repo,
+		Registry:      copyRegistry,
+		Revision:      copyRevision,
+		Tag:           copyTag,
+		ModelDir:      copyModelDir,
+		File:          copyFile,
+		IncludeMMProj: copyIncludeMMProj,
+		MaxShardSize:  maxShard,
+		MaxParallel:   parallel,
+		DryRun:        copyDryRun,
+		HFClient:      client,
 	}
 
 	// Transfer progress is always logged to stderr (visible in container logs

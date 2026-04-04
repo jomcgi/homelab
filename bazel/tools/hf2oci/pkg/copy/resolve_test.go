@@ -184,6 +184,22 @@ func TestResolveNoWeightsIsPermanent(t *testing.T) {
 	assert.Contains(t, err.Error(), "no weight files found")
 }
 
+func TestIsMMProj(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"mmproj-BF16.gguf", true},
+		{"mmproj-gemma-4-26B-A4B-it-f16.gguf", true},
+		{"MMPROJ-Model-f16.gguf", true},
+		{"Model-Q4_K_M.gguf", false},
+		{"model.gguf", false},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, isMMProj(tt.path), "isMMProj(%q)", tt.path)
+	}
+}
+
 func TestResolveWithBaseModel(t *testing.T) {
 	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

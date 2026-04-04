@@ -525,6 +525,71 @@ func TestCopyGGUFWithFileSelector(t *testing.T) {
 	assert.Equal(t, "ghcr.io/test/bartowski/model-gguf:bartowski-gguf-model-q4-k-m", result.Ref)
 }
 
+func TestCopyGGUFWithFileSelectorAndMMProj(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/bartowski/Model-GGUF/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "Model-Q4_K_M.gguf", Size: 1024},
+				{Type: "file", Path: "Model-Q8_0.gguf", Size: 2048},
+				{Type: "file", Path: "mmproj-BF16.gguf", Size: 512},
+				{Type: "file", Path: "README.md", Size: 50},
+			})
+		case r.URL.Path == "/api/models/bartowski/Model-GGUF":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "bartowski/Model-GGUF"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+
+	// With file selector + include-mmproj, should include both the selected weight and mmproj.
+	result, err := Copy(context.Background(), Options{
+		Repo:          "bartowski/Model-GGUF",
+		Registry:      "ghcr.io/test",
+		File:          "Model-Q4_K_M",
+		IncludeMMProj: true,
+		DryRun:        true,
+		HFClient:      client,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.FileCount)               // model + mmproj
+	assert.Equal(t, int64(1024+512), result.TotalSize) // model + mmproj sizes
+}
+
+func TestCopyGGUFMultiFileWithMMProjNoSelectorNeeded(t *testing.T) {
+	// When a repo has one model + one mmproj, no file selector should be required.
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/Org/Model-GGUF/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "Model.gguf", Size: 1024},
+				{Type: "file", Path: "mmproj-BF16.gguf", Size: 512},
+			})
+		case r.URL.Path == "/api/models/Org/Model-GGUF":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model-GGUF"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+
+	// Without file selector, should succeed because only one non-mmproj weight exists.
+	result, err := Copy(context.Background(), Options{
+		Repo:     "Org/Model-GGUF",
+		Registry: "ghcr.io/test",
+		DryRun:   true,
+		HFClient: client,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.FileCount) // model + mmproj
+	assert.Equal(t, int64(1024+512), result.TotalSize)
+}
+
 func TestCopyGGUFFileSelectorNoMatch(t *testing.T) {
 	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
