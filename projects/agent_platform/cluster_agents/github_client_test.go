@@ -331,3 +331,51 @@ func TestGitHubClient_hasFailingChecks_NoSuites(t *testing.T) {
 		t.Error("expected hasFailing=false when check-suites list is empty")
 	}
 }
+
+// TestGitHubClient_hasFailingChecks_APIError verifies that a non-200 response
+// from the check-suites endpoint is returned as an error.
+func TestGitHubClient_hasFailingChecks_APIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	client := NewGitHubClient(server.URL, "test-token", "jomcgi/homelab")
+	_, err := client.hasFailingChecks(context.Background(), "sha-err")
+	if err == nil {
+		t.Fatal("expected error for non-200 check-suites response, got nil")
+	}
+}
+
+// TestGitHubClient_hasFailingChecks_BadJSON verifies that a malformed JSON
+// body from the check-suites endpoint is propagated as a decode error.
+func TestGitHubClient_hasFailingChecks_BadJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("not-valid-json"))
+	}))
+	defer server.Close()
+
+	client := NewGitHubClient(server.URL, "test-token", "jomcgi/homelab")
+	_, err := client.hasFailingChecks(context.Background(), "sha-badjson")
+	if err == nil {
+		t.Fatal("expected decode error for invalid JSON check-suites body, got nil")
+	}
+}
+
+// TestGitHubClient_OpenPRsWithFailingChecks_InvalidJSON verifies that when the
+// /pulls endpoint returns 200 OK with an invalid JSON body, the error is
+// propagated rather than returning empty results.
+func TestGitHubClient_OpenPRsWithFailingChecks_InvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("not-valid-json{{{"))
+	}))
+	defer server.Close()
+
+	client := NewGitHubClient(server.URL, "test-token", "jomcgi/homelab")
+	_, err := client.OpenPRsWithFailingChecks(context.Background(), 1*time.Hour)
+	if err == nil {
+		t.Fatal("expected decode error for invalid JSON /pulls response, got nil")
+	}
+}
