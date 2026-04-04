@@ -507,6 +507,22 @@ py_test(
 )
 
 py_test(
+    name = "main_sidecar_test",
+    srcs = ["app/main_sidecar_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
     name = "store_integrity_test",
     srcs = ["chat/store_integrity_test.py"],
     imports = ["."],
