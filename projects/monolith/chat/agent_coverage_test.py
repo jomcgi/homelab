@@ -32,7 +32,11 @@ class TestCreateAgent:
         toolset = agent._function_toolset
         assert toolset is not None
         # FunctionToolset stores tools in a dict; access via _tools (pydantic-ai internals)
-        tools = getattr(toolset, "_tools", None) or getattr(toolset, "_functions", None) or {}
+        tools = (
+            getattr(toolset, "_tools", None)
+            or getattr(toolset, "_functions", None)
+            or {}
+        )
         # Accept either: exactly 1 tool in the dict, or the repr contains 'web_search' once
         if tools:
             assert len(tools) == 1
