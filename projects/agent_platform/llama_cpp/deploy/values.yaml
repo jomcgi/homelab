@@ -38,6 +38,9 @@ server:
   ## Host and port
   host: "0.0.0.0"
   port: 8080
+  ## Path to the multimodal projector GGUF (mmproj).
+  ## If empty and modelVolume is enabled, auto-discovers mmproj*.gguf files.
+  mmproj: ""
   ## Override the model's built-in chat template (Jinja format).
   ## When set, creates a ConfigMap and passes --chat-template-file.
   chatTemplate: ""

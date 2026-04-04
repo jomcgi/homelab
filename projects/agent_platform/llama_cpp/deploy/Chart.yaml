@@ -2,7 +2,7 @@ apiVersion: v2
 name: llama-cpp
 description: A Helm chart for llama.cpp (llama-server) LLM inference
 type: application
-version: 1.0.0
+version: 1.1.0
 appVersion: "b5270"
 keywords:
   - llm
