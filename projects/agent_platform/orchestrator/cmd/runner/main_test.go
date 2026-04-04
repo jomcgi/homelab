@@ -174,6 +174,22 @@ func TestHandleOutput_InvalidOffset(t *testing.T) {
 	}
 }
 
+// TestHandleRun_InvalidJSONBody verifies that a POST /run with a body that
+// cannot be decoded as JSON returns 400 Bad Request. This covers the
+// json.NewDecoder(req.Body).Decode(&body) error path in handleRun.
+func TestHandleRun_InvalidJSONBody(t *testing.T) {
+	r := newTestRunner()
+	req := httptest.NewRequest(http.MethodPost, "/run", strings.NewReader("not-valid-json{{{"))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	r.handleRun(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid JSON body, got %d", rec.Code)
+	}
+}
+
 func TestHandleRun_RejectsEmpty(t *testing.T) {
 	r := newTestRunner()
 	body := `{"task":""}`
