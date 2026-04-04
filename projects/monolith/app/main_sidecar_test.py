@@ -399,11 +399,12 @@ async def test_start_bot_when_ready_calls_wait_for_sidecar_before_bot_start():
         async with lifespan(app):
             pass
 
-    assert len(captured_bot_coro) == 1, (
-        "Expected exactly one bot coroutine captured from create_task"
-    )
-    # Actually run _start_bot_when_ready to verify sequencing
-    await captured_bot_coro[0]
+        assert len(captured_bot_coro) == 1, (
+            "Expected exactly one bot coroutine captured from create_task"
+        )
+        # Actually run _start_bot_when_ready to verify sequencing
+        # Must run inside the patch context so _wait_for_sidecar mock is still active
+        await captured_bot_coro[0]
 
     assert call_order == ["_wait_for_sidecar", "bot.start"], (
         f"Expected _wait_for_sidecar before bot.start; got: {call_order}"
