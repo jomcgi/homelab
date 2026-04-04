@@ -4,7 +4,14 @@ package(default_visibility = ["//visibility:public"])
 
 filegroup(
     name = "yaml_fixtures",
-    srcs = glob(["fixtures/*.yaml"]),
+    srcs = glob(
+        ["fixtures/*.yaml"],
+        # Reference fixtures for non-yaml language rules are excluded to avoid
+        # being tested against yaml semgrep rules (which would cause false failures).
+        exclude = [
+            "fixtures/unsafe-json-field-access.yaml",
+        ],
+    ),
 )
 
 # Fixture for the stale-copyright-year rule (languages: generic).
