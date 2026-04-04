@@ -113,6 +113,18 @@ class TestGetEngine:
         assert first is mock_engine_a
         assert second is mock_engine_b
 
+    def test_database_url_is_passed_as_argument_to_create_engine(self):
+        """get_engine() passes DATABASE_URL as the positional argument to create_engine.
+
+        A wrong-URL regression would otherwise be undetectable: create_engine could
+        be called with any string and the return-value assertion would still pass.
+        """
+        mock_engine = MagicMock()
+        with patch("app.db.create_engine", return_value=mock_engine) as mock_create:
+            db_module.get_engine.cache_clear()
+            db_module.get_engine()
+        mock_create.assert_called_once_with(db_module.DATABASE_URL)
+
 
 # ---------------------------------------------------------------------------
 # get_session() — FastAPI dependency injection
@@ -158,3 +170,21 @@ class TestGetSession:
                 next(gen)
             except StopIteration:
                 pass
+
+    def test_session_closes_after_exception_in_caller(self):
+        """get_session() closes the session even when the caller raises an exception.
+
+        FastAPI dependency injection calls generator.throw() with the request
+        exception; the session must still be closed (and the transaction rolled
+        back) to avoid connection leaks.
+        """
+        engine = self._sqlite_engine()
+        with patch.object(db_module, "get_engine", return_value=engine):
+            gen = db_module.get_session()
+            session = next(gen)
+            assert isinstance(session, Session)
+            # Simulate an exception raised inside the caller (e.g. inside a route)
+            with pytest.raises(RuntimeError, match="caller error"):
+                gen.throw(RuntimeError("caller error"))
+            # The session should now be closed
+            assert not session.is_active
