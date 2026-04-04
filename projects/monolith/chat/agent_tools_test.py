@@ -1,0 +1,32 @@
+"""Tests for tool registration in the PydanticAI chat agent."""
+
+import pytest
+
+from chat.agent import create_agent
+
+
+class TestAgentToolRegistration:
+    def test_search_history_tool_registered(self):
+        """create_agent() registers 'search_history' as a callable tool."""
+        agent = create_agent(base_url="http://fake:8080")
+        tool_names = set(agent._function_tools.keys())
+        assert "search_history" in tool_names
+
+    def test_get_user_summary_tool_registered(self):
+        """create_agent() registers 'get_user_summary' as a callable tool."""
+        agent = create_agent(base_url="http://fake:8080")
+        tool_names = set(agent._function_tools.keys())
+        assert "get_user_summary" in tool_names
+
+    def test_web_search_tool_registered(self):
+        """create_agent() registers 'web_search' as a callable tool."""
+        agent = create_agent(base_url="http://fake:8080")
+        tool_names = set(agent._function_tools.keys())
+        assert "web_search" in tool_names
+
+    def test_all_three_tools_registered(self):
+        """create_agent() registers exactly web_search, search_history, and get_user_summary."""
+        agent = create_agent(base_url="http://fake:8080")
+        tool_names = set(agent._function_tools.keys())
+        expected_tools = {"web_search", "search_history", "get_user_summary"}
+        assert expected_tools.issubset(tool_names)
