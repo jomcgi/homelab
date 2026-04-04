@@ -90,14 +90,12 @@ spec:
             - name: API_BASE
               value: "http://localhost:8000"
           livenessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
-            httpGet:
-              path: /
+            tcpSocket:
               port: http
             initialDelaySeconds: 3
             periodSeconds: 5
