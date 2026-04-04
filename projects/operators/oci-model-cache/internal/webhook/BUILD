@@ -24,7 +24,10 @@ go_library(
 
 go_test(
     name = "webhook_test",
-    srcs = ["pod_mutator_test.go"],
+    srcs = [
+        "pod_mutator_coverage_test.go",
+        "pod_mutator_test.go",
+    ],
     embed = [":webhook"],
     deps = [
         "//bazel/tools/hf2oci/pkg/hf",
@@ -34,10 +37,13 @@ go_test(
         "@com_github_stretchr_testify//require",
         "@io_k8s_api//admission/v1:admission",
         "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/errors",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
         "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_k8s_sigs_controller_runtime//pkg/client/fake",
+        "@io_k8s_sigs_controller_runtime//pkg/client/interceptor",
         "@io_k8s_sigs_controller_runtime//pkg/webhook/admission",
     ],
 )
