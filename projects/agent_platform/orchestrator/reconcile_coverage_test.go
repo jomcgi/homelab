@@ -173,8 +173,10 @@ func TestReconcileOrphanedJobs_DoneRunnerOutputTruncated(t *testing.T) {
 	last := job.Attempts[len(job.Attempts)-1]
 
 	// Output must be truncated (only the tail is kept).
-	if len(last.Output) > maxOutputBytes {
-		t.Errorf("output length %d exceeds maxOutputBytes %d", len(last.Output), maxOutputBytes)
+	// cleanOutput() appends a trailing "\n" to non-empty output, so the
+	// stored length may be maxOutputBytes+1.
+	if len(last.Output) > maxOutputBytes+1 {
+		t.Errorf("output length %d exceeds maxOutputBytes+1 %d", len(last.Output), maxOutputBytes+1)
 	}
 	// The tail of the original output must be present after truncation.
 	if !strings.Contains(last.Output, tailMarker) {
@@ -228,8 +230,9 @@ func TestReconcileOrphanedJobs_FailedRunnerOutputTruncated(t *testing.T) {
 	}
 	last := job.Attempts[len(job.Attempts)-1]
 
-	if len(last.Output) > maxOutputBytes {
-		t.Errorf("output length %d exceeds maxOutputBytes %d", len(last.Output), maxOutputBytes)
+	// cleanOutput() appends a trailing "\n" to non-empty output.
+	if len(last.Output) > maxOutputBytes+1 {
+		t.Errorf("output length %d exceeds maxOutputBytes+1 %d", len(last.Output), maxOutputBytes+1)
 	}
 	if !strings.Contains(last.Output, tailMarker) {
 		t.Errorf("output tail %q not found after truncation", tailMarker)
