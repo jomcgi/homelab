@@ -7,7 +7,11 @@ filegroup(
     srcs = glob(
         ["fixtures/*.yaml"],
         # Exclude Go-rule reference fixtures that are not tested against yaml_rules.
-        exclude = ["fixtures/no-discarded-json-marshal.yaml"],
+        # Exclude SQL/generic rule fixtures that are tested separately.
+        exclude = [
+            "fixtures/no-create-extension-sql.yaml",
+            "fixtures/no-discarded-json-marshal.yaml",
+        ],
     ),
 )
 
@@ -28,6 +32,13 @@ filegroup(
 filegroup(
     name = "no_stale_repo_paths_fixtures",
     srcs = ["fixtures/no-stale-repo-paths.md"],
+)
+
+# Fixture for the no-create-extension-sql rule (languages: generic, paths: **/migrations/*.sql).
+# Referenced by //bazel/semgrep/rules:sql_rules_test.
+filegroup(
+    name = "no_create_extension_sql_fixtures",
+    srcs = ["fixtures/no-create-extension-sql.yaml"],
 )
 
 # Fixtures for kubernetes rules (require-readiness-probe, require-resource-limits, etc.).
