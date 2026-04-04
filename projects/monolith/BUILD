@@ -584,6 +584,19 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_store_summary_test",
+    srcs = ["chat/store_summary_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
