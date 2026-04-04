@@ -12,6 +12,7 @@ filegroup(
             "fixtures/no-create-extension-sql.yaml",
             "fixtures/no-discarded-json-marshal.yaml",
             "fixtures/no-shared-preload-libraries-cnpg.yaml",
+            "fixtures/unsafe-json-field-access.yaml",
         ],
     ),
 )
