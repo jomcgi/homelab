@@ -69,3 +69,24 @@ semgrep_test(
     srcs = ["rebuild_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+# gazelle:resolve py publish_images_test //projects/trips/tools/publish-trip-images:publish-trip-images
+py_test(
+    name = "publish_images_test",
+    srcs = ["publish_images_test.py"],
+    imports = ["."],
+    deps = [
+        "//projects/trips/tools/elevation",
+        "//projects/trips/tools/publish-trip-images",
+        "@pip//botocore",
+        "@pip//pillow",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "publish_images_test_semgrep_test",
+    srcs = ["publish_images_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
