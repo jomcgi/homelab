@@ -19,6 +19,12 @@ spec:
       - name: vector
         image:
           reference: {{ .Values.postgres.pgvector.image }}
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "10m"
+    limits:
+      memory: "256Mi"
   bootstrap:
     initdb:
       database: monolith
