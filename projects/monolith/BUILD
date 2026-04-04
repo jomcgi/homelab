@@ -473,6 +473,19 @@ py_test(
 )
 
 py_test(
+    name = "chat_summarizer_test",
+    srcs = ["chat/summarizer_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "main_extra_test",
     srcs = ["app/main_extra_test.py"],
     imports = ["."],
