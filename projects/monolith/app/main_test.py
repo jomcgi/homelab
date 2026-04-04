@@ -473,7 +473,9 @@ async def test_lifespan_does_not_log_discord_bot_starting_when_token_absent():
     """When DISCORD_BOT_TOKEN is absent, 'Discord bot starting' is NOT logged."""
     from app.main import lifespan
 
-    env_without_token = {k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"}
+    env_without_token = {
+        k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
+    }
 
     def capture_create_task(coro, **kwargs):
         if hasattr(coro, "close"):
