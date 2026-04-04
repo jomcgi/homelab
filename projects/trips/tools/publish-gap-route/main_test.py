@@ -80,17 +80,13 @@ class TestGetJetstream:
         mock_nc = AsyncMock()
         mock_js = AsyncMock()
         mock_nc.jetstream = MagicMock(return_value=mock_js)
-        mock_js.stream_info = AsyncMock(
-            side_effect=nats.js.errors.NotFoundError()
-        )
+        mock_js.stream_info = AsyncMock(side_effect=nats.js.errors.NotFoundError())
         mock_js.add_stream = AsyncMock()
 
         with patch("main.nats.connect", return_value=mock_nc):
             await get_jetstream()
 
-        mock_js.add_stream.assert_awaited_once_with(
-            name="trips", subjects=["trips.>"]
-        )
+        mock_js.add_stream.assert_awaited_once_with(name="trips", subjects=["trips.>"])
 
     @pytest.mark.asyncio
     async def test_does_not_create_stream_when_it_exists(self):

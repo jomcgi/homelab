@@ -64,6 +64,7 @@ py_test(
     imports = ["."],
     deps = [
         "//projects/trips/tools/publish-gap-route",
+        "@pip//nats_py",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],
