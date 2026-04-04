@@ -718,15 +718,15 @@ var _ = Describe("FuncVisitor: specific handler takes precedence over Default", 
 var _ = Describe("Visit() with int generic parameter", func() {
 	It("returns the int value from the matching visitor method", func() {
 		stateOrder := map[string]int{
-			PhasePending:           1,
-			PhaseCreatingTunnel:    2,
-			PhaseCreatingSecret:    3,
+			PhasePending:            1,
+			PhaseCreatingTunnel:     2,
+			PhaseCreatingSecret:     3,
 			PhaseConfiguringIngress: 4,
-			PhaseReady:             5,
-			PhaseFailed:            6,
-			PhaseDeletingTunnel:    7,
-			PhaseDeleted:           8,
-			PhaseUnknown:           9,
+			PhaseReady:              5,
+			PhaseFailed:             6,
+			PhaseDeletingTunnel:     7,
+			PhaseDeleted:            8,
+			PhaseUnknown:            9,
 		}
 
 		resource := newTunnel("")
@@ -783,34 +783,42 @@ func (v *trackingVisitor) VisitPending(_ CloudflareTunnelPending) string {
 	v.pendingCount++
 	return PhasePending
 }
+
 func (v *trackingVisitor) VisitCreatingTunnel(_ CloudflareTunnelCreatingTunnel) string {
 	v.creatingTunnelCount++
 	return PhaseCreatingTunnel
 }
+
 func (v *trackingVisitor) VisitCreatingSecret(_ CloudflareTunnelCreatingSecret) string {
 	v.creatingSecretCount++
 	return PhaseCreatingSecret
 }
+
 func (v *trackingVisitor) VisitConfiguringIngress(_ CloudflareTunnelConfiguringIngress) string {
 	v.configuringIngressCount++
 	return PhaseConfiguringIngress
 }
+
 func (v *trackingVisitor) VisitReady(_ CloudflareTunnelReady) string {
 	v.readyCount++
 	return PhaseReady
 }
+
 func (v *trackingVisitor) VisitFailed(_ CloudflareTunnelFailed) string {
 	v.failedCount++
 	return PhaseFailed
 }
+
 func (v *trackingVisitor) VisitDeletingTunnel(_ CloudflareTunnelDeletingTunnel) string {
 	v.deletingTunnelCount++
 	return PhaseDeletingTunnel
 }
+
 func (v *trackingVisitor) VisitDeleted(_ CloudflareTunnelDeleted) string {
 	v.deletedCount++
 	return PhaseDeleted
 }
+
 func (v *trackingVisitor) VisitUnknown(_ CloudflareTunnelUnknown) string {
 	v.unknownCount++
 	return PhaseUnknown
