@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from chat.bot import ChatBot, should_respond
+from chat.bot import ChatBot, LLM_MAX_RETRIES, should_respond
 
 
 # ---------------------------------------------------------------------------
@@ -92,8 +92,8 @@ class TestShouldRespondReplyToDifferentAuthor:
 
 class TestGenerateResponseStoreFailure:
     @pytest.mark.asyncio
-    async def test_get_recent_failure_is_swallowed_by_on_message(self):
-        """When store.get_recent() raises, on_message swallows the error gracefully."""
+    async def test_get_recent_failure_sends_error_reply(self):
+        """When store.get_recent() raises, on_message sends an error reply."""
         bot = _make_bot()
         bot._connection.user.id = 999
         bot_user = bot.user
@@ -116,15 +116,14 @@ class TestGenerateResponseStoreFailure:
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            # Should not raise — on_message wraps _generate_response in try/except
             await bot.on_message(message)
 
-        # reply should not have been called because _generate_response failed
-        message.reply.assert_not_called()
+        message.reply.assert_called_once()
+        assert "trouble" in message.reply.call_args[0][0]
 
     @pytest.mark.asyncio
-    async def test_agent_run_failure_is_swallowed_by_on_message(self):
-        """When agent.run() raises, on_message swallows the error gracefully."""
+    async def test_agent_run_failure_retries_then_sends_error_reply(self):
+        """When agent.run() raises, _generate_response retries then on_message sends error reply."""
         bot = _make_bot()
         bot._connection.user.id = 999
         bot_user = bot.user
@@ -142,15 +141,53 @@ class TestGenerateResponseStoreFailure:
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
+            patch("chat.bot.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            # Should not raise — on_message wraps the whole respond block
             await bot.on_message(message)
 
-        message.reply.assert_not_called()
+        assert bot.agent.run.call_count == LLM_MAX_RETRIES
+        assert mock_sleep.call_count == LLM_MAX_RETRIES - 1
+        message.reply.assert_called_once()
+        assert "trouble" in message.reply.call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_agent_run_succeeds_on_retry(self):
+        """When agent.run() fails then succeeds, the successful response is returned."""
+        bot = _make_bot()
+        bot._connection.user.id = 999
+        bot_user = bot.user
+
+        message = _make_message(content="Hey bot!", mentions=[bot_user])
+        message.reference = None
+
+        mock_store = MagicMock()
+        mock_store.save_message = AsyncMock()
+        mock_store.get_recent = MagicMock(return_value=[])
+
+        mock_result = MagicMock()
+        mock_result.output = "Here's my answer!"
+        bot.agent.run = AsyncMock(
+            side_effect=[RuntimeError("model unavailable"), mock_result]
+        )
+
+        with (
+            patch("chat.bot.get_engine"),
+            patch("chat.bot.Session") as mock_session_cls,
+            patch("chat.bot.MessageStore", return_value=mock_store),
+            patch("chat.bot.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=MagicMock()
+            )
+            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
+            await bot.on_message(message)
+
+        assert bot.agent.run.call_count == 2
+        message.reply.assert_any_call("Here's my answer!")
 
 
 # ---------------------------------------------------------------------------
