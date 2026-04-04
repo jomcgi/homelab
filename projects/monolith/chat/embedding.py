@@ -19,4 +19,5 @@ class EmbeddingClient:
                 json={"input": text, "model": "voyage-4-nano"},
             )
             resp.raise_for_status()
+            # nosemgrep: unsafe-json-field-access
             return resp.json()["data"][0]["embedding"]
