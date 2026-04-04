@@ -39,3 +39,32 @@ class TestMessageModel:
             embedding=[0.0] * 1024,
         )
         assert msg.is_bot is False
+
+    def test_embedding_validator_parses_string(self):
+        """Embedding validator converts pgvector string to list."""
+        msg = Message.model_validate(
+            {
+                "discord_message_id": "1",
+                "channel_id": "c",
+                "user_id": "u",
+                "username": "bot",
+                "content": "hi",
+                "embedding": "[0.1,0.2,0.3]",
+            }
+        )
+        assert msg.embedding == [0.1, 0.2, 0.3]
+
+    def test_embedding_validator_passes_list_through(self):
+        """Embedding validator leaves a native list unchanged."""
+        vec = [0.4, 0.5, 0.6]
+        msg = Message.model_validate(
+            {
+                "discord_message_id": "2",
+                "channel_id": "c",
+                "user_id": "u",
+                "username": "bot",
+                "content": "hi",
+                "embedding": vec,
+            }
+        )
+        assert msg.embedding == vec
