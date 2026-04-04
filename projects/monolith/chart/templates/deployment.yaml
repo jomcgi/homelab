@@ -48,6 +48,8 @@ spec:
             - name: VAULT_API_URL
               value: {{ .Values.backend.vaultApiUrl | quote }}
             {{- end }}
+            - name: FRONTEND_HEALTH_URL
+              value: "http://localhost:3000/"
             {{- if .Values.chat.enabled }}
             - name: DISCORD_BOT_TOKEN
               valueFrom:

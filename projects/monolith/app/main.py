@@ -19,6 +19,26 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 
+async def _wait_for_sidecar() -> None:
+    """Block until the frontend sidecar is healthy, or return immediately if unconfigured."""
+    url = os.environ.get("FRONTEND_HEALTH_URL", "")
+    if not url:
+        return
+    import httpx
+
+    logger.info("Waiting for frontend sidecar at %s", url)
+    async with httpx.AsyncClient(timeout=httpx.Timeout(5.0)) as client:
+        while True:
+            try:
+                resp = await client.get(url, timeout=2)
+                if resp.status_code < 500:
+                    logger.info("Frontend sidecar is ready")
+                    return
+            except httpx.HTTPError:
+                pass
+            await asyncio.sleep(2)
+
+
 def _log_task_exception(task: "asyncio.Task[object]") -> None:
     """Log unhandled exceptions from background tasks instead of silently dropping them."""
     if not task.cancelled() and task.exception():
@@ -48,7 +68,12 @@ async def lifespan(app: FastAPI):
         from chat.bot import create_bot
 
         bot = create_bot()
-        bot_task = asyncio.create_task(bot.start(discord_token))
+
+        async def _start_bot_when_ready():
+            await _wait_for_sidecar()
+            await bot.start(discord_token)
+
+        bot_task = asyncio.create_task(_start_bot_when_ready())
         bot_task.add_done_callback(_log_task_exception)
         logger.info("Discord bot starting")
 
