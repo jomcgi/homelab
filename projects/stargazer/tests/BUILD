@@ -155,3 +155,38 @@ semgrep_test(
     srcs = ["weather_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "weather_coverage_test",
+    srcs = ["weather_coverage_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/stargazer/backend",
+        "@pip//geopandas",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//shapely",
+    ],
+)
+
+py_test(
+    name = "preprocessing_coverage_test",
+    srcs = ["preprocessing_coverage_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/stargazer/backend",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "weather_coverage_test_semgrep_test",
+    srcs = ["weather_coverage_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "preprocessing_coverage_test_semgrep_test",
+    srcs = ["preprocessing_coverage_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
