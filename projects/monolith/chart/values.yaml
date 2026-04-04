@@ -17,6 +17,8 @@ postgres:
   storage:
     size: 2Gi
     storageClass: ""
+  pgvector:
+    image: ghcr.io/cloudnative-pg/pgvector:0.8.2-202604021427-18-trixie
 
 service:
   port: 8000

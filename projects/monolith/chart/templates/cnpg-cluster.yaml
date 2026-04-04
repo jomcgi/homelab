@@ -15,7 +15,10 @@ spec:
     parameters:
       shared_buffers: "64MB"
       effective_cache_size: "128MB"
-      shared_preload_libraries: "vector"
+    extensions:
+      - name: vector
+        image:
+          reference: {{ .Values.postgres.pgvector.image }}
   bootstrap:
     initdb:
       database: monolith
