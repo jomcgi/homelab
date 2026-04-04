@@ -23,6 +23,7 @@ go_test(
         "copy_test.go",
         "output_test.go",
         "resolve_test.go",
+        "root_test.go",
     ],
     embed = [":cmd"],
     deps = [
