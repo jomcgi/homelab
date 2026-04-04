@@ -77,6 +77,9 @@ py3_image(
         # project's sibling packages (app/, todo/) need the package directory
         # on the path too, matching the imports = ["."] used by py_venv_binary.
         "PYTHONPATH": "/projects/monolith/main.runfiles/_main:/projects/monolith/main.runfiles/_main/projects/monolith",
+        # The minimal ubuntu base image has no CA certificates; point OpenSSL
+        # at certifi's bundle so outbound HTTPS (e.g. Discord gateway) works.
+        "SSL_CERT_FILE": "/projects/monolith/main.runfiles/_main/projects/monolith/.main/lib/python3.13/site-packages/certifi/cacert.pem",
     },
     main = "app/main.py",
     repository = "ghcr.io/jomcgi/homelab/projects/monolith/backend",
