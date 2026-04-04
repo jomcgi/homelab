@@ -1,6 +1,7 @@
 """Tests for chat SQLModel definitions."""
 
 import pytest
+from pydantic import ValidationError
 from sqlmodel import SQLModel
 
 from chat.models import Message
@@ -68,3 +69,46 @@ class TestMessageModel:
             }
         )
         assert msg.embedding == vec
+
+    def test_embedding_validator_raises_on_invalid_json_string(self):
+        """Embedding validator raises ValidationError for non-JSON strings."""
+        with pytest.raises(ValidationError):
+            Message.model_validate(
+                {
+                    "discord_message_id": "3",
+                    "channel_id": "c",
+                    "user_id": "u",
+                    "username": "bot",
+                    "content": "hi",
+                    "embedding": "not-json",
+                }
+            )
+
+    def test_embedding_validator_raises_on_empty_string(self):
+        """Embedding validator raises ValidationError for empty string."""
+        with pytest.raises(ValidationError):
+            Message.model_validate(
+                {
+                    "discord_message_id": "4",
+                    "channel_id": "c",
+                    "user_id": "u",
+                    "username": "bot",
+                    "content": "hi",
+                    "embedding": "",
+                }
+            )
+
+    @pytest.mark.parametrize("bad_value", [None, 42, {"key": "value"}])
+    def test_embedding_validator_passes_non_string_types_to_pydantic(self, bad_value):
+        """Embedding validator passes non-string types through to Pydantic validation."""
+        with pytest.raises(ValidationError):
+            Message.model_validate(
+                {
+                    "discord_message_id": "5",
+                    "channel_id": "c",
+                    "user_id": "u",
+                    "username": "bot",
+                    "content": "hi",
+                    "embedding": bad_value,
+                }
+            )
