@@ -14,6 +14,7 @@ import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx  # noqa: F401 — required by starlette.testclient; must be direct import for Bazel venv
 import pytest
 import pytest_asyncio  # noqa: F401 — registers plugin
 from fastapi import HTTPException
