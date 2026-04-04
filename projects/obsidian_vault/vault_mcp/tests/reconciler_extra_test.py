@@ -51,7 +51,9 @@ class TestWalkVaultEdgeCases:
         assert "vault://visible.md" in files
         assert not any(".hidden" in u for u in files)
 
-    def test_excludes_dotfile_in_subdirectory(self, tmp_path, mock_qdrant, mock_embedder):
+    def test_excludes_dotfile_in_subdirectory(
+        self, tmp_path, mock_qdrant, mock_embedder
+    ):
         """Hidden .md files inside a non-dotted subdirectory are excluded."""
         subdir = tmp_path / "notes"
         subdir.mkdir()
@@ -64,7 +66,9 @@ class TestWalkVaultEdgeCases:
         assert "vault://notes/visible.md" in files
         assert not any(".hidden" in u for u in files)
 
-    def test_excludes_nested_dotted_directory(self, tmp_path, mock_qdrant, mock_embedder):
+    def test_excludes_nested_dotted_directory(
+        self, tmp_path, mock_qdrant, mock_embedder
+    ):
         """Files nested under a dotted path (subdir/.hidden/note.md) are excluded."""
         hidden = tmp_path / "subdir" / ".hidden"
         hidden.mkdir(parents=True)
@@ -179,7 +183,9 @@ class TestReconcileEmbedArguments:
         self, tmp_path, mock_qdrant, mock_embedder
     ):
         """embed() is called with the list of chunk_text values from chunk_markdown."""
-        (tmp_path / "note.md").write_text("# Note\n\nFirst paragraph.\n\nSecond paragraph.")
+        (tmp_path / "note.md").write_text(
+            "# Note\n\nFirst paragraph.\n\nSecond paragraph."
+        )
         mock_qdrant.get_indexed_sources.return_value = {}
         # Return enough vectors for however many chunks are produced
         mock_embedder.embed.side_effect = lambda texts: [[0.1] * 768] * len(texts)
@@ -270,7 +276,9 @@ class TestReconcileEmbedArguments:
 
 
 class TestReconcileMixedScenarios:
-    async def test_mixed_new_changed_deleted(self, tmp_path, mock_qdrant, mock_embedder):
+    async def test_mixed_new_changed_deleted(
+        self, tmp_path, mock_qdrant, mock_embedder
+    ):
         """New, changed, and deleted files are all handled correctly in one run."""
         (tmp_path / "new.md").write_text("# New\n\nBrand new file.")
         (tmp_path / "changed.md").write_text("# Changed\n\nUpdated content.")
@@ -289,7 +297,9 @@ class TestReconcileMixedScenarios:
         await reconciler.run()
 
         # deleted.md and changed.md (old) should be deleted
-        deleted_calls = {c.args[0] for c in mock_qdrant.delete_by_source_url.call_args_list}
+        deleted_calls = {
+            c.args[0] for c in mock_qdrant.delete_by_source_url.call_args_list
+        }
         assert "vault://deleted.md" in deleted_calls
         assert "vault://changed.md" in deleted_calls
         assert "vault://unchanged.md" not in deleted_calls
@@ -329,7 +339,9 @@ class TestReconcileMixedScenarios:
         assert mock_qdrant.delete_by_source_url.call_count == 2
         mock_qdrant.upsert_chunks.assert_not_called()
 
-    async def test_delete_order_before_embed(self, tmp_path, mock_qdrant, mock_embedder):
+    async def test_delete_order_before_embed(
+        self, tmp_path, mock_qdrant, mock_embedder
+    ):
         """Deletes are issued before upserts (changed file: delete stale, then embed fresh)."""
         (tmp_path / "note.md").write_text("# Note\n\nUpdated.")
         mock_qdrant.get_indexed_sources.return_value = {
