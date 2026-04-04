@@ -19,5 +19,7 @@ class EmbeddingClient:
                 json={"input": text, "model": "voyage-4-nano"},
             )
             resp.raise_for_status()
-            # nosemgrep: unsafe-json-field-access
-            return resp.json()["data"][0]["embedding"]
+            try:
+                return resp.json()["data"][0]["embedding"]
+            except (KeyError, IndexError) as e:
+                raise ValueError(f"unexpected embedding response shape: {e}") from e

@@ -19,7 +19,10 @@ async def search_web(query: str, base_url: str | None = None) -> str:
             params={"q": query, "format": "json"},
         )
         resp.raise_for_status()
-        results = resp.json()["results"][:5]  # nosemgrep: unsafe-json-field-access
+        try:
+            results = resp.json()["results"][:5]
+        except (KeyError, TypeError) as e:
+            raise ValueError(f"unexpected search response shape: {e}") from e
         return "\n\n".join(
             f"**{r['title']}**\n{r['content']}\nURL: {r['url']}" for r in results
         )

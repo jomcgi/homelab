@@ -342,7 +342,7 @@ class TestHealthEndpoint:
             client = TestClient(app)
             response = client.get("/health")
 
-        assert response.json()["points"] == 1
+        assert response.json()["points"] == 1  # nosemgrep: unsafe-json-field-access
 
     def test_health_no_auth_required(self):
         """The /health endpoint must be publicly accessible."""
@@ -405,7 +405,7 @@ class TestApiPointsEndpoints:
             response = client.get("/api/points/abc123")
 
         assert response.status_code == 200
-        assert response.json()["id"] == "abc123"
+        assert response.json()["id"] == "abc123"  # nosemgrep: unsafe-json-field-access
 
     def test_get_point_by_id_not_found_returns_404(self):
         state = self._state_with_auth_disabled([])
