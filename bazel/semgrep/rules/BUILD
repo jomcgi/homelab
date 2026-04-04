@@ -101,6 +101,14 @@ filegroup(
 )
 
 filegroup(
+    name = "sql_rules",
+    srcs = glob(
+        ["sql/*.yaml"],
+        allow_empty = True,
+    ),
+)
+
+filegroup(
     name = "all_rules",
     srcs = glob(["**/*.yaml"]) + [
         "@semgrep_pro_rules_golang//:rules",
@@ -195,5 +203,15 @@ semgrep_test(
     srcs = glob(["dockerfile/*.dockerfile"]),
     env = {"SEMGREP_TEST_MODE": "1"},
     rules = [":dockerfile_rules"],
+    tags = ["semgrep"],
+)
+
+# no-create-extension-sql uses languages: [generic] so its fixture is a YAML file.
+# This test wires the rule to its annotation fixture independently of other rule tests.
+semgrep_test(
+    name = "sql_rules_test",
+    srcs = ["//bazel/semgrep/tests:no_create_extension_sql_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":sql_rules"],
     tags = ["semgrep"],
 )
