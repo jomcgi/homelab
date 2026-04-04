@@ -7,10 +7,11 @@ filegroup(
     srcs = glob(
         ["fixtures/*.yaml"],
         # Exclude Go-rule reference fixtures that are not tested against yaml_rules.
-        # Exclude SQL/generic rule fixtures that are tested separately.
+        # Exclude SQL/generic and kubernetes-specific fixtures that are tested separately.
         exclude = [
             "fixtures/no-create-extension-sql.yaml",
             "fixtures/no-discarded-json-marshal.yaml",
+            "fixtures/no-shared-preload-libraries-cnpg.yaml",
         ],
     ),
 )
@@ -50,6 +51,7 @@ filegroup(
         "fixtures/no-hardcoded-image-digest.yaml",
         "fixtures/no-host-network.yaml",
         "fixtures/no-privileged.yaml",
+        "fixtures/no-shared-preload-libraries-cnpg.yaml",
         "fixtures/pdb-minAvailable-blocks-eviction.yaml",
         "fixtures/require-fsgroup-with-pvc.yaml",
         "fixtures/require-readiness-probe.yaml",
