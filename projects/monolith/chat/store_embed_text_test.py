@@ -18,8 +18,13 @@ class TestBuildEmbedText:
 
     def test_multiple_descriptions_all_appended(self):
         """Multiple descriptions are each formatted as separate lines."""
-        result = _build_embed_text("Beautiful day!", ["A sunset", "Blue sky with clouds"])
-        assert result == "Beautiful day!\n\n[Image: A sunset]\n[Image: Blue sky with clouds]"
+        result = _build_embed_text(
+            "Beautiful day!", ["A sunset", "Blue sky with clouds"]
+        )
+        assert (
+            result
+            == "Beautiful day!\n\n[Image: A sunset]\n[Image: Blue sky with clouds]"
+        )
 
     def test_empty_content_with_descriptions(self):
         """Empty content string with descriptions still formats correctly."""
