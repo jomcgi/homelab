@@ -50,6 +50,18 @@ class TestDatabaseUrlRewrite:
         # replace("postgresql://", ...) does NOT match "postgresql+psycopg://"
         assert db_module.DATABASE_URL == original
 
+    def test_non_postgresql_scheme_left_unchanged(self):
+        """A non-postgresql:// URL (e.g. sqlite://) is passed through without modification.
+
+        The rewrite only targets the 'postgresql://' prefix; other schemes such as
+        sqlite://, mysql://, or mssql:// are left intact so that test fixtures and
+        alternative drivers continue to work without side effects.
+        """
+        sqlite_url = "sqlite:///path/to/test.db"
+        with patch.dict(os.environ, {"DATABASE_URL": sqlite_url}, clear=False):
+            importlib.reload(db_module)
+        assert db_module.DATABASE_URL == sqlite_url
+
     def test_default_url_uses_localhost_when_env_unset(self):
         """Without DATABASE_URL in the environment the default targets localhost:5432."""
         env_without_db = {k: v for k, v in os.environ.items() if k != "DATABASE_URL"}
