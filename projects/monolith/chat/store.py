@@ -5,9 +5,17 @@ import logging
 from sqlmodel import Session, select
 
 from chat.embedding import EmbeddingClient
-from chat.models import Message
+from chat.models import Attachment, Message
 
 logger = logging.getLogger(__name__)
+
+
+def _build_embed_text(content: str, descriptions: list[str]) -> str:
+    """Combine message text with image descriptions for embedding."""
+    if not descriptions:
+        return content
+    image_parts = "\n".join(f"[Image: {d}]" for d in descriptions)
+    return f"{content}\n\n{image_parts}"
 
 
 class MessageStore:
@@ -23,11 +31,16 @@ class MessageStore:
         username: str,
         content: str,
         is_bot: bool,
+        attachments: list[dict] | None = None,
     ) -> Message | None:
         """Embed and persist a message. Returns None if already stored."""
         from sqlalchemy.exc import IntegrityError
 
-        embedding = await self.embed_client.embed(content)
+        descriptions = [
+            a["description"] for a in (attachments or []) if a.get("description")
+        ]
+        embed_text = _build_embed_text(content, descriptions)
+        embedding = await self.embed_client.embed(embed_text)
         msg = Message(
             discord_message_id=discord_message_id,
             channel_id=channel_id,
@@ -39,6 +52,17 @@ class MessageStore:
         )
         try:
             self.session.add(msg)
+            self.session.flush()
+            if attachments:
+                for a in attachments:
+                    att = Attachment(
+                        message_id=msg.id,
+                        data=a["data"],
+                        content_type=a["content_type"],
+                        filename=a["filename"],
+                        description=a.get("description", ""),
+                    )
+                    self.session.add(att)
             self.session.commit()
             self.session.refresh(msg)
             return msg
@@ -102,3 +126,13 @@ class MessageStore:
         )
         result = self.session.exec(sql, params=params)
         return [Message.model_validate(row) for row in result]
+
+    def get_attachments(self, message_ids: list[int]) -> dict[int, list[Attachment]]:
+        """Load attachments for a set of message IDs, keyed by message_id."""
+        if not message_ids:
+            return {}
+        stmt = select(Attachment).where(Attachment.message_id.in_(message_ids))
+        result: dict[int, list[Attachment]] = {}
+        for att in self.session.exec(stmt).all():
+            result.setdefault(att.message_id, []).append(att)
+        return result
