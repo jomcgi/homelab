@@ -80,3 +80,21 @@ py_test(
         "@pip//pytest_asyncio",
     ],
 )
+
+# gazelle:resolve py gopro_test //projects/trips/tools/detect-wildlife:detect-wildlife
+py_test(
+    name = "gopro_test",
+    srcs = ["gopro_test.py"],
+    imports = ["."],
+    deps = [
+        "//projects/trips/tools/detect-wildlife",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "gopro_test_semgrep_test",
+    srcs = ["gopro_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
