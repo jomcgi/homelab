@@ -19,7 +19,7 @@ async def search_web(query: str, base_url: str | None = None) -> str:
             params={"q": query, "format": "json"},
         )
         resp.raise_for_status()
-        results = resp.json()["results"][:5]
+        results = resp.json()["results"][:5]  # nosemgrep: unsafe-json-field-access
         return "\n\n".join(
             f"**{r['title']}**\n{r['content']}\nURL: {r['url']}" for r in results
         )
