@@ -14,6 +14,7 @@ go_library(
 go_test(
     name = "xstate_test",
     srcs = [
+        "convert_coverage_test.go",
         "convert_extra_test.go",
         "convert_test.go",
         "types_test.go",

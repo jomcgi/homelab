@@ -22,10 +22,18 @@ go_test(
     name = "codegen_test",
     srcs = [
         "builddata_test.go",
+        "generator_coverage_test.go",
         "generator_test.go",
     ],
     deps = [
         ":codegen",
         "//projects/sextant/pkg/schema",
     ],
+)
+
+go_test(
+    name = "codegen_internal_test",
+    srcs = ["generator_helpers_test.go"],
+    embed = [":codegen"],
+    deps = ["//projects/sextant/pkg/schema"],
 )
