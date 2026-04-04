@@ -7,7 +7,7 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
-from chat.models import Attachment, Message
+from chat.models import Attachment, Blob, Message
 from chat.store import MessageStore
 
 
@@ -125,8 +125,11 @@ class TestSaveMessageWithAttachments:
         saved = session.exec(select(Attachment)).all()
         assert len(saved) == 1
         assert saved[0].message_id == msg.id
-        assert saved[0].description == "A cat"
-        assert saved[0].data == b"\x89PNG"
+        assert saved[0].filename == "photo.png"
+        blob = session.get(Blob, saved[0].blob_sha256)
+        assert blob is not None
+        assert blob.description == "A cat"
+        assert blob.data == b"\x89PNG"
 
     @pytest.mark.asyncio
     async def test_embeds_combined_text_and_descriptions(self, store):
@@ -196,4 +199,6 @@ class TestGetAttachments:
         result = store.get_attachments([msg.id])
         assert msg.id in result
         assert len(result[msg.id]) == 1
-        assert result[msg.id][0].filename == "a.png"
+        att, blob = result[msg.id][0]
+        assert att.filename == "a.png"
+        assert blob.description == "Cat"
