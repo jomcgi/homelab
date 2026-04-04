@@ -96,7 +96,6 @@ py_test(
 semgrep_test(
     name = "main_test_semgrep_test",
     srcs = ["main_test.py"],
-    exclude_rules = ["unsafe-json-field-access"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
