@@ -12,9 +12,9 @@ modelVolume:
   mountPath: "/model-image"
 
 server:
-  nGpuLayers: 999
+  nGpuLayers: 0
   ctxSize: 8192
-  flashAttn: "on"
+  flashAttn: "off"
   threads: 4
   jinja: false
   extraArgs:
@@ -30,9 +30,7 @@ podAnnotations:
 
 resources:
   requests:
-    cpu: 1
-    memory: "1Gi"
-    nvidia.com/gpu: 1
-  limits:
+    cpu: 2
     memory: "2Gi"
-    nvidia.com/gpu: 1
+  limits:
+    memory: "4Gi"
