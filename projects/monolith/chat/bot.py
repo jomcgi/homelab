@@ -102,7 +102,7 @@ class ChatBot(discord.Client):
 
         try:
             async with message.channel.typing():
-                response_text = await self._generate_response(message)
+                response_text = await self._generate_response(message, attachments)
             sent = await message.reply(response_text)
 
             # Store bot response
@@ -119,7 +119,11 @@ class ChatBot(discord.Client):
         except Exception:
             logger.exception("Failed to respond to message %s", message.id)
 
-    async def _generate_response(self, message: discord.Message) -> str:
+    async def _generate_response(
+        self,
+        message: discord.Message,
+        current_attachments: list[dict] | None = None,
+    ) -> str:
         """Build context and run the PydanticAI agent."""
         with Session(get_engine()) as session:
             store = MessageStore(session=session, embed_client=self.embed_client)
@@ -157,9 +161,6 @@ class ChatBot(discord.Client):
         )
 
         # Include current message images in prompt
-        current_attachments = await download_image_attachments(
-            message.attachments, self.vision_client
-        )
         if current_attachments:
             image_context = "\n".join(
                 f"[Attached image '{a['filename']}': {a['description']}]"
