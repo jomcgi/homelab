@@ -8,6 +8,7 @@ import discord
 from chat.agent import create_agent, format_context_messages
 from chat.embedding import EmbeddingClient
 from chat.store import MessageStore
+from chat.vision import VisionClient
 from app.db import get_engine
 
 from sqlmodel import Session
@@ -33,12 +34,38 @@ def should_respond(message: discord.Message, bot_user: discord.User) -> bool:
     return False
 
 
+async def download_image_attachments(
+    attachments: list[discord.Attachment],
+    vision_client: VisionClient,
+) -> list[dict]:
+    """Download image attachments and describe them with Gemma 4 vision."""
+    results = []
+    for att in attachments:
+        if not att.content_type or not att.content_type.startswith("image/"):
+            continue
+        try:
+            data = await att.read()
+            description = await vision_client.describe(data, att.content_type)
+            results.append(
+                {
+                    "data": data,
+                    "content_type": att.content_type,
+                    "filename": att.filename,
+                    "description": description,
+                }
+            )
+        except Exception:
+            logger.exception("Failed to process attachment %s", att.filename)
+    return results
+
+
 class ChatBot(discord.Client):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
         super().__init__(intents=intents)
         self.embed_client = EmbeddingClient()
+        self.vision_client = VisionClient()
         self.agent = create_agent()
 
     async def on_ready(self):
@@ -48,6 +75,11 @@ class ChatBot(discord.Client):
         # Skip own messages — bot responses are stored explicitly after sending
         if message.author.id == self.user.id:
             return
+
+        # Process image attachments
+        attachments = await download_image_attachments(
+            message.attachments, self.vision_client
+        )
 
         # Store incoming messages for memory/context
         try:
@@ -60,6 +92,7 @@ class ChatBot(discord.Client):
                     username=message.author.display_name,
                     content=message.content,
                     is_bot=message.author.bot,
+                    attachments=attachments if attachments else None,
                 )
         except Exception:
             logger.exception("Failed to store message %s", message.id)
@@ -104,6 +137,10 @@ class ChatBot(discord.Client):
                 exclude_ids=recent_ids,
             )
 
+            # Load attachments for recalled messages
+            all_msg_ids = [m.id for m in (similar + recent) if m.id is not None]
+            attachments_by_msg = store.get_attachments(all_msg_ids)  # noqa: F841
+
         # Build context
         context_parts = []
         if similar:
@@ -118,6 +155,18 @@ class ChatBot(discord.Client):
             f"{context}\n\nCurrent message from "
             f"{message.author.display_name}: {message.content}"
         )
+
+        # Include current message images in prompt
+        current_attachments = await download_image_attachments(
+            message.attachments, self.vision_client
+        )
+        if current_attachments:
+            image_context = "\n".join(
+                f"[Attached image '{a['filename']}': {a['description']}]"
+                for a in current_attachments
+            )
+            user_prompt += f"\n{image_context}"
+
         result = await self.agent.run(user_prompt)
         return result.output
 
