@@ -77,8 +77,33 @@ async def lifespan(app: FastAPI):
         bot_task.add_done_callback(_log_task_exception)
         logger.info("Discord bot starting")
 
+    # Start summary loop if chat is enabled
+    summary_task = None
+    if discord_token:
+
+        async def _summary_loop():
+            from chat.summarizer import build_llm_caller, generate_summaries
+
+            while True:
+                await asyncio.sleep(86400)  # 24 hours
+                try:
+                    with Session(get_engine()) as session:
+                        llm_caller = build_llm_caller()
+                        await generate_summaries(session, llm_caller)
+                except Exception:
+                    logger.exception("Summary generation failed")
+
+        from app.db import get_engine
+        from sqlmodel import Session
+
+        summary_task = asyncio.create_task(_summary_loop())
+        summary_task.add_done_callback(_log_task_exception)
+        logger.info("Summary loop started (24h interval)")
+
     logger.info("Monolith started")
     yield
+    if summary_task:
+        summary_task.cancel()
     if bot:
         await bot.close()
     if bot_task:
