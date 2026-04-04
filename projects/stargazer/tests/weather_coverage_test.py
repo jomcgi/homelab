@@ -42,7 +42,9 @@ class TestScoreLocationsOrphanForecastIds:
                                     "air_pressure_at_sea_level": 1025.0,
                                 }
                             },
-                            "next_1_hours": {"summary": {"symbol_code": "clearsky_night"}},
+                            "next_1_hours": {
+                                "summary": {"symbol_code": "clearsky_night"}
+                            },
                         },
                     }
                 ]
@@ -102,7 +104,9 @@ class TestScoreLocationsInvalidWeatherData:
                                     "air_pressure_at_sea_level": 1018.0,
                                 }
                             },
-                            "next_1_hours": {"summary": {"symbol_code": "clearsky_night"}},
+                            "next_1_hours": {
+                                "summary": {"symbol_code": "clearsky_night"}
+                            },
                         },
                     }
                 ]
