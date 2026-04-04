@@ -94,7 +94,9 @@ class TestFirstRunPromptTemplate:
     @pytest.mark.asyncio
     async def test_first_run_prompt_includes_message_content(self, session):
         """First-run prompt includes the actual message content in the text block."""
-        _add_message(session, "ch1", "u1", "Bob", "Just deployed the new microservice", 1)
+        _add_message(
+            session, "ch1", "u1", "Bob", "Just deployed the new microservice", 1
+        )
 
         prompts_received = []
 
