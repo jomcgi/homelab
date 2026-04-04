@@ -86,14 +86,14 @@ class TestShouldRespondReplyToDifferentAuthor:
 
 
 # ---------------------------------------------------------------------------
-# _generate_response -- embed failure propagates out of on_message
+# _generate_response -- store failure propagates out of on_message
 # ---------------------------------------------------------------------------
 
 
-class TestGenerateResponseEmbedFailure:
+class TestGenerateResponseStoreFailure:
     @pytest.mark.asyncio
-    async def test_embed_failure_is_swallowed_by_on_message(self):
-        """When embed_client.embed() raises, on_message swallows the error gracefully."""
+    async def test_get_recent_failure_is_swallowed_by_on_message(self):
+        """When store.get_recent() raises, on_message swallows the error gracefully."""
         bot = _make_bot()
         bot._connection.user.id = 999
         bot_user = bot.user
@@ -101,11 +101,10 @@ class TestGenerateResponseEmbedFailure:
         message = _make_message(content="Hey bot!", mentions=[bot_user])
         message.reference = None
 
-        mock_store = AsyncMock()
+        mock_store = MagicMock()
         mock_store.save_message = AsyncMock()
-
-        bot.embed_client.embed = AsyncMock(
-            side_effect=RuntimeError("embed service down")
+        mock_store.get_recent = MagicMock(
+            side_effect=RuntimeError("db connection lost")
         )
 
         with (
@@ -136,9 +135,7 @@ class TestGenerateResponseEmbedFailure:
         mock_store = MagicMock()
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         bot.agent.run = AsyncMock(side_effect=RuntimeError("model unavailable"))
 
         with (
@@ -212,7 +209,6 @@ class TestOnMessageDoubleSave:
         sent_msg.id = 777
         message.reply = AsyncMock(return_value=sent_msg)
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Here's my answer!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
@@ -228,7 +224,6 @@ class TestOnMessageDoubleSave:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.search_similar = MagicMock(return_value=[])
         mock_store.save_message = AsyncMock(side_effect=save_side_effect)
 
         with (
@@ -250,14 +245,14 @@ class TestOnMessageDoubleSave:
 
 
 # ---------------------------------------------------------------------------
-# _generate_response() -- both get_recent() and search_similar() return []
+# _generate_response() -- get_recent() returns [] (empty context)
 # ---------------------------------------------------------------------------
 
 
 class TestGenerateResponseEmptyContext:
     @pytest.mark.asyncio
-    async def test_both_contexts_empty_still_calls_agent(self):
-        """_generate_response runs the agent even when recent and similar are both empty."""
+    async def test_empty_context_still_calls_agent(self):
+        """_generate_response runs the agent even when recent is empty."""
         bot = _make_bot()
         bot._connection.user.id = 999
 
@@ -265,9 +260,7 @@ class TestGenerateResponseEmptyContext:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Not much context, but here you go!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
@@ -286,10 +279,8 @@ class TestGenerateResponseEmptyContext:
         bot.agent.run.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_both_contexts_empty_prompt_has_recent_header_but_no_similar_section(
-        self,
-    ):
-        """Prompt has 'Recent conversation:' but NOT 'Relevant older messages:' when both empty."""
+    async def test_empty_context_prompt_has_recent_header(self):
+        """Prompt has 'Recent conversation:' even when recent is empty."""
         bot = _make_bot()
         bot._connection.user.id = 999
 
@@ -297,9 +288,7 @@ class TestGenerateResponseEmptyContext:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Hello!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
@@ -316,11 +305,9 @@ class TestGenerateResponseEmptyContext:
 
         prompt_arg = bot.agent.run.call_args[0][0]
         assert "Recent conversation:" in prompt_arg
-        # similar=[] → no "Relevant older messages:" section in prompt
-        assert "Relevant older messages:" not in prompt_arg
 
     @pytest.mark.asyncio
-    async def test_both_contexts_empty_prompt_contains_current_message(self):
+    async def test_empty_context_prompt_contains_current_message(self):
         """Current user message is always appended even with no historical context."""
         bot = _make_bot()
         bot._connection.user.id = 999
@@ -329,9 +316,7 @@ class TestGenerateResponseEmptyContext:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
         mock_agent_result = MagicMock()
         mock_agent_result.output = "It's time!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)

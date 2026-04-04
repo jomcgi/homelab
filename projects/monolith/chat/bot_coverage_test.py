@@ -222,9 +222,6 @@ class TestOnMessageGenerateReply:
         mock_store = AsyncMock()
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.search_similar = MagicMock(return_value=[])
-
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
 
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Hello human!"
@@ -258,9 +255,6 @@ class TestOnMessageGenerateReply:
         mock_store = AsyncMock()
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.search_similar = MagicMock(return_value=[])
-
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
 
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Hello!"
@@ -311,9 +305,6 @@ class TestGenerateResponse:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[recent_msg])
-        mock_store.search_similar = MagicMock(return_value=[])
-
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
 
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Sunny!"
@@ -332,55 +323,8 @@ class TestGenerateResponse:
         assert result == "Sunny!"
         prompt_arg = bot.agent.run.call_args[0][0]
         assert "recent message" in prompt_arg
-
-    @pytest.mark.asyncio
-    async def test_includes_similar_messages_when_present(self):
-        """_generate_response prepends similar older messages before recent ones."""
-        from datetime import datetime, timezone
-
-        from chat.models import Message
-
-        bot = _make_bot()
-        # user is a read-only property — configure via _connection.user
-        bot._connection.user.id = 999
-
-        msg = _make_message(content="Tell me something")
-
-        similar_msg = Message(
-            id=5,
-            discord_message_id="5",
-            channel_id="99",
-            user_id="u2",
-            username="Bob",
-            content="older similar message",
-            is_bot=False,
-            embedding=[0.0] * 1024,
-            created_at=datetime(2026, 3, 1, 10, 0, tzinfo=timezone.utc),
-        )
-
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.search_similar = MagicMock(return_value=[similar_msg])
-
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
-
-        mock_agent_result = MagicMock()
-        mock_agent_result.output = "Sure!"
-        bot.agent.run = AsyncMock(return_value=mock_agent_result)
-
-        with (
-            patch("chat.bot.get_engine"),
-            patch("chat.bot.Session") as mock_session_cls,
-            patch("chat.bot.MessageStore", return_value=mock_store),
-        ):
-            ctx = MagicMock()
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
-            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            result = await bot._generate_response(msg)
-
-        assert result == "Sure!"
-        prompt_arg = bot.agent.run.call_args[0][0]
-        assert "older similar message" in prompt_arg
+        # Verify deps were passed to agent.run
+        assert "deps" in bot.agent.run.call_args[1]
 
 
 # ---------------------------------------------------------------------------
