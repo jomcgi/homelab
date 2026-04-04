@@ -4,7 +4,11 @@ package(default_visibility = ["//visibility:public"])
 
 filegroup(
     name = "yaml_fixtures",
-    srcs = glob(["fixtures/*.yaml"]),
+    srcs = glob(
+        ["fixtures/*.yaml"],
+        # Exclude Go-rule reference fixtures that are not tested against yaml_rules.
+        exclude = ["fixtures/no-discarded-json-marshal.yaml"],
+    ),
 )
 
 # Fixture for the stale-copyright-year rule (languages: generic).
