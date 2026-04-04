@@ -23,3 +23,5 @@ spec:
     initdb:
       database: monolith
       owner: app
+      postInitSQL:
+        - CREATE EXTENSION IF NOT EXISTS vector
