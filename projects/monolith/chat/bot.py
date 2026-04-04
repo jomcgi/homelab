@@ -118,18 +118,6 @@ class ChatBot(discord.Client):
             async with message.channel.typing():
                 response_text = await self._generate_response(message, attachments)
             sent = await message.reply(response_text)
-
-            # Store bot response
-            with Session(get_engine()) as session:
-                store = MessageStore(session=session, embed_client=self.embed_client)
-                await store.save_message(
-                    discord_message_id=str(sent.id),
-                    channel_id=str(message.channel.id),
-                    user_id=str(self.user.id),
-                    username=self.user.display_name,
-                    content=response_text,
-                    is_bot=True,
-                )
         except Exception:
             logger.exception("Failed to respond to message %s", message.id)
             try:
@@ -141,6 +129,23 @@ class ChatBot(discord.Client):
                 logger.exception(
                     "Failed to send error reply for message %s", message.id
                 )
+            return
+
+        # Store bot response separately — a storage failure shouldn't
+        # trigger an error reply when the user already received an answer.
+        try:
+            with Session(get_engine()) as session:
+                store = MessageStore(session=session, embed_client=self.embed_client)
+                await store.save_message(
+                    discord_message_id=str(sent.id),
+                    channel_id=str(message.channel.id),
+                    user_id=str(self.user.id),
+                    username=self.user.display_name,
+                    content=response_text,
+                    is_bot=True,
+                )
+        except Exception:
+            logger.exception("Failed to store bot response for message %s", message.id)
 
     async def _generate_response(
         self,
