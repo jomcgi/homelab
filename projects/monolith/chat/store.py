@@ -5,7 +5,7 @@ import logging
 from sqlmodel import Session, select
 
 from chat.embedding import EmbeddingClient
-from chat.models import Attachment, Message
+from chat.models import Attachment, Message, UserChannelSummary
 
 logger = logging.getLogger(__name__)
 
@@ -136,3 +136,58 @@ class MessageStore:
         for att in self.session.exec(stmt).all():
             result.setdefault(att.message_id, []).append(att)
         return result
+
+    def find_user_id_by_username(self, channel_id: str, username: str) -> str | None:
+        """Look up a user_id by username within a channel. Returns None if not found."""
+        stmt = (
+            select(Message.user_id)
+            .where(Message.channel_id == channel_id, Message.username == username)
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
+        return self.session.exec(stmt).first()
+
+    def get_user_summary(
+        self, channel_id: str, username: str
+    ) -> UserChannelSummary | None:
+        """Return the rolling summary for a user in a channel, or None."""
+        stmt = select(UserChannelSummary).where(
+            UserChannelSummary.channel_id == channel_id,
+            UserChannelSummary.username == username,
+        )
+        return self.session.exec(stmt).first()
+
+    def upsert_summary(
+        self,
+        channel_id: str,
+        user_id: str,
+        username: str,
+        summary_text: str,
+        last_message_id: int,
+    ) -> None:
+        """Insert or update a rolling summary for a user in a channel."""
+        from datetime import datetime, timezone
+
+        existing = self.session.exec(
+            select(UserChannelSummary).where(
+                UserChannelSummary.channel_id == channel_id,
+                UserChannelSummary.user_id == user_id,
+            )
+        ).first()
+        if existing:
+            existing.summary = summary_text
+            existing.username = username
+            existing.last_message_id = last_message_id
+            existing.updated_at = datetime.now(timezone.utc)
+            self.session.add(existing)
+        else:
+            self.session.add(
+                UserChannelSummary(
+                    channel_id=channel_id,
+                    user_id=user_id,
+                    username=username,
+                    summary=summary_text,
+                    last_message_id=last_message_id,
+                )
+            )
+        self.session.commit()
