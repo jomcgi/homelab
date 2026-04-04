@@ -187,9 +187,7 @@ class TestExponentialBackoffDelays:
 
         mock_result = MagicMock()
         mock_result.output = "Recovered!"
-        bot.agent.run = AsyncMock(
-            side_effect=[RuntimeError("first fail"), mock_result]
-        )
+        bot.agent.run = AsyncMock(side_effect=[RuntimeError("first fail"), mock_result])
 
         with (
             patch("chat.bot.get_engine"),
