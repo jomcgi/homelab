@@ -34,6 +34,7 @@ go_binary(
 go_test(
     name = "cluster_agents_test",
     srcs = [
+        "cluster_agents_coverage_test.go",
         "collector_alerts_test.go",
         "escalator_test.go",
         "git_activity_gate_test.go",
