@@ -9,6 +9,7 @@ data:
   settings.yml: |
     use_default_settings: true
     server:
+      secret_key: "{{ include "monolith.fullname" . | sha256sum | trunc 32 }}"
       limiter: false
       public_instance: false
 ---
@@ -41,10 +42,11 @@ spec:
           env:
             - name: SEARXNG_BASE_URL
               value: "http://localhost:8080"
+            - name: SEARXNG_SETTINGS_PATH
+              value: "/etc/searxng-config"
           volumeMounts:
             - name: settings
-              mountPath: /etc/searxng/settings.yml
-              subPath: settings.yml
+              mountPath: /etc/searxng-config
               readOnly: true
           livenessProbe:
             httpGet:
