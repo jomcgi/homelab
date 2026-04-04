@@ -90,7 +90,6 @@ py_test(
         ":ais-ingest",
         "@pip//nats_py",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
 
