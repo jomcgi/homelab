@@ -30,7 +30,12 @@ go_test(
     srcs = [
         "cloudflaretunnel_webhook_test.go",
         "conditions_test.go",
+        "types_test.go",
     ],
     embed = [":api"],
-    deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1:meta"],
+    deps = [
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_sigs_gateway_api//apis/v1:apis",
+    ],
 )

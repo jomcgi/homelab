@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "utils",
@@ -6,4 +6,10 @@ go_library(
     importpath = "github.com/jomcgi/homelab/projects/operators/cloudflare/test/utils",
     visibility = ["//visibility:public"],
     deps = ["@com_github_onsi_ginkgo_v2//:ginkgo"],
+)
+
+go_test(
+    name = "utils_test",
+    srcs = ["utils_test.go"],
+    embed = [":utils"],
 )
