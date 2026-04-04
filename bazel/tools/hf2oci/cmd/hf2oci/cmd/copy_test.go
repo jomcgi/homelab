@@ -151,6 +151,10 @@ func TestCopyCmdFlagDefaults(t *testing.T) {
 	file, err := flags.GetString("file")
 	require.NoError(t, err)
 	assert.Equal(t, "", file)
+
+	includeMMProj, err := flags.GetBool("include-mmproj")
+	require.NoError(t, err)
+	assert.False(t, includeMMProj, "include-mmproj should default to false")
 }
 
 // TestCopyCmdRegistryRequired verifies that --registry is marked required.
