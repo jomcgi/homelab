@@ -7,7 +7,7 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
-from chat.models import Message
+from chat.models import Attachment, Message
 from chat.store import MessageStore
 
 
@@ -98,3 +98,102 @@ class TestGetRecentMessages:
         recent = store.get_recent("ch1", limit=10)
         assert len(recent) == 1
         assert recent[0].content == "in ch1"
+
+
+class TestSaveMessageWithAttachments:
+    @pytest.mark.asyncio
+    async def test_saves_attachments_linked_to_message(self, store, session):
+        """save_message persists attachments linked to the message."""
+        attachments = [
+            {
+                "data": b"\x89PNG",
+                "content_type": "image/png",
+                "filename": "photo.png",
+                "description": "A cat",
+            }
+        ]
+        msg = await store.save_message(
+            discord_message_id="att1",
+            channel_id="ch1",
+            user_id="u1",
+            username="Alice",
+            content="Look at this!",
+            is_bot=False,
+            attachments=attachments,
+        )
+        assert msg is not None
+        saved = session.exec(select(Attachment)).all()
+        assert len(saved) == 1
+        assert saved[0].message_id == msg.id
+        assert saved[0].description == "A cat"
+        assert saved[0].data == b"\x89PNG"
+
+    @pytest.mark.asyncio
+    async def test_embeds_combined_text_and_descriptions(self, store):
+        """save_message embeds text content combined with image descriptions."""
+        attachments = [
+            {
+                "data": b"\x89PNG",
+                "content_type": "image/png",
+                "filename": "photo.png",
+                "description": "A sunset",
+            },
+            {
+                "data": b"\xff\xd8\xff",
+                "content_type": "image/jpeg",
+                "filename": "sky.jpg",
+                "description": "Blue sky with clouds",
+            },
+        ]
+        await store.save_message(
+            discord_message_id="att2",
+            channel_id="ch1",
+            user_id="u1",
+            username="Bob",
+            content="Beautiful day!",
+            is_bot=False,
+            attachments=attachments,
+        )
+        embed_call = store.embed_client.embed.call_args[0][0]
+        assert "Beautiful day!" in embed_call
+        assert "[Image: A sunset]" in embed_call
+        assert "[Image: Blue sky with clouds]" in embed_call
+
+    @pytest.mark.asyncio
+    async def test_text_only_message_unchanged(self, store):
+        """save_message without attachments behaves as before."""
+        await store.save_message(
+            discord_message_id="noatt",
+            channel_id="ch1",
+            user_id="u1",
+            username="Carol",
+            content="Just text",
+            is_bot=False,
+        )
+        store.embed_client.embed.assert_called_once_with("Just text")
+
+
+class TestGetAttachments:
+    @pytest.mark.asyncio
+    async def test_get_attachments_for_messages(self, store, session):
+        """get_attachments returns attachments keyed by message id."""
+        msg = await store.save_message(
+            discord_message_id="ga1",
+            channel_id="ch1",
+            user_id="u1",
+            username="Alice",
+            content="Photo",
+            is_bot=False,
+            attachments=[
+                {
+                    "data": b"\x89PNG",
+                    "content_type": "image/png",
+                    "filename": "a.png",
+                    "description": "Cat",
+                },
+            ],
+        )
+        result = store.get_attachments([msg.id])
+        assert msg.id in result
+        assert len(result[msg.id]) == 1
+        assert result[msg.id][0].filename == "a.png"
