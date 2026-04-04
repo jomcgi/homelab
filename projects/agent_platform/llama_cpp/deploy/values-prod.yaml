@@ -13,9 +13,9 @@ modelVolume:
 
 server:
   nGpuLayers: 999
-  ctxSize: 32768
+  ctxSize: 65536
   flashAttn: "on"
-  cacheTypeK: "q8_0"
+  cacheTypeK: "f16"
   cacheTypeV: "q8_0"
   threads: 8
   jinja: true
