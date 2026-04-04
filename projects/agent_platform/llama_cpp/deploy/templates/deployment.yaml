@@ -41,24 +41,46 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
+              {{- if .Values.server.mmproj }}
+              MMPROJ_ARG="--mmproj {{ .Values.server.mmproj }}"
+              {{- else }}
+              MMPROJ=$(find {{ .Values.modelVolume.mountPath }} -maxdepth 2 -name 'mmproj*.gguf' -type f 2>/dev/null | head -1)
+              MMPROJ_ARG=""
+              if [ -n "$MMPROJ" ]; then
+                echo "Auto-discovered mmproj: $MMPROJ"
+                MMPROJ_ARG="--mmproj $MMPROJ"
+              fi
+              {{- end }}
               exec /app/llama-server \
                 --model {{ .Values.server.modelPath | quote }} \
+                $MMPROJ_ARG \
                 {{ include "llama-cpp.serverArgs" . | indent 16 | trim }}
           {{- else }}
           command: ["/bin/sh", "-c"]
           args:
             - |
-              # Auto-discover the GGUF file. Assumes single model per volume.
+              # Auto-discover the GGUF model file (exclude mmproj).
               # For split GGUF, the first shard (-00001-of-) sorts first and
               # llama.cpp auto-discovers siblings.
-              MODEL=$(find {{ .Values.modelVolume.mountPath }} -maxdepth 2 -name '*.gguf' -type f | sort | head -1)
+              MODEL=$(find {{ .Values.modelVolume.mountPath }} -maxdepth 2 -name '*.gguf' ! -name 'mmproj*' -type f | sort | head -1)
               if [ -z "$MODEL" ]; then
                 echo "ERROR: no .gguf file found under {{ .Values.modelVolume.mountPath }}" >&2
                 exit 1
               fi
               echo "Auto-discovered model: $MODEL"
+              {{- if .Values.server.mmproj }}
+              MMPROJ_ARG="--mmproj {{ .Values.server.mmproj }}"
+              {{- else }}
+              MMPROJ=$(find {{ .Values.modelVolume.mountPath }} -maxdepth 2 -name 'mmproj*.gguf' -type f 2>/dev/null | head -1)
+              MMPROJ_ARG=""
+              if [ -n "$MMPROJ" ]; then
+                echo "Auto-discovered mmproj: $MMPROJ"
+                MMPROJ_ARG="--mmproj $MMPROJ"
+              fi
+              {{- end }}
               exec /app/llama-server \
                 --model "$MODEL" \
+                $MMPROJ_ARG \
                 {{ include "llama-cpp.serverArgs" . | indent 16 | trim }}
           {{- end }}
           ports:
