@@ -12,6 +12,10 @@ data:
       secret_key: "{{ include "monolith.fullname" . | sha256sum | trunc 32 }}"
       limiter: false
       public_instance: false
+    search:
+      formats:
+        - html
+        - json
 ---
 apiVersion: apps/v1
 kind: Deployment
