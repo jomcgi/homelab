@@ -1,4 +1,13 @@
-"""Tests for MessageStore.save_message() -- IntegrityError / duplicate handling."""
+"""Tests for MessageStore.save_message() -- IntegrityError / duplicate handling.
+
+Note on test strategy: other store tests use a real SQLite in-memory session (see
+store_test.py / store_coverage_test.py) to exercise the full ORM stack.  These tests
+use a plain MagicMock session instead because SQLite cannot be configured to raise
+IntegrityError on commit() itself — it raises the exception inside the ORM flush, making
+it impractical to simulate controlled duplicate-key scenarios at the commit boundary.
+The MagicMock approach lets us inject the error precisely and verify the rollback logic
+without relying on database-level behaviour.
+"""
 
 from unittest.mock import AsyncMock, MagicMock
 
