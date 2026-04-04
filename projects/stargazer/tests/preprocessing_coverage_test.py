@@ -47,9 +47,7 @@ class TestExtractRoadsAddsMatchingWays:
             way = MagicMock()
             way.is_way.return_value = True
             way.tags = {"highway": highway_tag}
-            way.tags.get = lambda key, default=None: (
-                highway_tag if key == "highway" else default
-            )
+            # dict.get works natively; no attribute override needed
             return way
 
         matching_way_primary = make_mock_way("primary")
@@ -95,7 +93,7 @@ class TestExtractRoadsAddsMatchingWays:
         node_obj = MagicMock()
         node_obj.is_way.return_value = False
         node_obj.tags = {}
-        node_obj.tags.get = lambda key, default=None: default
+        # dict.get works natively; no attribute override needed
 
         mock_writer_instance = MagicMock()
         mock_writer_instance.__enter__ = MagicMock(return_value=mock_writer_instance)
