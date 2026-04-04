@@ -99,8 +99,8 @@ class TestMessageModel:
             )
 
     @pytest.mark.parametrize("bad_value", [None, 42, {"key": "value"}])
-    def test_embedding_validator_passes_non_string_types_to_pydantic(self, bad_value):
-        """Embedding validator passes non-string types through to Pydantic validation."""
+    def test_embedding_validator_does_not_intercept_non_string_types(self, bad_value):
+        """Validator skips non-string inputs; Pydantic then rejects non-list[float] values."""
         with pytest.raises(ValidationError):
             Message.model_validate(
                 {
