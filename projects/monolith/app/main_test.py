@@ -440,8 +440,8 @@ async def test_lifespan_logs_discord_bot_starting_when_token_set():
 
 
 @pytest.mark.asyncio
-async def test_lifespan_creates_three_tasks_when_discord_token_set():
-    """When DISCORD_BOT_TOKEN is set, lifespan creates three tasks (scheduler, calendar, bot)."""
+async def test_lifespan_creates_four_tasks_when_discord_token_set():
+    """When DISCORD_BOT_TOKEN is set, lifespan creates four tasks (scheduler, calendar, bot, summary)."""
     from app.main import lifespan
 
     mock_bot = MagicMock()
@@ -465,7 +465,7 @@ async def test_lifespan_creates_three_tasks_when_discord_token_set():
                 async with lifespan(app):
                     pass
 
-    assert len(created_tasks) == 3
+    assert len(created_tasks) == 4
 
 
 @pytest.mark.asyncio
