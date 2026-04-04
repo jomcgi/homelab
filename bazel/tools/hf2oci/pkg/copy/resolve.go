@@ -122,6 +122,17 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 			ociTag = ociref.DeriveTag(tag, revision)
 		}
 	}
+
+	// Differentiate the tag when mmproj files are included, so that
+	// "model-Q4_K_M" and "model-Q4_K_M + mmproj" don't collide in the
+	// registry and silently cache-hit the wrong image.
+	for _, w := range weights {
+		if isMMProj(w.Path) {
+			ociTag += "-mmproj"
+			break
+		}
+	}
+
 	refStr := fmt.Sprintf("%s/%s:%s", registry, repoPath, ociTag)
 
 	ref, err := name.ParseReference(refStr)
