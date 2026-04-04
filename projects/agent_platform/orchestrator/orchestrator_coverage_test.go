@@ -35,12 +35,15 @@ type failPutStore struct {
 func (f *failPutStore) Get(ctx context.Context, id string) (*JobRecord, error) {
 	return f.inner.Get(ctx, id)
 }
+
 func (f *failPutStore) Put(_ context.Context, _ *JobRecord) error {
 	return errors.New("put failed")
 }
+
 func (f *failPutStore) Delete(ctx context.Context, id string) error {
 	return f.inner.Delete(ctx, id)
 }
+
 func (f *failPutStore) List(ctx context.Context, sf, tf []string, limit, offset int) ([]JobRecord, int, error) {
 	return f.inner.List(ctx, sf, tf, limit, offset)
 }
@@ -53,12 +56,15 @@ type failListStore struct {
 func (f *failListStore) Get(ctx context.Context, id string) (*JobRecord, error) {
 	return f.inner.Get(ctx, id)
 }
+
 func (f *failListStore) Put(ctx context.Context, job *JobRecord) error {
 	return f.inner.Put(ctx, job)
 }
+
 func (f *failListStore) Delete(ctx context.Context, id string) error {
 	return f.inner.Delete(ctx, id)
 }
+
 func (f *failListStore) List(_ context.Context, _, _ []string, _, _ int) ([]JobRecord, int, error) {
 	return nil, 0, errors.New("list failed")
 }
