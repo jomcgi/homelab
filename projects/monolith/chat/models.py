@@ -1,4 +1,4 @@
-"""Chat message model for pgvector-backed Discord conversation memory."""
+"""Chat models for pgvector-backed Discord conversation memory."""
 
 import json
 from datetime import datetime, timezone
@@ -30,3 +30,15 @@ class Message(SQLModel, table=True):
         if isinstance(v, str):
             return json.loads(v)
         return v
+
+
+class Attachment(SQLModel, table=True):
+    __tablename__ = "attachments"
+    __table_args__ = {"schema": "chat"}
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_id: int = Field(foreign_key="chat.messages.id")
+    data: bytes
+    content_type: str
+    filename: str
+    description: str
