@@ -71,9 +71,7 @@ class TestSearchWebBaseUrlFromEnv:
         fake_response = MagicMock()
         fake_response.raise_for_status = MagicMock()
         fake_response.json.return_value = {
-            "results": [
-                {"title": "T", "content": "C", "url": "http://ex.com"}
-            ]
+            "results": [{"title": "T", "content": "C", "url": "http://ex.com"}]
         }
 
         with patch.dict(os.environ, {"SEARXNG_URL": "http://env-searxng:8888"}):

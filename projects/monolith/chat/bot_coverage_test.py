@@ -140,7 +140,9 @@ class TestOnMessageStoreAlways:
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
         ):
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=MagicMock())
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=MagicMock()
+            )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await bot.on_message(message)
 
@@ -161,7 +163,9 @@ class TestOnMessageStoreAlways:
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore") as mock_store_cls,
         ):
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=MagicMock())
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=MagicMock()
+            )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             mock_store_cls.return_value.save_message = AsyncMock(
                 side_effect=RuntimeError("db down")
@@ -190,7 +194,9 @@ class TestOnMessageShouldRespondGuard:
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore") as mock_store_cls,
         ):
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=MagicMock())
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=MagicMock()
+            )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             mock_store_cls.return_value.save_message = AsyncMock()
             await bot.on_message(message)
