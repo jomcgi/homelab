@@ -240,3 +240,85 @@ func TestResolveWithBaseModel(t *testing.T) {
 	assert.Equal(t, regHost+"/models/base/original-model:variant-quantized-model", result.Ref)
 	assert.False(t, result.Cached)
 }
+
+func TestResolveWithMMProjIncluded(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/Org/Model/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "config.json", Size: 100},
+				{Type: "file", Path: "Model-Q4_K_M.gguf", Size: 4096},
+				{Type: "file", Path: "mmproj-BF16.gguf", Size: 512},
+			})
+		case r.URL.Path == "/api/models/Org/Model":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	reg := registry.New()
+	regSrv := httptest.NewServer(reg)
+	defer regSrv.Close()
+	regHost := regSrv.Listener.Addr().String()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	result, err := Resolve(context.Background(), ResolveOptions{
+		Repo:          "Org/Model",
+		Registry:      regHost + "/models",
+		Revision:      "main",
+		File:          "Model-Q4_K_M",
+		IncludeMMProj: true,
+		HFClient:      client,
+		RemoteOpts:    []remote.Option{},
+	})
+	require.NoError(t, err)
+
+	// Tag must include -mmproj suffix when mmproj weights are selected alongside the model.
+	assert.Equal(t, regHost+"/models/org/model:org-gguf-model-q4-k-m-mmproj", result.Ref)
+	// config.json + Model-Q4_K_M.gguf + mmproj-BF16.gguf
+	assert.Equal(t, 3, result.FileCount)
+	assert.False(t, result.Cached)
+}
+
+func TestResolveWithMMProjExcluded(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/Org/Model/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "config.json", Size: 100},
+				{Type: "file", Path: "Model-Q4_K_M.gguf", Size: 4096},
+				{Type: "file", Path: "mmproj-BF16.gguf", Size: 512},
+			})
+		case r.URL.Path == "/api/models/Org/Model":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	reg := registry.New()
+	regSrv := httptest.NewServer(reg)
+	defer regSrv.Close()
+	regHost := regSrv.Listener.Addr().String()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	result, err := Resolve(context.Background(), ResolveOptions{
+		Repo:          "Org/Model",
+		Registry:      regHost + "/models",
+		Revision:      "main",
+		File:          "Model-Q4_K_M",
+		IncludeMMProj: false,
+		HFClient:      client,
+		RemoteOpts:    []remote.Option{},
+	})
+	require.NoError(t, err)
+
+	// Tag must NOT include -mmproj suffix when IncludeMMProj is false.
+	assert.Equal(t, regHost+"/models/org/model:org-gguf-model-q4-k-m", result.Ref)
+	// config.json + Model-Q4_K_M.gguf only (mmproj excluded from selection)
+	assert.Equal(t, 2, result.FileCount)
+	assert.False(t, result.Cached)
+}
