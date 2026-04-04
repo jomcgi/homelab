@@ -70,40 +70,42 @@ def setup_function():
 
 
 def test_configure_logging_sets_root_level_debug():
-    """configure_logging(logging.DEBUG) sets root logger level to DEBUG."""
-    with patch("logging.basicConfig"):
+    """configure_logging(logging.DEBUG) passes DEBUG level to basicConfig."""
+    with patch("logging.basicConfig") as mock_basicconfig:
         configure_logging(logging.DEBUG)
-    assert logging.getLogger().level == logging.DEBUG
+    kwargs = mock_basicconfig.call_args[1]
+    assert kwargs.get("level") == logging.DEBUG
 
 
 def test_configure_logging_sets_root_level_info():
-    """configure_logging(logging.INFO) sets root logger level to INFO."""
-    with patch("logging.basicConfig"):
+    """configure_logging(logging.INFO) passes INFO level to basicConfig."""
+    with patch("logging.basicConfig") as mock_basicconfig:
         configure_logging(logging.INFO)
-    assert logging.getLogger().level == logging.INFO
+    kwargs = mock_basicconfig.call_args[1]
+    assert kwargs.get("level") == logging.INFO
 
 
 def test_configure_logging_sets_root_level_warning():
-    """configure_logging(logging.WARNING) sets root logger level to WARNING."""
-    with patch("logging.basicConfig"):
+    """configure_logging(logging.WARNING) passes WARNING level to basicConfig."""
+    with patch("logging.basicConfig") as mock_basicconfig:
         configure_logging(logging.WARNING)
-    assert logging.getLogger().level == logging.WARNING
+    kwargs = mock_basicconfig.call_args[1]
+    assert kwargs.get("level") == logging.WARNING
 
 
 def test_configure_logging_defaults_to_info():
-    """configure_logging() without arguments defaults root logger to INFO."""
-    with patch("logging.basicConfig"):
+    """configure_logging() without arguments passes INFO level to basicConfig."""
+    with patch("logging.basicConfig") as mock_basicconfig:
         configure_logging()
-    assert logging.getLogger().level == logging.INFO
+    kwargs = mock_basicconfig.call_args[1]
+    assert kwargs.get("level") == logging.INFO
 
 
 def test_configure_logging_calls_basicconfig_with_level():
-    """configure_logging() calls logging.basicConfig with the provided level."""
+    """configure_logging() calls logging.basicConfig exactly once."""
     with patch("logging.basicConfig") as mock_basicconfig:
         configure_logging(logging.DEBUG)
     mock_basicconfig.assert_called_once()
-    kwargs = mock_basicconfig.call_args[1]
-    assert kwargs.get("level") == logging.DEBUG
 
 
 def test_configure_logging_discord_gateway_set_to_warning():
