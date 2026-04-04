@@ -56,7 +56,7 @@ class TestLifespanBotCloseException:
 
     @pytest.mark.asyncio
     async def test_bot_close_exception_does_not_prevent_task_creation(self):
-        """Even when bot.close() will later raise, all 3 tasks are still created at startup."""
+        """Even when bot.close() will later raise, all 4 tasks are still created at startup."""
         tasks, capture = _make_task_capturer()
 
         mock_bot = MagicMock()
@@ -73,8 +73,8 @@ class TestLifespanBotCloseException:
             except RuntimeError:
                 pass  # expected
 
-        # scheduler + calendar + bot = 3 tasks must have been created
-        assert len(tasks) == 3
+        # scheduler + calendar + bot + summary = 4 tasks must have been created
+        assert len(tasks) == 4
 
 
 # ---------------------------------------------------------------------------

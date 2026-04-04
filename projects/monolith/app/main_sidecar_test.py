@@ -382,12 +382,13 @@ async def test_start_bot_when_ready_calls_wait_for_sidecar_before_bot_start():
 
     def capture_create_task(coro, **kwargs):
         task_counter[0] += 1
-        if task_counter[0] <= 2:
-            # Drain scheduler and calendar coroutines to avoid warnings
+        if task_counter[0] == 3:
+            # Task 3 is the bot coroutine — capture it for sequencing test
+            captured_bot_coro.append(coro)
+        else:
+            # Drain scheduler (1), calendar (2), and summary (4) coroutines
             if hasattr(coro, "close"):
                 coro.close()
-        else:
-            captured_bot_coro.append(coro)
         return MagicMock()
 
     with (
