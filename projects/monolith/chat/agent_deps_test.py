@@ -20,13 +20,13 @@ class TestCreateAgentWithDeps:
     def test_agent_has_search_history_tool(self):
         """create_agent registers a search_history tool."""
         agent = create_agent(base_url="http://fake:8080")
-        tool_names = [t.name for t in agent._function_tools.values()]
+        tool_names = [t.name for t in agent._function_toolset.values()]
         assert "search_history" in tool_names
 
     def test_agent_has_get_user_summary_tool(self):
         """create_agent registers a get_user_summary tool."""
         agent = create_agent(base_url="http://fake:8080")
-        tool_names = [t.name for t in agent._function_tools.values()]
+        tool_names = [t.name for t in agent._function_toolset.values()]
         assert "get_user_summary" in tool_names
 
     def test_system_prompt_references_search_history(self):
