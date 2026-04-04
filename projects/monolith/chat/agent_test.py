@@ -30,7 +30,7 @@ class TestFormatContextMessages:
             username="Alice",
             content="Hello there",
             is_bot=False,
-            embedding=[0.0] * 512,
+            embedding=[0.0] * 1024,
             created_at=datetime(2026, 4, 3, 12, 0, tzinfo=timezone.utc),
         )
         formatted = format_context_messages([msg])
@@ -51,7 +51,7 @@ class TestFormatContextMessages:
             username="Bot",
             content="Hi!",
             is_bot=True,
-            embedding=[0.0] * 512,
+            embedding=[0.0] * 1024,
             created_at=datetime(2026, 4, 3, 12, 1, tzinfo=timezone.utc),
         )
         formatted = format_context_messages([msg])

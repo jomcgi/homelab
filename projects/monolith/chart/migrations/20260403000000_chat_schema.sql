@@ -11,7 +11,7 @@ CREATE TABLE chat.messages (
     username TEXT NOT NULL,
     content TEXT NOT NULL,
     is_bot BOOLEAN NOT NULL DEFAULT FALSE,
-    embedding vector(512) NOT NULL,
+    embedding vector(1024) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

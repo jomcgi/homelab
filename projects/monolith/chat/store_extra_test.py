@@ -35,7 +35,7 @@ def session_fixture():
 @pytest.fixture
 def store(session):
     embed_client = AsyncMock()
-    embed_client.embed.return_value = [0.0] * 512
+    embed_client.embed.return_value = [0.0] * 1024
     return MessageStore(session=session, embed_client=embed_client)
 
 
@@ -67,7 +67,7 @@ def mock_session():
 @pytest.fixture
 def mock_store(mock_session):
     embed_client = AsyncMock()
-    embed_client.embed.return_value = [0.0] * 512
+    embed_client.embed.return_value = [0.0] * 1024
     return MessageStore(session=mock_session, embed_client=embed_client)
 
 
@@ -79,7 +79,7 @@ class TestSearchSimilarErrorPaths:
         with pytest.raises(RuntimeError, match="DB connection lost"):
             mock_store.search_similar(
                 channel_id="ch1",
-                query_embedding=[0.0] * 512,
+                query_embedding=[0.0] * 1024,
             )
 
     def test_propagates_operational_error_from_exec(self, mock_store, mock_session):
@@ -93,7 +93,7 @@ class TestSearchSimilarErrorPaths:
         with pytest.raises(OperationalError):
             mock_store.search_similar(
                 channel_id="ch-missing",
-                query_embedding=[0.1] * 512,
+                query_embedding=[0.1] * 1024,
             )
 
     def test_large_exclude_ids_builds_all_placeholders(self, mock_store, mock_session):
@@ -103,7 +103,7 @@ class TestSearchSimilarErrorPaths:
         large_ids = list(range(50))
         mock_store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
             exclude_ids=large_ids,
         )
 
@@ -121,7 +121,7 @@ class TestSearchSimilarErrorPaths:
 
         mock_store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
             exclude_ids=[1, 2, 3],
         )
 
@@ -137,7 +137,7 @@ class TestSearchSimilarErrorPaths:
 
         mock_store.search_similar(
             channel_id="ch1",
-            query_embedding=[0.0] * 512,
+            query_embedding=[0.0] * 1024,
             exclude_ids=[],
         )
 

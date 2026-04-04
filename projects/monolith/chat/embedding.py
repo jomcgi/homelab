@@ -12,7 +12,7 @@ class EmbeddingClient:
         self.base_url = base_url or EMBEDDING_URL
 
     async def embed(self, text: str) -> list[float]:
-        """Embed a single text string, returning a 512-dim vector."""
+        """Embed a single text string, returning a 1024-dim vector."""
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
             resp = await client.post(
                 f"{self.base_url}/v1/embeddings",

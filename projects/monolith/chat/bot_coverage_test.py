@@ -224,7 +224,7 @@ class TestOnMessageGenerateReply:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 512)
+        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
 
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Hello human!"
@@ -260,7 +260,7 @@ class TestOnMessageGenerateReply:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 512)
+        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
 
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Hello!"
@@ -305,7 +305,7 @@ class TestGenerateResponse:
             username="Alice",
             content="recent message",
             is_bot=False,
-            embedding=[0.0] * 512,
+            embedding=[0.0] * 1024,
             created_at=datetime(2026, 4, 1, 12, 0, tzinfo=timezone.utc),
         )
 
@@ -313,7 +313,7 @@ class TestGenerateResponse:
         mock_store.get_recent = MagicMock(return_value=[recent_msg])
         mock_store.search_similar = MagicMock(return_value=[])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 512)
+        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
 
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Sunny!"
@@ -354,7 +354,7 @@ class TestGenerateResponse:
             username="Bob",
             content="older similar message",
             is_bot=False,
-            embedding=[0.0] * 512,
+            embedding=[0.0] * 1024,
             created_at=datetime(2026, 3, 1, 10, 0, tzinfo=timezone.utc),
         )
 
@@ -362,7 +362,7 @@ class TestGenerateResponse:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.search_similar = MagicMock(return_value=[similar_msg])
 
-        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 512)
+        bot.embed_client.embed = AsyncMock(return_value=[0.0] * 1024)
 
         mock_agent_result = MagicMock()
         mock_agent_result.output = "Sure!"
