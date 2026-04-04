@@ -87,3 +87,91 @@ class TestSearchWebRequestParams:
             call_args = mock_client.get.call_args
             url = call_args[0][0]
             assert url == "http://searxng-host:9090/search"
+
+
+# ---------------------------------------------------------------------------
+# Malformed JSON response (200 OK but resp.json() raises)
+# ---------------------------------------------------------------------------
+
+
+class TestSearchWebMalformedJson:
+    @pytest.mark.asyncio
+    async def test_raises_on_malformed_json_response(self):
+        """search_web propagates ValueError when the response body is not valid JSON."""
+        import json
+
+        fake_response = MagicMock()
+        fake_response.raise_for_status = MagicMock()
+        # json() raises when body cannot be decoded
+        fake_response.json.side_effect = json.JSONDecodeError(
+            "Expecting value", doc="not json", pos=0
+        )
+
+        with patch("chat.web_search.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get.return_value = fake_response
+            mock_cls.return_value = mock_client
+
+            with pytest.raises(Exception):  # json.JSONDecodeError is a subclass of ValueError
+                await search_web("query", base_url="http://fake:8080")
+
+    @pytest.mark.asyncio
+    async def test_raises_on_missing_results_key(self):
+        """search_web raises KeyError when the JSON body has no 'results' key."""
+        fake_response = MagicMock()
+        fake_response.raise_for_status = MagicMock()
+        fake_response.json.return_value = {"error": "backend unavailable"}  # no 'results'
+
+        with patch("chat.web_search.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get.return_value = fake_response
+            mock_cls.return_value = mock_client
+
+            with pytest.raises(KeyError):
+                await search_web("query", base_url="http://fake:8080")
+
+    @pytest.mark.asyncio
+    async def test_returns_formatted_string_with_null_fields(self):
+        """search_web handles result dicts with None values by formatting them as 'None'."""
+        fake_response = MagicMock()
+        fake_response.raise_for_status = MagicMock()
+        fake_response.json.return_value = {
+            "results": [{"title": None, "content": None, "url": None}]
+        }
+
+        with patch("chat.web_search.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get.return_value = fake_response
+            mock_cls.return_value = mock_client
+
+            result = await search_web("query", base_url="http://fake:8080")
+
+        # None fields are stringified; the function should not raise
+        assert "None" in result
+
+    @pytest.mark.asyncio
+    async def test_results_with_partial_null_fields_formatted(self):
+        """search_web includes all fields even when only some are None."""
+        fake_response = MagicMock()
+        fake_response.raise_for_status = MagicMock()
+        fake_response.json.return_value = {
+            "results": [{"title": "Real Title", "content": None, "url": "http://ex.com"}]
+        }
+
+        with patch("chat.web_search.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get.return_value = fake_response
+            mock_cls.return_value = mock_client
+
+            result = await search_web("query", base_url="http://fake:8080")
+
+        assert "Real Title" in result
+        assert "http://ex.com" in result

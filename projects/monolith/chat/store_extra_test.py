@@ -50,3 +50,96 @@ class TestGetRecentEmptyChannel:
         result = store.get_recent("nonexistent-channel-xyz", limit=5)
         assert isinstance(result, list)
         assert len(result) == 0
+
+
+# ---------------------------------------------------------------------------
+# search_similar() -- error paths with mocked session
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def mock_session():
+    from unittest.mock import MagicMock
+
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_store(mock_session):
+    embed_client = AsyncMock()
+    embed_client.embed.return_value = [0.0] * 512
+    return MessageStore(session=mock_session, embed_client=embed_client)
+
+
+class TestSearchSimilarErrorPaths:
+    def test_propagates_exception_from_session_exec(self, mock_store, mock_session):
+        """search_similar propagates exceptions raised by session.exec()."""
+        mock_session.exec.side_effect = RuntimeError("DB connection lost")
+
+        with pytest.raises(RuntimeError, match="DB connection lost"):
+            mock_store.search_similar(
+                channel_id="ch1",
+                query_embedding=[0.0] * 512,
+            )
+
+    def test_propagates_operational_error_from_exec(self, mock_store, mock_session):
+        """search_similar propagates OperationalError (e.g. malformed SQL / schema issue)."""
+        from sqlalchemy.exc import OperationalError
+
+        mock_session.exec.side_effect = OperationalError(
+            "no such table: chat.messages", params=None, orig=None
+        )
+
+        with pytest.raises(OperationalError):
+            mock_store.search_similar(
+                channel_id="ch-missing",
+                query_embedding=[0.1] * 512,
+            )
+
+    def test_large_exclude_ids_builds_all_placeholders(self, mock_store, mock_session):
+        """search_similar with 50 exclude_ids creates excl_0 … excl_49 params."""
+        mock_session.exec.return_value = []
+
+        large_ids = list(range(50))
+        mock_store.search_similar(
+            channel_id="ch1",
+            query_embedding=[0.0] * 512,
+            exclude_ids=large_ids,
+        )
+
+        call_kwargs = mock_session.exec.call_args
+        params = call_kwargs[1]["params"]
+        for i in range(50):
+            assert f"excl_{i}" in params, f"Missing excl_{i} in params"
+            assert params[f"excl_{i}"] == i
+
+    def test_large_exclude_ids_sql_contains_not_in_clause(
+        self, mock_store, mock_session
+    ):
+        """The generated SQL string contains NOT IN when exclude_ids are provided."""
+        mock_session.exec.return_value = []
+
+        mock_store.search_similar(
+            channel_id="ch1",
+            query_embedding=[0.0] * 512,
+            exclude_ids=[1, 2, 3],
+        )
+
+        sql_obj = mock_session.exec.call_args[0][0]
+        # sqlalchemy text() objects render their clause string via str()
+        assert "NOT IN" in str(sql_obj).upper()
+
+    def test_search_similar_with_zero_exclude_ids_no_not_in_clause(
+        self, mock_store, mock_session
+    ):
+        """When exclude_ids is empty the SQL does NOT contain a NOT IN clause."""
+        mock_session.exec.return_value = []
+
+        mock_store.search_similar(
+            channel_id="ch1",
+            query_embedding=[0.0] * 512,
+            exclude_ids=[],
+        )
+
+        sql_obj = mock_session.exec.call_args[0][0]
+        assert "NOT IN" not in str(sql_obj).upper()
