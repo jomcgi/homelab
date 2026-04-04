@@ -36,6 +36,7 @@ go_test(
         "cloudflare_tunnel_gaps_test.go",
         "cloudflare_tunnel_metrics_test.go",
         "cloudflare_tunnel_observability_test.go",
+        "cloudflare_tunnel_source_coverage_test.go",
         "cloudflare_tunnel_statemachine_test.go",
     ],
     embed = [":statemachine"],
