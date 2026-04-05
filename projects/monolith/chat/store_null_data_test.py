@@ -132,9 +132,7 @@ class TestSaveMessageNoneDataGuard:
         assert saved.content == "Check this out"
 
     @pytest.mark.asyncio
-    async def test_mixed_attachments_only_valid_data_creates_blob(
-        self, store, session
-    ):
+    async def test_mixed_attachments_only_valid_data_creates_blob(self, store, session):
         """save_message() creates a Blob only for attachments that have non-None data."""
         msg = await store.save_message(
             discord_message_id="nd-4",

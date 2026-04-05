@@ -52,18 +52,14 @@ class TestIsRetryableEmbedding:
         """HTTPStatusError with 400 Bad Request is a client error; do not retry."""
         resp = MagicMock()
         resp.status_code = 400
-        exc = httpx.HTTPStatusError(
-            "Bad Request", request=MagicMock(), response=resp
-        )
+        exc = httpx.HTTPStatusError("Bad Request", request=MagicMock(), response=resp)
         assert _is_retryable(exc) is False
 
     def test_http_404_is_not_retryable(self):
         """HTTPStatusError with 404 Not Found is a client error; do not retry."""
         resp = MagicMock()
         resp.status_code = 404
-        exc = httpx.HTTPStatusError(
-            "Not Found", request=MagicMock(), response=resp
-        )
+        exc = httpx.HTTPStatusError("Not Found", request=MagicMock(), response=resp)
         assert _is_retryable(exc) is False
 
     def test_value_error_is_not_retryable(self):
