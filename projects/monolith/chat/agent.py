@@ -2,10 +2,10 @@
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
-from pydantic_ai import Agent, ModelSettings, RunContext
+from pydantic_ai import Agent, ModelSettings, RunContext, ToolDefinition
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -113,10 +113,28 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
         ),
     )
 
+    async def inject_signposts(
+        ctx: RunContext[ChatDeps],
+        tool_defs: list[ToolDefinition],
+    ) -> list[ToolDefinition]:
+        updated = []
+        for td in tool_defs:
+            tool = agent._function_toolset.tools.get(td.name)
+            if tool:
+                sp = getattr(tool.function, "signpost", None)
+                if sp:
+                    updated.append(
+                        replace(td, description=f"{td.description} USE WHEN: {sp}")
+                    )
+                    continue
+            updated.append(td)
+        return updated
+
     agent: Agent[ChatDeps] = Agent(
         model,
         system_prompt=build_system_prompt(),
         model_settings=ModelSettings(max_tokens=16384),
+        prepare_tools=inject_signposts,
     )
 
     @agent.tool_plain
