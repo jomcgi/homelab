@@ -531,6 +531,9 @@ func (r *GatewayReconciler) getAccountID(ctx context.Context, gateway *gatewayv1
 	if !ok {
 		return "", fmt.Errorf("credentials secret missing CLOUDFLARE_ACCOUNT_ID")
 	}
+	if len(accountID) == 0 {
+		return "", fmt.Errorf("credentials secret CLOUDFLARE_ACCOUNT_ID is empty")
+	}
 
 	return string(accountID), nil
 }
