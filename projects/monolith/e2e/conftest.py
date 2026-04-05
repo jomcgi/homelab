@@ -177,7 +177,16 @@ def pg(tmp_path_factory):
         os.chown(datadir, nobody.pw_uid, nobody.pw_gid)
 
     initdb_result = subprocess.run(
-        [str(pg_bin / "initdb"), "-D", str(datadir), "--no-locale", "-U", "test"],
+        [
+            str(pg_bin / "initdb"),
+            "-D",
+            str(datadir),
+            "--no-locale",
+            "-U",
+            "test",
+            "-L",
+            str(pg_share),
+        ],
         env=env,
         capture_output=True,
         preexec_fn=_pg_preexec,
