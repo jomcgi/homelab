@@ -18,7 +18,9 @@ class TestEmbeddingClient:
         """embed() returns a list of floats from the API response."""
         fake_response = MagicMock()
         fake_response.status_code = 200
-        fake_response.json.return_value = {"data": [{"embedding": [0.1] * 1024}]}
+        fake_response.json.return_value = {
+            "data": [{"index": 0, "embedding": [0.1] * 1024}]
+        }
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
@@ -37,7 +39,9 @@ class TestEmbeddingClient:
         """embed() sends the text to /v1/embeddings with the right model."""
         fake_response = MagicMock()
         fake_response.status_code = 200
-        fake_response.json.return_value = {"data": [{"embedding": [0.0] * 1024}]}
+        fake_response.json.return_value = {
+            "data": [{"index": 0, "embedding": [0.0] * 1024}],
+        }
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
@@ -51,3 +55,5 @@ class TestEmbeddingClient:
         mock_client.post.assert_called_once()
         call_kwargs = mock_client.post.call_args
         assert "/v1/embeddings" in call_kwargs[0][0]
+        payload = call_kwargs[1]["json"]
+        assert payload["input"] == ["test input"]
