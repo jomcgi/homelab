@@ -20,9 +20,7 @@ spec:
       labels:
         {{- include "monolith.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: app
-      annotations:
-        instrumentation.opentelemetry.io/inject-nodejs: "nodejs"
-        instrumentation.opentelemetry.io/nodejs-container-names: "frontend"
+      annotations: {}
     spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
