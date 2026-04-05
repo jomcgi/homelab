@@ -62,9 +62,7 @@ class TestBlobFlushBeforeAttachment:
     """Regression suite for the flush-before-FK fix in store.save_message()."""
 
     @pytest.mark.asyncio
-    async def test_blob_is_flushed_before_attachment_fk_reference(
-        self, store, session
-    ):
+    async def test_blob_is_flushed_before_attachment_fk_reference(self, store, session):
         """Core regression: when a *new* Blob is created the blob row must be
         flushed to the database before the Attachment FK row is added.
 
@@ -87,7 +85,10 @@ class TestBlobFlushBeforeAttachment:
         original_add = session.add
 
         def spy_add(instance):
-            if isinstance(instance, Attachment) and instance.blob_sha256 == expected_sha:
+            if (
+                isinstance(instance, Attachment)
+                and instance.blob_sha256 == expected_sha
+            ):
                 unflushed_sha256s = {
                     obj.sha256 for obj in session.new if isinstance(obj, Blob)
                 }
@@ -180,7 +181,11 @@ class TestBlobFlushBeforeAttachment:
             (i for i, e in enumerate(names) if e == ("add", "Blob")), None
         )
         flush_after_blob_pos = next(
-            (i for i, e in enumerate(names) if e == ("flush",) and i > (add_blob_pos or -1)),
+            (
+                i
+                for i, e in enumerate(names)
+                if e == ("flush",) and i > (add_blob_pos or -1)
+            ),
             None,
         )
         add_attachment_pos = next(
@@ -190,8 +195,7 @@ class TestBlobFlushBeforeAttachment:
         assert add_blob_pos is not None, "Blob was never added"
         assert add_attachment_pos is not None, "Attachment was never added"
         assert flush_after_blob_pos is not None, (
-            "No flush() call found after add(Blob) — "
-            "regression: blob flush is missing"
+            "No flush() call found after add(Blob) — regression: blob flush is missing"
         )
         assert flush_after_blob_pos < add_attachment_pos, (
             f"flush() (pos {flush_after_blob_pos}) did not occur before "
@@ -250,7 +254,12 @@ class TestBlobFlushBeforeAttachment:
 
         # Pre-insert the blob so it already exists in the DB
         session.add(
-            Blob(sha256=sha, data=raw_data, content_type="image/gif", description="Pre-existing")
+            Blob(
+                sha256=sha,
+                data=raw_data,
+                content_type="image/gif",
+                description="Pre-existing",
+            )
         )
         session.flush()
 
@@ -322,7 +331,9 @@ class TestBlobFlushBeforeAttachment:
         # row didn't exist at insert time the FK would be dangling and the
         # JOIN would return nothing.
         result = store.get_attachments([msg.id])
-        assert msg.id in result, "get_attachments() must return results for this message"
+        assert msg.id in result, (
+            "get_attachments() must return results for this message"
+        )
         assert len(result[msg.id]) == 1, "Exactly one (Attachment, Blob) pair expected"
 
         att, blob = result[msg.id][0]
