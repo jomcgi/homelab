@@ -29,6 +29,15 @@ js_library(
         ":node_modules/mdsvex",
         ":node_modules/svelte",
         ":node_modules/vite",
+        # OpenTelemetry browser tracing
+        ":node_modules/@opentelemetry/api",
+        ":node_modules/@opentelemetry/sdk-trace-web",
+        ":node_modules/@opentelemetry/exporter-trace-otlp-http",
+        ":node_modules/@opentelemetry/instrumentation",
+        ":node_modules/@opentelemetry/instrumentation-document-load",
+        ":node_modules/@opentelemetry/instrumentation-fetch",
+        ":node_modules/@opentelemetry/resources",
+        ":node_modules/@opentelemetry/semantic-conventions",
         # Platform-specific native binaries for Linux CI (loaded at runtime via require())
         ":node_modules/@rollup/rollup-linux-x64-gnu",
         ":node_modules/@esbuild/linux-x64",

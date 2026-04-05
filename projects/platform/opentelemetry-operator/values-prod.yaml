@@ -18,6 +18,7 @@ instrumentation:
     - todo
     - agent-orchestrator
     - cluster-agents
+    - monolith
     # Development
     - grimoire
     - marine
