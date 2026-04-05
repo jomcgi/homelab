@@ -3,6 +3,7 @@
 # gazelle:exclude e2e
 # gazelle:exclude home
 # gazelle:exclude notes
+# gazelle:exclude scripts
 # gazelle:exclude shared
 # gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,tainted-fastapi-http-request-httpx
 load("@aspect_rules_py//py:defs.bzl", "py_library")
@@ -24,7 +25,7 @@ exec_filegroup(
 
 py_venv_binary(
     name = "main",
-    srcs = glob(
+    srcs = glob(  # keep
         [
             "app/**/*.py",
             "chat/**/*.py",
@@ -43,7 +44,7 @@ py_venv_binary(
 
 py_library(
     name = "monolith_backend",
-    srcs = glob(
+    srcs = glob(  # keep
         [
             "app/**/*.py",
             "chat/**/*.py",
