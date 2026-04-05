@@ -38,11 +38,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	"k8s.io/utils/ptr"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/jomcgi/homelab/projects/operators/cloudflare/internal/telemetry"
 )
