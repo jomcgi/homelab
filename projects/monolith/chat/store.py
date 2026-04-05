@@ -33,6 +33,9 @@ class MessageStore:
 
     async def save_messages(self, messages: list[dict]) -> SaveResult:
         """Embed and persist a batch of messages. Skips duplicates via savepoints."""
+        if not messages:
+            return SaveResult(stored=0, skipped=0)
+
         from sqlalchemy.exc import IntegrityError
 
         if not messages:

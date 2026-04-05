@@ -37,7 +37,7 @@ def session_fixture():
 @pytest.fixture
 def store(session):
     embed_client = AsyncMock()
-    embed_client.embed.return_value = [0.0] * 1024
+    embed_client.embed_batch.return_value = [[0.0] * 1024]
     return MessageStore(session=session, embed_client=embed_client)
 
 
@@ -69,7 +69,7 @@ class TestSaveMessage:
             content="What is the weather?",
             is_bot=False,
         )
-        store.embed_client.embed.assert_called_once_with("What is the weather?")
+        store.embed_client.embed_batch.assert_called_once_with(["What is the weather?"])
 
 
 class TestGetRecentMessages:
@@ -157,7 +157,7 @@ class TestSaveMessageWithAttachments:
             is_bot=False,
             attachments=attachments,
         )
-        embed_call = store.embed_client.embed.call_args[0][0]
+        embed_call = store.embed_client.embed_batch.call_args[0][0][0]
         assert "Beautiful day!" in embed_call
         assert "[Image: A sunset]" in embed_call
         assert "[Image: Blue sky with clouds]" in embed_call
@@ -173,7 +173,7 @@ class TestSaveMessageWithAttachments:
             content="Just text",
             is_bot=False,
         )
-        store.embed_client.embed.assert_called_once_with("Just text")
+        store.embed_client.embed_batch.assert_called_once_with(["Just text"])
 
 
 class TestGetAttachments:
