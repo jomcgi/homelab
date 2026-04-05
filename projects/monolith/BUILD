@@ -916,6 +916,69 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_web_search_missing_fields_test",
+    srcs = ["chat/web_search_missing_fields_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "chat_store_non_integrity_error_test",
+    srcs = ["chat/store_non_integrity_error_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "chat_summarizer_none_id_test",
+    srcs = ["chat/summarizer_none_id_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "chat_embedding_null_test",
+    srcs = ["chat/embedding_null_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "chat_bot_session_failure_test",
+    srcs = ["chat/bot_session_failure_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],

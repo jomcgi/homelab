@@ -92,6 +92,10 @@ class ChatBot(discord.Client):
         if message.author.id == self.user.id:
             return
 
+        # Default to empty list so `attachments` is always bound even if the
+        # store block raises before download_image_attachments() is called.
+        attachments: list[dict] = []
+
         # Process image attachments (pass store for blob dedup)
         try:
             with Session(get_engine()) as session:
