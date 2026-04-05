@@ -9,7 +9,7 @@ spec:
     # Chart from OCI registry (pushed by CI via Bazel helm_push)
     - repoURL: ghcr.io/jomcgi/homelab/charts
       chart: marine
-      targetRevision: 0.3.8
+      targetRevision: 0.3.9
       helm:
         releaseName: marine
         valueFiles:
