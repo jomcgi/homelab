@@ -1,7 +1,7 @@
 # ADR 001: Discord History Backfill
 
 **Author:** jomcgi
-**Status:** Draft
+**Status:** Accepted
 **Created:** 2026-04-04
 
 ---
