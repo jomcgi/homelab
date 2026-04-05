@@ -13,6 +13,7 @@ from app.log import configure_logging
 from home.router import router as home_router
 from home.scheduler import run_scheduler
 from notes.router import router as notes_router
+from chat.router import router as chat_router
 from shared.router import router as schedule_router
 
 configure_logging()
@@ -60,6 +61,9 @@ async def lifespan(app: FastAPI):
     scheduler_task = asyncio.create_task(run_scheduler())
     calendar_task = asyncio.create_task(calendar_loop())
 
+    app.state.bot = None
+    app.state.backfill_task = None
+
     # Start Discord bot if token is configured
     bot = None
     bot_task = None
@@ -68,6 +72,7 @@ async def lifespan(app: FastAPI):
         from chat.bot import create_bot
 
         bot = create_bot()
+        app.state.bot = bot
 
         async def _start_bot_when_ready():
             await _wait_for_sidecar()
@@ -118,6 +123,7 @@ app = FastAPI(title="Monolith", lifespan=lifespan)
 app.include_router(home_router)
 app.include_router(schedule_router)
 app.include_router(notes_router)
+app.include_router(chat_router)
 
 
 @app.get("/healthz")
