@@ -427,6 +427,9 @@ def embed_client():
 
     mock = MagicMock(spec=EmbeddingClient)
     mock.embed = AsyncMock(side_effect=deterministic_embedding)
+    mock.embed_batch = AsyncMock(
+        side_effect=lambda texts: [deterministic_embedding(t) for t in texts]
+    )
     return mock
 
 

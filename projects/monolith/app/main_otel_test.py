@@ -26,8 +26,10 @@ class TestOtelInstrumentationSuccessBranch:
 
         # Inject a fake opentelemetry.instrumentation.fastapi into sys.modules
         # so that the `from opentelemetry.instrumentation.fastapi import ...` succeeds.
+        mock_otel_root = MagicMock()
         fake_modules = {
-            "opentelemetry": MagicMock(),
+            "opentelemetry": mock_otel_root,
+            "opentelemetry.trace": mock_otel_root.trace,
             "opentelemetry.instrumentation": MagicMock(),
             "opentelemetry.instrumentation.fastapi": mock_otel_module,
         }
@@ -59,8 +61,10 @@ class TestOtelInstrumentationImportErrorBranch:
         sys.modules.pop("app.main", None)
 
         # Setting entries to None makes Python raise ImportError on import.
+        # Only block the instrumentation subpackage (not the root opentelemetry
+        # package) because pydantic_ai imports opentelemetry.trace at import
+        # time and would fail if the root package were blocked.
         blocked = {
-            "opentelemetry": None,
             "opentelemetry.instrumentation": None,
             "opentelemetry.instrumentation.fastapi": None,
         }
