@@ -165,16 +165,18 @@ def pg(tmp_path_factory):
             return [str(ld_linux), "--library-path", lib_path_str, bin_path] + args
         return [bin_path] + args
 
-    # If no ld-linux, fall back to LD_LIBRARY_PATH (macOS or non-Debian)
-    if ld_linux is None:
-        existing_ld = env.get("LD_LIBRARY_PATH", "")
-        env["LD_LIBRARY_PATH"] = (
-            f"{existing_ld}:{lib_path_str}" if existing_ld else lib_path_str
-        )
-        existing_dyld = env.get("DYLD_LIBRARY_PATH", "")
-        env["DYLD_LIBRARY_PATH"] = (
-            f"{existing_dyld}:{lib_path_str}" if existing_dyld else lib_path_str
-        )
+    # Always set LD_LIBRARY_PATH so child processes spawned by PG binaries
+    # (e.g. initdb running "postgres -V") also find the Debian libraries.
+    # The ld-linux --library-path only affects the immediate exec.
+    existing_ld = env.get("LD_LIBRARY_PATH", "")
+    env["LD_LIBRARY_PATH"] = (
+        f"{lib_path_str}:{existing_ld}" if existing_ld else lib_path_str
+    )
+    # macOS equivalent (no ld-linux on macOS)
+    existing_dyld = env.get("DYLD_LIBRARY_PATH", "")
+    env["DYLD_LIBRARY_PATH"] = (
+        f"{lib_path_str}:{existing_dyld}" if existing_dyld else lib_path_str
+    )
 
     # --- initdb ---
     initdb_result = subprocess.run(
