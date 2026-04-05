@@ -134,7 +134,9 @@ class TestSummaryTaskDoneCallback:
         """When DISCORD_BOT_TOKEN is absent, no summary task is created."""
         tasks, capture = _make_task_capturer()
 
-        env_without_token = {k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"}
+        env_without_token = {
+            k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
+        }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
         with (
@@ -184,7 +186,9 @@ class TestSummaryLoopLogging:
         """'Summary loop started' is NOT logged when DISCORD_BOT_TOKEN is absent."""
         tasks, capture = _make_task_capturer()
 
-        env_without_token = {k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"}
+        env_without_token = {
+            k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
+        }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
         with (
