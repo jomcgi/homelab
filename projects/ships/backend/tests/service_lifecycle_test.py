@@ -52,8 +52,9 @@ class TestCleanupLoop:
 
         # sleep was called exactly once (one loop iteration)
         assert call_count == 1
-        # cleanup was called because running was still True when we checked after sleep
-        service.db.cleanup_old_positions.assert_called_once()
+        # cleanup was NOT called because running was set to False during sleep,
+        # and the implementation checks `if self.running` after sleep before calling cleanup
+        service.db.cleanup_old_positions.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_cleanup_loop_handles_exceptions_without_crashing(self, service):
@@ -93,12 +94,22 @@ class TestCleanupLoop:
         async def fake_sleep(_duration):
             nonlocal iteration
             iteration += 1
-            if iteration >= 1:
-                service.running = False
+            # Keep running True so that cleanup_old_positions is called after this sleep.
+            # The loop will then check the while condition and exit because we set
+            # running=False via the cleanup mock side-effect below.
+
+        original_cleanup = service.db.cleanup_old_positions
+
+        async def cleanup_then_stop():
+            await original_cleanup()
+            service.running = False
+
+        service.db.cleanup_old_positions = AsyncMock(side_effect=cleanup_then_stop)
 
         with patch("projects.ships.backend.main.asyncio.sleep", side_effect=fake_sleep):
             await service.cleanup_loop()
 
+        # cleanup_old_positions was called exactly once (running was True when checked after sleep)
         service.db.cleanup_old_positions.assert_called_once()
 
 
