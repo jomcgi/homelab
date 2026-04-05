@@ -38,7 +38,9 @@ class TestEmbedNullResponse:
         is raised — None passes through silently.  Callers must guard against
         None return values.
         """
-        mock_client = _mock_client_returning({"data": [{"embedding": None}]})
+        mock_client = _mock_client_returning(
+            {"data": [{"index": 0, "embedding": None}]}
+        )
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
@@ -59,7 +61,9 @@ class TestEmbedNullResponse:
     @pytest.mark.asyncio
     async def test_raises_value_error_on_missing_embedding_key(self, client):
         """embed() raises ValueError when the 'embedding' key is absent from the first item."""
-        mock_client = _mock_client_returning({"data": [{"model": "voyage-4-nano"}]})
+        mock_client = _mock_client_returning(
+            {"data": [{"index": 0, "model": "voyage-4-nano"}]}
+        )
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
@@ -79,7 +83,9 @@ class TestEmbedNullResponse:
     @pytest.mark.asyncio
     async def test_returns_valid_vector_when_response_is_well_formed(self, client):
         """embed() returns the embedding list when the response is well-formed."""
-        mock_client = _mock_client_returning({"data": [{"embedding": [0.5] * 1024}]})
+        mock_client = _mock_client_returning(
+            {"data": [{"index": 0, "embedding": [0.5] * 1024}]}
+        )
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
