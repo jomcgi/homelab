@@ -1102,6 +1102,46 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_embedding_connect_timeout_test",
+    srcs = ["chat/embedding_connect_timeout_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "chat_agent_web_search_tool_test",
+    srcs = ["chat/agent_web_search_tool_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "chat_bot_remaining_gaps_test",
+    srcs = ["chat/bot_remaining_gaps_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//httpx",
+        "@pip//pgvector",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
