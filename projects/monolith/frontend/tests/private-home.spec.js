@@ -118,7 +118,8 @@ test.describe("Private Home — API contracts with mocked responses", () => {
     const allDayEvent = data.find((e) => e.allDay === true);
     expect(allDayEvent).toBeDefined();
     expect(allDayEvent.time).toBeNull();
-    expect(allDayEvent.endTime).toBeUndefined(); // NOT null — all-day events have no endTime field
+    // shared/service.py omits the endTime key entirely for all-day events
+    expect("endTime" in allDayEvent).toBe(false);
     expect(allDayEvent.title).toBe("Doctor appointment");
   });
 

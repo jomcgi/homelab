@@ -27,7 +27,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `PORT=${PORT} node build/index.js`,
+    command: `npm run build && npm run preview -- --port ${PORT}`,
     port: parseInt(PORT, 10),
     reuseExistingServer: !process.env.CI,
   },
