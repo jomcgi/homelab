@@ -40,10 +40,10 @@ def pytest_configure(config):
 os.environ.pop("STATIC_DIR", None)
 os.environ.pop("DISCORD_BOT_TOKEN", None)
 os.environ.pop("ICAL_FEED_URL", None)
-# Force psycopg3 pure Python mode — the C binary extension (psycopg-binary)
-# returns the PG version string as bytes, which triggers a TypeError in
+# Ensure libpq uses UTF-8 client encoding — without this, psycopg-binary
+# may return the PG version string as bytes, which triggers a TypeError in
 # SQLAlchemy's version detection regex.
-os.environ.setdefault("PSYCOPG_IMPL", "python")
+os.environ.setdefault("PGCLIENTENCODING", "UTF8")
 
 
 # ---------------------------------------------------------------------------
