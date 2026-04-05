@@ -965,7 +965,6 @@ py_test(
     ],
 )
 
-<<<<<<< HEAD
 py_test(
     name = "chat_vision_test",
     srcs = ["chat/vision_test.py"],
@@ -1254,6 +1253,18 @@ py_test(
         "@pip//sqlmodel",
         "@pip//tzdata",
         "@pip//uvicorn",
+    ],
+)
+
+py_test(
+    name = "chat_router_test",
+    srcs = ["chat/router_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
     ],
 )
 
