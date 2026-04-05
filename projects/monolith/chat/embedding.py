@@ -18,6 +18,7 @@ EMBED_RETRY_TIMEOUT = 300.0  # 5 min total deadline
 
 EMBED_CONNECT_TIMEOUT = 5.0
 EMBED_READ_TIMEOUT = 30.0
+EMBED_BATCH_READ_TIMEOUT = 60.0
 
 
 def _is_retryable(exc: Exception) -> bool:
@@ -36,13 +37,19 @@ class EmbeddingClient:
         self.base_url = base_url or EMBEDDING_URL
 
     async def embed(self, text: str) -> list[float]:
-        """Embed a single text string, returning a 1024-dim vector.
+        """Embed a single text string, returning a 1024-dim vector."""
+        return (await self.embed_batch([text]))[0]
+
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """Embed multiple texts in a single HTTP call, returning vectors sorted by index.
 
         Retries with exponential backoff on transient errors (connection
         failures, timeouts, 5xx) for up to 5 minutes so the bot can
         survive a llama-server restart / model reload.
         """
-        timeout = httpx.Timeout(EMBED_READ_TIMEOUT, connect=EMBED_CONNECT_TIMEOUT)
+        timeout = httpx.Timeout(
+            EMBED_BATCH_READ_TIMEOUT, connect=EMBED_CONNECT_TIMEOUT
+        )
         elapsed = 0.0
         last_exc: Exception | None = None
 
@@ -51,12 +58,14 @@ class EmbeddingClient:
                 async with httpx.AsyncClient(timeout=timeout) as client:
                     resp = await client.post(
                         f"{self.base_url}/v1/embeddings",
-                        json={"input": text, "model": "voyage-4-nano"},
+                        json={"input": texts, "model": "voyage-4-nano"},
                     )
                     resp.raise_for_status()
                     try:
-                        return resp.json()["data"][0]["embedding"]
-                    except (KeyError, IndexError) as e:
+                        data = resp.json()["data"]
+                        sorted_data = sorted(data, key=lambda item: item["index"])
+                        return [item["embedding"] for item in sorted_data]
+                    except (KeyError, IndexError, TypeError) as e:
                         raise ValueError(
                             f"unexpected embedding response shape: {e}"
                         ) from e
