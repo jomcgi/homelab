@@ -149,7 +149,6 @@ py_test(
     deps = [
         ":ais-ingest",
         "@pip//fastapi",
-        "@pip//httpx",  # required by fastapi.testclient (starlette TestClient)
         "@pip//nats_py",
         "@pip//pytest",
         "@pip//pytest_asyncio",  # keep
