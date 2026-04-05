@@ -22,7 +22,7 @@ class TestCreateAgentWithDeps:
         agent = create_agent(base_url="http://fake:8080")
         assert agent is not None
 
-    def test_system_prompt_references_tool_usage(self):
-        """System prompt encourages proactive tool use."""
+    def test_system_prompt_references_search_first(self):
+        """System prompt encourages search-first behavior."""
         prompt = build_system_prompt()
-        assert "tools" in prompt.lower()
+        assert "Search before you respond" in prompt
