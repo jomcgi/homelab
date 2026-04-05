@@ -9,18 +9,16 @@ from __future__ import annotations
 import hashlib
 import os
 import random
-import shutil
 import signal
 import socket
 import subprocess
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlmodel import Session, create_engine
 
 # ---------------------------------------------------------------------------
@@ -167,13 +165,15 @@ def pg(tmp_path_factory):
     # --- create database and install pgvector ---
     base_url = f"postgresql+psycopg://test@127.0.0.1:{port}"
     engine = create_engine(f"{base_url}/postgres")
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+    with engine.connect() as conn:
+        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
         conn.execute(text("CREATE DATABASE monolith"))
     engine.dispose()
 
     monolith_url = f"{base_url}/monolith"
     engine = create_engine(monolith_url)
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+    with engine.connect() as conn:
+        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     engine.dispose()
 
@@ -208,13 +208,18 @@ def session(pg):
     engine = create_engine(pg.url)
     conn = engine.connect()
     txn = conn.begin()
-    nested = conn.begin_nested()
+    conn.begin_nested()  # SAVEPOINT
 
     sess = Session(bind=conn)
+
+    @event.listens_for(sess, "after_transaction_end")
+    def restart_savepoint(session, transaction):
+        if transaction.nested and not transaction._parent.nested:
+            session.begin_nested()
+
     yield sess
 
     sess.close()
-    nested.rollback()
     txn.rollback()
     conn.close()
     engine.dispose()
