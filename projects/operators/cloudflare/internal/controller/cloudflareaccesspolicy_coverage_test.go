@@ -1070,13 +1070,12 @@ var _ = Describe("CloudflareAccessPolicy Controller Coverage", func() {
 
 			By("Calling handleDeletion - note: this will attempt a real CF API call with a fake token and fail, which we treat as the error path being covered")
 			// The getCloudflareClient will succeed (credentials exist) but DeleteAccessApplication
-			// will fail because the token is fake. This tests the error branch in handleDeletion
-			// where DeleteAccessApplication fails and we requeue.
+			// will fail because the token is fake. This exercises the error branch in handleDeletion
+			// where DeleteAccessApplication fails and the controller schedules a retry.
 			r := newAccessPolicyReconciler()
 			result, _ := r.handleDeletion(ctx, policy)
-			// Either it requeues (error branch) or succeeds (if token validation is not checked until API call)
-			// We just verify the method doesn't panic and returns something reasonable
-			_ = result
+			// The controller returns RequeueAfter(30s) when DeleteAccessApplication fails.
+			Expect(result.RequeueAfter).To(Equal(30 * time.Second))
 		})
 	})
 })
