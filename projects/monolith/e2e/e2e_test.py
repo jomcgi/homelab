@@ -288,7 +288,7 @@ class TestMessageStore:
             "filename": "pic.png",
             "description": "A picture",
         }
-        await store.save_message(
+        msg1 = await store.save_message(
             discord_message_id="att-001",
             channel_id="ch-att",
             user_id="u-1",
@@ -297,7 +297,10 @@ class TestMessageStore:
             is_bot=False,
             attachments=[attachment],
         )
-        await store.save_message(
+        assert msg1 is not None, (
+            "First save_message with attachment returned None (IntegrityError)"
+        )
+        msg2 = await store.save_message(
             discord_message_id="att-002",
             channel_id="ch-att",
             user_id="u-2",
@@ -305,6 +308,9 @@ class TestMessageStore:
             content="Second with same image",
             is_bot=False,
             attachments=[attachment],
+        )
+        assert msg2 is not None, (
+            "Second save_message with attachment returned None (IntegrityError)"
         )
         expected_sha = hashlib.sha256(image_data).hexdigest()
         blobs = store.session.exec(
@@ -464,7 +470,7 @@ class TestAgentTools:
         result = await agent.run(
             "Search for messages about deployment",
             deps=deps,
-            model=TestModel(custom_result_text="Found deployment messages."),
+            model=TestModel(custom_output_text="Found deployment messages."),
         )
         assert result.output == "Found deployment messages."
 
@@ -513,7 +519,7 @@ class TestAgentTools:
             "What has alice been talking about?",
             deps=deps,
             model=TestModel(
-                custom_result_text="Alice discusses Kubernetes and GitOps."
+                custom_output_text="Alice discusses Kubernetes and GitOps."
             ),
         )
         assert result.output == "Alice discusses Kubernetes and GitOps."
