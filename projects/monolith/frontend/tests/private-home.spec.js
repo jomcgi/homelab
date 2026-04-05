@@ -118,7 +118,7 @@ test.describe("Private Home — API contracts with mocked responses", () => {
     const allDayEvent = data.find((e) => e.allDay === true);
     expect(allDayEvent).toBeDefined();
     expect(allDayEvent.time).toBeNull();
-    expect(allDayEvent.endTime).toBeUndefined();  // NOT null — all-day events have no endTime field
+    expect(allDayEvent.endTime).toBeUndefined(); // NOT null — all-day events have no endTime field
     expect(allDayEvent.title).toBe("Doctor appointment");
   });
 
@@ -154,6 +154,12 @@ test.describe("Private Home — API contracts with mocked responses", () => {
 
     expect(typeof data.task).toBe("string");
     expect(data.task.length).toBeGreaterThan(0);
+  });
+});
+
+test.describe("Private Home — error and edge-case responses", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/public");
   });
 
   test("GET /api/home/weekly handles 500 error response", async ({ page }) => {
@@ -192,7 +198,9 @@ test.describe("Private Home — API contracts with mocked responses", () => {
     expect(response.body.detail).toBe("Internal Server Error");
   });
 
-  test("GET /api/schedule/today handles 500 error response", async ({ page }) => {
+  test("GET /api/schedule/today handles 500 error response", async ({
+    page,
+  }) => {
     await page.route("**/api/schedule/today", async (route) => {
       await route.fulfill({
         status: 500,
@@ -210,7 +218,9 @@ test.describe("Private Home — API contracts with mocked responses", () => {
     expect(response.body.detail).toBe("Internal Server Error");
   });
 
-  test("GET /api/home/weekly returns empty task when no weekly task exists", async ({ page }) => {
+  test("GET /api/home/weekly returns empty task when no weekly task exists", async ({
+    page,
+  }) => {
     await page.route("**/api/home/weekly", async (route) => {
       await route.fulfill({
         status: 200,
@@ -228,7 +238,9 @@ test.describe("Private Home — API contracts with mocked responses", () => {
     expect(data.done).toBe(false);
   });
 
-  test("GET /api/home/daily returns 3 empty tasks when no tasks exist", async ({ page }) => {
+  test("GET /api/home/daily returns 3 empty tasks when no tasks exist", async ({
+    page,
+  }) => {
     await page.route("**/api/home/daily", async (route) => {
       await route.fulfill({
         status: 200,
@@ -254,7 +266,9 @@ test.describe("Private Home — API contracts with mocked responses", () => {
     });
   });
 
-  test("GET /api/schedule/today returns empty array when no events", async ({ page }) => {
+  test("GET /api/schedule/today returns empty array when no events", async ({
+    page,
+  }) => {
     await page.route("**/api/schedule/today", async (route) => {
       await route.fulfill({
         status: 200,

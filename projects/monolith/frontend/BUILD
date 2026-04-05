@@ -94,6 +94,7 @@ playwright_bin.playwright_test(
     ],
     chdir = package_name(),
     data = [
+        ":build",
         ":node_modules/@playwright/test",
         ":src",
         ":test_srcs",
