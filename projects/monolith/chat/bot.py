@@ -41,7 +41,7 @@ def _extract_thinking(result) -> str | None:
         if not isinstance(msg, ModelResponse):
             continue
         for part in msg.parts:
-            if isinstance(part, ThinkingPart) and part.content:
+            if isinstance(part, ThinkingPart) and part.content and part.content.strip():
                 parts.append(part.content.strip())
     return "\n\n".join(parts) if parts else None
 
