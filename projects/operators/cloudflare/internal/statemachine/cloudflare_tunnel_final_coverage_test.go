@@ -14,19 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package statemachine — final coverage gap tests
+// Package statemachine — supplementary coverage tests
 //
-// Fills the remaining gaps not addressed by existing test files:
+// Fills genuine gaps not covered by the other test files:
 //
-//  1. SSAPatch JSON content verification for states whose JSON payload was
-//     previously only checked for nil / non-nil:
-//     CreatingTunnel (phase only), CreatingSecret (TunnelID),
-//     ConfiguringIngress (TunnelID + SecretName), Failed (error fields),
-//     Unknown (ObservedPhase).
+//  1. SSAPatch for CreatingTunnel: verifies phase is set and that TunnelID /
+//     SecretName are absent (state where neither has been provisioned yet); also
+//     confirms the patch JSON does not leak managedFields.
 //
-//  2. FieldManager constant exact value — existing tests only verify it is
-//     non-empty; this file checks the precise string value expected by the
-//     controller.
+//  2. SSAPatch for Failed with RetryCount=0: edge case where the zero-value int
+//     must still round-trip through JSON correctly.
 //
 //  3. ValidateTransition extended table — existing tests cover Pending,
 //     CreatingTunnel, and two CreatingSecret variants; this file adds all
@@ -49,12 +46,12 @@ import (
 )
 
 // =============================================================================
-// 1. SSAPatch — JSON content verification for remaining state types
+// 1. SSAPatch — CreatingTunnel state and Failed RetryCount=0 edge case
 // =============================================================================
 
-var _ = Describe("SSAPatch JSON content for all state types", func() {
-	// unmarshalPatch is a local helper that decodes a patch into a CloudflareTunnel.
-	// We reuse extractPatchData defined in cloudflare_tunnel_comprehensive_test.go.
+var _ = Describe("SSAPatch JSON content — CreatingTunnel state", func() {
+	// unmarshalPatch is a local helper; extractPatchData is defined in
+	// cloudflare_tunnel_comprehensive_test.go.
 	unmarshalPatch := func(state CloudflareTunnelState) v1.CloudflareTunnel {
 		patch, err := SSAPatch(state)
 		Expect(err).NotTo(HaveOccurred(), "SSAPatch(%T) should not return an error", state)
@@ -65,122 +62,48 @@ var _ = Describe("SSAPatch JSON content for all state types", func() {
 		return obj
 	}
 
-	Describe("CreatingTunnel state", func() {
-		It("sets phase to CreatingTunnel and does not set TunnelID or SecretName", func() {
-			r := newTunnel(PhaseCreatingTunnel)
-			obj := unmarshalPatch(CloudflareTunnelCreatingTunnel{resource: r})
+	It("sets phase to CreatingTunnel and does not populate TunnelID or SecretName", func() {
+		r := newTunnel(PhaseCreatingTunnel)
+		obj := unmarshalPatch(CloudflareTunnelCreatingTunnel{resource: r})
 
-			Expect(obj.Status.Phase).To(Equal(PhaseCreatingTunnel))
-			Expect(obj.Status.TunnelID).To(BeEmpty(), "CreatingTunnel has no tunnel ID yet")
-			Expect(obj.Status.SecretName).To(BeEmpty(), "CreatingTunnel has no secret yet")
-			Expect(obj.Status.Active).To(BeFalse())
-			Expect(obj.Status.Ready).To(BeFalse())
-		})
-
-		It("clears ManagedFields from the patch JSON", func() {
-			r := newTunnel(PhaseCreatingTunnel)
-			patch, err := SSAPatch(CloudflareTunnelCreatingTunnel{resource: r})
-			Expect(err).NotTo(HaveOccurred())
-
-			raw := extractPatchData(patch)
-			Expect(string(raw)).NotTo(ContainSubstring("managedFields"))
-		})
+		Expect(obj.Status.Phase).To(Equal(PhaseCreatingTunnel))
+		Expect(obj.Status.TunnelID).To(BeEmpty(), "CreatingTunnel has no tunnel ID yet")
+		Expect(obj.Status.SecretName).To(BeEmpty(), "CreatingTunnel has no secret yet")
+		Expect(obj.Status.Active).To(BeFalse())
+		Expect(obj.Status.Ready).To(BeFalse())
 	})
 
-	Describe("CreatingSecret state", func() {
-		It("includes TunnelID in the patch JSON", func() {
-			r := newTunnel(PhaseCreatingSecret)
-			obj := unmarshalPatch(CloudflareTunnelCreatingSecret{
-				resource:       r,
-				TunnelIdentity: TunnelIdentity{TunnelID: "cs-tunnel-id"},
-			})
+	It("does not include managedFields in the patch JSON", func() {
+		r := newTunnel(PhaseCreatingTunnel)
+		patch, err := SSAPatch(CloudflareTunnelCreatingTunnel{resource: r})
+		Expect(err).NotTo(HaveOccurred())
 
-			Expect(obj.Status.Phase).To(Equal(PhaseCreatingSecret))
-			Expect(obj.Status.TunnelID).To(Equal("cs-tunnel-id"))
-			Expect(obj.Status.SecretName).To(BeEmpty(), "secret not yet created in this phase")
-		})
+		raw := extractPatchData(patch)
+		Expect(string(raw)).NotTo(ContainSubstring("managedFields"))
 	})
+})
 
-	Describe("ConfiguringIngress state", func() {
-		It("includes TunnelID and SecretName in the patch JSON", func() {
-			r := newTunnel(PhaseConfiguringIngress)
-			obj := unmarshalPatch(CloudflareTunnelConfiguringIngress{
-				resource:       r,
-				TunnelIdentity: TunnelIdentity{TunnelID: "ci-tunnel-id"},
-				SecretInfo:     SecretInfo{SecretName: "ci-secret"},
-			})
-
-			Expect(obj.Status.Phase).To(Equal(PhaseConfiguringIngress))
-			Expect(obj.Status.TunnelID).To(Equal("ci-tunnel-id"))
-			Expect(obj.Status.SecretName).To(Equal("ci-secret"))
-			Expect(obj.Status.Ready).To(BeFalse())
+var _ = Describe("SSAPatch JSON content — Failed state RetryCount=0 edge case", func() {
+	It("correctly serializes RetryCount=0 (default int value) without omitempty elision", func() {
+		r := newTunnel(PhaseFailed)
+		patch, err := SSAPatch(CloudflareTunnelFailed{
+			resource:     r,
+			RetryCount:   0,
+			LastState:    "Pending",
+			ErrorMessage: "first failure",
 		})
-	})
+		Expect(err).NotTo(HaveOccurred())
 
-	Describe("Failed state", func() {
-		It("includes RetryCount, LastState, and ErrorMessage in the patch JSON", func() {
-			r := newTunnel(PhaseFailed)
-			obj := unmarshalPatch(CloudflareTunnelFailed{
-				resource:     r,
-				RetryCount:   7,
-				LastState:    "CreatingTunnel",
-				ErrorMessage: "API timeout",
-			})
-
-			Expect(obj.Status.Phase).To(Equal(PhaseFailed))
-			Expect(obj.Status.RetryCount).To(Equal(7))
-			Expect(obj.Status.LastState).To(Equal("CreatingTunnel"))
-			Expect(obj.Status.ErrorMessage).To(Equal("API timeout"))
-			// Failed state must not set Ready=true
-			Expect(obj.Status.Ready).To(BeFalse())
-		})
-
-		It("correctly serializes RetryCount=0 (edge: default int value)", func() {
-			r := newTunnel(PhaseFailed)
-			obj := unmarshalPatch(CloudflareTunnelFailed{
-				resource:     r,
-				RetryCount:   0,
-				LastState:    "Pending",
-				ErrorMessage: "first failure",
-			})
-
-			Expect(obj.Status.RetryCount).To(Equal(0))
-			Expect(obj.Status.LastState).To(Equal("Pending"))
-		})
-	})
-
-	Describe("Unknown state", func() {
-		It("includes ObservedPhase in the patch JSON", func() {
-			r := newTunnel(PhaseUnknown)
-			obj := unmarshalPatch(CloudflareTunnelUnknown{
-				resource:      r,
-				ObservedPhase: "SomeCorruptedPhase",
-			})
-
-			Expect(obj.Status.Phase).To(Equal(PhaseUnknown))
-			Expect(obj.Status.ObservedPhase).To(Equal("SomeCorruptedPhase"))
-			Expect(obj.Status.TunnelID).To(BeEmpty())
-			Expect(obj.Status.SecretName).To(BeEmpty())
-		})
+		raw := extractPatchData(patch)
+		var obj v1.CloudflareTunnel
+		Expect(json.Unmarshal(raw, &obj)).To(Succeed())
+		Expect(obj.Status.RetryCount).To(Equal(0))
+		Expect(obj.Status.LastState).To(Equal("Pending"))
 	})
 })
 
 // =============================================================================
-// 2. FieldManager — exact value
-// =============================================================================
-
-var _ = Describe("FieldManager constant", func() {
-	It("has the exact value 'cloudflaretunnel-controller'", func() {
-		Expect(FieldManager).To(Equal("cloudflaretunnel-controller"))
-	})
-
-	It("is non-empty (sanity check)", func() {
-		Expect(FieldManager).NotTo(BeEmpty())
-	})
-})
-
-// =============================================================================
-// 3. ValidateTransition — extended table covering all remaining state types
+// 2. ValidateTransition — extended table covering all remaining state types
 // =============================================================================
 
 var _ = Describe("ValidateTransition extended coverage", func() {
@@ -293,7 +216,7 @@ var _ = Describe("ValidateTransition extended coverage", func() {
 })
 
 // =============================================================================
-// 4. RecordReconcile histogram — remaining phase labels
+// 3. RecordReconcile histogram — remaining phase labels
 // =============================================================================
 
 var _ = Describe("RecordReconcile histogram phases (remaining)", func() {
