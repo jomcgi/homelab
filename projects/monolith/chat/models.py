@@ -66,3 +66,15 @@ class UserChannelSummary(SQLModel, table=True):
     summary: str
     last_message_id: int
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ChannelSummary(SQLModel, table=True):
+    __tablename__ = "channel_summaries"
+    __table_args__ = {"schema": "chat"}
+
+    id: int | None = Field(default=None, primary_key=True)
+    channel_id: str = Field(unique=True)
+    summary: str
+    message_count: int = Field(default=0)
+    last_message_id: int = Field(foreign_key="chat.messages.id")
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
