@@ -21,7 +21,13 @@ import pytest
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
 
-from chat.agent import ChatDeps, _coerce_username, build_system_prompt, create_agent, format_context_messages
+from chat.agent import (
+    ChatDeps,
+    _coerce_username,
+    build_system_prompt,
+    create_agent,
+    format_context_messages,
+)
 from chat.models import Attachment, Blob, Message, UserChannelSummary
 
 
@@ -392,7 +398,9 @@ class TestCoerceUsernameDictKeys:
     def test_username_key_takes_priority_over_name_and_display_name(self):
         """'username' wins when all three keys are present."""
         assert (
-            _coerce_username({"username": "first", "name": "second", "display_name": "third"})
+            _coerce_username(
+                {"username": "first", "name": "second", "display_name": "third"}
+            )
             == "first"
         )
 
@@ -454,7 +462,9 @@ class TestCoerceUsernameNonStringTypes:
 class TestChatDepsValidation:
     def test_channel_id_field(self):
         """ChatDeps stores channel_id correctly."""
-        deps = ChatDeps(channel_id="my-channel", store=MagicMock(), embed_client=AsyncMock())
+        deps = ChatDeps(
+            channel_id="my-channel", store=MagicMock(), embed_client=AsyncMock()
+        )
         assert deps.channel_id == "my-channel"
 
     def test_store_field(self):
@@ -506,6 +516,7 @@ class TestWebSearchTool:
     @pytest.mark.asyncio
     async def test_returns_search_web_result_verbatim(self):
         """web_search tool returns exactly what search_web() returns to the agent."""
+
         async def fake_search(query: str, base_url: str | None = None) -> str:
             return "mocked result text"
 
@@ -538,7 +549,10 @@ class TestSearchHistoryQueryEmbedding:
         deps = _make_deps(store=store, embed_client=embed_client)
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("search_history", {"query": "deployment logs", "username": None, "limit": 5}),
+            model=_tool_model(
+                "search_history",
+                {"query": "deployment logs", "username": None, "limit": 5},
+            ),
             deps=deps,
         )
 
@@ -557,7 +571,9 @@ class TestSearchHistoryQueryEmbedding:
         deps = _make_deps(store=store, embed_client=embed_client, channel_id="chan-x")
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("search_history", {"query": "foo", "username": None, "limit": 5}),
+            model=_tool_model(
+                "search_history", {"query": "foo", "username": None, "limit": 5}
+            ),
             deps=deps,
         )
 
@@ -578,7 +594,9 @@ class TestSearchHistoryQueryEmbedding:
         deps = _make_deps(store=store, embed_client=embed_client)
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_capturing_model("search_history", {"query": "q", "username": None, "limit": 5}, captured),
+            model=_capturing_model(
+                "search_history", {"query": "q", "username": None, "limit": 5}, captured
+            ),
             deps=deps,
         )
 
@@ -597,7 +615,9 @@ class TestSearchHistoryUsernameCoercion:
         deps = _make_deps(store=store, embed_client=embed_client)
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("search_history", {"query": "q", "username": None, "limit": 5}),
+            model=_tool_model(
+                "search_history", {"query": "q", "username": None, "limit": 5}
+            ),
             deps=deps,
         )
 
@@ -615,7 +635,9 @@ class TestSearchHistoryUsernameCoercion:
         deps = _make_deps(store=store, embed_client=embed_client, channel_id="ch-t")
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("search_history", {"query": "q", "username": "alice", "limit": 5}),
+            model=_tool_model(
+                "search_history", {"query": "q", "username": "alice", "limit": 5}
+            ),
             deps=deps,
         )
 
@@ -635,7 +657,11 @@ class TestSearchHistoryUsernameCoercion:
             "p",
             model=_tool_model(
                 "search_history",
-                {"query": "q", "username": {"username": "charlie", "id": 7}, "limit": 5},
+                {
+                    "query": "q",
+                    "username": {"username": "charlie", "id": 7},
+                    "limit": 5,
+                },
             ),
             deps=deps,
         )
@@ -675,7 +701,9 @@ class TestSearchHistoryUsernameCoercion:
         deps = _make_deps(store=store, embed_client=embed_client)
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("search_history", {"query": "q", "username": "alice", "limit": 5}),
+            model=_tool_model(
+                "search_history", {"query": "q", "username": "alice", "limit": 5}
+            ),
             deps=deps,
         )
 
@@ -695,7 +723,9 @@ class TestSearchHistoryLimit:
         deps = _make_deps(store=store, embed_client=embed_client)
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("search_history", {"query": "q", "username": None, "limit": 50}),
+            model=_tool_model(
+                "search_history", {"query": "q", "username": None, "limit": 50}
+            ),
             deps=deps,
         )
 
@@ -713,7 +743,9 @@ class TestSearchHistoryLimit:
         deps = _make_deps(store=store, embed_client=embed_client)
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("search_history", {"query": "q", "username": None, "limit": 20}),
+            model=_tool_model(
+                "search_history", {"query": "q", "username": None, "limit": 20}
+            ),
             deps=deps,
         )
 
@@ -731,7 +763,9 @@ class TestSearchHistoryLimit:
         deps = _make_deps(store=store, embed_client=embed_client)
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("search_history", {"query": "q", "username": None, "limit": 3}),
+            model=_tool_model(
+                "search_history", {"query": "q", "username": None, "limit": 3}
+            ),
             deps=deps,
         )
 
@@ -803,7 +837,9 @@ class TestGetUserSummaryListPath:
         """List-mode output includes the formatted last-updated date."""
         store = MagicMock()
         store.list_user_summaries.return_value = [
-            _make_summary(username="dave", updated=datetime(2026, 3, 15, tzinfo=timezone.utc))
+            _make_summary(
+                username="dave", updated=datetime(2026, 3, 15, tzinfo=timezone.utc)
+            )
         ]
 
         captured: list[str] = []
@@ -880,7 +916,9 @@ class TestGetUserSummarySpecificUserPath:
         deps = _make_deps(store=store, channel_id="dict-chan")
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("get_user_summary", {"username": {"username": "ivan", "id": 5}}),
+            model=_tool_model(
+                "get_user_summary", {"username": {"username": "ivan", "id": 5}}
+            ),
             deps=deps,
         )
 
@@ -895,7 +933,9 @@ class TestGetUserSummarySpecificUserPath:
         deps = _make_deps(store=store)
         await create_agent(base_url="http://fake:8080").run(
             "p",
-            model=_tool_model("get_user_summary", {"username": {"id": 99, "email": "x@y.com"}}),
+            model=_tool_model(
+                "get_user_summary", {"username": {"id": 99, "email": "x@y.com"}}
+            ),
             deps=deps,
         )
 
