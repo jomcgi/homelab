@@ -219,6 +219,23 @@ py_test(
 )
 
 py_test(
+    name = "integration_test",
+    srcs = ["app/integration_test.py"],
+    imports = ["."],
+    size = "medium",
+    tags = ["integration"],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
     name = "models_test",
     srcs = ["home/models_test.py"],
     imports = ["."],
