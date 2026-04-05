@@ -60,13 +60,25 @@ def _find_free_port() -> int:
 
 
 def _find_pg_root() -> Path:
-    """Locate the extracted PostgreSQL binaries from Bazel runfiles."""
+    """Locate the extracted PostgreSQL binaries from Bazel runfiles.
+
+    The OCI extraction preserves Debian filesystem paths, so the postgres
+    binary is at ``usr/lib/postgresql/16/bin/postgres`` within the repo.
+    Bzlmod repo names use ``+postgres+postgres_test`` prefix.
+    """
     srcdir = os.environ.get("TEST_SRCDIR", "")
+    # Bazel bzlmod external repo paths
     candidates = [
+        Path(srcdir) / "_main" / "external" / "+postgres+postgres_test",
         Path(srcdir) / "_main" / "external" / "postgres_test",
         Path(srcdir) / "postgres_test",
     ]
     for candidate in candidates:
+        # Check Debian-style path first (OCI extraction preserves it)
+        pg16_root = candidate / "usr" / "lib" / "postgresql" / "16"
+        if (pg16_root / "bin" / "postgres").exists():
+            return candidate
+        # Also check flat layout (in case extraction is restructured later)
         if (candidate / "bin" / "postgres").exists():
             return candidate
     raise FileNotFoundError(
@@ -97,21 +109,30 @@ def _find_migrations_dir() -> Path:
 def pg(tmp_path_factory):
     """Start a real PostgreSQL 16 + pgvector instance for the test session."""
     pg_root = _find_pg_root()
-    pg_bin = pg_root / "bin"
-    pg_lib = pg_root / "lib"
-    pg_share = pg_root / "share"
+    # OCI extraction preserves Debian paths; check for that first
+    pg16_root = pg_root / "usr" / "lib" / "postgresql" / "16"
+    if (pg16_root / "bin" / "postgres").exists():
+        pg_bin = pg16_root / "bin"
+        pg_lib = pg_root / "usr" / "lib"  # shared libs are here
+        pg_share = pg_root / "usr" / "share" / "postgresql" / "16"
+    else:
+        pg_bin = pg_root / "bin"
+        pg_lib = pg_root / "lib"
+        pg_share = pg_root / "share"
 
     datadir = tmp_path_factory.mktemp("pgdata")
     port = _find_free_port()
 
     env = os.environ.copy()
-    # Ensure PG can find its shared libraries
+    # Ensure PG can find its shared libraries (both base libs and PG-internal libs)
+    pg_lib_internal = pg_lib / "postgresql" / "16" / "lib"
+    lib_paths = f"{pg_lib}:{pg_lib_internal}"
     existing_ld = env.get("LD_LIBRARY_PATH", "")
-    env["LD_LIBRARY_PATH"] = f"{pg_lib}:{existing_ld}" if existing_ld else str(pg_lib)
+    env["LD_LIBRARY_PATH"] = f"{lib_paths}:{existing_ld}" if existing_ld else lib_paths
     # macOS equivalent
     existing_dyld = env.get("DYLD_LIBRARY_PATH", "")
     env["DYLD_LIBRARY_PATH"] = (
-        f"{pg_lib}:{existing_dyld}" if existing_dyld else str(pg_lib)
+        f"{lib_paths}:{existing_dyld}" if existing_dyld else lib_paths
     )
 
     # --- initdb ---
@@ -140,7 +161,7 @@ def pg(tmp_path_factory):
             "-k",
             str(datadir),  # unix socket dir
             "-c",
-            f"dynamic_library_path={pg_lib}",
+            f"dynamic_library_path={pg_lib}:{pg_lib}/postgresql/16/lib",
             "-c",
             f"extension_dir={pg_share}/extension",
         ],
