@@ -87,21 +87,52 @@ async def lifespan(app: FastAPI):
     if discord_token:
 
         async def _summary_loop():
+            from datetime import datetime, timezone
+
+            from chat.models import ChannelSummary, UserChannelSummary
             from chat.summarizer import (
                 build_llm_caller,
                 generate_channel_summaries,
                 generate_summaries,
             )
 
+            stale_threshold = 86400  # 24 hours in seconds
+
             while True:
-                await asyncio.sleep(86400)  # 24 hours
+                # Check if summaries need generating (missing or stale)
                 try:
                     with Session(get_engine()) as session:
-                        llm_caller = build_llm_caller()
-                        await generate_summaries(session, llm_caller)
-                        await generate_channel_summaries(session, llm_caller)
+                        from sqlmodel import select
+
+                        latest_user = session.exec(
+                            select(UserChannelSummary.updated_at)
+                            .order_by(UserChannelSummary.updated_at.desc())
+                            .limit(1)
+                        ).first()
+                        latest_channel = session.exec(
+                            select(ChannelSummary.updated_at)
+                            .order_by(ChannelSummary.updated_at.desc())
+                            .limit(1)
+                        ).first()
+
+                    now = datetime.now(timezone.utc)
+                    needs_run = True
+                    if latest_user and latest_channel:
+                        newest = max(latest_user, latest_channel)
+                        age = (now - newest).total_seconds()
+                        needs_run = age >= stale_threshold
+
+                    if needs_run:
+                        logger.info("Running summary generation (stale or missing)")
+                        with Session(get_engine()) as session:
+                            llm_caller = build_llm_caller()
+                            await generate_summaries(session, llm_caller)
+                            await generate_channel_summaries(session, llm_caller)
+                        logger.info("Summary generation complete")
                 except Exception:
                     logger.exception("Summary generation failed")
+
+                await asyncio.sleep(stale_threshold)
 
         from app.db import get_engine
         from sqlmodel import Session
