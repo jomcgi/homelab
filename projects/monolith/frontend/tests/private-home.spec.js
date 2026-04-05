@@ -14,7 +14,7 @@ const MOCK_DAILY = [
 ];
 
 const MOCK_SCHEDULE = [
-  { allDay: true, time: null, endTime: null, title: "Doctor appointment" },
+  { allDay: true, time: null, title: "Doctor appointment" },
   { allDay: false, time: "09:00", endTime: "10:00", title: "Team standup" },
   { allDay: false, time: "14:00", endTime: "15:00", title: "1:1 with manager" },
 ];
@@ -118,7 +118,7 @@ test.describe("Private Home — API contracts with mocked responses", () => {
     const allDayEvent = data.find((e) => e.allDay === true);
     expect(allDayEvent).toBeDefined();
     expect(allDayEvent.time).toBeNull();
-    expect(allDayEvent.endTime).toBeNull();
+    expect(allDayEvent.endTime).toBeUndefined();  // NOT null — all-day events have no endTime field
     expect(allDayEvent.title).toBe("Doctor appointment");
   });
 
@@ -154,5 +154,121 @@ test.describe("Private Home — API contracts with mocked responses", () => {
 
     expect(typeof data.task).toBe("string");
     expect(data.task.length).toBeGreaterThan(0);
+  });
+
+  test("GET /api/home/weekly handles 500 error response", async ({ page }) => {
+    await page.route("**/api/home/weekly", async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Internal Server Error" }),
+      });
+    });
+
+    const response = await page.evaluate(async () => {
+      const res = await fetch("/api/home/weekly");
+      return { status: res.status, body: await res.json() };
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.body.detail).toBe("Internal Server Error");
+  });
+
+  test("GET /api/home/daily handles 500 error response", async ({ page }) => {
+    await page.route("**/api/home/daily", async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Internal Server Error" }),
+      });
+    });
+
+    const response = await page.evaluate(async () => {
+      const res = await fetch("/api/home/daily");
+      return { status: res.status, body: await res.json() };
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.body.detail).toBe("Internal Server Error");
+  });
+
+  test("GET /api/schedule/today handles 500 error response", async ({ page }) => {
+    await page.route("**/api/schedule/today", async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Internal Server Error" }),
+      });
+    });
+
+    const response = await page.evaluate(async () => {
+      const res = await fetch("/api/schedule/today");
+      return { status: res.status, body: await res.json() };
+    });
+
+    expect(response.status).toBe(500);
+    expect(response.body.detail).toBe("Internal Server Error");
+  });
+
+  test("GET /api/home/weekly returns empty task when no weekly task exists", async ({ page }) => {
+    await page.route("**/api/home/weekly", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ task: "", done: false }),
+      });
+    });
+
+    const data = await page.evaluate(async () => {
+      const res = await fetch("/api/home/weekly");
+      return res.json();
+    });
+
+    expect(data.task).toBe("");
+    expect(data.done).toBe(false);
+  });
+
+  test("GET /api/home/daily returns 3 empty tasks when no tasks exist", async ({ page }) => {
+    await page.route("**/api/home/daily", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { task: "", done: false },
+          { task: "", done: false },
+          { task: "", done: false },
+        ]),
+      });
+    });
+
+    const data = await page.evaluate(async () => {
+      const res = await fetch("/api/home/daily");
+      return res.json();
+    });
+
+    expect(Array.isArray(data)).toBe(true);
+    expect(data).toHaveLength(3);
+    data.forEach((item) => {
+      expect(item.task).toBe("");
+      expect(item.done).toBe(false);
+    });
+  });
+
+  test("GET /api/schedule/today returns empty array when no events", async ({ page }) => {
+    await page.route("**/api/schedule/today", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      });
+    });
+
+    const data = await page.evaluate(async () => {
+      const res = await fetch("/api/schedule/today");
+      return res.json();
+    });
+
+    expect(Array.isArray(data)).toBe(true);
+    expect(data).toHaveLength(0);
   });
 });

@@ -92,11 +92,15 @@ playwright_bin.playwright_test(
         "test",
         "--project=chromium",
     ],
+    chdir = package_name(),
     data = [
         ":node_modules/@playwright/test",
         ":src",
         ":test_srcs",
     ],
+    env = {
+        "PORT": "4173",
+    },
     tags = [
         "external",
         "manual",

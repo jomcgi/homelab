@@ -25,7 +25,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "npm run build && vite preview --port 4173",
+    command: "npm run build && PORT=4173 node build/index.js",
     port: 4173,
     reuseExistingServer: !process.env.CI,
   },

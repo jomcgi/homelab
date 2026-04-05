@@ -2,23 +2,31 @@ import { test, expect } from "@playwright/test";
 
 // Notes API tests — mock POST /api/notes endpoint
 // Matches notes/router.py NoteCreate model: { content: str }
-// Response: 201 with dict payload
+// Response: 201 with dict payload, 400 for empty/whitespace content
 
 test.describe("Notes API", () => {
   test.beforeEach(async ({ page }) => {
-    // Mock POST /api/notes — returns 201 with note confirmation
     await page.route("**/api/notes", async (route) => {
       if (route.request().method() === "POST") {
         const body = route.request().postDataJSON();
-        await route.fulfill({
-          status: 201,
-          contentType: "application/json",
-          body: JSON.stringify({
-            ok: true,
-            source: "web-ui",
-            content: body?.content ?? "",
-          }),
-        });
+        const content = body?.content ?? "";
+        if (!content.trim()) {
+          await route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({ detail: "content is required" }),
+          });
+        } else {
+          await route.fulfill({
+            status: 201,
+            contentType: "application/json",
+            body: JSON.stringify({
+              ok: true,
+              source: "web-ui",
+              content: content,
+            }),
+          });
+        }
       } else {
         await route.continue();
       }
@@ -87,11 +95,10 @@ test.describe("Notes API", () => {
     await page.route("**/api/notes", async (route) => {
       if (route.request().method() === "POST") {
         capturedContentType = route.request().headers()["content-type"];
-        const body = route.request().postDataJSON();
         await route.fulfill({
           status: 201,
           contentType: "application/json",
-          body: JSON.stringify({ ok: true, content: body?.content ?? "" }),
+          body: JSON.stringify({ ok: true }),
         });
       } else {
         await route.continue();
@@ -109,7 +116,7 @@ test.describe("Notes API", () => {
     expect(capturedContentType).toContain("application/json");
   });
 
-  test("POST /api/notes with empty content returns 201", async ({ page }) => {
+  test("POST /api/notes with empty content returns 400", async ({ page }) => {
     const response = await page.evaluate(async () => {
       const res = await fetch("/api/notes", {
         method: "POST",
@@ -119,8 +126,49 @@ test.describe("Notes API", () => {
       return { status: res.status, body: await res.json() };
     });
 
-    expect(response.status).toBe(201);
-    expect(response.body.ok).toBe(true);
+    expect(response.status).toBe(400);
+    expect(response.body.detail).toBe("content is required");
+  });
+
+  test("POST /api/notes with whitespace-only content returns 400", async ({ page }) => {
+    const response = await page.evaluate(async () => {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "   " }),
+      });
+      return { status: res.status, body: await res.json() };
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.detail).toBe("content is required");
+  });
+
+  test("POST /api/notes returns 502 when vault is unavailable", async ({ page }) => {
+    // Override the route for this specific test to simulate vault failure
+    await page.route("**/api/notes", async (route) => {
+      if (route.request().method() === "POST") {
+        await route.fulfill({
+          status: 502,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "vault unavailable" }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    const response = await page.evaluate(async () => {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "This note should fail" }),
+      });
+      return { status: res.status, body: await res.json() };
+    });
+
+    expect(response.status).toBe(502);
+    expect(response.body.detail).toBe("vault unavailable");
   });
 
   test("POST /api/notes with multiline content preserves newlines", async ({
