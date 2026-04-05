@@ -80,6 +80,7 @@ class MessageStore:
             self.session.refresh(msg)
             return msg
         except IntegrityError:
+            logger.exception("save_message IntegrityError for %s", discord_message_id)
             self.session.rollback()
             return None
 
