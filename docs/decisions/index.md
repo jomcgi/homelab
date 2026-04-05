@@ -35,10 +35,10 @@ ADRs document significant architectural decisions and their context.
 
 ## Services
 
-| ADR                                                                                   | Decision                                                       |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| [001 - Discord History Backfill](services/001-discord-history-backfill.md)            | One-time backfill of Discord channel history into pgvector      |
-| [002 - Discord Chat Automation](services/002-discord-chat-automation.md)              | Scheduling, triggers, and proactive posting for the Discord bot |
+| ADR                                                                        | Decision                                                        |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [001 - Discord History Backfill](services/001-discord-history-backfill.md) | One-time backfill of Discord channel history into pgvector      |
+| [002 - Discord Chat Automation](services/002-discord-chat-automation.md)   | Scheduling, triggers, and proactive posting for the Discord bot |
 
 ## Tooling
 
