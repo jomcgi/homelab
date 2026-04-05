@@ -208,7 +208,9 @@ class TestFormatContextMessagesMultiple:
 
     def test_mixed_bot_and_user_messages(self):
         """Bot and user messages in the same list are formatted with correct labels."""
-        user_msg = _make_message(id=1, username="dave", content="question", is_bot=False)
+        user_msg = _make_message(
+            id=1, username="dave", content="question", is_bot=False
+        )
         bot_msg = _make_message(id=2, username="bot", content="answer", is_bot=True)
         result = format_context_messages([user_msg, bot_msg])
         assert "dave: question" in result
@@ -228,11 +230,21 @@ class TestFormatContextMessagesAttachments:
             5: [
                 (
                     Attachment(id=1, message_id=5, blob_sha256="aaa", filename="a.png"),
-                    Blob(sha256="aaa", data=b"", content_type="image/png", description="A dog"),
+                    Blob(
+                        sha256="aaa",
+                        data=b"",
+                        content_type="image/png",
+                        description="A dog",
+                    ),
                 ),
                 (
                     Attachment(id=2, message_id=5, blob_sha256="bbb", filename="b.png"),
-                    Blob(sha256="bbb", data=b"", content_type="image/png", description="A cat"),
+                    Blob(
+                        sha256="bbb",
+                        data=b"",
+                        content_type="image/png",
+                        description="A cat",
+                    ),
                 ),
             ]
         }
@@ -261,7 +273,12 @@ class TestFormatContextMessagesAttachments:
             7: [
                 (
                     Attachment(id=1, message_id=7, blob_sha256="ccc", filename="c.png"),
-                    Blob(sha256="ccc", data=b"", content_type="image/png", description="Sunset"),
+                    Blob(
+                        sha256="ccc",
+                        data=b"",
+                        content_type="image/png",
+                        description="Sunset",
+                    ),
                 ),
             ]
         }
