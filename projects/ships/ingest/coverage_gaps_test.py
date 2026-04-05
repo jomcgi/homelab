@@ -201,8 +201,6 @@ class TestMetricsCounterIncrements:
     @pytest.mark.asyncio
     async def test_metrics_counter_increments_across_multiple_publishes(self):
         """After N publish_position() calls messages_published == N in /metrics."""
-        from fastapi.testclient import TestClient
-
         import projects.ships.ingest.main as main_module
 
         service = AISIngestService()
@@ -226,21 +224,17 @@ class TestMetricsCounterIncrements:
 
         assert service.messages_published == 3
 
-        # Confirm the /metrics endpoint returns the current counter value
+        # Confirm the /metrics endpoint returns the current counter value by
+        # calling the endpoint function directly — avoids a TestClient/httpx dep
         with patch.object(main_module, "service", service):
-            client = TestClient(main_module.app)
-            response = client.get("/metrics")
+            payload = await main_module.metrics()
 
-        assert response.status_code == 200
-        payload = response.json()
         assert payload["messages_published"] == 3
         assert payload["last_message_time"] == "2024-01-15T10:02:00Z"
 
     @pytest.mark.asyncio
     async def test_metrics_last_message_time_tracks_most_recent_publish(self):
         """last_message_time in /metrics is the timestamp of the most recent publish."""
-        from fastapi.testclient import TestClient
-
         import projects.ships.ingest.main as main_module
 
         service = AISIngestService()
@@ -258,25 +252,19 @@ class TestMetricsCounterIncrements:
             )
 
         with patch.object(main_module, "service", service):
-            client = TestClient(main_module.app)
-            response = client.get("/metrics")
+            payload = await main_module.metrics()
 
-        payload = response.json()
         assert payload["last_message_time"] == timestamps[-1]
 
     @pytest.mark.asyncio
     async def test_metrics_zero_publishes_returns_zero_and_none(self):
         """Before any publish_position, /metrics returns messages_published=0 and last_message_time=None."""
-        from fastapi.testclient import TestClient
-
         import projects.ships.ingest.main as main_module
 
         service = AISIngestService()  # fresh — no publishes
 
         with patch.object(main_module, "service", service):
-            client = TestClient(main_module.app)
-            response = client.get("/metrics")
+            payload = await main_module.metrics()
 
-        payload = response.json()
         assert payload["messages_published"] == 0
         assert payload["last_message_time"] is None
