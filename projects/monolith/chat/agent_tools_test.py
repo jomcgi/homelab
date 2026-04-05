@@ -52,3 +52,13 @@ class TestSignpostedDecorator:
             pass
 
         assert my_func.__name__ == "my_func"
+
+
+class TestAllToolsSignposted:
+    def test_all_tools_have_signposts(self):
+        """Every registered tool must have a signpost."""
+        agent = create_agent(base_url="http://fake:8080")
+        for name, tool in agent._function_toolset.tools.items():
+            signpost = getattr(tool.function, "signpost", None)
+            assert signpost is not None, f"Tool '{name}' is missing a signpost"
+            assert len(signpost) > 10, f"Tool '{name}' signpost is too short"
