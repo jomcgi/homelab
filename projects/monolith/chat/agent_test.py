@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from chat.agent import build_system_prompt, format_context_messages
+from chat.agent import build_system_prompt, create_agent, format_context_messages
 from chat.models import Attachment, Blob, Message
 
 
@@ -103,3 +103,15 @@ class TestFormatContextMessages:
         result = format_context_messages([msg])
         assert "Bob: Just text" in result
         assert "[Image:" not in result
+
+
+class TestToolGuidancePrompt:
+    def test_static_prompt_no_longer_lists_tools(self):
+        """build_system_prompt() no longer contains the hand-written tool list."""
+        prompt = build_system_prompt()
+        assert "You have these tools:" not in prompt
+
+    def test_static_prompt_has_dont_pretend_rule(self):
+        """build_system_prompt() includes the don't-pretend-you-searched rule."""
+        prompt = build_system_prompt()
+        assert "Pretend you looked something up" in prompt

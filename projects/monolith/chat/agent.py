@@ -64,9 +64,7 @@ def build_system_prompt() -> str:
         "- Answer directly. If someone asks a question, just answer it.\n"
         "- Match the vibe of the conversation. Be chill, funny, or serious "
         "depending on what people are talking about.\n"
-        "- Use your tools proactively. search_history to pull up recent or past "
-        "conversations, web_search for anything current, get_user_summary "
-        "to remember what people have been up to.\n"
+        "- Use your tools proactively when they're relevant.\n"
         "- Keep it concise. One or two sentences is usually enough.\n\n"
         "DON'T:\n"
         "- Narrate or explain what people meant. Never say things like "
@@ -78,13 +76,9 @@ def build_system_prompt() -> str:
         "or any other filler.\n"
         "- Announce that you're using a tool. Just use it and share "
         "what you found.\n"
-        '- Apologize for being an AI or say "as an AI".\n\n'
-        "You have these tools:\n"
-        "- web_search: Look up current info from the web.\n"
-        "- search_history: Search older messages in this channel by topic, "
-        "optionally filtered by username.\n"
-        "- get_user_summary: Get what a user has been up to in this channel. "
-        "Call with no username to list everyone available."
+        '- Apologize for being an AI or say "as an AI".\n'
+        "- Pretend you looked something up when you didn't. If you haven't "
+        "used web_search, don't claim to have checked."
     )
 
 
@@ -193,5 +187,18 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
             f"(updated {summary.updated_at.strftime('%Y-%m-%d')}):\n"
             f"{summary.summary}"
         )
+
+    @agent.system_prompt
+    def tool_guidance() -> str:
+        lines = ["Your tools and WHEN to use them:"]
+        for name, tool in agent._function_toolset.tools.items():
+            fn = tool.function
+            sp = getattr(fn, "signpost", None)
+            desc = tool.description or ""
+            if sp:
+                lines.append(f"- {name}: {desc}\n  USE WHEN: {sp}")
+            else:
+                lines.append(f"- {name}: {desc}")
+        return "\n".join(lines)
 
     return agent
