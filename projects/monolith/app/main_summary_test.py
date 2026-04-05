@@ -198,8 +198,11 @@ class TestSummaryLoopExceptionLogging:
                     coro.close()
             return t
 
+        inner_session = MagicMock()
+        # Staleness check queries return None (no existing summaries → needs_run=True)
+        inner_session.exec.return_value.first.return_value = None
         mock_session = MagicMock()
-        mock_session.__enter__ = MagicMock(return_value=MagicMock())
+        mock_session.__enter__ = MagicMock(return_value=inner_session)
         mock_session.__exit__ = MagicMock(return_value=False)
         mock_session_cls = MagicMock(return_value=mock_session)
         mock_engine = MagicMock()
@@ -218,12 +221,14 @@ class TestSummaryLoopExceptionLogging:
 
         assert len(coros) == 1, "Expected exactly one summary loop coroutine captured"
 
-        # Control the infinite loop: run once then cancel
+        # Control the infinite loop: run once then cancel.
+        # Sleep is now at the END of the loop, so cancel on the first sleep
+        # to ensure only one iteration completes.
         sleep_call_count = [0]
 
         async def controlled_sleep(_secs):
             sleep_call_count[0] += 1
-            if sleep_call_count[0] > 1:
+            if sleep_call_count[0] >= 1:
                 raise asyncio.CancelledError()
 
         with (
@@ -262,8 +267,11 @@ class TestSummaryLoopExceptionLogging:
                     coro.close()
             return t
 
+        inner_session = MagicMock()
+        # Staleness check queries return None (no existing summaries → needs_run=True)
+        inner_session.exec.return_value.first.return_value = None
         mock_session = MagicMock()
-        mock_session.__enter__ = MagicMock(return_value=MagicMock())
+        mock_session.__enter__ = MagicMock(return_value=inner_session)
         mock_session.__exit__ = MagicMock(return_value=False)
 
         with (
@@ -278,12 +286,14 @@ class TestSummaryLoopExceptionLogging:
 
         assert len(coros) == 1
 
-        # Let the loop run twice (two generate_summaries failures) then cancel
+        # Let the loop run twice (two generate_summaries failures) then cancel.
+        # Sleep is now at the END of the loop, so cancel on the 2nd sleep
+        # to ensure exactly two iterations complete.
         sleep_call_count = [0]
 
         async def controlled_sleep(_secs):
             sleep_call_count[0] += 1
-            if sleep_call_count[0] > 2:
+            if sleep_call_count[0] >= 2:
                 raise asyncio.CancelledError()
 
         exception_count = [0]
