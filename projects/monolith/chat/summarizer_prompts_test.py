@@ -213,7 +213,7 @@ class TestUpdatePromptTemplate:
 
         await generate_summaries(session, capture_llm)
 
-        assert "Update the summary" in prompts_received[0]
+        assert "Keep it to 2-4 concise sentences" in prompts_received[0]
 
     @pytest.mark.asyncio
     async def test_update_prompt_includes_new_message_content(self, session):
