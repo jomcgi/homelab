@@ -270,6 +270,18 @@ py_test(
 )
 
 py_test(
+    name = "chat_embedding_retry_test",
+    srcs = ["chat/embedding_retry_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "chat_store_test",
     srcs = ["chat/store_test.py"],
     imports = ["."],
