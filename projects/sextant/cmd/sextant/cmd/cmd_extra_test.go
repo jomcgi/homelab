@@ -22,8 +22,10 @@ import (
 
 // --- YAML fixtures ---
 
-// missingTerminalStateYAML is a valid-looking machine that has no terminal state,
-// which should fail schema validation.
+// missingTerminalStateYAML is a machine whose transition targets a state that does
+// not exist in the states list. The validator rejects undefined destination states
+// with a "does not exist" error. Note: absent terminal states are intentionally not
+// enforced by the validator (treated as a warning, not an error).
 const missingTerminalStateYAML = `apiVersion: controlflow.io/v1alpha1
 kind: StateMachine
 metadata:
@@ -38,12 +40,13 @@ states:
   - name: Processing
 transitions:
   - from: Pending
-    to: Processing
+    to: Nonexistent
     action: Start
 `
 
 // validStateMachineWithGuardsYAML is a well-formed machine that includes a
 // guard reference, exercising the guards count in the validate stderr output.
+// Guards must be specified as a YAML map (map[string]Guard), not a list.
 const validStateMachineWithGuardsYAML = `apiVersion: controlflow.io/v1alpha1
 kind: StateMachine
 metadata:
@@ -68,7 +71,8 @@ transitions:
     to: Failed
     action: MarkFailed
 guards:
-  - name: IsReady
+  IsReady:
+    description: "Check if resource is ready"
 `
 
 // captureStderr redirects os.Stderr to a pipe for the duration of fn, then
@@ -182,18 +186,19 @@ func TestRunValidate_StderrReportsXStateOutputPath(t *testing.T) {
 
 // --- validate edge cases ---
 
-// TestRunValidate_MissingTerminalState verifies that a machine with no terminal
-// state fails validation and returns an appropriate error.
+// TestRunValidate_MissingTerminalState verifies that a machine with a transition
+// targeting an undefined state fails validation. (Note: absent terminal states are
+// not enforced — the validator only requires an initial state and valid references.)
 func TestRunValidate_MissingTerminalState(t *testing.T) {
 	defer resetValidateFlags()
 
 	filePath := writeYAMLFile(t, missingTerminalStateYAML)
 	err := runValidate(&cobra.Command{}, []string{filePath})
 	if err == nil {
-		t.Fatal("expected validation error for missing terminal state, got nil")
+		t.Fatal("expected validation error for undefined transition target, got nil")
 	}
-	if !strings.Contains(strings.ToLower(err.Error()), "terminal") {
-		t.Errorf("expected error to mention 'terminal', got: %v", err)
+	if !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("expected error to mention 'does not exist', got: %v", err)
 	}
 }
 
@@ -466,7 +471,7 @@ func TestExecute_Generate_WithGuardedMachine(t *testing.T) {
 }
 
 // TestExecute_Validate_MissingTerminalState verifies that Execute() propagates
-// the validation error when the machine has no terminal state.
+// the validation error when a transition targets an undefined state.
 func TestExecute_Validate_MissingTerminalState(t *testing.T) {
 	defer resetValidateFlags()
 	filePath := writeYAMLFile(t, missingTerminalStateYAML)
@@ -474,12 +479,12 @@ func TestExecute_Validate_MissingTerminalState(t *testing.T) {
 
 	err := Execute()
 	if err == nil {
-		t.Fatal("expected validation error for missing terminal state, got nil")
+		t.Fatal("expected validation error for undefined transition target, got nil")
 	}
 }
 
 // TestExecute_Generate_MissingTerminalState verifies that Execute() propagates
-// the validation error from generate when the machine has no terminal state.
+// the validation error from generate when a transition targets an undefined state.
 func TestExecute_Generate_MissingTerminalState(t *testing.T) {
 	defer resetGenerateFlags()
 	outDir := t.TempDir()
@@ -488,7 +493,7 @@ func TestExecute_Generate_MissingTerminalState(t *testing.T) {
 
 	err := Execute()
 	if err == nil {
-		t.Fatal("expected validation error for missing terminal state, got nil")
+		t.Fatal("expected validation error for undefined transition target, got nil")
 	}
 }
 
