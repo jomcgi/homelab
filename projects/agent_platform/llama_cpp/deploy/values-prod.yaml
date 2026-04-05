@@ -29,6 +29,8 @@ server:
     - "--metrics"
     - "--alias"
     - "gemma-4-26b-a4b"
+    - "--reasoning-budget"
+    - "8192"
 
 nodeSelector:
   kubernetes.io/hostname: node-4
