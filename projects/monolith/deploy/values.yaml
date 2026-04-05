@@ -60,6 +60,12 @@ cfIngress:
         namespace: envoy-gateway-system
       team: jomcgi
 
+dashboards:
+  cnpg-overview:
+    enabled: true
+    name: "CloudNativePG Overview"
+    tags: "postgres,cnpg"
+
 chat:
   enabled: true
   llamaCppUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"

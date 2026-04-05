@@ -1,0 +1,21 @@
+{{- range $name, $config := .Values.dashboards }}
+{{- if $config.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "monolith.fullname" $ }}-dashboard-{{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "monolith.labels" $ | nindent 4 }}
+    signoz.io/dashboard: "true"
+  annotations:
+    signoz.io/dashboard-name: {{ $config.name | quote }}
+    {{- if $config.tags }}
+    signoz.io/dashboard-tags: {{ $config.tags | quote }}
+    {{- end }}
+data:
+  dashboard.json: |-
+    {{- $.Files.Get (printf "dashboards/%s.json" $name) | nindent 4 }}
+{{- end }}
+{{- end }}
