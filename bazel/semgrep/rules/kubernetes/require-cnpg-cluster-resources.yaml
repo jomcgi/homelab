@@ -1,0 +1,31 @@
+rules:
+  - id: require-cnpg-cluster-resources
+    patterns:
+      - pattern-inside: |
+          apiVersion: postgresql.cnpg.io/v1
+          kind: Cluster
+          ...
+      - pattern: |
+          spec:
+            ...
+      - pattern-not: |
+          spec:
+            ...
+            resources:
+              requests:
+                memory: ...
+    message: >
+      CNPG Cluster missing resources.requests.memory — pods may be OOM-killed without memory requests.
+    languages: [yaml]
+    severity: WARNING
+    metadata:
+      category: correctness
+      subcategory: kubernetes
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH
+      technology: [kubernetes, postgresql, cnpg]
+      description: CNPG Cluster spec.resources.requests.memory should be set to prevent OOM kills
+    paths:
+      include:
+        - "**/chart/templates/**"

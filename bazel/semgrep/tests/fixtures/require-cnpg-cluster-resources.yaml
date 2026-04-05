@@ -1,0 +1,64 @@
+# Tests for require-cnpg-cluster-resources rule.
+# CNPG Cluster CRDs must declare spec.resources.requests.memory to prevent
+# pods from being OOM-killed when the node is under memory pressure.
+---
+# ok: require-cnpg-cluster-resources — has resources.requests.memory
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: my-cluster
+spec:
+  instances: 3
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+
+---
+# ok: require-cnpg-cluster-resources — has resources.requests.memory without limits
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: my-cluster-minimal
+spec:
+  instances: 1
+  resources:
+    requests:
+      memory: "512Mi"
+
+---
+# ok: require-cnpg-cluster-resources — non-CNPG resource, rule does not apply
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: app
+          image: myapp:latest
+
+---
+# ruleid: require-cnpg-cluster-resources
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: missing-all-resources
+spec:
+  instances: 3
+
+---
+# ruleid: require-cnpg-cluster-resources
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: missing-requests-memory
+spec:
+  instances: 3
+  resources:
+    limits:
+      memory: "2Gi"
