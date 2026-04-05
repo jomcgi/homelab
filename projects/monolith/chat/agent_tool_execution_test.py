@@ -598,3 +598,223 @@ class TestGetUserSummaryFound:
         )
 
         store.get_user_summary.assert_called_once_with("my-chan", "alice")
+
+
+# ---------------------------------------------------------------------------
+# get_user_summary — _coerce_username: dict with recognized key resolves to
+# single-user lookup (gap: previously only unrecognized-dict was tested)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserSummaryDictWithKnownKey:
+    @pytest.mark.asyncio
+    async def test_dict_with_username_key_routes_to_single_user_lookup(self):
+        """get_user_summary resolves {'username': 'bob'} to single-user path via _coerce_username."""
+        from datetime import datetime, timezone
+
+        from chat.models import UserChannelSummary
+
+        embed_client = AsyncMock()
+        store = MagicMock()
+
+        summary_obj = UserChannelSummary(
+            channel_id="ch1",
+            user_id="u-bob",
+            username="bob",
+            summary="Bob discussed containers.",
+            last_message_id=7,
+            updated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        )
+        store.get_user_summary.return_value = summary_obj
+
+        deps = _make_deps(store, embed_client)
+        agent = create_agent(base_url="http://fake:8080")
+
+        tool_return_captured = []
+
+        def model_func(messages, info):  # type: ignore[type-arg]
+            for msg in messages:
+                if hasattr(msg, "parts"):
+                    for part in msg.parts:
+                        if isinstance(part, ToolReturnPart):
+                            tool_return_captured.append(part.content)
+                            return ModelResponse(parts=[TextPart("done")])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="get_user_summary",
+                        args={"username": {"username": "bob"}},
+                        tool_call_id="call-1",
+                    )
+                ]
+            )
+
+        await agent.run(
+            "Tell me about bob",
+            model=FunctionModel(model_func),
+            deps=deps,
+        )
+
+        assert len(tool_return_captured) == 1
+        # Must have called single-user path, NOT list mode
+        store.get_user_summary.assert_called_once()
+        store.list_user_summaries.assert_not_called()
+        assert "bob" in tool_return_captured[0]
+
+    @pytest.mark.asyncio
+    async def test_dict_with_name_key_routes_to_single_user_lookup(self):
+        """get_user_summary resolves {'name': 'carol'} to single-user path."""
+        from datetime import datetime, timezone
+
+        from chat.models import UserChannelSummary
+
+        embed_client = AsyncMock()
+        store = MagicMock()
+
+        summary_obj = UserChannelSummary(
+            channel_id="ch1",
+            user_id="u-carol",
+            username="carol",
+            summary="Carol asked about networking.",
+            last_message_id=3,
+            updated_at=datetime(2026, 3, 20, tzinfo=timezone.utc),
+        )
+        store.get_user_summary.return_value = summary_obj
+
+        deps = _make_deps(store, embed_client)
+        agent = create_agent(base_url="http://fake:8080")
+
+        await agent.run(
+            "Tell me about carol",
+            model=_tool_once_then_done(
+                "get_user_summary", {"username": {"name": "carol"}}
+            ),
+            deps=deps,
+        )
+
+        store.get_user_summary.assert_called_once_with("ch1", "carol")
+        store.list_user_summaries.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# get_user_summary — _coerce_username: non-string primitive falls back to str()
+# (gap: str(value) path for non-string, non-dict inputs was untested)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserSummaryIntegerUsername:
+    @pytest.mark.asyncio
+    async def test_integer_username_coerced_via_str_routes_to_single_user(self):
+        """get_user_summary coerces an integer username via str() and looks up the summary."""
+        from datetime import datetime, timezone
+
+        from chat.models import UserChannelSummary
+
+        embed_client = AsyncMock()
+        store = MagicMock()
+
+        summary_obj = UserChannelSummary(
+            channel_id="ch1",
+            user_id="u-42",
+            username="42",
+            summary="User 42 talked about CI.",
+            last_message_id=15,
+            updated_at=datetime(2026, 4, 2, tzinfo=timezone.utc),
+        )
+        store.get_user_summary.return_value = summary_obj
+
+        deps = _make_deps(store, embed_client)
+        agent = create_agent(base_url="http://fake:8080")
+
+        tool_return_captured = []
+
+        def model_func(messages, info):  # type: ignore[type-arg]
+            for msg in messages:
+                if hasattr(msg, "parts"):
+                    for part in msg.parts:
+                        if isinstance(part, ToolReturnPart):
+                            tool_return_captured.append(part.content)
+                            return ModelResponse(parts=[TextPart("done")])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="get_user_summary",
+                        # LLM passes an integer instead of a string
+                        args={"username": 42},
+                        tool_call_id="call-1",
+                    )
+                ]
+            )
+
+        await agent.run(
+            "Tell me about user 42",
+            model=FunctionModel(model_func),
+            deps=deps,
+        )
+
+        assert len(tool_return_captured) == 1
+        # str(42) == "42", so the single-user path should be hit with "42"
+        store.get_user_summary.assert_called_once_with("ch1", "42")
+        store.list_user_summaries.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# get_user_summary — single-user list mode shows count of 1
+# (gap: existing list tests used 2 users; the count string for 1 was untested)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserSummaryListModeSingleUser:
+    @pytest.mark.asyncio
+    async def test_list_mode_with_one_user_shows_count_1(self):
+        """get_user_summary list mode correctly formats count when exactly 1 user exists."""
+        from datetime import datetime, timezone
+
+        from chat.models import UserChannelSummary
+
+        embed_client = AsyncMock()
+        store = MagicMock()
+        store.list_user_summaries.return_value = [
+            UserChannelSummary(
+                channel_id="ch1",
+                user_id="u1",
+                username="Alice",
+                summary="Alice summary.",
+                last_message_id=10,
+                updated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            )
+        ]
+
+        deps = _make_deps(store, embed_client)
+        agent = create_agent(base_url="http://fake:8080")
+
+        tool_return_captured = []
+
+        def model_func(messages, info):  # type: ignore[type-arg]
+            for msg in messages:
+                if hasattr(msg, "parts"):
+                    for part in msg.parts:
+                        if isinstance(part, ToolReturnPart):
+                            tool_return_captured.append(part.content)
+                            return ModelResponse(parts=[TextPart("done")])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="get_user_summary",
+                        args={},
+                        tool_call_id="call-1",
+                    )
+                ]
+            )
+
+        await agent.run(
+            "List all user summaries",
+            model=FunctionModel(model_func),
+            deps=deps,
+        )
+
+        assert len(tool_return_captured) == 1
+        result = tool_return_captured[0]
+        assert "Alice" in result
+        assert "1" in result  # count header shows (1)
+        assert "No user summaries" not in result

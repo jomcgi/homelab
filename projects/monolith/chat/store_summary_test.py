@@ -130,3 +130,17 @@ class TestUpsertSummary:
         result = store.get_user_summary("ch1", "Alice")
         assert result.summary == "Updated."
         assert result.last_message_id == 20
+
+    def test_updates_username_when_changed(self, store, session):
+        """upsert_summary overwrites the stored username when it changes (e.g. display-name update)."""
+        store.upsert_summary("ch1", "u1", "Alice", "Original.", 10)
+        # Same user_id, but the username has been updated
+        store.upsert_summary("ch1", "u1", "AliceRenamed", "Updated.", 20)
+        # The old username is gone from this channel
+        result_old = store.get_user_summary("ch1", "Alice")
+        assert result_old is None
+        # The new username is present with the updated content
+        result_new = store.get_user_summary("ch1", "AliceRenamed")
+        assert result_new is not None
+        assert result_new.summary == "Updated."
+        assert result_new.username == "AliceRenamed"
