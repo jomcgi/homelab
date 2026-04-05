@@ -738,6 +738,19 @@ py_test(
 )
 
 py_test(
+    name = "chat_store_flush_blob_test",
+    srcs = ["chat/store_flush_blob_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "chat_store_embed_text_test",
     srcs = ["chat/store_embed_text_test.py"],
     imports = ["."],
