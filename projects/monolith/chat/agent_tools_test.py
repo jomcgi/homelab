@@ -62,3 +62,10 @@ class TestAllToolsSignposted:
             signpost = getattr(tool.function, "signpost", None)
             assert signpost is not None, f"Tool '{name}' is missing a signpost"
             assert len(signpost) > 10, f"Tool '{name}' signpost is too short"
+
+
+class TestToolSchemaSignposts:
+    def test_agent_has_prepare_tools(self):
+        """Agent is configured with a prepare_tools callback."""
+        agent = create_agent(base_url="http://fake:8080")
+        assert agent._prepare_tools is not None
