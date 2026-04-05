@@ -140,10 +140,14 @@ def _copy_postgres_files(rctx, staging_dir):
         dest = _child_path(repo_dir, rel_path)
 
         # Ensure parent directory exists
-        result = rctx.execute(["sh", "-c", "mkdir -p \"$(dirname '{dest}')\" && cp -a '{src}' '{dest}'".format(
-            src = src,
-            dest = dest,
-        )], timeout = 10)
+        parent_dir = dest.rsplit("/", 1)[0]
+        result = rctx.execute(["mkdir", "-p", parent_dir], timeout = 10)
+        if result.return_code != 0:
+            fail("Failed to create directory {dir}: {err}".format(
+                dir = parent_dir,
+                err = result.stderr,
+            ))
+        result = rctx.execute(["cp", "-a", src, dest], timeout = 10)
         if result.return_code != 0:
             fail("Failed to copy {path}: {err}".format(
                 path = rel_path,
@@ -156,51 +160,58 @@ def _copy_postgres_files(rctx, staging_dir):
     rctx.execute(["mkdir", "-p", sql_dest_dir], timeout = 10)
 
     result = rctx.execute(
-        ["sh", "-c", "cp -a {src}/vector--*.sql {dest}/".format(
-            src = sql_src_dir,
-            dest = sql_dest_dir,
-        )],
+        ["find", sql_src_dir, "-maxdepth", "1", "-name", "vector--*.sql"],
         timeout = 10,
     )
     if result.return_code != 0:
-        fail("Failed to copy pgvector SQL files: {err}".format(err = result.stderr))
+        fail("Failed to find pgvector SQL files: {err}".format(err = result.stderr))
+    sql_files = [f for f in result.stdout.strip().split("\n") if f]
+    if not sql_files:
+        fail("No pgvector SQL migration files found in {dir}".format(dir = sql_src_dir))
+    for sql_file in sql_files:
+        cp_result = rctx.execute(["cp", "-a", sql_file, sql_dest_dir + "/"], timeout = 10)
+        if cp_result.return_code != 0:
+            fail("Failed to copy pgvector SQL file {f}: {err}".format(
+                f = sql_file,
+                err = cp_result.stderr,
+            ))
 
     # Copy shared libraries that PostgreSQL needs at runtime.
     # We copy .so files from usr/lib/ to ensure all dependencies are available.
     lib_src = _child_path(staging_dir, "usr/lib")
     lib_dest = _child_path(repo_dir, "usr/lib")
     rctx.execute(["mkdir", "-p", lib_dest], timeout = 10)
-    rctx.execute(
-        ["sh", "-c", "cp -a {src}/*.so* {dest}/ 2>/dev/null; true".format(
-            src = lib_src,
-            dest = lib_dest,
-        )],
-        timeout = 30,
+
+    result = rctx.execute(
+        ["find", lib_src, "-maxdepth", "1", "-name", "*.so*", "-type", "f"],
+        timeout = 10,
     )
+    if result.return_code != 0:
+        fail("Failed to find shared libraries in {dir}: {err}".format(
+            dir = lib_src,
+            err = result.stderr,
+        ))
+    so_files = [f for f in result.stdout.strip().split("\n") if f]
+    if not so_files:
+        fail("No shared libraries (.so*) found in {dir} — PostgreSQL will fail at runtime".format(dir = lib_src))
+    for so_file in so_files:
+        rctx.execute(["cp", "-a", so_file, lib_dest + "/"], timeout = 10)
 
     # Copy the postgresql lib directory (contains internal .so files)
     pg_lib_src = _child_path(staging_dir, "usr/lib/postgresql/16/lib")
     pg_lib_dest = _child_path(repo_dir, "usr/lib/postgresql/16/lib")
     rctx.execute(["mkdir", "-p", pg_lib_dest], timeout = 10)
-    rctx.execute(
-        ["sh", "-c", "cp -a {src}/* {dest}/".format(
-            src = pg_lib_src,
-            dest = pg_lib_dest,
-        )],
-        timeout = 30,
-    )
+    result = rctx.execute(["cp", "-a", "-R", pg_lib_src + "/.", pg_lib_dest + "/"], timeout = 30)
+    if result.return_code != 0:
+        fail("Failed to copy postgresql lib directory: {err}".format(err = result.stderr))
 
     # Copy the postgresql share directory (timezone, locale, SQL configs)
     pg_share_src = _child_path(staging_dir, "usr/share/postgresql/16")
     pg_share_dest = _child_path(repo_dir, "usr/share/postgresql/16")
     rctx.execute(["mkdir", "-p", pg_share_dest], timeout = 10)
-    rctx.execute(
-        ["sh", "-c", "cp -a {src}/* {dest}/".format(
-            src = pg_share_src,
-            dest = pg_share_dest,
-        )],
-        timeout = 30,
-    )
+    result = rctx.execute(["cp", "-a", "-R", pg_share_src + "/.", pg_share_dest + "/"], timeout = 30)
+    if result.return_code != 0:
+        fail("Failed to copy postgresql share directory: {err}".format(err = result.stderr))
 
 def _oci_postgres_impl(rctx):
     """Implementation of the oci_postgres repository rule."""
