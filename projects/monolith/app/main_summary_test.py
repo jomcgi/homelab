@@ -42,7 +42,6 @@ def _make_task_capturer():
     return tasks, capture
 
 
-
 # ---------------------------------------------------------------------------
 # summary_task.add_done_callback is registered
 # ---------------------------------------------------------------------------
@@ -306,5 +305,3 @@ class TestSummaryLoopExceptionLogging:
 
         # Exception was raised (and caught internally) on both iterations
         assert exception_count[0] == 2
-
-
