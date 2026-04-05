@@ -262,8 +262,6 @@ def pg(tmp_path_factory):
             str(datadir),  # unix socket dir
             "-c",
             f"dynamic_library_path={lib_path_str}",
-            "-c",
-            f"extension_dir={pg_share}/extension",
         ],
         env=env,
         stdout=subprocess.PIPE,
