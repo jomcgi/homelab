@@ -38,7 +38,9 @@ test.describe("Application Health", () => {
     expect(cssVars.danger).toBeTruthy();
   });
 
-  test("global reset styles apply — box-sizing border-box", async ({ page }) => {
+  test("global reset styles apply — box-sizing border-box", async ({
+    page,
+  }) => {
     await page.goto("/public");
 
     const boxSizing = await page.evaluate(() => {

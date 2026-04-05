@@ -88,11 +88,14 @@ js_library(
 
 playwright_bin.playwright_test(
     name = "e2e",
-    args = ["test", "--project=chromium"],
+    args = [
+        "test",
+        "--project=chromium",
+    ],
     data = [
-        ":test_srcs",
         ":node_modules/@playwright/test",
         ":src",
+        ":test_srcs",
     ],
     tags = [
         "external",
