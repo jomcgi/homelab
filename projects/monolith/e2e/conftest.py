@@ -194,9 +194,21 @@ def pg(tmp_path_factory):
         preexec_fn=_pg_preexec,
     )
     if initdb_result.returncode != 0:
+        # Diagnostics: list what's in the share directory
+        share_files = []
+        if pg_share.exists():
+            share_files = sorted(
+                str(f.relative_to(pg_share)) for f in pg_share.rglob("*")
+            )[:30]
+        conf_sample = pg_share / "postgresql.conf.sample"
         raise RuntimeError(
             f"initdb failed (rc={initdb_result.returncode}).\n"
             f"  pg_bin: {pg_bin}\n"
+            f"  pg_share: {pg_share}\n"
+            f"  pg_share.exists(): {pg_share.exists()}\n"
+            f"  conf_sample.exists(): {conf_sample.exists()}\n"
+            f"  share_files: {share_files}\n"
+            f"  pg_root contents: {sorted(str(f.name) for f in pg_root.iterdir())[:20] if pg_root.exists() else 'N/A'}\n"
             f"  stdout: {initdb_result.stdout.decode(errors='replace')}\n"
             f"  stderr: {initdb_result.stderr.decode(errors='replace')}"
         )
