@@ -65,6 +65,10 @@ dashboards:
     enabled: true
     name: "CloudNativePG Overview"
     tags: "postgres,cnpg"
+  monolith-red:
+    enabled: true
+    name: "Monolith RED Dashboard"
+    tags: "monolith,red,performance,traces"
 
 chat:
   enabled: true
