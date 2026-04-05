@@ -954,6 +954,19 @@ py_test(
 )
 
 py_test(
+    name = "chat_backfill_test",
+    srcs = ["chat/backfill_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+<<<<<<< HEAD
+py_test(
     name = "chat_vision_test",
     srcs = ["chat/vision_test.py"],
     imports = ["."],
