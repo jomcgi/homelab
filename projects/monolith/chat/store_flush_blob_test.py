@@ -191,9 +191,7 @@ class TestBlobFlushBeforeAttachment:
             (i for i, e in enumerate(call_log) if e == ("add", "Attachment")), None
         )
 
-        assert add_blob_pos is not None, (
-            f"Blob was never added — call_log: {call_log}"
-        )
+        assert add_blob_pos is not None, f"Blob was never added — call_log: {call_log}"
         assert add_attachment_pos is not None, "Attachment was never added"
         assert flush_after_blob_pos is not None, (
             "No flush() call found after add(Blob) — regression: blob flush is missing"
