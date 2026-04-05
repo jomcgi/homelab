@@ -20,8 +20,11 @@ class TestDownloadImageAttachmentsExceptions:
 
         result = await download_image_attachments([att], vision_client)
 
-        # Exception is swallowed; result is empty rather than propagating
-        assert result == []
+        # Exception is swallowed; fallback placeholder is returned
+        assert len(result) == 1
+        assert result[0]["filename"] == "broken.png"
+        assert result[0]["description"] == "(image could not be processed)"
+        assert result[0]["data"] is None
         vision_client.describe.assert_not_called()
 
     @pytest.mark.asyncio
@@ -37,7 +40,10 @@ class TestDownloadImageAttachmentsExceptions:
 
         result = await download_image_attachments([att], vision_client)
 
-        assert result == []
+        assert len(result) == 1
+        assert result[0]["filename"] == "bad_vision.jpg"
+        assert result[0]["description"] == "(image could not be processed)"
+        assert result[0]["data"] == b"\xff\xd8\xff"
 
     @pytest.mark.asyncio
     async def test_continues_with_remaining_attachments_after_exception(self):
@@ -57,10 +63,12 @@ class TestDownloadImageAttachmentsExceptions:
 
         result = await download_image_attachments([bad_att, good_att], vision_client)
 
-        # Only the successful attachment appears in results
-        assert len(result) == 1
-        assert result[0]["filename"] == "good.png"
-        assert result[0]["description"] == "A green meadow"
+        # Both attachments appear: failed one with placeholder, good one with description
+        assert len(result) == 2
+        assert result[0]["filename"] == "bad.png"
+        assert result[0]["description"] == "(image could not be processed)"
+        assert result[1]["filename"] == "good.png"
+        assert result[1]["description"] == "A green meadow"
 
     @pytest.mark.asyncio
     async def test_returns_empty_list_when_all_attachments_fail(self):
@@ -79,4 +87,5 @@ class TestDownloadImageAttachmentsExceptions:
 
         result = await download_image_attachments([att1, att2], vision_client)
 
-        assert result == []
+        assert len(result) == 2
+        assert all(r["description"] == "(image could not be processed)" for r in result)
