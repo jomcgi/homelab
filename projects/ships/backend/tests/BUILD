@@ -85,8 +85,8 @@ py_test(
     deps = [
         ":conftest",
         "//projects/ships/backend:ships-api",
+        "@pip//fastapi",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
 
