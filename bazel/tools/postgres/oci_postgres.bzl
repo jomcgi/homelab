@@ -177,14 +177,15 @@ def _copy_postgres_files(rctx, staging_dir):
             ))
 
     # Copy shared libraries that PostgreSQL needs at runtime.
-    # We copy .so files from usr/lib/ to ensure all dependencies are available.
+    # Debian-based images store .so files under usr/lib/x86_64-linux-gnu/
+    # rather than directly under usr/lib/, so we search recursively.
     lib_src = _child_path(staging_dir, "usr/lib")
     lib_dest = _child_path(repo_dir, "usr/lib")
     rctx.execute(["mkdir", "-p", lib_dest], timeout = 10)
 
     result = rctx.execute(
-        ["find", lib_src, "-maxdepth", "1", "-name", "*.so*", "-type", "f"],
-        timeout = 10,
+        ["find", lib_src, "-name", "*.so*", "-type", "f"],
+        timeout = 30,
     )
     if result.return_code != 0:
         fail("Failed to find shared libraries in {dir}: {err}".format(
