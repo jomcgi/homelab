@@ -139,9 +139,11 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
 
     @agent.tool_plain
     @signposted(
-        "When someone claims something happened, mentions news, quotes someone, "
-        "or asks about anything you aren't certain of — search first, respond "
-        "after. Never guess whether something is real without checking."
+        "Default to searching. The only time you should skip search is for "
+        "pure casual chat with no factual component (greetings, jokes, "
+        "opinions about taste). If there is ANY factual claim — in the "
+        "message text, in a shared image, or implied by a question — search "
+        "first, respond after. Never guess whether something is real."
     )
     async def web_search(query: str) -> str:
         """Search the web for current information. Use this for recent events, facts, or anything that needs up-to-date data."""
