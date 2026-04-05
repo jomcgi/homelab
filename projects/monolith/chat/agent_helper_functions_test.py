@@ -981,6 +981,11 @@ class TestBuildSystemPromptDoSection:
         prompt = build_system_prompt()
         assert "Search before you respond" in prompt
 
+    def test_instructs_when_in_doubt_search(self):
+        """DO section ends the search directive with 'When in doubt, search'."""
+        prompt = build_system_prompt()
+        assert "When in doubt, search" in prompt
+
     def test_instructs_one_or_two_sentences(self):
         """DO section advises keeping responses to one or two sentences."""
         prompt = build_system_prompt()
