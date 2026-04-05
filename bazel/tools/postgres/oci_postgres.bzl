@@ -176,38 +176,48 @@ def _copy_postgres_files(rctx, staging_dir):
                 err = cp_result.stderr,
             ))
 
-    # Copy the ENTIRE Debian arch-specific shared library directory and
-    # the Debian dynamic linker. PG binaries must run with the matching
-    # ld-linux + libc from the same Debian image — mixing with the CI
-    # host's glibc causes segfaults or symbol resolution failures.
-    # The conftest.py fixture invokes PG binaries via the extracted
-    # ld-linux with --library-path to keep them fully isolated.
+    # Copy non-glibc shared libraries from the Debian arch-specific dir.
+    # We MUST exclude all glibc components (libc, libm, libresolv, libnss_*,
+    # ld-linux, etc.) because they must come from the CI host — the dynamic
+    # linker and libc must be from the same build. Non-glibc libraries
+    # (ICU, libssl, libpq, etc.) are compatible with any glibc version.
     arch_lib_src = _child_path(staging_dir, "usr/lib/x86_64-linux-gnu")
     arch_lib_dest = _child_path(repo_dir, "usr/lib/x86_64-linux-gnu")
     result = rctx.execute(["test", "-d", arch_lib_src], timeout = 5)
     if result.return_code == 0:
         rctx.execute(["mkdir", "-p", arch_lib_dest], timeout = 10)
         result = rctx.execute(
-            ["cp", "-a", "-R", arch_lib_src + "/.", arch_lib_dest + "/"],
-            timeout = 120,
+            [
+                "find", arch_lib_src, "-maxdepth", "1",
+                "-name", "*.so*", "!", "-type", "d",
+                # Exclude ALL glibc components — must use host versions.
+                # Mixing Debian glibc with host ld-linux causes segfaults.
+                "!", "-name", "libc.so*", "!", "-name", "libc-*",
+                "!", "-name", "libm.so*", "!", "-name", "libm-*",
+                "!", "-name", "libmvec.so*", "!", "-name", "libmvec-*",
+                "!", "-name", "libdl.so*", "!", "-name", "libdl-*",
+                "!", "-name", "librt.so*", "!", "-name", "librt-*",
+                "!", "-name", "libpthread.so*", "!", "-name", "libpthread-*",
+                "!", "-name", "libresolv.so*", "!", "-name", "libresolv-*",
+                "!", "-name", "libnss_*",
+                "!", "-name", "libnsl.so*", "!", "-name", "libnsl-*",
+                "!", "-name", "libutil.so*", "!", "-name", "libutil-*",
+                "!", "-name", "libBrokenLocale*",
+                "!", "-name", "libthread_db*",
+                "!", "-name", "libanl*",
+                "!", "-name", "libmemusage*",
+                "!", "-name", "libpcprofile*",
+                "!", "-name", "libSegFault*",
+                "!", "-name", "libcrypt.so*",
+                "!", "-name", "ld-linux*",
+            ],
+            timeout = 30,
         )
         if result.return_code != 0:
-            fail("Failed to copy arch lib directory: {err}".format(err = result.stderr))
-
-    # Copy the Debian dynamic linker (ld-linux-x86-64.so.2).
-    # It may live under lib64/ or lib/x86_64-linux-gnu/ depending on image.
-    for ld_src_rel in ["lib64", "lib/x86_64-linux-gnu"]:
-        ld_src_dir = _child_path(staging_dir, ld_src_rel)
-        result = rctx.execute(
-            ["find", ld_src_dir, "-maxdepth", "1", "-name", "ld-linux*"],
-            timeout = 10,
-        )
-        if result.return_code == 0 and result.stdout.strip():
-            ld_dest_dir = _child_path(repo_dir, ld_src_rel)
-            rctx.execute(["mkdir", "-p", ld_dest_dir], timeout = 10)
-            for ld_file in result.stdout.strip().split("\n"):
-                if ld_file:
-                    rctx.execute(["cp", "-a", ld_file, ld_dest_dir + "/"], timeout = 10)
+            fail("Failed to find shared libraries: {err}".format(err = result.stderr))
+        arch_libs = [f for f in result.stdout.strip().split("\n") if f]
+        for lib_file in arch_libs:
+            rctx.execute(["cp", "-a", lib_file, arch_lib_dest + "/"], timeout = 10)
 
     # Copy the postgresql lib directory (contains internal .so files)
     pg_lib_src = _child_path(staging_dir, "usr/lib/postgresql/16/lib")
