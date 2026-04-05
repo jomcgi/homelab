@@ -105,3 +105,9 @@ sh_test(
     srcs = ["check-values-chart-version-bump_test.sh"],
     data = [":check-values-chart-version-bump.sh"],
 )
+
+sh_test(
+    name = "check_unnecessary_chart_bump_test",
+    srcs = ["check-unnecessary-chart-bump_test.sh"],
+    data = [":check-unnecessary-chart-bump.sh"],
+)

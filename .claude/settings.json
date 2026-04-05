@@ -216,6 +216,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-values-chart-version-bump.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-unnecessary-chart-bump.sh",
+            "timeout": 5
           }
         ]
       }
