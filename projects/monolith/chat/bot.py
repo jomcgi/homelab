@@ -14,6 +14,7 @@ from chat.agent import create_agent, format_context_messages
 from chat.embedding import EmbeddingClient
 from chat.store import MessageStore
 from chat.vision import VisionClient
+from chat.web_search import search_web
 from app.db import get_engine
 
 from sqlmodel import Session
@@ -295,6 +296,27 @@ class ChatBot(discord.Client):
                     if a["data"] is not None:
                         image_parts.append(
                             BinaryContent(data=a["data"], media_type=a["content_type"])
+                        )
+
+            # Auto-search when images are attached — the model struggles
+            # to decide when to search on visual content, so we do it
+            # proactively and inject results into the prompt.
+            if current_attachments:
+                descriptions = " ".join(
+                    a["description"]
+                    for a in current_attachments
+                    if a["description"] != "(image could not be processed)"
+                )
+                if descriptions:
+                    try:
+                        search_results = await search_web(descriptions)
+                        user_prompt += (
+                            f"\n\n[Auto-search results for attached image]\n"
+                            f"{search_results}"
+                        )
+                    except Exception:
+                        logger.warning(
+                            "Auto-search for image failed, continuing without"
                         )
 
             # When images are present, send a multimodal prompt so Gemma
