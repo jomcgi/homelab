@@ -340,14 +340,32 @@ class TestMessageStore:
         assert blob.content_type == "image/jpeg"
         assert blob.data == b"blob-data-for-join-test"
 
-    def test_upsert_summary_insert_and_update(self, store):
+    @pytest.mark.asyncio
+    async def test_upsert_summary_insert_and_update(self, store):
         """Insert then update same (channel, user) pair."""
+        # Create referenced messages (last_message_id has FK to messages.id)
+        msg1 = await store.save_message(
+            discord_message_id="sum-msg-001",
+            channel_id="ch-sum",
+            user_id="u-1",
+            username="alice",
+            content="Message for summary ref 1",
+            is_bot=False,
+        )
+        msg2 = await store.save_message(
+            discord_message_id="sum-msg-002",
+            channel_id="ch-sum",
+            user_id="u-1",
+            username="alice",
+            content="Message for summary ref 2",
+            is_bot=False,
+        )
         store.upsert_summary(
             channel_id="ch-sum",
             user_id="u-1",
             username="alice",
             summary_text="Initial summary",
-            last_message_id=100,
+            last_message_id=msg1.id,
         )
         summary = store.get_user_summary("ch-sum", "alice")
         assert summary is not None
@@ -358,32 +376,50 @@ class TestMessageStore:
             user_id="u-1",
             username="alice",
             summary_text="Updated summary",
-            last_message_id=200,
+            last_message_id=msg2.id,
         )
         summary = store.get_user_summary("ch-sum", "alice")
         assert summary is not None
         assert summary.summary == "Updated summary"
-        assert summary.last_message_id == 200
+        assert summary.last_message_id == msg2.id
 
-    def test_upsert_summary_unique_constraint(self, store):
+    @pytest.mark.asyncio
+    async def test_upsert_summary_unique_constraint(self, store):
         """(channel_id, user_id) enforced, exactly one row."""
         from sqlmodel import select
 
         from chat.models import UserChannelSummary
 
+        # Create referenced messages (last_message_id has FK to messages.id)
+        msg1 = await store.save_message(
+            discord_message_id="uniq-msg-001",
+            channel_id="ch-uniq",
+            user_id="u-1",
+            username="alice",
+            content="Message for unique constraint ref 1",
+            is_bot=False,
+        )
+        msg2 = await store.save_message(
+            discord_message_id="uniq-msg-002",
+            channel_id="ch-uniq",
+            user_id="u-1",
+            username="alice",
+            content="Message for unique constraint ref 2",
+            is_bot=False,
+        )
         store.upsert_summary(
             channel_id="ch-uniq",
             user_id="u-1",
             username="alice",
             summary_text="First",
-            last_message_id=1,
+            last_message_id=msg1.id,
         )
         store.upsert_summary(
             channel_id="ch-uniq",
             user_id="u-1",
             username="alice",
             summary_text="Second",
-            last_message_id=2,
+            last_message_id=msg2.id,
         )
         rows = store.session.exec(
             select(UserChannelSummary).where(
@@ -450,12 +486,21 @@ class TestAgentTools:
 
         from chat.agent import ChatDeps, create_agent
 
+        # Create referenced message (last_message_id has FK to messages.id)
+        msg = await store.save_message(
+            discord_message_id="agent-sum-001",
+            channel_id="ch-agent-sum",
+            user_id="u-1",
+            username="alice",
+            content="Message for agent summary ref",
+            is_bot=False,
+        )
         store.upsert_summary(
             channel_id="ch-agent-sum",
             user_id="u-1",
             username="alice",
             summary_text="Alice has been discussing Kubernetes and GitOps workflows.",
-            last_message_id=50,
+            last_message_id=msg.id,
         )
 
         agent = create_agent()
