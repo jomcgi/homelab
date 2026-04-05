@@ -987,6 +987,7 @@ py_test(
         ":monolith_backend",
         "@pip//discord_py",
         "@pip//httpx",
+        "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],
