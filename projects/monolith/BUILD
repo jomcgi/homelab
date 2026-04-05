@@ -1145,7 +1145,7 @@ py_test(
 py_test(
     name = "e2e_test",
     size = "large",
-    srcs = glob(["e2e/**/*.py"]),
+    srcs = ["e2e/__init__.py", "e2e/conftest.py", "e2e/e2e_test.py"],
     data = [
         "//projects/monolith/chart/migrations:migrations",
         "@postgres_test//:postgres",
@@ -1161,6 +1161,35 @@ py_test(
         "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+        "@pip//uvicorn",
+    ],
+)
+
+py_test(
+    name = "e2e_playwright_test",
+    size = "large",
+    srcs = ["e2e/__init__.py", "e2e/conftest.py", "e2e/e2e_playwright_test.py"],
+    data = [
+        ":frontend_dist",
+        "//projects/monolith/chart/migrations:migrations",
+        "@postgres_test//:postgres",
+    ],
+    imports = ["."],
+    tags = [
+        "e2e",
+        "manual",
+        "playwright",
+    ],
+    timeout = "long",
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//psycopg",
+        "@pip//pytest",
+        "@pip//pytest_playwright",
         "@pip//sqlmodel",
         "@pip//tzdata",
         "@pip//uvicorn",
