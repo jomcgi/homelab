@@ -261,7 +261,8 @@ class TestMetricsCounterIncrements:
             client = TestClient(main_module.app)
             response = client.get("/metrics")
 
-        assert response.json()["last_message_time"] == timestamps[-1]
+        payload = response.json()
+        assert payload["last_message_time"] == timestamps[-1]
 
     @pytest.mark.asyncio
     async def test_metrics_zero_publishes_returns_zero_and_none(self):
