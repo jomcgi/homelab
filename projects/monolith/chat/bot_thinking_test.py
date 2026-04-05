@@ -1,72 +1,77 @@
 """Tests for thinking mode handling in the Discord bot."""
 
 import pytest
-
-from chat.bot import _parse_thinking
-
-
-class TestParseThinking:
-    def test_no_thinking_tags(self):
-        """Plain text without <think> tags passes through unchanged."""
-        response, thinking = _parse_thinking("Hello world!")
-        assert response == "Hello world!"
-        assert thinking is None
-
-    def test_thinking_and_response(self):
-        """Extracts thinking and returns clean response."""
-        text = "<think>I should greet them.</think>Hello!"
-        response, thinking = _parse_thinking(text)
-        assert response == "Hello!"
-        assert thinking == "I should greet them."
-
-    def test_thinking_with_whitespace(self):
-        """Strips whitespace between thinking block and response."""
-        text = "<think>reasoning</think>\n\nHello!"
-        response, thinking = _parse_thinking(text)
-        assert response == "Hello!"
-        assert thinking == "reasoning"
-
-    def test_thinking_only_empty_response(self):
-        """Returns empty response when model only produces thinking."""
-        text = "<think>I'm just thinking here.</think>"
-        response, thinking = _parse_thinking(text)
-        assert response == ""
-        assert thinking == "I'm just thinking here."
-
-    def test_thinking_only_whitespace_response(self):
-        """Whitespace-only response after thinking is treated as empty."""
-        text = "<think>reasoning</think>   \n  "
-        response, thinking = _parse_thinking(text)
-        assert response == ""
-        assert thinking == "reasoning"
-
-    def test_multiple_think_blocks(self):
-        """Multiple <think> blocks are concatenated."""
-        text = "<think>first</think>middle<think>second</think>end"
-        response, thinking = _parse_thinking(text)
-        assert response == "middleend"
-        assert thinking == "first\n\nsecond"
-
-    def test_unclosed_think_tag(self):
-        """Unclosed <think> tag — treat entire remainder as thinking."""
-        text = "<think>no closing tag here"
-        response, thinking = _parse_thinking(text)
-        assert response == ""
-        assert thinking == "no closing tag here"
-
-    def test_empty_think_block(self):
-        """Empty <think></think> produces no thinking text."""
-        text = "<think></think>Hello!"
-        response, thinking = _parse_thinking(text)
-        assert response == "Hello!"
-        assert thinking is None
-
-
 from unittest.mock import AsyncMock, patch, MagicMock
+
 import discord
 import httpx
+from pydantic_ai.messages import ModelResponse, TextPart, ThinkingPart
+from pydantic_ai.usage import RequestUsage
 
-from chat.bot import _summarize_thinking, ThinkingView, ChatBot
+from chat.bot import _extract_thinking, _summarize_thinking, ThinkingView, ChatBot
+
+
+def _make_result(output: str, thinking: str | None = None):
+    """Build a mock agent result with optional ThinkingPart."""
+    parts = []
+    if thinking is not None:
+        parts.append(ThinkingPart(content=thinking))
+    parts.append(TextPart(content=output))
+    response = ModelResponse(
+        parts=parts,
+        usage=RequestUsage(request_tokens=0, response_tokens=0),
+    )
+    result = MagicMock()
+    result.output = output
+    result.new_messages.return_value = [response]
+    return result
+
+
+class TestExtractThinking:
+    def test_no_thinking(self):
+        """Returns None when no ThinkingPart is present."""
+        result = _make_result("Hello!")
+        assert _extract_thinking(result) is None
+
+    def test_with_thinking(self):
+        """Extracts thinking content from ThinkingPart."""
+        result = _make_result("Hello!", thinking="reasoning here")
+        assert _extract_thinking(result) == "reasoning here"
+
+    def test_empty_thinking(self):
+        """Empty thinking content returns None."""
+        result = _make_result("Hello!", thinking="")
+        assert _extract_thinking(result) is None
+
+    def test_whitespace_thinking(self):
+        """Whitespace-only thinking is stripped and returns None."""
+        result = _make_result("Hello!", thinking="   \n  ")
+        assert _extract_thinking(result) is None
+
+    def test_multiple_thinking_parts(self):
+        """Multiple ThinkingParts are concatenated."""
+        parts = [
+            ThinkingPart(content="first thought"),
+            TextPart(content="middle"),
+            ThinkingPart(content="second thought"),
+            TextPart(content="end"),
+        ]
+        response = ModelResponse(
+            parts=parts,
+            usage=RequestUsage(request_tokens=0, response_tokens=0),
+        )
+        result = MagicMock()
+        result.output = "middleend"
+        result.new_messages.return_value = [response]
+
+        assert _extract_thinking(result) == "first thought\n\nsecond thought"
+
+    def test_skips_non_model_response(self):
+        """Non-ModelResponse messages are ignored."""
+        result = MagicMock()
+        result.output = "Hello!"
+        result.new_messages.return_value = [MagicMock(spec=[])]
+        assert _extract_thinking(result) is None
 
 
 class TestSummarizeThinking:
@@ -198,7 +203,7 @@ def _make_message(content="hello", mentions=None, msg_id=1):
 class TestThinkingIntegration:
     @pytest.mark.asyncio
     async def test_response_with_thinking_adds_view(self):
-        """When model returns <think>...</think>, reply includes ThinkingView."""
+        """When model returns thinking, reply includes ThinkingView."""
         bot = _make_bot()
         bot_user = bot.user
 
@@ -209,8 +214,7 @@ class TestThinkingIntegration:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
 
-        mock_result = MagicMock()
-        mock_result.output = "<think>reasoning here</think>Hello!"
+        mock_result = _make_result("Hello!", thinking="reasoning here")
         bot.agent.run = AsyncMock(return_value=mock_result)
 
         with (
@@ -245,8 +249,7 @@ class TestThinkingIntegration:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
 
-        mock_result = MagicMock()
-        mock_result.output = "Hello!"
+        mock_result = _make_result("Hello!")
         bot.agent.run = AsyncMock(return_value=mock_result)
 
         with (
@@ -263,7 +266,7 @@ class TestThinkingIntegration:
 
     @pytest.mark.asyncio
     async def test_thinking_only_triggers_retry(self):
-        """When model produces only thinking, bot retries with a nudge."""
+        """When model produces only thinking (empty output), bot retries with a nudge."""
         bot = _make_bot()
         bot_user = bot.user
 
@@ -274,10 +277,8 @@ class TestThinkingIntegration:
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
 
-        thinking_only = MagicMock()
-        thinking_only.output = "<think>just reasoning</think>"
-        proper_response = MagicMock()
-        proper_response.output = "Here's my answer!"
+        thinking_only = _make_result("", thinking="just reasoning")
+        proper_response = _make_result("Here's my answer!")
         bot.agent.run = AsyncMock(side_effect=[thinking_only, proper_response])
 
         with (

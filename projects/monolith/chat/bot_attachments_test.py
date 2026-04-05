@@ -71,6 +71,7 @@ class TestGenerateResponseWithAttachments:
         mock_store.get_attachments = MagicMock(return_value={})
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "That's a cat."
         bot.agent.run = AsyncMock(return_value=mock_result)
 
@@ -110,6 +111,7 @@ class TestGenerateResponseWithAttachments:
         mock_store.get_attachments = MagicMock(return_value={})
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "ok"
         bot.agent.run = AsyncMock(return_value=mock_result)
 
@@ -148,6 +150,7 @@ class TestGenerateResponseWithAttachments:
         mock_store.get_attachments = MagicMock(return_value={})
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "Both images look great."
         bot.agent.run = AsyncMock(return_value=mock_result)
 
@@ -194,6 +197,7 @@ class TestGenerateResponseWithAttachments:
         mock_store.get_attachments = MagicMock(return_value={})
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "ok"
         bot.agent.run = AsyncMock(return_value=mock_result)
 
@@ -222,6 +226,7 @@ class TestGenerateResponseWithAttachments:
         mock_store.get_attachments = MagicMock(return_value={})
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "response"
         bot.agent.run = AsyncMock(return_value=mock_result)
 

@@ -154,6 +154,7 @@ class TestExponentialBackoffDelays:
         mock_store.get_attachments = MagicMock(return_value={})
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "All good!"
         bot.agent.run = AsyncMock(return_value=mock_result)
 
@@ -186,6 +187,7 @@ class TestExponentialBackoffDelays:
         mock_store.get_attachments = MagicMock(return_value={})
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "Recovered!"
         bot.agent.run = AsyncMock(side_effect=[RuntimeError("first fail"), mock_result])
 
@@ -264,6 +266,7 @@ class TestNestedErrorReplyFailure:
         mock_store.get_attachments = MagicMock(return_value={})
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "Some response"
         bot.agent.run = AsyncMock(return_value=mock_result)
 
@@ -299,6 +302,7 @@ class TestNestedErrorReplyFailure:
         mock_store.get_attachments = MagicMock(return_value={})
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "Response text"
         bot.agent.run = AsyncMock(return_value=mock_result)
 

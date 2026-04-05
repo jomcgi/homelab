@@ -169,6 +169,7 @@ class TestGenerateResponseStoreFailure:
         mock_store.get_recent = MagicMock(return_value=[])
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "Here's my answer!"
         bot.agent.run = AsyncMock(
             side_effect=[RuntimeError("model unavailable"), mock_result]
@@ -247,6 +248,7 @@ class TestOnMessageDoubleSave:
         message.reply = AsyncMock(return_value=sent_msg)
 
         mock_agent_result = MagicMock()
+        mock_agent_result.new_messages.return_value = []
         mock_agent_result.output = "Here's my answer!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
 
@@ -299,6 +301,7 @@ class TestGenerateResponseEmptyContext:
         mock_store.get_recent = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
+        mock_agent_result.new_messages.return_value = []
         mock_agent_result.output = "Not much context, but here you go!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
 
@@ -327,6 +330,7 @@ class TestGenerateResponseEmptyContext:
         mock_store.get_recent = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
+        mock_agent_result.new_messages.return_value = []
         mock_agent_result.output = "Hello!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
 
@@ -355,6 +359,7 @@ class TestGenerateResponseEmptyContext:
         mock_store.get_recent = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
+        mock_agent_result.new_messages.return_value = []
         mock_agent_result.output = "It's time!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
 

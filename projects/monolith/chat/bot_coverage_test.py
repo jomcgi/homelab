@@ -224,6 +224,7 @@ class TestOnMessageGenerateReply:
         mock_store.get_recent = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
+        mock_agent_result.new_messages.return_value = []
         mock_agent_result.output = "Hello human!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
 
@@ -257,6 +258,7 @@ class TestOnMessageGenerateReply:
         mock_store.get_recent = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
+        mock_agent_result.new_messages.return_value = []
         mock_agent_result.output = "Hello!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
 
@@ -307,6 +309,7 @@ class TestGenerateResponse:
         mock_store.get_recent = MagicMock(return_value=[recent_msg])
 
         mock_agent_result = MagicMock()
+        mock_agent_result.new_messages.return_value = []
         mock_agent_result.output = "Sunny!"
         bot.agent.run = AsyncMock(return_value=mock_agent_result)
 

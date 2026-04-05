@@ -4,10 +4,10 @@ import asyncio
 import hashlib
 import logging
 import os
-import re
 
 import discord
 import httpx
+from pydantic_ai.messages import ModelResponse, ThinkingPart
 
 from chat.agent import create_agent, format_context_messages
 from chat.embedding import EmbeddingClient
@@ -28,34 +28,22 @@ LLM_MAX_RETRIES = 3
 LLM_RETRY_BASE_DELAY = 1.0  # seconds
 
 
-def _parse_thinking(text: str) -> tuple[str, str | None]:
-    """Extract <think>...</think> blocks from model output.
+def _extract_thinking(result) -> str | None:
+    """Extract thinking text from PydanticAI ThinkingPart messages.
 
-    Returns (response_text, thinking_text). thinking_text is None if no
-    thinking was found or if all think blocks were empty.
+    llama.cpp returns reasoning in the ``reasoning_content`` field of the
+    OpenAI-compatible response.  PydanticAI maps this to ``ThinkingPart``
+    objects automatically.  Returns the concatenated thinking text, or
+    None when no thinking was produced.
     """
-    thinking_parts: list[str] = []
-
-    def _collect(match: re.Match) -> str:
-        content = match.group(1).strip()
-        if content:
-            thinking_parts.append(content)
-        return ""
-
-    # Handle closed <think>...</think> blocks
-    cleaned = re.sub(r"<think>(.*?)</think>", _collect, text, flags=re.DOTALL)
-
-    # Handle unclosed <think> tag (model cut off mid-thought)
-    unclosed = re.search(r"<think>(.*)", cleaned, flags=re.DOTALL)
-    if unclosed:
-        content = unclosed.group(1).strip()
-        if content:
-            thinking_parts.append(content)
-        cleaned = cleaned[: unclosed.start()]
-
-    response = cleaned.strip()
-    thinking = "\n\n".join(thinking_parts) if thinking_parts else None
-    return response, thinking
+    parts: list[str] = []
+    for msg in result.new_messages():
+        if not isinstance(msg, ModelResponse):
+            continue
+        for part in msg.parts:
+            if isinstance(part, ThinkingPart) and part.content:
+                parts.append(part.content.strip())
+    return "\n\n".join(parts) if parts else None
 
 
 async def _summarize_thinking(
@@ -251,7 +239,7 @@ class ChatBot(discord.Client):
         """Build context and run the PydanticAI agent.
 
         Returns (response_text, thinking_text). thinking_text is None when
-        the model produced no <think> blocks.
+        the model produced no thinking.
         """
         from chat.agent import ChatDeps
 
@@ -293,7 +281,8 @@ class ChatBot(discord.Client):
             for attempt in range(LLM_MAX_RETRIES):
                 try:
                     result = await self.agent.run(user_prompt, deps=deps)
-                    response, thinking = _parse_thinking(result.output)
+                    response = result.output
+                    thinking = _extract_thinking(result)
 
                     # Retry once if model produced thinking but no response
                     if not response:
@@ -303,7 +292,8 @@ class ChatBot(discord.Client):
                             "Please respond to the user directly."
                         )
                         result = await self.agent.run(nudge, deps=deps)
-                        response, thinking = _parse_thinking(result.output)
+                        response = result.output
+                        thinking = _extract_thinking(result)
                         if not response:
                             response = (
                                 "Sorry, I'm having trouble formulating a response. "

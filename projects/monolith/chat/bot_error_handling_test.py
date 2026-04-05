@@ -293,6 +293,7 @@ class TestGenerateResponseRetry:
         msg = _make_message(content="Will retry once.")
 
         mock_result = MagicMock()
+        mock_result.new_messages.return_value = []
         mock_result.output = "Recovered!"
         # First attempt fails, second succeeds.
         bot.agent.run = AsyncMock(side_effect=[RuntimeError("transient"), mock_result])
