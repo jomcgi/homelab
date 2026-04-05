@@ -18,8 +18,10 @@ package v1
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -1303,6 +1305,517 @@ func TestCloudflareAccessPolicyJSONRoundTrip(t *testing.T) {
 			}
 			if !reflect.DeepEqual(tt.policy, got) {
 				t.Errorf("round-trip mismatch:\n  want: %+v\n  got:  %+v", tt.policy, got)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// DeepCopy nil-receiver tests
+// ---------------------------------------------------------------------------
+
+func TestDeepCopyNilReceivers(t *testing.T) {
+	t.Run("AccessPolicy nil", func(t *testing.T) {
+		if got := (*AccessPolicy)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("AccessPolicyRule nil", func(t *testing.T) {
+		if got := (*AccessPolicyRule)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("ApplicationConfig nil", func(t *testing.T) {
+		if got := (*ApplicationConfig)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("CORSHeaders nil", func(t *testing.T) {
+		if got := (*CORSHeaders)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("CloudflareAccessPolicy nil", func(t *testing.T) {
+		if got := (*CloudflareAccessPolicy)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("CloudflareAccessPolicyList nil", func(t *testing.T) {
+		if got := (*CloudflareAccessPolicyList)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("CloudflareAccessPolicySpec nil", func(t *testing.T) {
+		if got := (*CloudflareAccessPolicySpec)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("CloudflareAccessPolicyStatus nil", func(t *testing.T) {
+		if got := (*CloudflareAccessPolicyStatus)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("CloudflareTunnel nil", func(t *testing.T) {
+		if got := (*CloudflareTunnel)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("CloudflareTunnelList nil", func(t *testing.T) {
+		if got := (*CloudflareTunnelList)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("CloudflareTunnelSpec nil", func(t *testing.T) {
+		if got := (*CloudflareTunnelSpec)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("CloudflareTunnelStatus nil", func(t *testing.T) {
+		if got := (*CloudflareTunnelStatus)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("PolicyTargetReference nil", func(t *testing.T) {
+		if got := (*PolicyTargetReference)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("SecretReference nil", func(t *testing.T) {
+		if got := (*SecretReference)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+	t.Run("TunnelIngress nil", func(t *testing.T) {
+		if got := (*TunnelIngress)(nil).DeepCopy(); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// DeepCopy mutation-isolation tests
+// ---------------------------------------------------------------------------
+
+func TestAccessPolicyRuleDeepCopy(t *testing.T) {
+	orig := &AccessPolicyRule{
+		EmailsEndingIn:      []string{"@acme.com"},
+		Emails:              []string{"alice@acme.com"},
+		EmailDomains:        []string{"acme.com"},
+		IPRanges:            []string{"10.0.0.0/8"},
+		GitHubUsers:         []string{"alice"},
+		GitHubOrganizations: []string{"acme-org"},
+		Countries:           []string{"US"},
+	}
+	cp := orig.DeepCopy()
+	cp.EmailsEndingIn[0] = "mutated"
+	cp.Emails[0] = "mutated"
+	cp.EmailDomains[0] = "mutated"
+	cp.IPRanges[0] = "mutated"
+	cp.GitHubUsers[0] = "mutated"
+	cp.GitHubOrganizations[0] = "mutated"
+	cp.Countries[0] = "mutated"
+	if orig.EmailsEndingIn[0] != "@acme.com" {
+		t.Errorf("EmailsEndingIn mutated original")
+	}
+	if orig.Emails[0] != "alice@acme.com" {
+		t.Errorf("Emails mutated original")
+	}
+	if orig.EmailDomains[0] != "acme.com" {
+		t.Errorf("EmailDomains mutated original")
+	}
+	if orig.IPRanges[0] != "10.0.0.0/8" {
+		t.Errorf("IPRanges mutated original")
+	}
+	if orig.GitHubUsers[0] != "alice" {
+		t.Errorf("GitHubUsers mutated original")
+	}
+	if orig.GitHubOrganizations[0] != "acme-org" {
+		t.Errorf("GitHubOrganizations mutated original")
+	}
+	if orig.Countries[0] != "US" {
+		t.Errorf("Countries mutated original")
+	}
+}
+
+func TestAccessPolicyDeepCopy(t *testing.T) {
+	orig := &AccessPolicy{
+		Rules: []AccessPolicyRule{
+			{Emails: []string{"alice@acme.com"}},
+		},
+	}
+	cp := orig.DeepCopy()
+	cp.Rules[0].Emails[0] = "mutated"
+	if orig.Rules[0].Emails[0] != "alice@acme.com" {
+		t.Errorf("Rules mutated original")
+	}
+}
+
+func TestCORSHeadersDeepCopy(t *testing.T) {
+	maxAge := 3600
+	orig := &CORSHeaders{
+		AllowedOrigins: []string{"https://example.com"},
+		AllowedMethods: []string{"GET", "POST"},
+		AllowedHeaders: []string{"Authorization"},
+		MaxAge:         &maxAge,
+	}
+	cp := orig.DeepCopy()
+	cp.AllowedOrigins[0] = "mutated"
+	cp.AllowedMethods[0] = "mutated"
+	cp.AllowedHeaders[0] = "mutated"
+	*cp.MaxAge = 9999
+	if orig.AllowedOrigins[0] != "https://example.com" {
+		t.Errorf("AllowedOrigins mutated original")
+	}
+	if orig.AllowedMethods[0] != "GET" {
+		t.Errorf("AllowedMethods mutated original")
+	}
+	if orig.AllowedHeaders[0] != "Authorization" {
+		t.Errorf("AllowedHeaders mutated original")
+	}
+	if *orig.MaxAge != 3600 {
+		t.Errorf("MaxAge mutated original")
+	}
+}
+
+func TestApplicationConfigDeepCopy(t *testing.T) {
+	maxAge := 600
+	orig := &ApplicationConfig{
+		CORSHeaders: &CORSHeaders{
+			AllowedOrigins: []string{"https://app.example.com"},
+			MaxAge:         &maxAge,
+		},
+	}
+	cp := orig.DeepCopy()
+	cp.CORSHeaders.AllowedOrigins[0] = "mutated"
+	*cp.CORSHeaders.MaxAge = 9999
+	if orig.CORSHeaders.AllowedOrigins[0] != "https://app.example.com" {
+		t.Errorf("CORSHeaders.AllowedOrigins mutated original")
+	}
+	if *orig.CORSHeaders.MaxAge != 600 {
+		t.Errorf("CORSHeaders.MaxAge mutated original")
+	}
+}
+
+func TestPolicyTargetReferenceDeepCopy(t *testing.T) {
+	ns := gatewayv1.Namespace("default")
+	orig := &PolicyTargetReference{
+		Namespace: &ns,
+	}
+	cp := orig.DeepCopy()
+	newNs := gatewayv1.Namespace("other")
+	cp.Namespace = &newNs
+	if *orig.Namespace != "default" {
+		t.Errorf("Namespace mutated original")
+	}
+}
+
+func TestCloudflareAccessPolicyStatusDeepCopy(t *testing.T) {
+	orig := &CloudflareAccessPolicyStatus{
+		PolicyIDs: []string{"pol-1", "pol-2"},
+	}
+	cp := orig.DeepCopy()
+	cp.PolicyIDs[0] = "mutated"
+	if orig.PolicyIDs[0] != "pol-1" {
+		t.Errorf("PolicyIDs mutated original")
+	}
+}
+
+func TestCloudflareAccessPolicySpecDeepCopy(t *testing.T) {
+	orig := &CloudflareAccessPolicySpec{
+		Policies: []AccessPolicy{
+			{Rules: []AccessPolicyRule{{Emails: []string{"alice@acme.com"}}}},
+		},
+	}
+	cp := orig.DeepCopy()
+	cp.Policies[0].Rules[0].Emails[0] = "mutated"
+	if orig.Policies[0].Rules[0].Emails[0] != "alice@acme.com" {
+		t.Errorf("Policies mutated original")
+	}
+}
+
+func TestCloudflareAccessPolicyListDeepCopy(t *testing.T) {
+	orig := &CloudflareAccessPolicyList{
+		Items: []CloudflareAccessPolicy{
+			{
+				Spec: CloudflareAccessPolicySpec{
+					Policies: []AccessPolicy{
+						{Rules: []AccessPolicyRule{{Emails: []string{"alice@acme.com"}}}},
+					},
+				},
+			},
+		},
+	}
+	cp := orig.DeepCopy()
+	cp.Items[0].Spec.Policies[0].Rules[0].Emails[0] = "mutated"
+	if orig.Items[0].Spec.Policies[0].Rules[0].Emails[0] != "alice@acme.com" {
+		t.Errorf("Items mutated original")
+	}
+}
+
+func TestCloudflareTunnelSpecDeepCopy(t *testing.T) {
+	orig := &CloudflareTunnelSpec{
+		AccountID: "acct-1",
+		Ingress: []TunnelIngress{
+			{Hostname: "app.example.com", Service: "http://backend:8080"},
+		},
+	}
+	cp := orig.DeepCopy()
+	cp.Ingress[0].Hostname = "mutated"
+	if orig.Ingress[0].Hostname != "app.example.com" {
+		t.Errorf("Ingress mutated original")
+	}
+}
+
+func TestCloudflareTunnelStatusDeepCopy(t *testing.T) {
+	orig := &CloudflareTunnelStatus{
+		Conditions: []metav1.Condition{
+			{Type: "Ready", Status: metav1.ConditionTrue, Reason: "Running"},
+		},
+	}
+	cp := orig.DeepCopy()
+	cp.Conditions[0].Type = "mutated"
+	if orig.Conditions[0].Type != "Ready" {
+		t.Errorf("Conditions mutated original")
+	}
+}
+
+func TestCloudflareTunnelListDeepCopy(t *testing.T) {
+	orig := &CloudflareTunnelList{
+		Items: []CloudflareTunnel{
+			{
+				Spec: CloudflareTunnelSpec{
+					AccountID: "acct-1",
+					Ingress: []TunnelIngress{
+						{Hostname: "app.example.com", Service: "http://backend:8080"},
+					},
+				},
+			},
+		},
+	}
+	cp := orig.DeepCopy()
+	cp.Items[0].Spec.Ingress[0].Hostname = "mutated"
+	if orig.Items[0].Spec.Ingress[0].Hostname != "app.example.com" {
+		t.Errorf("Items.Spec.Ingress mutated original")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// DeepCopyObject tests
+// ---------------------------------------------------------------------------
+
+func TestDeepCopyObject(t *testing.T) {
+	t.Run("CloudflareTunnel", func(t *testing.T) {
+		orig := &CloudflareTunnel{
+			Spec: CloudflareTunnelSpec{
+				AccountID: "acct-1",
+				Ingress:   []TunnelIngress{{Hostname: "a.example.com", Service: "http://svc:8080"}},
+			},
+		}
+		obj := orig.DeepCopyObject()
+		if obj == nil {
+			t.Fatal("expected non-nil")
+		}
+		cp, ok := obj.(*CloudflareTunnel)
+		if !ok {
+			t.Fatalf("expected *CloudflareTunnel, got %T", obj)
+		}
+		cp.Spec.Ingress[0].Hostname = "mutated"
+		if orig.Spec.Ingress[0].Hostname != "a.example.com" {
+			t.Errorf("DeepCopyObject mutated original")
+		}
+	})
+
+	t.Run("CloudflareTunnel nil", func(t *testing.T) {
+		var orig *CloudflareTunnel
+		if obj := orig.DeepCopyObject(); obj != nil {
+			t.Errorf("expected nil, got %v", obj)
+		}
+	})
+
+	t.Run("CloudflareTunnelList", func(t *testing.T) {
+		orig := &CloudflareTunnelList{
+			Items: []CloudflareTunnel{
+				{Spec: CloudflareTunnelSpec{AccountID: "acct-1"}},
+			},
+		}
+		obj := orig.DeepCopyObject()
+		if obj == nil {
+			t.Fatal("expected non-nil")
+		}
+		if _, ok := obj.(*CloudflareTunnelList); !ok {
+			t.Fatalf("expected *CloudflareTunnelList, got %T", obj)
+		}
+	})
+
+	t.Run("CloudflareTunnelList nil", func(t *testing.T) {
+		var orig *CloudflareTunnelList
+		if obj := orig.DeepCopyObject(); obj != nil {
+			t.Errorf("expected nil, got %v", obj)
+		}
+	})
+
+	t.Run("CloudflareAccessPolicy", func(t *testing.T) {
+		orig := &CloudflareAccessPolicy{
+			Spec: CloudflareAccessPolicySpec{
+				Policies: []AccessPolicy{
+					{Rules: []AccessPolicyRule{{Emails: []string{"alice@acme.com"}}}},
+				},
+			},
+		}
+		obj := orig.DeepCopyObject()
+		if obj == nil {
+			t.Fatal("expected non-nil")
+		}
+		cp, ok := obj.(*CloudflareAccessPolicy)
+		if !ok {
+			t.Fatalf("expected *CloudflareAccessPolicy, got %T", obj)
+		}
+		cp.Spec.Policies[0].Rules[0].Emails[0] = "mutated"
+		if orig.Spec.Policies[0].Rules[0].Emails[0] != "alice@acme.com" {
+			t.Errorf("DeepCopyObject mutated original")
+		}
+	})
+
+	t.Run("CloudflareAccessPolicy nil", func(t *testing.T) {
+		var orig *CloudflareAccessPolicy
+		if obj := orig.DeepCopyObject(); obj != nil {
+			t.Errorf("expected nil, got %v", obj)
+		}
+	})
+
+	t.Run("CloudflareAccessPolicyList", func(t *testing.T) {
+		orig := &CloudflareAccessPolicyList{
+			Items: []CloudflareAccessPolicy{
+				{Spec: CloudflareAccessPolicySpec{Policies: []AccessPolicy{{Rules: []AccessPolicyRule{{Emails: []string{"alice@acme.com"}}}}}}},
+			},
+		}
+		obj := orig.DeepCopyObject()
+		if obj == nil {
+			t.Fatal("expected non-nil")
+		}
+		if _, ok := obj.(*CloudflareAccessPolicyList); !ok {
+			t.Fatalf("expected *CloudflareAccessPolicyList, got %T", obj)
+		}
+	})
+
+	t.Run("CloudflareAccessPolicyList nil", func(t *testing.T) {
+		var orig *CloudflareAccessPolicyList
+		if obj := orig.DeepCopyObject(); obj != nil {
+			t.Errorf("expected nil, got %v", obj)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// ValidateUpdate type-assertion error paths
+// ---------------------------------------------------------------------------
+
+func TestValidateUpdateTypeAssertionErrors(t *testing.T) {
+	ctx := context.Background()
+	r := &CloudflareTunnel{
+		Spec: CloudflareTunnelSpec{AccountID: "acct-1"},
+	}
+
+	t.Run("newObj wrong type", func(t *testing.T) {
+		wrongType := &CloudflareAccessPolicy{}
+		_, err := r.ValidateUpdate(ctx, r, wrongType)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "new object is not a CloudflareTunnel") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
+
+	t.Run("oldObj wrong type", func(t *testing.T) {
+		wrongType := &CloudflareAccessPolicy{}
+		validNew := &CloudflareTunnel{
+			Spec: CloudflareTunnelSpec{AccountID: "acct-1"},
+		}
+		_, err := r.ValidateUpdate(ctx, wrongType, validNew)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "old object is not a CloudflareTunnel") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// ValidateDelete
+// ---------------------------------------------------------------------------
+
+func TestValidateDelete(t *testing.T) {
+	ctx := context.Background()
+	r := &CloudflareTunnel{
+		Spec: CloudflareTunnelSpec{AccountID: "acct-1"},
+	}
+	warnings, err := r.ValidateDelete(ctx, r)
+	if err != nil {
+		t.Errorf("ValidateDelete() returned unexpected error: %v", err)
+	}
+	if warnings != nil {
+		t.Errorf("ValidateDelete() returned unexpected warnings: %v", warnings)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// isValidHostname edge cases
+// ---------------------------------------------------------------------------
+
+func TestIsValidHostnameEdgeCases(t *testing.T) {
+	// 63-char label: valid (max allowed label length)
+	label63 := strings.Repeat("a", 63)
+	// 64-char label: invalid (exceeds max label length)
+	label64 := strings.Repeat("a", 64)
+
+	// Build a 253-char hostname across 4 labels: 63+1+62+1+63+1+62 = 253.
+	hostname253 := strings.Repeat("a", 63) + "." + strings.Repeat("b", 62) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 62)
+	// 254-char hostname: append one extra character.
+	hostname254 := strings.Repeat("a", 63) + "." + strings.Repeat("b", 62) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 63)
+
+	tests := []struct {
+		name     string
+		hostname string
+		want     bool
+	}{
+		{
+			name:     "exactly 63-char label is valid",
+			hostname: label63 + ".example.com",
+			want:     true,
+		},
+		{
+			name:     "exactly 64-char label is invalid",
+			hostname: label64 + ".example.com",
+			want:     false,
+		},
+		{
+			name:     "exactly 253-char hostname is valid",
+			hostname: hostname253,
+			want:     true,
+		},
+		{
+			name:     "254-char hostname is invalid",
+			hostname: hostname254,
+			want:     false,
+		},
+		{
+			name:     "wildcard prefix is invalid",
+			hostname: "*.example.com",
+			want:     false,
+		},
+		{
+			name:     "single-char label is valid",
+			hostname: "a.example.com",
+			want:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isValidHostname(tt.hostname); got != tt.want {
+				t.Errorf("isValidHostname(%q) = %v, want %v (len=%d)", tt.hostname, got, tt.want, len(tt.hostname))
 			}
 		})
 	}
