@@ -32,9 +32,7 @@ import (
 )
 
 var _ = Describe("HTTPRoute Controller Coverage", func() {
-	var (
-		ctx context.Context
-	)
+	var ctx context.Context
 
 	BeforeEach(func() {
 		ctx = context.Background()
