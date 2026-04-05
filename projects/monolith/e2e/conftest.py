@@ -13,6 +13,7 @@ import random
 import signal
 import socket
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -139,74 +140,31 @@ def pg(tmp_path_factory):
 
     env = os.environ.copy()
 
-    # PG binaries are wrapped by the OCI extraction to use the Debian
-    # ld-linux and library path. We still set LD_LIBRARY_PATH as fallback
-    # for macOS or non-wrapped scenarios.
+    # DO NOT set LD_LIBRARY_PATH with the Debian libraries here.
+    # The CI host has an older glibc than Debian Bookworm, so setting
+    # LD_LIBRARY_PATH would poison ALL child processes (including /bin/sh
+    # used by the wrapper scripts), causing segfaults. The PG binary
+    # wrappers use ld-linux --library-path internally for full isolation.
+    # On macOS (no wrappers), set DYLD_LIBRARY_PATH as fallback.
     pg_lib_internal = pg_lib / "postgresql" / "16" / "lib"
     pg_arch_lib = pg_lib / "x86_64-linux-gnu"
     lib_path_str = f"{pg_arch_lib}:{pg_lib_internal}:{pg_lib}"
-    existing_ld = env.get("LD_LIBRARY_PATH", "")
-    env["LD_LIBRARY_PATH"] = (
-        f"{lib_path_str}:{existing_ld}" if existing_ld else lib_path_str
-    )
-    existing_dyld = env.get("DYLD_LIBRARY_PATH", "")
-    env["DYLD_LIBRARY_PATH"] = (
-        f"{lib_path_str}:{existing_dyld}" if existing_dyld else lib_path_str
-    )
+    if sys.platform == "darwin":
+        existing_dyld = env.get("DYLD_LIBRARY_PATH", "")
+        env["DYLD_LIBRARY_PATH"] = (
+            f"{lib_path_str}:{existing_dyld}" if existing_dyld else lib_path_str
+        )
 
     # --- initdb ---
-    initdb_path = pg_bin / "initdb"
-    # Check if initdb is a wrapper script or a binary
-    initdb_is_wrapper = False
-    try:
-        with open(initdb_path) as f:
-            first_line = f.readline()
-            initdb_is_wrapper = first_line.startswith("#!/bin/sh")
-    except (UnicodeDecodeError, OSError):
-        pass  # binary file, not a wrapper
-
-    # If wrapper exists, first test the paths it will resolve
-    if initdb_is_wrapper:
-        test_result = subprocess.run(
-            [
-                "/bin/sh",
-                "-c",
-                f'SCRIPT_DIR="$(cd "$(dirname "{initdb_path}")" && pwd)"; '
-                f'ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"; '
-                f'echo "SCRIPT_DIR=$SCRIPT_DIR"; '
-                f'echo "ROOT=$ROOT"; '
-                f'ls -la "$ROOT/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2" 2>&1 || true; '
-                f'ls -la "$SCRIPT_DIR/initdb.bin" 2>&1 || true; '
-                f'file "$ROOT/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2" 2>&1 || true; '
-                f'file "$SCRIPT_DIR/initdb.bin" 2>&1 || true',
-            ],
-            capture_output=True,
-            env=env,
-        )
-        wrapper_diag = test_result.stdout.decode(errors="replace")
-    else:
-        wrapper_diag = ""
-
     initdb_result = subprocess.run(
-        [str(initdb_path), "-D", str(datadir), "--no-locale", "-U", "test"],
+        [str(pg_bin / "initdb"), "-D", str(datadir), "--no-locale", "-U", "test"],
         env=env,
         capture_output=True,
     )
     if initdb_result.returncode != 0:
-        # Read wrapper content for diagnostics
-        wrapper_content = ""
-        if initdb_is_wrapper:
-            try:
-                wrapper_content = initdb_path.read_text()
-            except OSError:
-                wrapper_content = "(unreadable)"
         raise RuntimeError(
             f"initdb failed (rc={initdb_result.returncode}).\n"
             f"  pg_bin: {pg_bin}\n"
-            f"  initdb_is_wrapper: {initdb_is_wrapper}\n"
-            f"  wrapper_content: {wrapper_content!r}\n"
-            f"  wrapper_diag: {wrapper_diag}\n"
-            f"  lib_path: {lib_path_str}\n"
             f"  stdout: {initdb_result.stdout.decode(errors='replace')}\n"
             f"  stderr: {initdb_result.stderr.decode(errors='replace')}"
         )
