@@ -12,10 +12,10 @@ class TestBuildSystemPrompt:
         prompt = build_system_prompt()
         assert "Discord" in prompt or "chat" in prompt.lower()
 
-    def test_includes_web_search_guidance(self):
-        """System prompt mentions web search capability."""
+    def test_includes_tool_usage_guidance(self):
+        """System prompt includes proactive tool usage guidance."""
         prompt = build_system_prompt()
-        assert "search" in prompt.lower()
+        assert "tools" in prompt.lower()
 
 
 class TestFormatContextMessages:
