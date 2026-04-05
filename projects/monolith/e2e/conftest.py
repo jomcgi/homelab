@@ -216,7 +216,14 @@ def pg(tmp_path_factory):
     # can read PG files and write to the datadir.
     if os.getuid() == 0:
         nobody = pwd.getpwnam("nobody")
+        # chown the datadir AND parent dirs so nobody can traverse the path
         os.chown(datadir, nobody.pw_uid, nobody.pw_gid)
+        # Make pytest temp base traversable (e.g. /tmp/pytest-of-root/pytest-0)
+        for parent in [datadir.parent, datadir.parent.parent]:
+            try:
+                parent.chmod(parent.stat().st_mode | 0o711)
+            except OSError:
+                pass
         # Make PG runfiles readable+traversable by nobody
         subprocess.run(["chmod", "-R", "a+rX", str(pg_root)], check=True, timeout=30)
 
