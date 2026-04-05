@@ -320,7 +320,7 @@ class TestGenerateResponse:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             result = await bot._generate_response(msg)
 
-        assert result == "Sunny!"
+        assert result == ("Sunny!", None)
         prompt_arg = bot.agent.run.call_args[0][0]
         assert "recent message" in prompt_arg
         # Verify deps were passed to agent.run

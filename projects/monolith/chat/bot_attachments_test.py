@@ -94,7 +94,7 @@ class TestGenerateResponseWithAttachments:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             result = await bot._generate_response(msg, current_attachments=attachments)
 
-        assert result == "That's a cat."
+        assert result == ("That's a cat.", None)
         prompt_arg = bot.agent.run.call_args[0][0]
         assert "cat.png" in prompt_arg
         assert "A tabby cat sitting on a windowsill" in prompt_arg

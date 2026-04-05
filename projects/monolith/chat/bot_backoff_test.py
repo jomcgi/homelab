@@ -170,7 +170,7 @@ class TestExponentialBackoffDelays:
 
             result = await bot._generate_response(msg)
 
-        assert result == "All good!"
+        assert result == ("All good!", None)
         mock_sleep.assert_not_called()
 
     @pytest.mark.asyncio
@@ -202,7 +202,7 @@ class TestExponentialBackoffDelays:
 
             result = await bot._generate_response(msg)
 
-        assert result == "Recovered!"
+        assert result == ("Recovered!", None)
         assert mock_sleep.call_count == 1
         assert mock_sleep.call_args_list == [call(1.0)]
 

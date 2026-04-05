@@ -312,7 +312,7 @@ class TestGenerateResponseEmptyContext:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             result = await bot._generate_response(msg)
 
-        assert result == "Not much context, but here you go!"
+        assert result == ("Not much context, but here you go!", None)
         bot.agent.run.assert_called_once()
 
     @pytest.mark.asyncio
