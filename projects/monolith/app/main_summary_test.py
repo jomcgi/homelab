@@ -107,12 +107,14 @@ class TestSummaryTaskDoneCallback:
             async with lifespan(app):
                 pass
 
-        assert len(task_mocks) == 4
-        # Tasks 3 and 4 (index 2 and 3) should have add_done_callback called
+        assert len(task_mocks) == 5
+        # Tasks 3, 4, and 5 (index 2, 3, 4) should have add_done_callback called
         bot_task = task_mocks[2]
         summary_task = task_mocks[3]
+        sweep_task = task_mocks[4]
         bot_task.add_done_callback.assert_called_once_with(_log_task_exception)
         summary_task.add_done_callback.assert_called_once_with(_log_task_exception)
+        sweep_task.add_done_callback.assert_called_once_with(_log_task_exception)
 
 
 # ---------------------------------------------------------------------------
