@@ -168,6 +168,15 @@ class MessageStore:
         )
         return self.session.exec(stmt).first()
 
+    def list_user_summaries(self, channel_id: str) -> list[UserChannelSummary]:
+        """Return all user summaries for a channel, ordered by most recently updated."""
+        stmt = (
+            select(UserChannelSummary)
+            .where(UserChannelSummary.channel_id == channel_id)
+            .order_by(UserChannelSummary.updated_at.desc())
+        )
+        return list(self.session.exec(stmt).all())
+
     def get_user_summary(
         self, channel_id: str, username: str
     ) -> UserChannelSummary | None:

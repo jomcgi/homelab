@@ -54,8 +54,9 @@ def build_system_prompt() -> str:
         "- search_history: Search older messages in this channel by topic, "
         "optionally filtered by username. Use when the recent conversation "
         "doesn't have enough context.\n"
-        "- get_user_summary: Get a summary of what a specific user has been "
-        "discussing in this channel. Use when asked about a user's activity.\n\n"
+        "- get_user_summary: Get user activity summaries for this channel. "
+        "Call with no username to list all available users and metadata. "
+        "Call with a specific username to get their full summary.\n\n"
         "Keep responses concise and conversational. "
         "You can see recent conversation history for context. "
         "Use your tools before saying you don't have context."
@@ -130,15 +131,21 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
     @agent.tool
     async def get_user_summary(
         ctx: RunContext[ChatDeps],
-        username: Any,
+        username: Any = None,
     ) -> str:
-        """Get a summary of what a user has been discussing in this channel."""
+        """Get user activity summaries. Call with no username to list all available users. Call with a username to get their full summary."""
         deps = ctx.deps
         username = _coerce_username(username)
         if not username:
-            return (
-                "Could not determine username. Please provide a plain username string."
-            )
+            summaries = deps.store.list_user_summaries(deps.channel_id)
+            if not summaries:
+                return "No user summaries available for this channel yet."
+            lines = [f"User summaries available ({len(summaries)}):"]
+            for s in summaries:
+                lines.append(
+                    f"- {s.username} (updated {s.updated_at.strftime('%Y-%m-%d')})"
+                )
+            return "\n".join(lines)
         summary = deps.store.get_user_summary(deps.channel_id, username)
         if not summary:
             return f"No summary available for {username}."

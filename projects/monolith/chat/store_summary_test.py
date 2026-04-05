@@ -82,6 +82,38 @@ class TestGetUserSummary:
         assert result is None
 
 
+class TestListUserSummaries:
+    def test_returns_all_summaries_for_channel(self, store, session):
+        """list_user_summaries returns all summaries in the channel."""
+        store.upsert_summary("ch1", "u1", "Alice", "Alice summary.", 10)
+        store.upsert_summary("ch1", "u2", "Bob", "Bob summary.", 20)
+        result = store.list_user_summaries("ch1")
+        assert len(result) == 2
+        usernames = {s.username for s in result}
+        assert usernames == {"Alice", "Bob"}
+
+    def test_returns_empty_list_when_no_summaries(self, store):
+        """list_user_summaries returns [] for a channel with no summaries."""
+        result = store.list_user_summaries("ch1")
+        assert result == []
+
+    def test_scoped_to_channel(self, store, session):
+        """list_user_summaries only returns summaries for the given channel."""
+        store.upsert_summary("ch1", "u1", "Alice", "Alice summary.", 10)
+        store.upsert_summary("ch2", "u2", "Bob", "Bob summary.", 20)
+        result = store.list_user_summaries("ch1")
+        assert len(result) == 1
+        assert result[0].username == "Alice"
+
+    def test_ordered_by_most_recently_updated(self, store, session):
+        """list_user_summaries returns most recently updated first."""
+        store.upsert_summary("ch1", "u1", "Alice", "First.", 10)
+        store.upsert_summary("ch1", "u2", "Bob", "Second.", 20)
+        result = store.list_user_summaries("ch1")
+        assert result[0].username == "Bob"
+        assert result[1].username == "Alice"
+
+
 class TestUpsertSummary:
     def test_inserts_new_summary(self, store, session):
         """upsert_summary creates a new summary when none exists."""
