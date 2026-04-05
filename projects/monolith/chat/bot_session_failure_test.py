@@ -103,7 +103,9 @@ class TestOnMessageSessionFailureBeforeAttachments:
         call_args = mock_generate_response.call_args[0]
         # attachments arg is the second positional arg or keyword current_attachments
         passed_attachments = (
-            call_args[1] if len(call_args) > 1 else mock_generate_response.call_args[1].get("current_attachments", [])
+            call_args[1]
+            if len(call_args) > 1
+            else mock_generate_response.call_args[1].get("current_attachments", [])
         )
         assert passed_attachments == [] or passed_attachments is None
 

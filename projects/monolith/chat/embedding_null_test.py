@@ -79,9 +79,7 @@ class TestEmbedNullResponse:
     @pytest.mark.asyncio
     async def test_returns_valid_vector_when_response_is_well_formed(self, client):
         """embed() returns the embedding list when the response is well-formed."""
-        mock_client = _mock_client_returning(
-            {"data": [{"embedding": [0.5] * 1024}]}
-        )
+        mock_client = _mock_client_returning({"data": [{"embedding": [0.5] * 1024}]})
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
