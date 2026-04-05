@@ -13,31 +13,33 @@ import {
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 
 export function initTelemetry() {
-  const resource = new Resource({
-    [ATTR_SERVICE_NAME]: "monolith-frontend",
-    [ATTR_SERVICE_VERSION]: "1.0.0",
-  });
+  try {
+    const resource = new Resource({
+      [ATTR_SERVICE_NAME]: "monolith-frontend",
+      [ATTR_SERVICE_VERSION]: "1.0.0",
+    });
 
-  const exporter = new OTLPTraceExporter({
-    url: "/otel/v1/traces",
-  });
+    const exporter = new OTLPTraceExporter({
+      url: `${window.location.origin}/otel/v1/traces`,
+    });
 
-  const provider = new WebTracerProvider({
-    resource,
-    spanProcessors: [new BatchSpanProcessor(exporter)],
-  });
+    const provider = new WebTracerProvider({
+      resource,
+      spanProcessors: [new BatchSpanProcessor(exporter)],
+    });
 
-  provider.register();
+    provider.register();
 
-  registerInstrumentations({
-    instrumentations: [
-      new DocumentLoadInstrumentation(),
-      new FetchInstrumentation({
-        // Only trace API calls to our backend, not external resources
-        ignoreUrls: [/\/otel\//, /fonts\.googleapis/, /fonts\.gstatic/],
-        // Propagate W3C trace context to backend for distributed tracing
-        propagateTraceHeaderCorsUrls: [/.*/],
-      }),
-    ],
-  });
+    registerInstrumentations({
+      instrumentations: [
+        new DocumentLoadInstrumentation(),
+        new FetchInstrumentation({
+          ignoreUrls: [/\/otel\//, /fonts\.googleapis/, /fonts\.gstatic/],
+          propagateTraceHeaderCorsUrls: [/.*/],
+        }),
+      ],
+    });
+  } catch (e) {
+    console.warn("Failed to initialize telemetry:", e);
+  }
 }
