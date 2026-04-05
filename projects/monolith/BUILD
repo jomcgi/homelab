@@ -758,6 +758,20 @@ py_test(
         "@pip//pgvector",
         "@pip//pytest",
         "@pip//pytest_asyncio",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "chat_store_save_messages_test",
+    srcs = ["chat/store_save_messages_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
         "@pip//sqlmodel",
     ],
 )
