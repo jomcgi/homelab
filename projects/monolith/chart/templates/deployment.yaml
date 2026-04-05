@@ -9,6 +9,7 @@ spec:
   selector:
     matchLabels:
       {{- include "monolith.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: app
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,6 +19,7 @@ spec:
     metadata:
       labels:
         {{- include "monolith.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: app
       annotations:
         instrumentation.opentelemetry.io/inject-python: "python"
     spec:
