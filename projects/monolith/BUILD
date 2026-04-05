@@ -1088,6 +1088,20 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_bot_generate_response_gaps_test",
+    srcs = ["chat/bot_generate_response_gaps_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//httpx",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
