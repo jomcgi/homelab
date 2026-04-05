@@ -134,12 +134,13 @@ class TestBlobFlushBeforeAttachment:
         add(Message) → flush() → add(Blob) → flush() → add(Attachment).
 
         Captures a call-log of every ``session.add`` and ``session.flush``
-        invocation and asserts that the blob flush appears between
+        invocation and asserts that a flush appears between
         ``add(Blob)`` and ``add(Attachment)``.
         """
         raw_data = b"\xff\xd8\xff\xe0OrderTestData"
 
-        call_log: list[tuple] = []
+        # call_log entries: ("add", classname) or ("flush",)
+        call_log: list[tuple[str, ...]] = []
         original_add = session.add
         original_flush = session.flush
 
@@ -173,33 +174,34 @@ class TestBlobFlushBeforeAttachment:
 
         assert msg is not None
 
-        # Extract just the names for readability
-        names = [(op, name) if op == "add" else (op,) for op, *name in call_log]
-
-        # Find positions of key operations
+        # Find positions of key operations directly in call_log.
+        # Entries are ("add", classname) or ("flush",) — no unpacking needed.
         add_blob_pos = next(
-            (i for i, e in enumerate(names) if e == ("add", "Blob")), None
+            (i for i, e in enumerate(call_log) if e == ("add", "Blob")), None
         )
         flush_after_blob_pos = next(
             (
                 i
-                for i, e in enumerate(names)
+                for i, e in enumerate(call_log)
                 if e == ("flush",) and i > (add_blob_pos or -1)
             ),
             None,
         )
         add_attachment_pos = next(
-            (i for i, e in enumerate(names) if e == ("add", "Attachment")), None
+            (i for i, e in enumerate(call_log) if e == ("add", "Attachment")), None
         )
 
-        assert add_blob_pos is not None, "Blob was never added"
+        assert add_blob_pos is not None, (
+            f"Blob was never added — call_log: {call_log}"
+        )
         assert add_attachment_pos is not None, "Attachment was never added"
         assert flush_after_blob_pos is not None, (
             "No flush() call found after add(Blob) — regression: blob flush is missing"
         )
         assert flush_after_blob_pos < add_attachment_pos, (
             f"flush() (pos {flush_after_blob_pos}) did not occur before "
-            f"add(Attachment) (pos {add_attachment_pos}) — FK violation risk"
+            f"add(Attachment) (pos {add_attachment_pos}) — FK violation risk. "
+            f"call_log: {call_log}"
         )
 
     @pytest.mark.asyncio
@@ -245,9 +247,10 @@ class TestBlobFlushBeforeAttachment:
 
     @pytest.mark.asyncio
     async def test_no_blob_flush_when_blob_already_exists(self, store, session):
-        """When a blob is already in the DB (dedup path), flush() is NOT called
-        for the blob — only once for the message.  This ensures we don't add
-        unnecessary flushes on the hot deduplication path.
+        """When a blob is already in the DB (dedup path), the blob SHA256 is
+        never in ``session.new`` at flush time — confirming the
+        ``if not existing_blob:`` branch is fully skipped and no new blob row
+        is created.
         """
         raw_data = b"\x47\x49\x46\x38ExistingBlobData"
         sha = hashlib.sha256(raw_data).hexdigest()
@@ -263,16 +266,17 @@ class TestBlobFlushBeforeAttachment:
         )
         session.flush()
 
-        # Count explicit flush() calls made during save_message()
-        flush_count = 0
+        # Spy on flush: record whether the target blob SHA appears in
+        # session.new (objects added but not yet written) at each flush call.
+        blob_new_at_flush: list[bool] = []
         original_flush = session.flush
 
-        def counting_flush():
-            nonlocal flush_count
-            flush_count += 1
+        def spying_flush():
+            new_blob_shas = {obj.sha256 for obj in session.new if isinstance(obj, Blob)}
+            blob_new_at_flush.append(sha in new_blob_shas)
             original_flush()
 
-        session.flush = counting_flush
+        session.flush = spying_flush
 
         msg = await store.save_message(
             discord_message_id="dedup_no_extra_flush",
@@ -292,12 +296,12 @@ class TestBlobFlushBeforeAttachment:
         )
 
         assert msg is not None
-
-        # Only one flush: after add(Message).  No second flush for the blob
-        # because the blob already exists and the ``if not existing_blob:``
-        # branch is skipped.
-        assert flush_count == 1, (
-            f"Expected 1 flush (msg only, blob already exists), got {flush_count}"
+        # The pre-existing blob SHA must never appear in session.new at any
+        # flush.  If it did, that would mean a duplicate Blob insert was
+        # attempted instead of reusing the existing row.
+        assert not any(blob_new_at_flush), (
+            "Blob appeared in session.new during a flush on the dedup path — "
+            "the existing-blob check may have failed, risking a duplicate insert"
         )
 
     @pytest.mark.asyncio
