@@ -7,6 +7,7 @@ import os
 
 import discord
 import httpx
+from pydantic_ai import BinaryContent
 from pydantic_ai.messages import ModelResponse, ThinkingPart
 
 from chat.agent import create_agent, format_context_messages
@@ -280,18 +281,32 @@ class ChatBot(discord.Client):
                 f"{message.author.display_name}: {message.content}"
             )
 
-            # Include current message images in prompt
+            # Include current message images in prompt — both as text
+            # descriptions (for context) and as BinaryContent (so the
+            # multimodal model can actually see the images).
+            image_parts: list[BinaryContent] = []
             if current_attachments:
                 image_context = "\n".join(
                     f"[Attached image '{a['filename']}': {a['description']}]"
                     for a in current_attachments
                 )
                 user_prompt += f"\n{image_context}"
+                for a in current_attachments:
+                    if a["data"] is not None:
+                        image_parts.append(
+                            BinaryContent(data=a["data"], media_type=a["content_type"])
+                        )
+
+            # When images are present, send a multimodal prompt so Gemma
+            # can see the raw image bytes alongside the text.
+            agent_prompt: str | list = user_prompt
+            if image_parts:
+                agent_prompt = [user_prompt, *image_parts]
 
             last_exc: Exception | None = None
             for attempt in range(LLM_MAX_RETRIES):
                 try:
-                    result = await self.agent.run(user_prompt, deps=deps)
+                    result = await self.agent.run(agent_prompt, deps=deps)
                     response = result.output
                     thinking = _extract_thinking(result)
 
