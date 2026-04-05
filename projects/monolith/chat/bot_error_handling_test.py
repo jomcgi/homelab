@@ -137,7 +137,7 @@ class TestReplyFailureTriggersErrorReply:
         )
 
         # _generate_response succeeds; only message.reply fails.
-        bot._generate_response = AsyncMock(return_value="Here's my answer!")
+        bot._generate_response = AsyncMock(return_value=("Here's my answer!", None))
 
         mock_store = MagicMock()
         mock_store.save_message = AsyncMock()
@@ -172,7 +172,7 @@ class TestReplyFailureTriggersErrorReply:
         sent_msg = MagicMock(id=888)
         message.reply = AsyncMock(return_value=sent_msg)
 
-        bot._generate_response = AsyncMock(return_value="All good!")
+        bot._generate_response = AsyncMock(return_value=("All good!", None))
 
         call_count = 0
 
@@ -313,5 +313,5 @@ class TestGenerateResponseRetry:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             result = await bot._generate_response(msg)
 
-        assert result == "Recovered!"
+        assert result == ("Recovered!", None)
         assert bot.agent.run.call_count == 2

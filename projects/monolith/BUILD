@@ -979,6 +979,30 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_bot_thinking_test",
+    srcs = ["chat/bot_thinking_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "chat_agent_max_tokens_test",
+    srcs = ["chat/agent_max_tokens_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],

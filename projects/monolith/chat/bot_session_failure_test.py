@@ -83,7 +83,7 @@ class TestOnMessageSessionFailureBeforeAttachments:
         message = _make_message(content="Hey bot!", mentions=[bot_user])
         message.reference = None
 
-        mock_generate_response = AsyncMock(return_value="Hello!")
+        mock_generate_response = AsyncMock(return_value=("Hello!", None))
 
         with (
             patch(
@@ -128,7 +128,7 @@ class TestOnMessageSessionFailureBeforeAttachments:
         )
         mock_session_instance.__exit__ = MagicMock(return_value=False)
 
-        mock_generate_response = AsyncMock(return_value="Hello!")
+        mock_generate_response = AsyncMock(return_value=("Hello!", None))
 
         with (
             patch("chat.bot.get_engine"),
