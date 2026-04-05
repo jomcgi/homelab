@@ -12,7 +12,9 @@ from chat.store import SaveResult
 @patch("chat.backfill.get_engine")
 @patch("chat.backfill.Session")
 @patch("chat.backfill.MessageStore")
-async def test_flush_batch_delegates_to_store(mock_store_cls, mock_session, mock_engine):
+async def test_flush_batch_delegates_to_store(
+    mock_store_cls, mock_session, mock_engine
+):
     """_flush_batch creates a Session+MessageStore and calls save_messages with the batch."""
     expected_result = SaveResult(stored=3, skipped=1)
     mock_store_instance = MagicMock()
@@ -36,7 +38,9 @@ async def test_flush_batch_delegates_to_store(mock_store_cls, mock_session, mock
     assert result is expected_result
     mock_engine.assert_called_once()
     mock_session.assert_called_once_with(mock_engine.return_value)
-    mock_store_cls.assert_called_once_with(session=session_ctx, embed_client=embed_client)
+    mock_store_cls.assert_called_once_with(
+        session=session_ctx, embed_client=embed_client
+    )
     mock_store_instance.save_messages.assert_called_once_with(batch)
 
 
@@ -44,7 +48,9 @@ async def test_flush_batch_delegates_to_store(mock_store_cls, mock_session, mock
 @patch("chat.backfill.get_engine")
 @patch("chat.backfill.Session")
 @patch("chat.backfill.MessageStore")
-async def test_flush_batch_handles_empty_batch(mock_store_cls, mock_session, mock_engine):
+async def test_flush_batch_handles_empty_batch(
+    mock_store_cls, mock_session, mock_engine
+):
     """_flush_batch with an empty list still calls save_messages and returns its result."""
     expected_result = SaveResult(stored=0, skipped=0)
     mock_store_instance = MagicMock()
