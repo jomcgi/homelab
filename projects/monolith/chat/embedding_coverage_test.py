@@ -16,15 +16,20 @@ def client():
 class TestEmbeddingClientErrors:
     @pytest.mark.asyncio
     async def test_raises_on_http_error(self, client):
-        """embed() propagates HTTP errors raised by raise_for_status."""
+        """embed() raises after retrying on 5xx HTTP errors."""
         fake_response = MagicMock()
+        fake_response.status_code = 503
         fake_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "503 Service Unavailable",
             request=MagicMock(),
-            response=MagicMock(),
+            response=fake_response,
         )
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with (
+            patch("chat.embedding.httpx.AsyncClient") as mock_cls,
+            patch("chat.embedding.asyncio.sleep", new_callable=AsyncMock),
+            patch("chat.embedding.EMBED_RETRY_TIMEOUT", 0),
+        ):
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -36,7 +41,7 @@ class TestEmbeddingClientErrors:
 
     @pytest.mark.asyncio
     async def test_raises_on_connection_timeout(self, client):
-        """embed() propagates connection timeouts from httpx."""
+        """embed() propagates non-retryable TimeoutException immediately."""
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -49,8 +54,12 @@ class TestEmbeddingClientErrors:
 
     @pytest.mark.asyncio
     async def test_raises_on_connect_error(self, client):
-        """embed() propagates connection errors."""
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        """embed() raises after retrying on connection errors."""
+        with (
+            patch("chat.embedding.httpx.AsyncClient") as mock_cls,
+            patch("chat.embedding.asyncio.sleep", new_callable=AsyncMock),
+            patch("chat.embedding.EMBED_RETRY_TIMEOUT", 0),
+        ):
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
