@@ -1198,7 +1198,7 @@ py_test(
         "@pip//httpx",
         "@pip//psycopg",
         "@pip//pytest",
-        "@pip//pytest_playwright",
+        # TODO: add @pip//pytest_playwright once requirements lock is regenerated
         "@pip//sqlmodel",
         "@pip//tzdata",
         "@pip//uvicorn",
