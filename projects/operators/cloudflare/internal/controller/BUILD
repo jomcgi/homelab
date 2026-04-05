@@ -55,6 +55,7 @@ go_test(
         "gatewayclass_coverage_test.go",
         "httproute_controller_test.go",
         "httproute_coverage_test.go",
+        "httproute_gateway_client_test.go",
         "service_controller_test.go",
         "service_coverage_test.go",
         "service_ensure_coverage_test.go",
