@@ -81,10 +81,11 @@ class TestSubscribeToAisstream:
         async def fake_sleep(_):
             service.running = False
 
-        with patch(
-            "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
-        ), patch(
-            "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
+        with (
+            patch(
+                "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
+            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
 
@@ -114,10 +115,11 @@ class TestSubscribeToAisstream:
         async def fake_sleep(_):
             service.running = False
 
-        with patch(
-            "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
-        ), patch(
-            "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
+        with (
+            patch(
+                "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
+            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
 
@@ -133,10 +135,11 @@ class TestSubscribeToAisstream:
         async def fake_sleep(_):
             service.running = False
 
-        with patch(
-            "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
-        ), patch(
-            "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
+        with (
+            patch(
+                "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
+            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
 
@@ -148,18 +151,17 @@ class TestSubscribeToAisstream:
         """ConnectionClosed exception is caught and does not propagate."""
         service.running = True
         mock_ws = MockWebSocket(
-            raise_on_enter=websockets.exceptions.ConnectionClosed(
-                rcvd=None, sent=None
-            )
+            raise_on_enter=websockets.exceptions.ConnectionClosed(rcvd=None, sent=None)
         )
 
         async def fake_sleep(_):
             service.running = False
 
-        with patch(
-            "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
-        ), patch(
-            "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
+        with (
+            patch(
+                "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
+            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             # Should not raise
             await service.subscribe_to_aisstream()
@@ -186,10 +188,12 @@ class TestSubscribeToAisstream:
             if len(sleep_delays) >= 3:
                 service.running = False
 
-        with patch(
-            "projects.ships.ingest.main.websockets.connect", return_value=FailingWS()
-        ), patch(
-            "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
+        with (
+            patch(
+                "projects.ships.ingest.main.websockets.connect",
+                return_value=FailingWS(),
+            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
 
@@ -233,11 +237,12 @@ class TestSubscribeToAisstream:
             if len(sleep_delays) >= 2:
                 service.running = False
 
-        with patch(
-            "projects.ships.ingest.main.websockets.connect",
-            return_value=SequencedWS(),
-        ), patch(
-            "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
+        with (
+            patch(
+                "projects.ships.ingest.main.websockets.connect",
+                return_value=SequencedWS(),
+            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
 
@@ -261,10 +266,11 @@ class TestSubscribeToAisstream:
         async def fake_sleep(_):
             pass  # never called because running becomes False before reconnect check
 
-        with patch(
-            "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
-        ), patch(
-            "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
+        with (
+            patch(
+                "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
+            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
 
