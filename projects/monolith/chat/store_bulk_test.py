@@ -215,9 +215,7 @@ class TestSaveMessageAttachmentNoDescription:
 
 
 class TestGetRecentDefaultLimit:
-    def test_default_limit_returns_twenty_most_recent_of_many(
-        self, store, session
-    ):
+    def test_default_limit_returns_twenty_most_recent_of_many(self, store, session):
         """get_recent() with no limit arg returns at most 20 messages (the default)."""
         for i in range(25):
             session.add(
@@ -238,9 +236,7 @@ class TestGetRecentDefaultLimit:
         result = store.get_recent("ch1")
         assert len(result) == 20
 
-    def test_default_limit_returns_newest_twenty_oldest_first(
-        self, store, session
-    ):
+    def test_default_limit_returns_newest_twenty_oldest_first(self, store, session):
         """get_recent() default limit returns the 20 newest messages, ordered oldest first."""
         for i in range(25):
             session.add(
@@ -302,5 +298,3 @@ class TestGetRecentDefaultLimit:
         result = store.get_recent("ch1", limit=1)
         assert len(result) == 1
         assert result[0].content == "msg 4"
-
-
