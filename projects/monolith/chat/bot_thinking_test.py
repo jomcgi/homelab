@@ -66,6 +66,32 @@ class TestExtractThinking:
         result.new_messages.return_value = [MagicMock(spec=[])]
         assert _extract_thinking(result) is None
 
+    def test_thinking_across_multiple_model_responses(self):
+        """ThinkingParts spread across multiple ModelResponse objects are concatenated."""
+        response1 = ModelResponse(parts=[ThinkingPart(content="first thought")])
+        response2 = ModelResponse(
+            parts=[ThinkingPart(content="second thought"), TextPart(content="Hello!")]
+        )
+        result = MagicMock()
+        result.output = "Hello!"
+        result.new_messages.return_value = [response1, response2]
+
+        assert _extract_thinking(result) == "first thought\n\nsecond thought"
+
+    def test_none_thinking_content_skipped(self):
+        """ThinkingPart(content=None) is skipped; valid thinking is still extracted."""
+        parts = [
+            ThinkingPart(content=None),
+            ThinkingPart(content="real thought"),
+            TextPart(content="Hello!"),
+        ]
+        response = ModelResponse(parts=parts)
+        result = MagicMock()
+        result.output = "Hello!"
+        result.new_messages.return_value = [response]
+
+        assert _extract_thinking(result) == "real thought"
+
 
 class TestSummarizeThinking:
     @pytest.mark.asyncio
@@ -291,3 +317,66 @@ class TestThinkingIntegration:
             or "respond to the user" in second_prompt.lower()
         )
         message.reply.assert_called_once_with("Here's my answer!")
+
+    @pytest.mark.asyncio
+    async def test_empty_output_no_thinking_falls_back(self):
+        """When both calls return empty output and no thinking, fallback message is sent."""
+        bot = _make_bot()
+        bot_user = bot.user
+
+        message = _make_message(content="Hi", mentions=[bot_user])
+
+        mock_store = AsyncMock()
+        mock_store.save_message = AsyncMock()
+        mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_attachments = MagicMock(return_value={})
+
+        # Both results: empty output, no thinking
+        empty_result1 = _make_result("")
+        empty_result2 = _make_result("")
+        bot.agent.run = AsyncMock(side_effect=[empty_result1, empty_result2])
+
+        with (
+            patch("chat.bot.get_engine"),
+            patch("chat.bot.Session") as mock_session_cls,
+            patch("chat.bot.MessageStore", return_value=mock_store),
+        ):
+            ctx = MagicMock()
+            mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
+            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
+            await bot.on_message(message)
+
+        assert bot.agent.run.call_count == 2
+        reply_text = message.reply.call_args[0][0]
+        assert "Sorry" in reply_text
+        assert "having trouble" in reply_text
+
+    @pytest.mark.asyncio
+    async def test_literal_think_tag_passes_through_unchanged(self):
+        """Output with '<think>' as literal text (not a tag) is not stripped."""
+        bot = _make_bot()
+        bot_user = bot.user
+
+        message = _make_message(content="Hi", mentions=[bot_user])
+
+        mock_store = AsyncMock()
+        mock_store.save_message = AsyncMock()
+        mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_attachments = MagicMock(return_value={})
+
+        # result.output contains literal '<think>' text — not a ThinkingPart
+        literal_output = "Use <think> tags to structure your reasoning."
+        mock_result = _make_result(literal_output)
+        bot.agent.run = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("chat.bot.get_engine"),
+            patch("chat.bot.Session") as mock_session_cls,
+            patch("chat.bot.MessageStore", return_value=mock_store),
+        ):
+            ctx = MagicMock()
+            mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
+            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
+            await bot.on_message(message)
+
+        message.reply.assert_called_once_with(literal_output)
