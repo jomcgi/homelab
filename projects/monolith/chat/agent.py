@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, ModelSettings, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -97,6 +97,7 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
     agent: Agent[ChatDeps] = Agent(
         model,
         system_prompt=build_system_prompt(),
+        model_settings=ModelSettings(max_tokens=16384),
     )
 
     @agent.tool_plain
