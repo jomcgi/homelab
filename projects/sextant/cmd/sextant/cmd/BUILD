@@ -20,6 +20,7 @@ go_library(
 go_test(
     name = "cmd_test",
     srcs = [
+        "cmd_cli_test.go",
         "cmd_extra_test.go",
         "cmd_test.go",
     ],
