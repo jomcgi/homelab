@@ -1,10 +1,10 @@
-"""Tests for VisionClient -- timeout/connect errors and env var fallback.
+"""Tests for VisionClient -- retry behavior, timeout/connect errors, and env var fallback.
 
 vision_errors_test.py covers HTTP status errors and malformed response shapes.
 vision_test.py covers the happy path and base64 encoding.
-This file covers the remaining gaps:
-  - TimeoutException propagation
-  - ConnectError propagation
+This file covers:
+  - Retry with exponential backoff on transient errors
+  - Non-retryable errors propagate immediately
   - VisionClient() fallback to LLAMA_CPP_URL env var when no base_url given
   - Payload fields: model, max_tokens, system prompt content
 """
@@ -36,35 +36,192 @@ def _ok_response(content: str = "A nice image") -> MagicMock:
     return resp
 
 
+def _server_error_response(status_code: int = 503) -> MagicMock:
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "Service Unavailable",
+        request=MagicMock(),
+        response=resp,
+    )
+    return resp
+
+
 # ---------------------------------------------------------------------------
-# TimeoutException and ConnectError propagation
+# Retry on transient errors
 # ---------------------------------------------------------------------------
 
 
-class TestVisionClientNetworkErrors:
+class TestVisionClientRetry:
     @pytest.mark.asyncio
-    async def test_raises_timeout_exception(self):
-        """describe() propagates httpx.TimeoutException when the request times out."""
+    async def test_retries_on_connect_error_then_succeeds(self):
+        """describe() retries on ConnectError and returns when the server comes back."""
         client = VisionClient(base_url="http://fake:8080")
 
-        with patch("chat.vision.httpx.AsyncClient") as mock_cls:
-            mock_cls.return_value = _make_mock_http_client(
-                side_effect=httpx.TimeoutException("request timed out")
+        with (
+            patch("chat.vision.httpx.AsyncClient") as mock_cls,
+            patch("chat.vision.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
+            mock_http = _make_mock_http_client(
+                side_effect=[
+                    httpx.ConnectError("Connection refused"),
+                    httpx.ConnectError("Connection refused"),
+                    _ok_response("A cat sitting on a mat"),
+                ]
             )
-            with pytest.raises(httpx.TimeoutException):
-                await client.describe(b"\x89PNG", "image/png")
+            mock_cls.return_value = mock_http
+            result = await client.describe(b"\x89PNG", "image/png")
+
+        assert result == "A cat sitting on a mat"
+        assert mock_sleep.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_raises_connect_error(self):
-        """describe() propagates httpx.ConnectError when the server is unreachable."""
+    async def test_retries_on_connect_timeout_then_succeeds(self):
+        """describe() retries on ConnectTimeout."""
         client = VisionClient(base_url="http://fake:8080")
 
-        with patch("chat.vision.httpx.AsyncClient") as mock_cls:
-            mock_cls.return_value = _make_mock_http_client(
+        with (
+            patch("chat.vision.httpx.AsyncClient") as mock_cls,
+            patch("chat.vision.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            mock_http = _make_mock_http_client(
+                side_effect=[
+                    httpx.ConnectTimeout("connect timed out"),
+                    _ok_response("A dog"),
+                ]
+            )
+            mock_cls.return_value = mock_http
+            result = await client.describe(b"\x89PNG", "image/png")
+
+        assert result == "A dog"
+
+    @pytest.mark.asyncio
+    async def test_retries_on_5xx_then_succeeds(self):
+        """describe() retries on 5xx HTTP status errors."""
+        client = VisionClient(base_url="http://fake:8080")
+
+        with (
+            patch("chat.vision.httpx.AsyncClient") as mock_cls,
+            patch("chat.vision.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            mock_http = _make_mock_http_client(
+                side_effect=[
+                    _server_error_response(503),
+                    _ok_response("A bird"),
+                ]
+            )
+            # httpx.AsyncClient().post() calls raise_for_status via
+            # our code, but the mock returns the response directly.
+            # We need the mock to raise on first call, return on second.
+            # Re-wire: make post return the response, but the response's
+            # raise_for_status raises.
+            mock_cls.return_value = mock_http
+            result = await client.describe(b"\x89PNG", "image/png")
+
+        assert result == "A bird"
+
+    @pytest.mark.asyncio
+    async def test_retries_on_read_timeout_then_succeeds(self):
+        """describe() retries on ReadTimeout."""
+        client = VisionClient(base_url="http://fake:8080")
+
+        with (
+            patch("chat.vision.httpx.AsyncClient") as mock_cls,
+            patch("chat.vision.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            mock_http = _make_mock_http_client(
+                side_effect=[
+                    httpx.ReadTimeout("read timed out"),
+                    _ok_response("A fish"),
+                ]
+            )
+            mock_cls.return_value = mock_http
+            result = await client.describe(b"\x89PNG", "image/png")
+
+        assert result == "A fish"
+
+    @pytest.mark.asyncio
+    async def test_raises_after_all_retries_exhausted(self):
+        """describe() raises the last error after all retries are exhausted."""
+        client = VisionClient(base_url="http://fake:8080")
+
+        with (
+            patch("chat.vision.httpx.AsyncClient") as mock_cls,
+            patch("chat.vision.asyncio.sleep", new_callable=AsyncMock),
+            patch("chat.vision.VISION_RETRY_TIMEOUT", 0),
+        ):
+            # Timeout=0 means the first retry delay exceeds the deadline
+            mock_http = _make_mock_http_client(
                 side_effect=httpx.ConnectError("Connection refused")
             )
+            mock_cls.return_value = mock_http
             with pytest.raises(httpx.ConnectError):
                 await client.describe(b"\x89PNG", "image/png")
+
+    @pytest.mark.asyncio
+    async def test_exponential_backoff_delays(self):
+        """Retry delays follow exponential backoff: 2, 4, 8, ..."""
+        client = VisionClient(base_url="http://fake:8080")
+
+        with (
+            patch("chat.vision.httpx.AsyncClient") as mock_cls,
+            patch("chat.vision.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
+            mock_http = _make_mock_http_client(
+                side_effect=[
+                    httpx.ConnectError("refused"),
+                    httpx.ConnectError("refused"),
+                    httpx.ConnectError("refused"),
+                    _ok_response("ok"),
+                ]
+            )
+            mock_cls.return_value = mock_http
+            await client.describe(b"\x89PNG", "image/png")
+
+        delays = [call.args[0] for call in mock_sleep.call_args_list]
+        assert delays == [2.0, 4.0, 8.0]
+
+
+# ---------------------------------------------------------------------------
+# Non-retryable errors propagate immediately
+# ---------------------------------------------------------------------------
+
+
+class TestVisionClientNonRetryable:
+    @pytest.mark.asyncio
+    async def test_value_error_not_retried(self):
+        """Non-retryable errors (e.g. malformed response) propagate immediately."""
+        client = VisionClient(base_url="http://fake:8080")
+
+        bad_resp = MagicMock()
+        bad_resp.raise_for_status = MagicMock()
+        bad_resp.json.return_value = {"choices": []}  # IndexError path
+
+        with patch("chat.vision.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = _make_mock_http_client(response=bad_resp)
+            with pytest.raises(ValueError, match="unexpected vision response"):
+                await client.describe(b"\x89PNG", "image/png")
+
+    @pytest.mark.asyncio
+    async def test_4xx_not_retried(self):
+        """Client errors (4xx) are not retried."""
+        client = VisionClient(base_url="http://fake:8080")
+
+        resp_400 = MagicMock()
+        resp_400.status_code = 400
+        resp_400.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request", request=MagicMock(), response=resp_400
+        )
+
+        with (
+            patch("chat.vision.httpx.AsyncClient") as mock_cls,
+            patch("chat.vision.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
+            mock_cls.return_value = _make_mock_http_client(response=resp_400)
+            with pytest.raises(httpx.HTTPStatusError):
+                await client.describe(b"\x89PNG", "image/png")
+
+        mock_sleep.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

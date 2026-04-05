@@ -128,6 +128,7 @@ async def download_image_attachments(
     for att in attachments:
         if not att.content_type or not att.content_type.startswith("image/"):
             continue
+        data: bytes | None = None
         try:
             data = await att.read()
             sha = hashlib.sha256(data).hexdigest()
@@ -147,6 +148,16 @@ async def download_image_attachments(
             )
         except Exception:
             logger.exception("Failed to process attachment %s", att.filename)
+            # Still include the attachment so the model knows an image was
+            # sent rather than silently pretending it doesn't exist.
+            results.append(
+                {
+                    "data": data,
+                    "content_type": att.content_type,
+                    "filename": att.filename,
+                    "description": "(image could not be processed)",
+                }
+            )
     return results
 
 
