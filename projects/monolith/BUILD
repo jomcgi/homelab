@@ -1076,6 +1076,18 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_bot_auto_search_test",
+    srcs = ["chat/bot_auto_search_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
