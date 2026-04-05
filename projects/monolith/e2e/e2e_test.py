@@ -470,7 +470,7 @@ class TestAgentTools:
             embed_client=embed_client,
         )
         # Mock web_search since SearXNG is not available in test
-        with patch("chat.web_search.search_web", return_value="No results found."):
+        with patch("chat.agent.search_web", return_value="No results found."):
             result = await agent.run(
                 "Search for messages about deployment",
                 deps=deps,
@@ -522,7 +522,7 @@ class TestAgentTools:
             embed_client=embed_client,
         )
         # Mock web_search since SearXNG is not available in test
-        with patch("chat.web_search.search_web", return_value="No results found."):
+        with patch("chat.agent.search_web", return_value="No results found."):
             result = await agent.run(
                 "What has alice been talking about?",
                 deps=deps,
