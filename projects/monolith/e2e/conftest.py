@@ -165,6 +165,28 @@ def pg(tmp_path_factory):
     except (UnicodeDecodeError, OSError):
         pass  # binary file, not a wrapper
 
+    # If wrapper exists, first test the paths it will resolve
+    if initdb_is_wrapper:
+        test_result = subprocess.run(
+            [
+                "/bin/sh",
+                "-c",
+                f'SCRIPT_DIR="$(cd "$(dirname "{initdb_path}")" && pwd)"; '
+                f'ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"; '
+                f'echo "SCRIPT_DIR=$SCRIPT_DIR"; '
+                f'echo "ROOT=$ROOT"; '
+                f'ls -la "$ROOT/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2" 2>&1 || true; '
+                f'ls -la "$SCRIPT_DIR/initdb.bin" 2>&1 || true; '
+                f'file "$ROOT/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2" 2>&1 || true; '
+                f'file "$SCRIPT_DIR/initdb.bin" 2>&1 || true',
+            ],
+            capture_output=True,
+            env=env,
+        )
+        wrapper_diag = test_result.stdout.decode(errors="replace")
+    else:
+        wrapper_diag = ""
+
     initdb_result = subprocess.run(
         [str(initdb_path), "-D", str(datadir), "--no-locale", "-U", "test"],
         env=env,
@@ -183,6 +205,7 @@ def pg(tmp_path_factory):
             f"  pg_bin: {pg_bin}\n"
             f"  initdb_is_wrapper: {initdb_is_wrapper}\n"
             f"  wrapper_content: {wrapper_content!r}\n"
+            f"  wrapper_diag: {wrapper_diag}\n"
             f"  lib_path: {lib_path_str}\n"
             f"  stdout: {initdb_result.stdout.decode(errors='replace')}\n"
             f"  stderr: {initdb_result.stderr.decode(errors='replace')}"
