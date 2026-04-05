@@ -7,19 +7,24 @@ with per-test SAVEPOINT rollback for isolation.
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import random
 import signal
 import socket
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from sqlalchemy import event, text
 from sqlmodel import Session, create_engine
+
+logger = logging.getLogger(__name__)
 
 
 def pytest_configure(config):
@@ -311,3 +316,83 @@ def store(session, embed_client):
     from chat.store import MessageStore
 
     return MessageStore(session=session, embed_client=embed_client)
+
+
+# ---------------------------------------------------------------------------
+# Session-scoped: live FastAPI server (uvicorn on a random port)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def live_server(pg):
+    """Start a real uvicorn server backed by the test PostgreSQL.
+
+    Yields the base URL (e.g. ``http://127.0.0.1:12345``).
+
+    The server runs in a daemon thread with its own event loop.
+    Background tasks (scheduler, calendar poll, Discord bot) are
+    suppressed via env vars set before importing the app module.
+    """
+    port = _find_free_port()
+
+    # Convert psycopg URL back to plain postgresql:// for the app's db.py,
+    # which does its own scheme rewrite.
+    raw_db_url = pg.url.replace("postgresql+psycopg://", "postgresql://", 1)
+
+    # Build env overrides for the subprocess-like in-process server.
+    # These are set before importing app.main so module-level reads pick
+    # them up.
+    os.environ["DATABASE_URL"] = raw_db_url
+    os.environ.pop("STATIC_DIR", None)
+    os.environ.pop("DISCORD_BOT_TOKEN", None)
+    os.environ.pop("ICAL_FEED_URL", None)
+
+    # Clear the cached engine so the app picks up the new DATABASE_URL.
+    from app.db import get_engine
+
+    get_engine.cache_clear()
+
+    import uvicorn
+
+    # Create a fresh app instance rather than reusing the module-level
+    # singleton — this avoids state leaks from TestClient-based tests.
+    # We import the module to trigger route registration, then grab the app.
+    from app.main import app
+
+    config = uvicorn.Config(
+        app,
+        host="127.0.0.1",
+        port=port,
+        log_level="warning",
+        # Disable lifespan to suppress background tasks (scheduler,
+        # calendar poll, Discord bot) — they're irrelevant for HTTP tests.
+        lifespan="off",
+    )
+    server = uvicorn.Server(config)
+
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+
+    # Wait for the server to accept connections
+    base_url = f"http://127.0.0.1:{port}"
+    deadline = time.monotonic() + 10.0
+    while time.monotonic() < deadline:
+        try:
+            r = httpx.get(f"{base_url}/healthz", timeout=1.0)
+            if r.status_code == 200:
+                break
+        except httpx.ConnectError:
+            pass
+        time.sleep(0.1)
+    else:
+        raise RuntimeError(
+            f"Live FastAPI server failed to start within 10s on port {port}"
+        )
+
+    logger.info("Live server ready at %s", base_url)
+    yield base_url
+
+    # Teardown
+    server.should_exit = True
+    thread.join(timeout=5)
+    get_engine.cache_clear()
