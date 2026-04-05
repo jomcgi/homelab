@@ -65,6 +65,19 @@ k8s-infra:
                     labels:
                       service: nvidia-gpu
 
+        # Prometheus scraper for CloudNative PG (monolith database)
+        # CNPG exposes pg_stat metrics on port 9187 via built-in exporter
+        prometheus/cnpg:
+          config:
+            scrape_configs:
+              - job_name: "cnpg-monolith"
+                scrape_interval: 30s
+                static_configs:
+                  - targets:
+                      - "monolith-pg-rw.monolith.svc.cluster.local:9187"
+                    labels:
+                      service: monolith-postgres
+
         # =============================================================================
         # Synthetic HTTP Health Checks
         # Monitors all public domains for availability and response time
@@ -146,6 +159,7 @@ k8s-infra:
             receivers:
               - prometheus/nats
               - prometheus/dcgm
+              - prometheus/cnpg
               - httpcheck/k8s-services
               - httpcheck/cloudflare-pages
             processors:
