@@ -90,29 +90,29 @@ class TestShouldInsertPositionBoundaryConditions:
         assert should_insert is False
 
     def test_distance_exactly_at_dedup_threshold_not_inserted(self):
-        """Distance == DEDUP_DISTANCE_METERS is NOT beyond threshold.
+        """Distance just below DEDUP_DISTANCE_METERS is NOT beyond threshold.
 
-        `distance > DEDUP_DISTANCE_METERS` means exactly 100 m does not trigger
-        the distance path and falls through to the time check.
+        `distance > DEDUP_DISTANCE_METERS` (strictly greater) means that a
+        position within 100 m does not trigger the distance-insert path.
+        It falls through to the time check, which also fails (60 s < 300 s),
+        so the position is deduplicated (not inserted).
         """
         db = _make_bare_db()
         # Place last at origin
         db._position_cache["222"] = _cached(lat=0.0, lon=0.0, speed=0.0)
 
-        # Move exactly DEDUP_DISTANCE_METERS north (~0.0009°)
-        # haversine(0,0, 0.0009,0) ≈ 100 m
+        # Move ~89 m north (0.0008° lat × 111 111 m/° ≈ 89 m) — clearly below 100 m
+        # haversine(0,0, 0.0008,0) ≈ 89 m  →  89 > 100 is False → no distance insert
         data = {
             "mmsi": "222",
-            "lat": 0.0009,
+            "lat": 0.0008,
             "lon": 0.0,
             "speed": 0.0,
-            "timestamp": "2024-06-01T10:01:00Z",  # Only 60s later (< threshold)
+            "timestamp": "2024-06-01T10:01:00Z",  # Only 60s later (< 300s threshold)
         }
         should_insert, _ = db.should_insert_position(data)
-        # Exact boundary (approx 100m ≤ 100m → not beyond threshold, time < threshold)
-        # Result depends on actual haversine, but should not insert due to combined checks
-        # At minimum the test must not raise — and the insert behaviour is deterministic
-        assert isinstance(should_insert, bool)
+        # 89 m ≤ 100 m threshold AND 60 s < 300 s threshold → deduplicated
+        assert should_insert is False
 
     def test_moored_radius_exact_boundary_preserves_first_seen(self):
         """Slow vessel that moved exactly MOORED_RADIUS_METERS keeps first_seen.
@@ -229,8 +229,6 @@ class TestSubscribeAisStreamConsumerConfig:
     @pytest.mark.asyncio
     async def test_pull_subscribe_uses_durable_ships_api(self, service):
         """pull_subscribe is called with durable='ships-api'."""
-        from nats.js.api import DeliverPolicy
-
         captured = {}
 
         async def capture_pull_subscribe(subject, durable, config):
