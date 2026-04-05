@@ -149,11 +149,8 @@ py_test(
     deps = [
         ":ais-ingest",
         "@pip//fastapi",
-        "@pip//httpx",
         "@pip//nats_py",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
-        "@pip//websockets",
     ],
 )
 
