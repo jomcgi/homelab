@@ -76,33 +76,41 @@ class TestGenerateSummariesNoneIdHandling:
 
         mock_session = MagicMock()
 
-        none_id_message = Message(
-            id=None,
-            discord_message_id="x",
-            channel_id="ch1",
-            user_id="u1",
-            username="Alice",
-            content="hello",
-            is_bot=False,
-            embedding=[0.0] * 1024,
-            created_at=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
-        )
+        # Two messages both with id=None: max() must compare them, raising TypeError
+        # ("'<' not supported between instances of 'NoneType' and 'NoneType'").
+        # A single-element iterable would return None without comparison.
+        def _none_msg(discord_id: str, content: str) -> Message:
+            return Message(
+                id=None,
+                discord_message_id=discord_id,
+                channel_id="ch1",
+                user_id="u1",
+                username="Alice",
+                content=content,
+                is_bot=False,
+                embedding=[0.0] * 1024,
+                created_at=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
+            )
 
         # Each exec() call returns an object whose .all() or .first() is invoked:
         #   call 1: pairs  — code calls .all()
         #   call 2: existing UserChannelSummary — code calls .first()
-        #   call 3: new messages (id=None) — code calls .all()
+        #   call 3: new messages (two None-id rows) — code calls .all()
         mock_session.exec.side_effect = [
             MagicMock(all=MagicMock(return_value=[("ch1", "u1", "Alice")])),
             MagicMock(first=MagicMock(return_value=None)),
-            MagicMock(all=MagicMock(return_value=[none_id_message])),
+            MagicMock(
+                all=MagicMock(
+                    return_value=[_none_msg("x1", "hello"), _none_msg("x2", "world")]
+                )
+            ),
         ]
         mock_llm = AsyncMock(return_value="some summary")
 
         # Should NOT raise — exception is caught inside the per-pair handler
         await generate_summaries(mock_session, mock_llm)
 
-        # LLM should not have been called because max() failed before the LLM call
+        # LLM should not have been called because max() raised TypeError before reaching it
         mock_llm.assert_not_called()
 
     @pytest.mark.asyncio
