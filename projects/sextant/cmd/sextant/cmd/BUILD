@@ -19,7 +19,10 @@ go_library(
 
 go_test(
     name = "cmd_test",
-    srcs = ["cmd_test.go"],
+    srcs = [
+        "cmd_extra_test.go",
+        "cmd_test.go",
+    ],
     embed = [":cmd"],
     deps = [
         "@com_github_spf13_cobra//:cobra",
