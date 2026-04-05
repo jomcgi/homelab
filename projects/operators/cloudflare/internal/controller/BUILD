@@ -57,6 +57,7 @@ go_test(
         "httproute_coverage_test.go",
         "service_controller_test.go",
         "service_coverage_test.go",
+        "service_ensure_coverage_test.go",
         "suite_test.go",
     ],
     embed = [":controller"],
