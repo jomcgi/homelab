@@ -74,7 +74,7 @@ k8s-infra:
                 scrape_interval: 30s
                 static_configs:
                   - targets:
-                      - "monolith-pg-rw.monolith.svc.cluster.local:9187"
+                      - "monolith-pg-metrics.monolith.svc.cluster.local:9187"
                     labels:
                       service: monolith-postgres
 
