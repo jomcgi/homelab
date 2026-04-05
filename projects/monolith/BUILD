@@ -1,5 +1,6 @@
 # gazelle:exclude chat
 # gazelle:exclude app
+# gazelle:exclude e2e
 # gazelle:exclude home
 # gazelle:exclude notes
 # gazelle:exclude shared
