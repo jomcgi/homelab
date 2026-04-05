@@ -74,6 +74,43 @@ def _pg_preexec() -> None:
     os.setuid(nobody.pw_uid)
 
 
+def _ensure_sample_configs(pg_share: Path) -> None:
+    """Create minimal .sample config files if missing from OCI extraction.
+
+    initdb requires postgresql.conf.sample, pg_hba.conf.sample, and
+    pg_ident.conf.sample as templates. These may be absent from the
+    extracted OCI layers (Docker layer whiteout or packaging variation).
+    """
+    samples = {
+        "postgresql.conf.sample": (
+            "# Minimal postgresql.conf for testing\n"
+            "listen_addresses = '127.0.0.1'\n"
+            "max_connections = 100\n"
+            "shared_buffers = 128MB\n"
+            "dynamic_shared_memory_type = posix\n"
+            "log_timezone = 'UTC'\n"
+            "datestyle = 'iso, mdy'\n"
+            "timezone = 'UTC'\n"
+            "lc_messages = 'C'\n"
+            "lc_monetary = 'C'\n"
+            "lc_numeric = 'C'\n"
+            "lc_time = 'C'\n"
+            "default_text_search_config = 'pg_catalog.english'\n"
+        ),
+        "pg_hba.conf.sample": (
+            "# TYPE  DATABASE  USER  ADDRESS  METHOD\n"
+            "local   all       all             trust\n"
+            "host    all       all   127.0.0.1/32  trust\n"
+            "host    all       all   ::1/128       trust\n"
+        ),
+        "pg_ident.conf.sample": "# MAPNAME  SYSTEM-USERNAME  PG-USERNAME\n",
+    }
+    for filename, content in samples.items():
+        path = pg_share / filename
+        if not path.exists():
+            path.write_text(content)
+
+
 def _find_pg_root() -> Path:
     """Locate the extracted PostgreSQL binaries from Bazel runfiles.
 
@@ -169,6 +206,11 @@ def pg(tmp_path_factory):
             f"{lib_path_str}:{existing_dyld}" if existing_dyld else lib_path_str
         )
 
+    # --- ensure initdb template files exist ---
+    # The OCI image layers may not include the .sample config templates
+    # that initdb requires. Create minimal versions if missing.
+    _ensure_sample_configs(pg_share)
+
     # --- initdb ---
     # If running as root (BuildBuddy CI), ensure the demoted user (nobody)
     # can read PG files and write to the datadir.
@@ -194,21 +236,9 @@ def pg(tmp_path_factory):
         preexec_fn=_pg_preexec,
     )
     if initdb_result.returncode != 0:
-        # Diagnostics: list what's in the share directory
-        share_files = []
-        if pg_share.exists():
-            share_files = sorted(
-                str(f.relative_to(pg_share)) for f in pg_share.rglob("*")
-            )[:30]
-        conf_sample = pg_share / "postgresql.conf.sample"
         raise RuntimeError(
             f"initdb failed (rc={initdb_result.returncode}).\n"
             f"  pg_bin: {pg_bin}\n"
-            f"  pg_share: {pg_share}\n"
-            f"  pg_share.exists(): {pg_share.exists()}\n"
-            f"  conf_sample.exists(): {conf_sample.exists()}\n"
-            f"  share_files: {share_files}\n"
-            f"  pg_root contents: {sorted(str(f.name) for f in pg_root.iterdir())[:20] if pg_root.exists() else 'N/A'}\n"
             f"  stdout: {initdb_result.stdout.decode(errors='replace')}\n"
             f"  stderr: {initdb_result.stderr.decode(errors='replace')}"
         )
