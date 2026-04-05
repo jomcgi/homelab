@@ -176,25 +176,37 @@ def _copy_postgres_files(rctx, staging_dir):
                 err = cp_result.stderr,
             ))
 
-    # Copy only PostgreSQL-specific shared libraries from the Debian
-    # arch-specific directory. We must NOT copy system libs (libc, libm,
-    # libpthread) because they will conflict with the CI host's glibc
-    # and cause segfaults from ABI mismatches.
+    # Copy shared libraries from the Debian arch-specific directory,
+    # EXCLUDING glibc core components (libc, libm, ld-linux) which must
+    # come from the CI host to avoid ABI mismatches and segfaults.
+    # Everything else (ICU, libssl, libpq, etc.) is safe to use from
+    # the Debian image.
     arch_lib_src = _child_path(staging_dir, "usr/lib/x86_64-linux-gnu")
     arch_lib_dest = _child_path(repo_dir, "usr/lib/x86_64-linux-gnu")
     result = rctx.execute(["test", "-d", arch_lib_src], timeout = 5)
     if result.return_code == 0:
         rctx.execute(["mkdir", "-p", arch_lib_dest], timeout = 10)
-
-        # Only copy libpq and related PG client libraries (not system libs)
-        for pattern in ["libpq.*", "libecpg.*", "libpgtypes.*", "libecpg_compat.*"]:
-            result = rctx.execute(
-                ["find", arch_lib_src, "-maxdepth", "1", "-name", pattern],
-                timeout = 10,
-            )
-            pg_libs = [f for f in result.stdout.strip().split("\n") if f]
-            for pg_lib in pg_libs:
-                rctx.execute(["cp", "-a", pg_lib, arch_lib_dest + "/"], timeout = 10)
+        result = rctx.execute(
+            [
+                "find", arch_lib_src, "-maxdepth", "1",
+                "(", "-name", "*.so*", "-o", "-name", "*.a", ")",
+                "!", "-type", "d",
+                # Exclude glibc core — must use host versions
+                "!", "-name", "libc.so*", "!", "-name", "libc-*.so",
+                "!", "-name", "libm.so*", "!", "-name", "libm-*.so",
+                "!", "-name", "libmvec.so*", "!", "-name", "libmvec-*.so",
+                "!", "-name", "libdl.so*", "!", "-name", "libdl-*.so",
+                "!", "-name", "librt.so*", "!", "-name", "librt-*.so",
+                "!", "-name", "libpthread.so*", "!", "-name", "libpthread-*.so",
+                "!", "-name", "ld-linux*",
+            ],
+            timeout = 30,
+        )
+        if result.return_code != 0:
+            fail("Failed to find shared libraries: {err}".format(err = result.stderr))
+        arch_libs = [f for f in result.stdout.strip().split("\n") if f]
+        for lib_file in arch_libs:
+            rctx.execute(["cp", "-a", lib_file, arch_lib_dest + "/"], timeout = 10)
 
     # Copy the postgresql lib directory (contains internal .so files)
     pg_lib_src = _child_path(staging_dir, "usr/lib/postgresql/16/lib")
