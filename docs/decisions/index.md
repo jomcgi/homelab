@@ -33,6 +33,13 @@ ADRs document significant architectural decisions and their context.
 | [001 - Bazel Semgrep](security/001-bazel-semgrep.md)                               | Semgrep SAST integrated via Bazel rules                         |
 | [002 - Semgrep Rule Generation via RL](security/002-semgrep-rule-generation-rl.md) | RL-finetuned Qwen 3.5 9B for generating Semgrep rules from CVEs |
 
+## Services
+
+| ADR                                                                                   | Decision                                                       |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| [001 - Discord History Backfill](services/001-discord-history-backfill.md)            | One-time backfill of Discord channel history into pgvector      |
+| [002 - Discord Chat Automation](services/002-discord-chat-automation.md)              | Scheduling, triggers, and proactive posting for the Discord bot |
+
 ## Tooling
 
 | ADR                                                                           | Decision                                                                      |
