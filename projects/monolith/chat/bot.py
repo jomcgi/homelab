@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import re
 
 import discord
 
@@ -21,6 +22,36 @@ DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 
 LLM_MAX_RETRIES = 3
 LLM_RETRY_BASE_DELAY = 1.0  # seconds
+
+
+def _parse_thinking(text: str) -> tuple[str, str | None]:
+    """Extract <think>...</think> blocks from model output.
+
+    Returns (response_text, thinking_text). thinking_text is None if no
+    thinking was found or if all think blocks were empty.
+    """
+    thinking_parts: list[str] = []
+
+    def _collect(match: re.Match) -> str:
+        content = match.group(1).strip()
+        if content:
+            thinking_parts.append(content)
+        return ""
+
+    # Handle closed <think>...</think> blocks
+    cleaned = re.sub(r"<think>(.*?)</think>", _collect, text, flags=re.DOTALL)
+
+    # Handle unclosed <think> tag (model cut off mid-thought)
+    unclosed = re.search(r"<think>(.*)", cleaned, flags=re.DOTALL)
+    if unclosed:
+        content = unclosed.group(1).strip()
+        if content:
+            thinking_parts.append(content)
+        cleaned = cleaned[: unclosed.start()]
+
+    response = cleaned.strip()
+    thinking = "\n\n".join(thinking_parts) if thinking_parts else None
+    return response, thinking
 
 
 def should_respond(message: discord.Message, bot_user: discord.User) -> bool:
