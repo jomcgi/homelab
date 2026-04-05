@@ -255,10 +255,10 @@ def _create_pg_wrappers(rctx):
 
     # Wrapper uses SCRIPT_DIR to compute paths relative to the script.
     # From usr/lib/postgresql/16/bin/, the repo root is 5 dirs up.
-    wrapper_template = '#!/bin/sh\n' + \
-        'SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"\n' + \
-        'ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"\n' + \
-        'exec "$ROOT/{ld}" --library-path "$ROOT/usr/lib/x86_64-linux-gnu:$ROOT/usr/lib/postgresql/16/lib:$ROOT/usr/lib" "$SCRIPT_DIR/{binary}.bin" "$@"\n'
+    wrapper_template = "#!/bin/sh\n" + \
+                       'SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"\n' + \
+                       'ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"\n' + \
+                       'exec "$ROOT/{ld}" --library-path "$ROOT/usr/lib/x86_64-linux-gnu:$ROOT/usr/lib/postgresql/16/lib:$ROOT/usr/lib" "$SCRIPT_DIR/{binary}.bin" "$@"\n'
 
     # Rename each binary and create wrapper
     binaries = ["postgres", "initdb", "pg_isready", "pg_ctl"]
