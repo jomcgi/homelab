@@ -79,6 +79,24 @@ semgrep_test(
 )
 
 py_test(
+    name = "service_lifecycle_test",
+    srcs = ["service_lifecycle_test.py"],
+    imports = [".."],
+    deps = [
+        ":conftest",
+        "//projects/ships/backend:ships-api",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "service_lifecycle_test_semgrep_test",
+    srcs = ["service_lifecycle_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
     name = "ships_api_test",
     srcs = ["ships_api_test.py"],
     imports = [".."],
