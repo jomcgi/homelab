@@ -93,7 +93,7 @@ def client_fixture(session):
     mock_async_client.post = AsyncMock(return_value=mock_vault_response)
 
     with patch("asyncio.create_task", side_effect=_make_create_task_patcher()):
-        with patch("httpx.AsyncClient", return_value=mock_async_client):
+        with patch("notes.service.httpx.AsyncClient", return_value=mock_async_client):
             client = TestClient(app, raise_server_exceptions=False)
             yield client
 
@@ -244,6 +244,23 @@ def test_post_note_whitespace_content_returns_400(client):
 # ---------------------------------------------------------------------------
 # CRUD flow: PUT → GET → reset daily → GET archive dates
 # ---------------------------------------------------------------------------
+
+
+def test_reset_weekly_clears_weekly_task(client):
+    """POST /api/home/reset/weekly actually clears the weekly task text."""
+    client.put(
+        "/api/home",
+        json={"weekly": {"task": "Weekly goal", "done": False}, "daily": []},
+    )
+    resp = client.post("/api/home/reset/weekly")
+    assert resp.status_code == 200
+    data = client.get("/api/home").json()
+    assert data["weekly"]["task"] == ""
+
+
+def test_get_archive_invalid_date_returns_400(client):
+    """GET /api/home/archive/{date} with invalid date string → 400."""
+    assert client.get("/api/home/archive/not-a-date").status_code == 400
 
 
 def test_crud_flow_put_get_reset_archive(client):
