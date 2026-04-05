@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "playwright test --project=chromium",
+    "test:ci": "playwright test --project=chromium --reporter=github"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@sveltejs/adapter-node": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",

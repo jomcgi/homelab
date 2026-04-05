@@ -2,6 +2,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//projects/monolith/frontend:@playwright/test/package_json.bzl", playwright_bin = "bin")
 load("@npm//projects/monolith/frontend:vite/package_json.bzl", vite_bin = "bin")
 load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
@@ -71,4 +72,30 @@ apko_image(
     contents = "@monolith_frontend_lock//:contents",
     repository = "ghcr.io/jomcgi/homelab/projects/monolith/frontend",
     tars = [":build_tar"],
+)
+
+# Playwright E2E test infrastructure
+# Tests require a running browser and server — tagged external + manual so they
+# are excluded from standard `bazel test //...` runs (CI filter: --test_tag_filters=-external).
+# Run manually: bazel test //projects/monolith/frontend:e2e --tags=external
+playwright_bin.playwright_binary(name = "playwright")
+
+js_library(
+    name = "test_srcs",
+    srcs = glob(["tests/**/*.spec.js"]) + ["playwright.config.js"],
+    deps = [":node_modules/@playwright/test"],
+)
+
+playwright_bin.playwright_test(
+    name = "e2e",
+    args = ["test", "--project=chromium"],
+    data = [
+        ":test_srcs",
+        ":node_modules/@playwright/test",
+        ":src",
+    ],
+    tags = [
+        "external",
+        "manual",
+    ],
 )
