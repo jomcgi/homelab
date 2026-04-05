@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import pwd
 import random
 import signal
 import socket
@@ -58,6 +59,19 @@ def _find_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+def _pg_preexec() -> None:
+    """Drop root privileges in the child process before running PG binaries.
+
+    PostgreSQL refuses to run as root. BuildBuddy runs tests as root,
+    so we demote to the ``nobody`` user after fork but before the binary runs.
+    """
+    if os.getuid() != 0:
+        return
+    nobody = pwd.getpwnam("nobody")
+    os.setgid(nobody.pw_gid)
+    os.setuid(nobody.pw_uid)
 
 
 def _find_pg_root() -> Path:
@@ -156,10 +170,17 @@ def pg(tmp_path_factory):
         )
 
     # --- initdb ---
+    # If running as root (BuildBuddy CI), chown the datadir so the demoted
+    # user (nobody) can write to it.
+    if os.getuid() == 0:
+        nobody = pwd.getpwnam("nobody")
+        os.chown(datadir, nobody.pw_uid, nobody.pw_gid)
+
     initdb_result = subprocess.run(
         [str(pg_bin / "initdb"), "-D", str(datadir), "--no-locale", "-U", "test"],
         env=env,
         capture_output=True,
+        preexec_fn=_pg_preexec,
     )
     if initdb_result.returncode != 0:
         raise RuntimeError(
@@ -187,6 +208,7 @@ def pg(tmp_path_factory):
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        preexec_fn=_pg_preexec,
     )
 
     # --- wait for ready ---
@@ -198,6 +220,7 @@ def pg(tmp_path_factory):
             [str(pg_isready), "-h", "127.0.0.1", "-p", str(port), "-U", "test"],
             env=env,
             capture_output=True,
+            preexec_fn=_pg_preexec,
         )
         if result.returncode == 0:
             ready = True
