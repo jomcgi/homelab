@@ -68,9 +68,7 @@ class VisionClient:
             "max_tokens": 256,
         }
 
-        timeout = httpx.Timeout(
-            connect=VISION_CONNECT_TIMEOUT, read=VISION_READ_TIMEOUT
-        )
+        timeout = httpx.Timeout(VISION_READ_TIMEOUT, connect=VISION_CONNECT_TIMEOUT)
         elapsed = 0.0
         last_exc: Exception | None = None
 
