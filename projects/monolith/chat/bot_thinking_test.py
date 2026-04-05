@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, patch, MagicMock
 import discord
 import httpx
 from pydantic_ai.messages import ModelResponse, TextPart, ThinkingPart
-from pydantic_ai.usage import RequestUsage
 
 from chat.bot import _extract_thinking, _summarize_thinking, ThinkingView, ChatBot
 
@@ -17,10 +16,7 @@ def _make_result(output: str, thinking: str | None = None):
     if thinking is not None:
         parts.append(ThinkingPart(content=thinking))
     parts.append(TextPart(content=output))
-    response = ModelResponse(
-        parts=parts,
-        usage=RequestUsage(request_tokens=0, response_tokens=0),
-    )
+    response = ModelResponse(parts=parts)
     result = MagicMock()
     result.output = output
     result.new_messages.return_value = [response]
@@ -56,10 +52,7 @@ class TestExtractThinking:
             ThinkingPart(content="second thought"),
             TextPart(content="end"),
         ]
-        response = ModelResponse(
-            parts=parts,
-            usage=RequestUsage(request_tokens=0, response_tokens=0),
-        )
+        response = ModelResponse(parts=parts)
         result = MagicMock()
         result.output = "middleend"
         result.new_messages.return_value = [response]
