@@ -126,11 +126,20 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
     )
 
     @agent.tool_plain
+    @signposted(
+        "When someone claims something happened, mentions news, quotes someone, "
+        "or asks about anything you aren't certain of — search first, respond "
+        "after. Never guess whether something is real without checking."
+    )
     async def web_search(query: str) -> str:
         """Search the web for current information. Use this for recent events, facts, or anything that needs up-to-date data."""
         return await search_web(query)
 
     @agent.tool
+    @signposted(
+        "When someone references a past conversation, asks what was said "
+        "earlier, or you need context about something discussed before."
+    )
     async def search_history(
         ctx: RunContext[ChatDeps],
         query: str,
@@ -155,6 +164,10 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
         return format_context_messages(results)
 
     @agent.tool
+    @signposted(
+        "When someone asks about a person, or you want context on who "
+        "you're talking to and what they've been up to."
+    )
     async def get_user_summary(
         ctx: RunContext[ChatDeps],
         username: Any = None,
