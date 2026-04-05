@@ -109,7 +109,7 @@ func TestProgressReader_Close(t *testing.T) {
 	called := false
 	rc := &closeTracker{called: &called}
 	pr := &progressReader{
-		inner: rc,
+		inner:      rc,
 		onProgress: func(_, _ int64) {},
 	}
 	require.NoError(t, pr.Close())
@@ -314,12 +314,12 @@ func TestCopyGGUFSplitFallbackWhen200(t *testing.T) {
 
 func TestWrapRegistryError_4xxIsPermanent(t *testing.T) {
 	codes := []int{
-		http.StatusBadRequest,          // 400
-		http.StatusUnauthorized,        // 401
-		http.StatusForbidden,           // 403
-		http.StatusNotFound,            // 404
-		http.StatusMethodNotAllowed,    // 405
-		http.StatusConflict,            // 409
+		http.StatusBadRequest,       // 400
+		http.StatusUnauthorized,     // 401
+		http.StatusForbidden,        // 403
+		http.StatusNotFound,         // 404
+		http.StatusMethodNotAllowed, // 405
+		http.StatusConflict,         // 409
 	}
 	for _, code := range codes {
 		te := &transport.Error{StatusCode: code}
