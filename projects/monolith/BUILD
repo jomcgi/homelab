@@ -1309,6 +1309,28 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_router_backfill_exception_test",
+    srcs = ["chat/router_backfill_exception_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "chat_backfill_flush_test",
+    srcs = ["chat/backfill_flush_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
