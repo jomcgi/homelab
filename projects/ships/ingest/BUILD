@@ -123,3 +123,22 @@ semgrep_target_test(
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":main",
 )
+
+py_test(
+    name = "main_test",
+    srcs = ["main_test.py"],
+    imports = ["."],
+    deps = [
+        ":ais-ingest",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "main_test_semgrep_test",
+    srcs = ["main_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)

@@ -128,3 +128,23 @@ py_test(
         "@pip//pytest_asyncio",  # keep
     ],
 )
+
+py_test(
+    name = "main_test",
+    srcs = ["main_test.py"],
+    imports = [".."],
+    deps = [
+        ":conftest",
+        "//projects/ships/backend:ships-api",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "main_test_semgrep_test",
+    srcs = ["main_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
