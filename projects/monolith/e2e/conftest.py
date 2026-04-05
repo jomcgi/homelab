@@ -138,15 +138,21 @@ def pg(tmp_path_factory):
     port = _find_free_port()
 
     env = os.environ.copy()
-    # Ensure PG can find its shared libraries (both base libs and PG-internal libs)
+    # PG needs its own shared libraries (libpq, pgvector, internal .so files).
+    # We append PG lib paths AFTER the existing LD_LIBRARY_PATH so that host
+    # system libraries (libc, libm, libssl) take precedence — mixing Debian
+    # image libs with a different host glibc causes segfaults.
     pg_lib_internal = pg_lib / "postgresql" / "16" / "lib"
-    lib_paths = f"{pg_lib}:{pg_lib_internal}"
+    pg_arch_lib = pg_lib / "x86_64-linux-gnu"
+    pg_lib_paths = f"{pg_arch_lib}:{pg_lib_internal}:{pg_lib}"
     existing_ld = env.get("LD_LIBRARY_PATH", "")
-    env["LD_LIBRARY_PATH"] = f"{lib_paths}:{existing_ld}" if existing_ld else lib_paths
+    env["LD_LIBRARY_PATH"] = (
+        f"{existing_ld}:{pg_lib_paths}" if existing_ld else pg_lib_paths
+    )
     # macOS equivalent
     existing_dyld = env.get("DYLD_LIBRARY_PATH", "")
     env["DYLD_LIBRARY_PATH"] = (
-        f"{lib_paths}:{existing_dyld}" if existing_dyld else lib_paths
+        f"{existing_dyld}:{pg_lib_paths}" if existing_dyld else pg_lib_paths
     )
 
     # --- initdb ---
@@ -175,7 +181,7 @@ def pg(tmp_path_factory):
             "-k",
             str(datadir),  # unix socket dir
             "-c",
-            f"dynamic_library_path={pg_lib}:{pg_lib}/postgresql/16/lib",
+            f"dynamic_library_path={pg_arch_lib}:{pg_lib_internal}:{pg_lib}",
             "-c",
             f"extension_dir={pg_share}/extension",
         ],
