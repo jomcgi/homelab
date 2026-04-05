@@ -33,6 +33,7 @@ go_test(
         "cloudflare_tunnel_comprehensive_test.go",
         "cloudflare_tunnel_coverage_gaps_test.go",
         "cloudflare_tunnel_extra_test.go",
+        "cloudflare_tunnel_final_coverage_test.go",
         "cloudflare_tunnel_gaps_test.go",
         "cloudflare_tunnel_metrics_test.go",
         "cloudflare_tunnel_observability_test.go",
