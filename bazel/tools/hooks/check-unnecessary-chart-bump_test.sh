@@ -284,7 +284,7 @@ run_test "chart_yaml_wrong_dir" \
 
 # 5. Chart.yaml inside chart/ but new content has no version line -- skipped
 run_test "no_version_in_new_content" \
-	"$(printf '{"tool_input":{"file_path":"%s","new_string":"name: myservice\ndescription: foo"}}' \
+	"$(printf '{"tool_input":{"file_path":"%s","new_string":"name: myservice\\ndescription: foo"}}' \
 		"$CHART_PATH")" \
 	""
 
