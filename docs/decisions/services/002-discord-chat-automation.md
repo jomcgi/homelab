@@ -16,6 +16,13 @@ The Discord bot (`projects/monolith/chat/`) is purely reactive today — it only
 - **Run proactive tasks** — periodic channel digests, sentiment monitoring, automated follow-ups
 - **Chain multi-step workflows** — "when someone posts in #incidents, summarize it and cross-post to #status"
 
+Additionally, the existing **summary system** (`summarizer.py`) works but is informal:
+- Hardcoded 24h interval with no configurability
+- Single `user_channel_summaries` table with a basic "2-4 sentences" prompt
+- No channel-level summaries (only per-user)
+- Summary content isn't seeded into the agent's context window in a structured way — it's only available via the `get_user_summary` tool (the bot has to decide to call it)
+- No rolling window awareness — the summary prompt doesn't know how much context the bot already has from the recent 20-message window
+
 NanoClaw and OpenClaw — two open-source AI agent frameworks with Discord integrations — solve these problems with scheduling, trigger systems, and per-group memory. Rather than adopting either framework wholesale (they bring their own runtimes, LLM routing, and container orchestration that would conflict with our stack), we can steal the best patterns and build them on top of what we already have: PydanticAI + pgvector + PostgreSQL.
 
 ---
@@ -131,6 +138,81 @@ CREATE TABLE chat.channel_memory (
 );
 ```
 
+### Formalized Summaries
+
+The existing `chat.user_channel_summaries` table and `summarizer.py` loop are the seed of this — they just need to be formalized and extended.
+
+#### What exists today
+
+```
+chat.user_channel_summaries
+├── One row per (channel_id, user_id)
+├── Rolling text summary ("2-4 sentences")
+├── High-water mark (last_message_id) for incremental updates
+└── Updated every 24h by a hardcoded asyncio loop
+```
+
+The `get_user_summary` tool lets the agent query these on demand, but the agent has to choose to call it. Summaries are never injected into the context automatically.
+
+#### What changes
+
+**1. Add channel-level summaries** — not just per-user, but a rolling summary of the entire channel. New row type in the same table (or a new `chat.channel_summaries` table):
+
+```sql
+CREATE TABLE chat.channel_summaries (
+    id              SERIAL PRIMARY KEY,
+    channel_id      TEXT NOT NULL UNIQUE,
+    summary         TEXT NOT NULL,
+    message_count   INT NOT NULL DEFAULT 0,  -- total messages summarized
+    last_message_id INT NOT NULL,
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**2. Configurable summary schedule** — move the hardcoded 24h loop into `chat.scheduled_tasks` as a built-in `digest` task type. This lets users change the interval per channel ("summarize #general every 6 hours, #incidents every hour").
+
+**3. Structured prompt templates** — replace the hardcoded "2-4 sentences" prompt with configurable templates stored in `chat.channel_memory`:
+
+| Key | Purpose |
+|---|---|
+| `summary_prompt_user` | Prompt template for per-user summaries (default: current behavior) |
+| `summary_prompt_channel` | Prompt template for channel-level summaries |
+| `summary_style` | Style hints: `brief` (2-4 sentences), `detailed` (paragraph), `bullet` (key points) |
+
+**4. Auto-inject summaries into context** — instead of relying on the agent to call `get_user_summary`, inject a compressed context block at the top of every agent invocation:
+
+```python
+# In _generate_response(), before the user prompt:
+channel_summary = store.get_channel_summary(channel_id)
+user_summaries = store.get_relevant_user_summaries(channel_id, recent_user_ids)
+
+context_header = ""
+if channel_summary:
+    context_header += f"Channel context: {channel_summary.summary}\n\n"
+if user_summaries:
+    context_header += "People in this conversation:\n"
+    for s in user_summaries:
+        context_header += f"- {s.username}: {s.summary}\n"
+    context_header += "\n"
+```
+
+This gives the bot ambient awareness of who it's talking to and what the channel is about, without burning a tool call. The `get_user_summary` tool remains available for deeper queries about users not in the recent window.
+
+**5. Rolling window awareness** — the summary prompt should account for the fact that the bot already sees the last 20 messages. The summarizer should focus on context *beyond* the recent window:
+
+```python
+prompt = (
+    f"You are summarizing {username}'s participation in a Discord channel.\n"
+    f"The bot already sees the most recent 20 messages as direct context.\n"
+    f"Focus your summary on patterns, topics, and context from OLDER messages "
+    f"that would help the bot understand this person better.\n\n"
+    f"Previous summary:\n{existing.summary}\n\n"
+    f"New messages from {username}:\n{messages_text}\n\n"
+    f"Write a concise summary (2-4 sentences) of this user's key topics, "
+    f"interests, and communication style."
+)
+```
+
 ### Scheduler Loop
 
 A new background task in the monolith lifespan, similar to the existing summary loop:
@@ -205,23 +287,35 @@ Discord Gateway
      ▼
   on_message()
      │
-     ├──► store message + embedding  (existing)
-     ├──► evaluate_triggers()        (new - pattern matching)
+     ├──► store message + embedding       (existing)
+     ├──► evaluate_triggers()             (new - pattern matching)
      └──► should_respond()?
               │
               ▼
-         PydanticAI Agent
-         ├── web_search          (existing)
-         ├── search_history      (existing)
-         ├── get_user_summary    (existing)
-         ├── schedule_task       (new)
-         ├── manage_triggers     (new)
-         └── channel_notes       (new)
-
-  ┌──────────────────────┐
-  │  scheduler_loop()    │  (new - 30s poll interval)
-  │  polls scheduled_    │
-  │  tasks table         │──► execute_task() ──► post to Discord channel
+         build context
+         ├── recent 20 messages           (existing)
+         ├── channel_summary  ◄───────┐   (new - auto-injected)
+         └── user_summaries   ◄───────┤   (improved - auto-injected)
+              │                       │
+              ▼                       │
+         PydanticAI Agent             │
+         ├── web_search       (existing)
+         ├── search_history   (existing)
+         ├── get_user_summary (existing)
+         ├── schedule_task    (new)     │
+         ├── manage_triggers  (new)     │
+         └── channel_notes    (new)     │
+                                        │
+  ┌──────────────────────┐              │
+  │  scheduler_loop()    │  (new - 30s) │
+  │  polls scheduled_    │              │
+  │  tasks table         │──► execute_task() ──► post to Discord
+  └──────────────────────┘              │
+                                        │
+  ┌──────────────────────┐              │
+  │  summarizer_loop()   │  (improved)  │
+  │  configurable per-ch │──► user_channel_summaries ─┘
+  │  interval + prompts  │──► channel_summaries ──────┘
   └──────────────────────┘
 ```
 
@@ -229,16 +323,27 @@ Discord Gateway
 
 ## Implementation Phases
 
-### Phase 1: Scheduled Tasks (reminders & digests)
+### Phase 1: Formalize Summaries
+
+Low-risk, high-value — extends what already works.
+
+- Add `chat.channel_summaries` table via Atlas migration
+- Add channel-level summary generation to `summarizer.py`
+- Update summary prompts with rolling-window awareness ("bot already sees last 20 messages")
+- Auto-inject channel + user summaries into agent context (no tool call required)
+- Store prompt templates in `chat.channel_memory` for per-channel customization
+
+### Phase 2: Scheduled Tasks (reminders & digests)
 
 - Add `chat.scheduled_tasks` table via Atlas migration
 - Add `ScheduledTask` SQLModel
 - Add `scheduler_loop()` to monolith lifespan
 - Add `schedule_task` PydanticAI tool
+- Migrate the existing hardcoded 24h summary loop into a `scheduled_task` row (type `digest`)
 - Support one-shot reminders and cron-based recurring tasks
 - Add `croniter` dependency for cron expression parsing
 
-### Phase 2: Event Triggers
+### Phase 3: Event Triggers
 
 - Add `chat.triggers` table via Atlas migration
 - Add `evaluate_triggers()` to `on_message` handler
@@ -246,11 +351,11 @@ Discord Gateway
 - Support: respond, crosspost, agent_run action types
 - Cooldown enforcement to prevent spam
 
-### Phase 3: Channel Memory & Proactive Posting
+### Phase 4: Channel Memory & Proactive Posting
 
 - Add `chat.channel_memory` table
 - Add `channel_notes` PydanticAI tool
-- Add daily digest task type (LLM summarizes last 24h of messages)
+- Add configurable digest posting (LLM summarizes last N hours, posts to channel)
 - Enable bot to post to channels proactively (not just in reply)
 
 ---
@@ -290,6 +395,8 @@ Discord Gateway
 3. **Trigger creation permissions** — should any Discord user be able to create triggers, or should it be restricted to specific roles?
 4. **Digest format** — should daily digests be a simple summary or include links to specific messages?
 5. **Channel memory size limits** — should we cap the size of channel memory notes to prevent unbounded growth?
+6. **Summary token budget** — auto-injecting channel + user summaries adds tokens to every invocation. Should we cap total summary context (e.g. 500 tokens) and truncate/prioritize?
+7. **Summary freshness** — the current 24h interval means summaries can be stale. For active channels, should we trigger a summary refresh when message count since last update exceeds a threshold?
 
 ---
 
