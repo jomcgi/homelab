@@ -291,16 +291,38 @@ class TestSearchHistoryWithUsername:
 
 
 # ---------------------------------------------------------------------------
-# get_user_summary — "Could not determine username" branch
+# get_user_summary — list mode (username=None)
 # ---------------------------------------------------------------------------
 
 
-class TestGetUserSummaryNoUsername:
+class TestGetUserSummaryListMode:
     @pytest.mark.asyncio
-    async def test_returns_error_when_username_coerces_to_none(self):
-        """get_user_summary returns error message when username is a dict with no known key."""
+    async def test_returns_user_list_when_no_username(self):
+        """get_user_summary returns a list of users when called with no username."""
+        from datetime import datetime, timezone
+
+        from chat.models import UserChannelSummary
+
         embed_client = AsyncMock()
         store = MagicMock()
+        store.list_user_summaries.return_value = [
+            UserChannelSummary(
+                channel_id="ch1",
+                user_id="u1",
+                username="Alice",
+                summary="Alice summary.",
+                last_message_id=10,
+                updated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            ),
+            UserChannelSummary(
+                channel_id="ch1",
+                user_id="u2",
+                username="Bob",
+                summary="Bob summary.",
+                last_message_id=20,
+                updated_at=datetime(2026, 3, 15, tzinfo=timezone.utc),
+            ),
+        ]
 
         deps = _make_deps(store, embed_client)
         agent = create_agent(base_url="http://fake:8080")
@@ -318,7 +340,110 @@ class TestGetUserSummaryNoUsername:
                 parts=[
                     ToolCallPart(
                         tool_name="get_user_summary",
-                        # A dict with no username/name/display_name key coerces to None
+                        args={},
+                        tool_call_id="call-1",
+                    )
+                ]
+            )
+
+        await agent.run(
+            "What user summaries do you have?",
+            model=FunctionModel(model_func),
+            deps=deps,
+        )
+
+        assert len(tool_return_captured) == 1
+        result = tool_return_captured[0]
+        assert "Alice" in result
+        assert "Bob" in result
+        assert "2" in result  # count
+
+    @pytest.mark.asyncio
+    async def test_returns_no_summaries_message_when_empty(self):
+        """get_user_summary returns empty message when no summaries exist."""
+        embed_client = AsyncMock()
+        store = MagicMock()
+        store.list_user_summaries.return_value = []
+
+        deps = _make_deps(store, embed_client)
+        agent = create_agent(base_url="http://fake:8080")
+
+        tool_return_captured = []
+
+        def model_func(messages, info):  # type: ignore[type-arg]
+            for msg in messages:
+                if hasattr(msg, "parts"):
+                    for part in msg.parts:
+                        if isinstance(part, ToolReturnPart):
+                            tool_return_captured.append(part.content)
+                            return ModelResponse(parts=[TextPart("done")])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="get_user_summary",
+                        args={},
+                        tool_call_id="call-1",
+                    )
+                ]
+            )
+
+        await agent.run(
+            "What user summaries do you have?",
+            model=FunctionModel(model_func),
+            deps=deps,
+        )
+
+        assert len(tool_return_captured) == 1
+        assert "No user summaries available" in tool_return_captured[0]
+
+    @pytest.mark.asyncio
+    async def test_calls_list_user_summaries_with_channel(self):
+        """get_user_summary passes channel_id to store.list_user_summaries."""
+        embed_client = AsyncMock()
+        store = MagicMock()
+        store.list_user_summaries.return_value = []
+
+        deps = _make_deps(store, embed_client, channel_id="my-chan")
+        agent = create_agent(base_url="http://fake:8080")
+
+        await agent.run(
+            "List summaries",
+            model=_tool_once_then_done("get_user_summary", {}),
+            deps=deps,
+        )
+
+        store.list_user_summaries.assert_called_once_with("my-chan")
+
+
+# ---------------------------------------------------------------------------
+# get_user_summary — bad username (dict with no known key)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserSummaryBadUsername:
+    @pytest.mark.asyncio
+    async def test_falls_back_to_list_when_username_coerces_to_none(self):
+        """get_user_summary falls back to list mode when username is an unrecognized dict."""
+        embed_client = AsyncMock()
+        store = MagicMock()
+        store.list_user_summaries.return_value = []
+
+        deps = _make_deps(store, embed_client)
+        agent = create_agent(base_url="http://fake:8080")
+
+        tool_return_captured = []
+
+        def model_func(messages, info):  # type: ignore[type-arg]
+            for msg in messages:
+                if hasattr(msg, "parts"):
+                    for part in msg.parts:
+                        if isinstance(part, ToolReturnPart):
+                            tool_return_captured.append(part.content)
+                            return ModelResponse(parts=[TextPart("done")])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="get_user_summary",
                         args={"username": {"id": 42, "email": "x@example.com"}},
                         tool_call_id="call-1",
                     )
@@ -332,8 +457,8 @@ class TestGetUserSummaryNoUsername:
         )
 
         assert len(tool_return_captured) == 1
-        assert "Could not determine username" in tool_return_captured[0]
-        # store should NOT be called
+        # Now falls back to list mode instead of returning an error
+        store.list_user_summaries.assert_called_once()
         store.get_user_summary.assert_not_called()
 
 
