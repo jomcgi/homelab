@@ -273,8 +273,27 @@ class ChatBot(discord.Client):
             all_msg_ids = [m.id for m in recent if m.id is not None]
             attachments_by_msg = store.get_attachments(all_msg_ids)
 
-            context = "Recent conversation:\n" + format_context_messages(
-                recent, attachments_by_msg
+            # Fetch summaries for ambient context
+            channel_summary = store.get_channel_summary(str(message.channel.id))
+            recent_user_ids = list({m.user_id for m in recent if not m.is_bot})
+            user_summaries = store.get_user_summaries_for_users(
+                str(message.channel.id), recent_user_ids
+            )
+
+            # Build summary context header
+            summary_header = ""
+            if channel_summary:
+                summary_header += f"[Channel context: {channel_summary.summary}]\n\n"
+            if user_summaries:
+                summary_header += "[People in this conversation:\n"
+                for s in user_summaries:
+                    summary_header += f" - {s.username}: {s.summary}\n"
+                summary_header += "]\n\n"
+
+            context = (
+                summary_header
+                + "Recent conversation:\n"
+                + format_context_messages(recent, attachments_by_msg)
             )
 
             user_prompt = (

@@ -1207,6 +1207,19 @@ py_test(
 )
 
 py_test(
+    name = "chat_bot_summary_injection_test",
+    srcs = ["chat/bot_summary_injection_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "chat_bot_remaining_gaps_test",
     srcs = ["chat/bot_remaining_gaps_test.py"],
     imports = ["."],

@@ -106,6 +106,8 @@ def _setup_store_mock() -> MagicMock:
     store = MagicMock()
     store.get_recent = MagicMock(return_value=[])
     store.get_attachments = MagicMock(return_value={})
+    store.get_channel_summary = MagicMock(return_value=None)
+    store.get_user_summaries_for_users = MagicMock(return_value=[])
     store.save_message = AsyncMock()
     return store
 

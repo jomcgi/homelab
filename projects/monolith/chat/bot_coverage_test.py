@@ -222,6 +222,8 @@ class TestOnMessageGenerateReply:
         mock_store = AsyncMock()
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
         mock_agent_result.new_messages.return_value = []
@@ -256,6 +258,8 @@ class TestOnMessageGenerateReply:
         mock_store = AsyncMock()
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
         mock_agent_result.new_messages.return_value = []
@@ -307,6 +311,8 @@ class TestGenerateResponse:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[recent_msg])
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
         mock_agent_result.new_messages.return_value = []
