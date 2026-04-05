@@ -315,7 +315,7 @@ class Database:
             if time_diff > DEDUP_TIME_THRESHOLD:
                 # Still in same area, keep original first_seen
                 return True, last.first_seen_at_location or timestamp
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, AttributeError):
             return True, timestamp  # Insert if timestamp parsing fails
 
         return False, None

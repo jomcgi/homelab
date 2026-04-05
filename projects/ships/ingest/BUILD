@@ -141,3 +141,24 @@ semgrep_test(
     srcs = ["main_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "coverage_gaps_test",
+    srcs = ["coverage_gaps_test.py"],
+    imports = ["."],
+    deps = [
+        ":ais-ingest",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//nats_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//websockets",
+    ],
+)
+
+semgrep_test(
+    name = "coverage_gaps_test_semgrep_test",
+    srcs = ["coverage_gaps_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
