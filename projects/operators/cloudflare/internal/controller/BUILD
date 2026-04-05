@@ -49,6 +49,7 @@ go_test(
         "cloudflareaccesspolicy_coverage_test.go",
         "cloudflaretunnel_controller_test.go",
         "cloudflaretunnel_coverage_test.go",
+        "gateway_account_id_test.go",
         "gateway_controller_test.go",
         "gateway_coverage_test.go",
         "gatewayclass_controller_test.go",
