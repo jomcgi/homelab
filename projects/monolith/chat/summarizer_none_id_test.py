@@ -76,26 +76,26 @@ class TestGenerateSummariesNoneIdHandling:
 
         mock_session = MagicMock()
 
-        # pairs query returns one (channel, user, username) tuple
+        none_id_message = Message(
+            id=None,
+            discord_message_id="x",
+            channel_id="ch1",
+            user_id="u1",
+            username="Alice",
+            content="hello",
+            is_bot=False,
+            embedding=[0.0] * 1024,
+            created_at=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
+        )
+
+        # Each exec() call returns an object whose .all() or .first() is invoked:
+        #   call 1: pairs  — code calls .all()
+        #   call 2: existing UserChannelSummary — code calls .first()
+        #   call 3: new messages (id=None) — code calls .all()
         mock_session.exec.side_effect = [
-            # First call: pairs
-            [("ch1", "u1", "Alice")],
-            # Second call: existing UserChannelSummary for the pair
+            MagicMock(all=MagicMock(return_value=[("ch1", "u1", "Alice")])),
             MagicMock(first=MagicMock(return_value=None)),
-            # Third call: new messages — id=None triggers TypeError in max()
-            [
-                Message(
-                    id=None,
-                    discord_message_id="x",
-                    channel_id="ch1",
-                    user_id="u1",
-                    username="Alice",
-                    content="hello",
-                    is_bot=False,
-                    embedding=[0.0] * 1024,
-                    created_at=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
-                )
-            ],
+            MagicMock(all=MagicMock(return_value=[none_id_message])),
         ]
         mock_llm = AsyncMock(return_value="some summary")
 
