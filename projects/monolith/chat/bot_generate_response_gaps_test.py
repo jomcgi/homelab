@@ -358,7 +358,9 @@ class TestThinkingRetryWithImageAttachments:
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
-            patch("chat.bot.search_web", new_callable=AsyncMock, return_value="results"),
+            patch(
+                "chat.bot.search_web", new_callable=AsyncMock, return_value="results"
+            ),
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=MagicMock()
