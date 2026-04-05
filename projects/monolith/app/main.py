@@ -87,7 +87,11 @@ async def lifespan(app: FastAPI):
     if discord_token:
 
         async def _summary_loop():
-            from chat.summarizer import build_llm_caller, generate_summaries
+            from chat.summarizer import (
+                build_llm_caller,
+                generate_channel_summaries,
+                generate_summaries,
+            )
 
             while True:
                 await asyncio.sleep(86400)  # 24 hours
@@ -95,6 +99,7 @@ async def lifespan(app: FastAPI):
                     with Session(get_engine()) as session:
                         llm_caller = build_llm_caller()
                         await generate_summaries(session, llm_caller)
+                        await generate_channel_summaries(session, llm_caller)
                 except Exception:
                     logger.exception("Summary generation failed")
 
