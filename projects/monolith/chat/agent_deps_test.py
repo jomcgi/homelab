@@ -22,17 +22,7 @@ class TestCreateAgentWithDeps:
         agent = create_agent(base_url="http://fake:8080")
         assert agent is not None
 
-    def test_system_prompt_references_search_history(self):
-        """System prompt tells the agent about search_history."""
+    def test_system_prompt_references_tool_usage(self):
+        """System prompt encourages proactive tool use."""
         prompt = build_system_prompt()
-        assert "search_history" in prompt
-
-    def test_system_prompt_references_get_user_summary(self):
-        """System prompt tells the agent about get_user_summary."""
-        prompt = build_system_prompt()
-        assert "get_user_summary" in prompt
-
-    def test_system_prompt_references_web_search(self):
-        """System prompt tells the agent about web_search."""
-        prompt = build_system_prompt()
-        assert "web_search" in prompt
+        assert "tools" in prompt.lower()

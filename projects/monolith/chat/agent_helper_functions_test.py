@@ -144,46 +144,22 @@ class TestBuildSystemPromptReturnType:
 
 
 # ---------------------------------------------------------------------------
-# build_system_prompt — content: tool descriptions
+# build_system_prompt — content: tool guidance
+# Tool-specific descriptions are now auto-generated from signposts in the
+# dynamic system prompt; see TestAllToolsSignposted in agent_tools_test.py.
 # ---------------------------------------------------------------------------
 
 
-class TestBuildSystemPromptToolDescriptions:
-    def test_includes_web_search_tool_name(self):
-        """System prompt mentions the web_search tool by name."""
+class TestBuildSystemPromptToolGuidance:
+    def test_encourages_proactive_tool_use(self):
+        """System prompt encourages proactive tool usage."""
         prompt = build_system_prompt()
-        assert "web_search" in prompt
+        assert "tools" in prompt.lower()
 
-    def test_includes_search_history_tool_name(self):
-        """System prompt mentions the search_history tool by name."""
+    def test_includes_dont_pretend_rule(self):
+        """System prompt warns against claiming to have searched without doing so."""
         prompt = build_system_prompt()
-        assert "search_history" in prompt
-
-    def test_includes_get_user_summary_tool_name(self):
-        """System prompt mentions the get_user_summary tool by name."""
-        prompt = build_system_prompt()
-        assert "get_user_summary" in prompt
-
-    def test_web_search_described_for_current_information(self):
-        """web_search description indicates it retrieves current/up-to-date information."""
-        prompt = build_system_prompt()
-        # The prompt says "Look up current information from the web"
-        assert "current" in prompt
-
-    def test_search_history_described_for_older_messages(self):
-        """search_history description references older messages in the channel."""
-        prompt = build_system_prompt()
-        assert "older" in prompt
-
-    def test_search_history_mentions_username_filter(self):
-        """search_history description notes it can filter by username."""
-        prompt = build_system_prompt()
-        assert "username" in prompt
-
-    def test_get_user_summary_describes_list_all_users(self):
-        """get_user_summary description says call with no username to list all users."""
-        prompt = build_system_prompt()
-        assert "no username" in prompt
+        assert "Pretend you looked something up" in prompt
 
 
 # ---------------------------------------------------------------------------
@@ -207,10 +183,10 @@ class TestBuildSystemPromptGuidance:
         prompt = build_system_prompt()
         assert "Use your tools" in prompt
 
-    def test_mentions_recent_conversation_history(self):
-        """System prompt notes the agent can see recent conversation history."""
+    def test_instructs_matching_conversation_vibe(self):
+        """System prompt tells the agent to match conversation vibe."""
         prompt = build_system_prompt()
-        assert "recent" in prompt
+        assert "vibe" in prompt
 
 
 # ---------------------------------------------------------------------------
