@@ -151,6 +151,7 @@ py_test(
         "@pip//fastapi",
         "@pip//nats_py",
         "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
     ],
 )
 
