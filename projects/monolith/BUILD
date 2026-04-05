@@ -1029,6 +1029,53 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_agent_signpost_test",
+    srcs = ["chat/agent_signpost_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "chat_embedding_retryable_test",
+    srcs = ["chat/embedding_retryable_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "chat_vision_retryable_test",
+    srcs = ["chat/vision_retryable_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "chat_store_null_data_test",
+    srcs = ["chat/store_null_data_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
