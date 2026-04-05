@@ -232,29 +232,33 @@ def _create_pg_wrappers(rctx):
     that execs through the Debian dynamic linker with --library-path.
     This ensures child processes (e.g. initdb calling postgres -V) also
     use the Debian libraries, avoiding glibc version mismatches.
+
+    Wrappers use paths relative to the script location so they work in
+    both the repository directory and Bazel runfiles (which may remap paths).
     """
     repo_dir = str(rctx.path(""))
-    bin_dir = _child_path(repo_dir, "usr/lib/postgresql/16/bin")
 
-    # Find the Debian ld-linux
-    ld_linux = None
+    # Find which ld-linux relative path exists
+    ld_rel_path = None
     for ld_rel in ["lib64/ld-linux-x86-64.so.2", "lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"]:
         ld_path = _child_path(repo_dir, ld_rel)
         result = rctx.execute(["test", "-f", ld_path], timeout = 5)
         if result.return_code == 0:
-            ld_linux = ld_path
+            ld_rel_path = ld_rel
             break
 
-    if not ld_linux:
+    if not ld_rel_path:
         # No ld-linux found (e.g. macOS) — skip wrapper creation
         return
 
-    # Library search path for the Debian libraries
-    lib_paths = ":".join([
-        _child_path(repo_dir, "usr/lib/x86_64-linux-gnu"),
-        _child_path(repo_dir, "usr/lib/postgresql/16/lib"),
-        _child_path(repo_dir, "usr/lib"),
-    ])
+    bin_dir = _child_path(repo_dir, "usr/lib/postgresql/16/bin")
+
+    # Wrapper uses SCRIPT_DIR to compute paths relative to the script.
+    # From usr/lib/postgresql/16/bin/, the repo root is 5 dirs up.
+    wrapper_template = '#!/bin/sh\n' + \
+        'SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"\n' + \
+        'ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"\n' + \
+        'exec "$ROOT/{ld}" --library-path "$ROOT/usr/lib/x86_64-linux-gnu:$ROOT/usr/lib/postgresql/16/lib:$ROOT/usr/lib" "$SCRIPT_DIR/{binary}.bin" "$@"\n'
 
     # Rename each binary and create wrapper
     binaries = ["postgres", "initdb", "pg_isready", "pg_ctl"]
@@ -269,11 +273,10 @@ def _create_pg_wrappers(rctx):
         # Rename: binary -> binary.bin
         rctx.execute(["mv", bin_path, real_path], timeout = 5)
 
-        # Create wrapper script
-        wrapper_content = '#!/bin/sh\nexec "{ld}" --library-path "{libs}" "{bin}" "$@"\n'.format(
-            ld = ld_linux,
-            libs = lib_paths,
-            bin = real_path,
+        # Create wrapper script with relative paths
+        wrapper_content = wrapper_template.format(
+            ld = ld_rel_path,
+            binary = binary,
         )
         rctx.file(
             "usr/lib/postgresql/16/bin/" + binary,
