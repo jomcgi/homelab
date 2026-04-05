@@ -184,7 +184,7 @@ def _copy_postgres_files(rctx, staging_dir):
     rctx.execute(["mkdir", "-p", lib_dest], timeout = 10)
 
     result = rctx.execute(
-        ["find", lib_src, "-name", "*.so*", "-type", "f"],
+        ["find", lib_src, "-name", "*.so*", "!", "-type", "d"],
         timeout = 30,
     )
     if result.return_code != 0:
@@ -196,7 +196,7 @@ def _copy_postgres_files(rctx, staging_dir):
     if not so_files:
         fail("No shared libraries (.so*) found in {dir} — PostgreSQL will fail at runtime".format(dir = lib_src))
     for so_file in so_files:
-        rctx.execute(["cp", "-a", so_file, lib_dest + "/"], timeout = 10)
+        rctx.execute(["cp", "-aL", so_file, lib_dest + "/"], timeout = 10)
 
     # Copy the postgresql lib directory (contains internal .so files)
     pg_lib_src = _child_path(staging_dir, "usr/lib/postgresql/16/lib")
