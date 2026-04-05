@@ -62,3 +62,15 @@ spec:
   resources:
     limits:
       memory: "2Gi"
+
+---
+# ruleid: require-cnpg-cluster-resources
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: has-requests-cpu-but-not-memory
+spec:
+  instances: 3
+  resources:
+    requests:
+      cpu: "500m"

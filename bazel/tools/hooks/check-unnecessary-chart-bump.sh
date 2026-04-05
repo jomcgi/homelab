@@ -86,11 +86,11 @@ if [[ -z "$CHANGED_FILES" ]]; then
 fi
 
 # Check whether all changed files are test files
-# Test patterns: *_test.py, *_test.go, *_test.ts, files under tests?/ fixtures?/ testdata/
+# Test patterns: *_test.py, *_test.go, *_test.ts, *_test.sh, files under tests?/ fixtures?/ testdata/
 NON_TEST_FILES=""
 while IFS= read -r f; do
 	[[ -z "$f" ]] && continue
-	if ! echo "$f" | grep -qE '(_test\.(py|go|ts)$|/(tests?|fixtures?|testdata)/)'; then
+	if ! echo "$f" | grep -qE '(_test\.(py|go|ts|sh)$|/(tests?|fixtures?|testdata)/)'; then
 		NON_TEST_FILES="${NON_TEST_FILES:+$NON_TEST_FILES$'\n'}$f"
 	fi
 done <<< "$CHANGED_FILES"
