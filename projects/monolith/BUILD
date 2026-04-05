@@ -1142,6 +1142,31 @@ py_test(
     ],
 )
 
+py_test(
+    name = "e2e_test",
+    size = "large",
+    srcs = glob(["e2e/**/*.py"]),
+    data = [
+        "//projects/monolith/chart/migrations:migrations",
+        "@postgres_test//:postgres",
+    ],
+    imports = ["."],
+    tags = ["e2e"],
+    timeout = "moderate",
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//psycopg",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+        "@pip//uvicorn",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],

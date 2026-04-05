@@ -4,6 +4,8 @@ Tests run against real PostgreSQL 16 + pgvector. External services
 (Discord, LLMs, SearXNG, vault) are mocked.
 """
 
+import pytest
+
 
 def test_postgres_is_running(pg):
     """Smoke test: PostgreSQL is reachable and has pgvector."""
@@ -20,3 +22,438 @@ def test_postgres_is_running(pg):
         ).scalar()
         assert has_vector == 1
     engine.dispose()
+
+
+# ---------------------------------------------------------------------------
+# Task 4: HTTP API E2E Tests
+# ---------------------------------------------------------------------------
+
+
+class TestHealthz:
+    def test_healthz_returns_200(self, client):
+        """GET /healthz returns 200 OK."""
+        response = client.get("/healthz")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+
+class TestHomeAPI:
+    def test_get_returns_initial_state(self, client):
+        """GET /api/home returns weekly + daily structure."""
+        response = client.get("/api/home")
+        assert response.status_code == 200
+        data = response.json()
+        assert "weekly" in data
+        assert "daily" in data
+        assert "task" in data["weekly"]
+        assert "done" in data["weekly"]
+        assert isinstance(data["daily"], list)
+
+    def test_put_then_get_persists_tasks(self, client):
+        """PUT tasks then GET verifies persistence."""
+        payload = {
+            "weekly": {"task": "e2e weekly goal", "done": False},
+            "daily": [
+                {"task": "e2e task 1", "done": False},
+                {"task": "e2e task 2", "done": True},
+                {"task": "e2e task 3", "done": False},
+            ],
+        }
+        put_resp = client.put("/api/home", json=payload)
+        assert put_resp.status_code == 200
+
+        get_resp = client.get("/api/home")
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        assert data["weekly"]["task"] == "e2e weekly goal"
+        assert data["daily"][0]["task"] == "e2e task 1"
+        assert data["daily"][1]["done"] is True
+
+    def test_reset_daily_clears_tasks_and_creates_archive(self, client):
+        """PUT, reset daily, verify archive created."""
+        payload = {
+            "weekly": {"task": "weekly stays", "done": False},
+            "daily": [
+                {"task": "daily to archive", "done": True},
+            ],
+        }
+        client.put("/api/home", json=payload)
+
+        reset_resp = client.post("/api/home/reset/daily")
+        assert reset_resp.status_code == 200
+
+        # An archive date should now exist
+        dates_resp = client.get("/api/home/dates")
+        assert dates_resp.status_code == 200
+        dates = dates_resp.json()
+        assert len(dates) >= 1
+
+    def test_reset_weekly_clears_weekly_task(self, client):
+        """PUT, reset weekly, verify cleared."""
+        payload = {
+            "weekly": {"task": "weekly to clear", "done": True},
+            "daily": [{"task": "daily item", "done": False}],
+        }
+        client.put("/api/home", json=payload)
+
+        reset_resp = client.post("/api/home/reset/weekly")
+        assert reset_resp.status_code == 200
+
+        get_resp = client.get("/api/home/weekly")
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        # After weekly reset, the weekly task should be empty
+        assert data["task"] == ""
+        assert data["done"] is False
+
+    def test_archive_invalid_date_returns_400(self, client):
+        """Bad date format returns 400."""
+        response = client.get("/api/home/archive/not-a-date")
+        assert response.status_code == 400
+
+    def test_archive_not_found_returns_404(self, client):
+        """No archive for date returns 404."""
+        response = client.get("/api/home/archive/1999-01-01")
+        assert response.status_code == 404
+
+
+class TestNotesAPI:
+    def test_create_note(self, client):
+        """POST returns 201 (vault mocked in conftest)."""
+        response = client.post("/api/notes", json={"content": "Test fleeting note"})
+        assert response.status_code == 201
+
+    def test_empty_content_returns_400(self, client):
+        """Empty content returns 400."""
+        response = client.post("/api/notes", json={"content": ""})
+        assert response.status_code == 400
+
+    def test_whitespace_content_returns_400(self, client):
+        """Whitespace-only content returns 400."""
+        response = client.post("/api/notes", json={"content": "   \n\t  "})
+        assert response.status_code == 400
+
+
+class TestScheduleAPI:
+    def test_today_returns_list(self, client):
+        """Returns list (iCal mocked/empty)."""
+        response = client.get("/api/schedule/today")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+
+# ---------------------------------------------------------------------------
+# Task 5: MessageStore E2E Tests (pgvector)
+# ---------------------------------------------------------------------------
+
+
+class TestMessageStore:
+    @pytest.mark.asyncio
+    async def test_save_and_get_recent(self, store):
+        """Save message, get_recent returns it with correct fields."""
+        msg = await store.save_message(
+            discord_message_id="msg-001",
+            channel_id="ch-1",
+            user_id="u-1",
+            username="alice",
+            content="Hello from e2e",
+            is_bot=False,
+        )
+        assert msg is not None
+        assert msg.content == "Hello from e2e"
+        assert msg.username == "alice"
+
+        recent = store.get_recent("ch-1", limit=10)
+        assert len(recent) == 1
+        assert recent[0].discord_message_id == "msg-001"
+        assert recent[0].channel_id == "ch-1"
+        assert recent[0].user_id == "u-1"
+
+    @pytest.mark.asyncio
+    async def test_duplicate_message_id_returns_none(self, store):
+        """IntegrityError on duplicate discord_message_id returns None."""
+        await store.save_message(
+            discord_message_id="dup-001",
+            channel_id="ch-1",
+            user_id="u-1",
+            username="alice",
+            content="First",
+            is_bot=False,
+        )
+        result = await store.save_message(
+            discord_message_id="dup-001",
+            channel_id="ch-1",
+            user_id="u-1",
+            username="alice",
+            content="Duplicate",
+            is_bot=False,
+        )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_search_similar_finds_matching_message(self, store, embed_client):
+        """Save with embedding, search with same text, pgvector <=> returns it."""
+        await store.save_message(
+            discord_message_id="sim-001",
+            channel_id="ch-search",
+            user_id="u-1",
+            username="alice",
+            content="Kubernetes pod scheduling issues",
+            is_bot=False,
+        )
+        query_embedding = await embed_client.embed("Kubernetes pod scheduling issues")
+        results = store.search_similar(
+            channel_id="ch-search",
+            query_embedding=query_embedding,
+            limit=5,
+        )
+        assert len(results) >= 1
+        assert results[0].content == "Kubernetes pod scheduling issues"
+
+    @pytest.mark.asyncio
+    async def test_search_similar_filters_by_channel(self, store, embed_client):
+        """Messages in other channels excluded."""
+        await store.save_message(
+            discord_message_id="ch-a-001",
+            channel_id="ch-a",
+            user_id="u-1",
+            username="alice",
+            content="Message in channel A",
+            is_bot=False,
+        )
+        await store.save_message(
+            discord_message_id="ch-b-001",
+            channel_id="ch-b",
+            user_id="u-1",
+            username="alice",
+            content="Message in channel B",
+            is_bot=False,
+        )
+        query_embedding = await embed_client.embed("Message in channel A")
+        results = store.search_similar(
+            channel_id="ch-a",
+            query_embedding=query_embedding,
+            limit=10,
+        )
+        assert all(r.channel_id == "ch-a" for r in results)
+
+    @pytest.mark.asyncio
+    async def test_search_similar_filters_by_user(self, store, embed_client):
+        """user_id filter works."""
+        await store.save_message(
+            discord_message_id="user-a-001",
+            channel_id="ch-u",
+            user_id="u-alice",
+            username="alice",
+            content="Alice says hello",
+            is_bot=False,
+        )
+        await store.save_message(
+            discord_message_id="user-b-001",
+            channel_id="ch-u",
+            user_id="u-bob",
+            username="bob",
+            content="Bob says hello",
+            is_bot=False,
+        )
+        query_embedding = await embed_client.embed("hello")
+        results = store.search_similar(
+            channel_id="ch-u",
+            query_embedding=query_embedding,
+            limit=10,
+            user_id="u-alice",
+        )
+        assert all(r.user_id == "u-alice" for r in results)
+        assert len(results) >= 1
+
+    @pytest.mark.asyncio
+    async def test_attachment_blob_dedup(self, store):
+        """Two messages with same image data share one blob row (SHA256 PK)."""
+        import hashlib
+
+        from sqlmodel import select
+
+        from chat.models import Blob
+
+        image_data = b"shared-image-bytes"
+        attachment = {
+            "data": image_data,
+            "content_type": "image/png",
+            "filename": "pic.png",
+            "description": "A picture",
+        }
+        await store.save_message(
+            discord_message_id="att-001",
+            channel_id="ch-att",
+            user_id="u-1",
+            username="alice",
+            content="First with image",
+            is_bot=False,
+            attachments=[attachment],
+        )
+        await store.save_message(
+            discord_message_id="att-002",
+            channel_id="ch-att",
+            user_id="u-2",
+            username="bob",
+            content="Second with same image",
+            is_bot=False,
+            attachments=[attachment],
+        )
+        expected_sha = hashlib.sha256(image_data).hexdigest()
+        blobs = store.session.exec(
+            select(Blob).where(Blob.sha256 == expected_sha)
+        ).all()
+        assert len(blobs) == 1
+
+    @pytest.mark.asyncio
+    async def test_get_attachments_joins_blobs(self, store):
+        """Returns (Attachment, Blob) tuples correctly."""
+        attachment = {
+            "data": b"blob-data-for-join-test",
+            "content_type": "image/jpeg",
+            "filename": "photo.jpg",
+            "description": "A photo",
+        }
+        msg = await store.save_message(
+            discord_message_id="join-001",
+            channel_id="ch-join",
+            user_id="u-1",
+            username="alice",
+            content="Message with attachment",
+            is_bot=False,
+            attachments=[attachment],
+        )
+        assert msg is not None
+        result = store.get_attachments([msg.id])
+        assert msg.id in result
+        pairs = result[msg.id]
+        assert len(pairs) == 1
+        att, blob = pairs[0]
+        assert att.filename == "photo.jpg"
+        assert blob.content_type == "image/jpeg"
+        assert blob.data == b"blob-data-for-join-test"
+
+    @pytest.mark.asyncio
+    async def test_upsert_summary_insert_and_update(self, store):
+        """Insert then update same (channel, user) pair."""
+        store.upsert_summary(
+            channel_id="ch-sum",
+            user_id="u-1",
+            username="alice",
+            summary_text="Initial summary",
+            last_message_id=100,
+        )
+        summary = store.get_user_summary("ch-sum", "alice")
+        assert summary is not None
+        assert summary.summary == "Initial summary"
+
+        store.upsert_summary(
+            channel_id="ch-sum",
+            user_id="u-1",
+            username="alice",
+            summary_text="Updated summary",
+            last_message_id=200,
+        )
+        summary = store.get_user_summary("ch-sum", "alice")
+        assert summary is not None
+        assert summary.summary == "Updated summary"
+        assert summary.last_message_id == 200
+
+    @pytest.mark.asyncio
+    async def test_upsert_summary_unique_constraint(self, store):
+        """(channel_id, user_id) enforced, exactly one row."""
+        from sqlmodel import select
+
+        from chat.models import UserChannelSummary
+
+        store.upsert_summary(
+            channel_id="ch-uniq",
+            user_id="u-1",
+            username="alice",
+            summary_text="First",
+            last_message_id=1,
+        )
+        store.upsert_summary(
+            channel_id="ch-uniq",
+            user_id="u-1",
+            username="alice",
+            summary_text="Second",
+            last_message_id=2,
+        )
+        rows = store.session.exec(
+            select(UserChannelSummary).where(
+                UserChannelSummary.channel_id == "ch-uniq",
+                UserChannelSummary.user_id == "u-1",
+            )
+        ).all()
+        assert len(rows) == 1
+        assert rows[0].summary == "Second"
+
+
+# ---------------------------------------------------------------------------
+# Task 6: Agent Tool Execution E2E Tests
+# ---------------------------------------------------------------------------
+
+
+class TestAgentTools:
+    @pytest.mark.asyncio
+    async def test_search_history_returns_real_pgvector_results(
+        self, store, embed_client
+    ):
+        """Seed a message, run agent with TestModel, verify tool chain completes."""
+        from pydantic_ai.models.test import TestModel
+
+        from chat.agent import ChatDeps, create_agent
+
+        await store.save_message(
+            discord_message_id="agent-001",
+            channel_id="ch-agent",
+            user_id="u-1",
+            username="alice",
+            content="Discussion about deployment strategies",
+            is_bot=False,
+        )
+
+        agent = create_agent()
+        deps = ChatDeps(
+            channel_id="ch-agent",
+            store=store,
+            embed_client=embed_client,
+        )
+        result = await agent.run(
+            "Search for messages about deployment",
+            deps=deps,
+            model=TestModel(custom_result_text="Found deployment messages."),
+        )
+        assert result.output == "Found deployment messages."
+
+    @pytest.mark.asyncio
+    async def test_get_user_summary_returns_real_data(self, store, embed_client):
+        """Upsert a summary, run agent with TestModel, verify agent retrieves it."""
+        from pydantic_ai.models.test import TestModel
+
+        from chat.agent import ChatDeps, create_agent
+
+        store.upsert_summary(
+            channel_id="ch-agent-sum",
+            user_id="u-1",
+            username="alice",
+            summary_text="Alice has been discussing Kubernetes and GitOps workflows.",
+            last_message_id=50,
+        )
+
+        agent = create_agent()
+        deps = ChatDeps(
+            channel_id="ch-agent-sum",
+            store=store,
+            embed_client=embed_client,
+        )
+        result = await agent.run(
+            "What has alice been talking about?",
+            deps=deps,
+            model=TestModel(
+                custom_result_text="Alice discusses Kubernetes and GitOps."
+            ),
+        )
+        assert result.output == "Alice discusses Kubernetes and GitOps."
