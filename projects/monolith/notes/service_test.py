@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -15,10 +15,11 @@ class TestCreateFleetingNote:
 
         monkeypatch.setattr(notes.service, "VAULT_API_URL", "http://vault-mcp:8000")
 
-        mock_response = AsyncMock()
+        # raise_for_status and json are called synchronously in service.py (no await)
+        mock_response = MagicMock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"path": "Fleeting/2026-03-31 1423.md"}
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status.return_value = None
 
         with patch("notes.service.httpx.AsyncClient") as MockClient:
             MockClient.return_value.__aenter__ = AsyncMock(
@@ -42,10 +43,10 @@ class TestCreateFleetingNote:
 
         monkeypatch.setattr(notes.service, "VAULT_API_URL", "http://vault-mcp:8000")
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 400
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Bad Request", request=AsyncMock(), response=mock_response
+            "Bad Request", request=MagicMock(), response=mock_response
         )
 
         with patch("notes.service.httpx.AsyncClient") as MockClient:
@@ -65,9 +66,9 @@ class TestCreateFleetingNote:
 
         monkeypatch.setattr(notes.service, "VAULT_API_URL", "http://vault-mcp:8000")
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.json.return_value = {"path": "Fleeting/note.md"}
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status.return_value = None
 
         with patch("notes.service.httpx.AsyncClient") as MockClient:
             MockClient.return_value.__aenter__ = AsyncMock(
@@ -91,9 +92,9 @@ class TestCreateFleetingNote:
         monkeypatch.setattr(notes.service, "VAULT_API_URL", "http://vault-mcp:8000")
 
         expected = {"path": "Fleeting/2026-01-01 0000.md", "id": "abc123"}
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.json.return_value = expected
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status.return_value = None
 
         with patch("notes.service.httpx.AsyncClient") as MockClient:
             MockClient.return_value.__aenter__ = AsyncMock(
@@ -113,9 +114,9 @@ class TestCreateFleetingNote:
 
         monkeypatch.setattr(notes.service, "VAULT_API_URL", "http://custom-vault:9999")
 
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.json.return_value = {}
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status.return_value = None
 
         with patch("notes.service.httpx.AsyncClient") as MockClient:
             MockClient.return_value.__aenter__ = AsyncMock(
