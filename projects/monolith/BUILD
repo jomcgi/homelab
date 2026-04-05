@@ -693,6 +693,19 @@ py_test(
 )
 
 py_test(
+    name = "chat_summarizer_channel_test",
+    srcs = ["chat/summarizer_channel_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "chat_bot_exception_test",
     srcs = ["chat/bot_exception_test.py"],
     imports = ["."],
