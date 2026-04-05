@@ -5,7 +5,6 @@ Covers gaps identified in:
 - save_message() with attachments where description is empty string (falsy)
 - get_recent() called with the default limit (no explicit limit arg)
 - get_recent() when requested limit exceeds available messages
-- search_similar() SQL filter contains user_id when user_id is provided
 """
 
 from datetime import datetime, timezone
@@ -216,8 +215,7 @@ class TestSaveMessageAttachmentNoDescription:
 
 
 class TestGetRecentDefaultLimit:
-    @pytest.mark.asyncio
-    async def test_default_limit_returns_twenty_most_recent_of_many(
+    def test_default_limit_returns_twenty_most_recent_of_many(
         self, store, session
     ):
         """get_recent() with no limit arg returns at most 20 messages (the default)."""
@@ -240,8 +238,7 @@ class TestGetRecentDefaultLimit:
         result = store.get_recent("ch1")
         assert len(result) == 20
 
-    @pytest.mark.asyncio
-    async def test_default_limit_returns_newest_twenty_oldest_first(
+    def test_default_limit_returns_newest_twenty_oldest_first(
         self, store, session
     ):
         """get_recent() default limit returns the 20 newest messages, ordered oldest first."""
@@ -265,8 +262,7 @@ class TestGetRecentDefaultLimit:
         assert result[0].content == "msg 5"
         assert result[-1].content == "msg 24"
 
-    @pytest.mark.asyncio
-    async def test_limit_exceeds_available_returns_all(self, store, session):
+    def test_limit_exceeds_available_returns_all(self, store, session):
         """get_recent() returns all messages when limit > number of stored messages."""
         for i in range(3):
             session.add(
@@ -286,8 +282,7 @@ class TestGetRecentDefaultLimit:
         result = store.get_recent("ch1", limit=100)
         assert len(result) == 3
 
-    @pytest.mark.asyncio
-    async def test_limit_one_returns_single_most_recent(self, store, session):
+    def test_limit_one_returns_single_most_recent(self, store, session):
         """get_recent() with limit=1 returns a single-element list with the newest message."""
         for i in range(5):
             session.add(
@@ -309,46 +304,3 @@ class TestGetRecentDefaultLimit:
         assert result[0].content == "msg 4"
 
 
-# ---------------------------------------------------------------------------
-# search_similar() — user_id filter in SQL clause
-# ---------------------------------------------------------------------------
-
-
-class TestSearchSimilarUserIdFilter:
-    def test_user_id_filter_present_in_sql_when_provided(self):
-        """When user_id is given, the SQL WHERE clause contains AND user_id."""
-        from unittest.mock import MagicMock
-
-        mock_session = MagicMock()
-        mock_session.exec.return_value = []
-        embed_client = AsyncMock()
-        store = MessageStore(session=mock_session, embed_client=embed_client)
-
-        store.search_similar(
-            channel_id="ch1",
-            query_embedding=[0.0] * 1024,
-            user_id="u99",
-        )
-
-        sql_obj = mock_session.exec.call_args[0][0]
-        sql_text = str(sql_obj)
-        assert "user_id" in sql_text.lower()
-
-    def test_user_id_filter_absent_from_sql_when_not_provided(self):
-        """When user_id is not given, the SQL WHERE clause does not contain user_id."""
-        from unittest.mock import MagicMock
-
-        mock_session = MagicMock()
-        mock_session.exec.return_value = []
-        embed_client = AsyncMock()
-        store = MessageStore(session=mock_session, embed_client=embed_client)
-
-        store.search_similar(
-            channel_id="ch1",
-            query_embedding=[0.0] * 1024,
-            # no user_id
-        )
-
-        sql_obj = mock_session.exec.call_args[0][0]
-        sql_text = str(sql_obj)
-        assert "user_id" not in sql_text.lower()

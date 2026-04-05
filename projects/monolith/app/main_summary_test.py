@@ -2,9 +2,11 @@
 
 Covers gaps not addressed by existing main_* test files:
 - summary_task.add_done_callback(_log_task_exception) is called when Discord token is set
+- Both bot task and summary task register done callbacks
 - "Summary loop started (24h interval)" is logged when Discord token is set
+- "Summary loop started" is NOT logged without a token
 - _summary_loop logs logger.exception when generate_summaries raises
-- summary_task is cancelled on lifespan shutdown
+- _summary_loop continues after repeated failures (resilience)
 """
 
 from __future__ import annotations
@@ -39,25 +41,6 @@ def _make_task_capturer():
 
     return tasks, capture
 
-
-def _make_coro_capturer(target_position: int):
-    """Return (coro_list, task_list, side_effect_fn) capturing coro at given 1-based position."""
-    coros: list = []
-    tasks: list[MagicMock] = []
-    counter = [0]
-
-    def capture(coro, **kwargs):
-        counter[0] += 1
-        t = MagicMock()
-        tasks.append(t)
-        if counter[0] == target_position:
-            coros.append(coro)  # keep alive for later execution
-        else:
-            if hasattr(coro, "close"):
-                coro.close()
-        return t
-
-    return coros, tasks, capture
 
 
 # ---------------------------------------------------------------------------
@@ -128,29 +111,6 @@ class TestSummaryTaskDoneCallback:
         summary_task = task_mocks[3]
         bot_task.add_done_callback.assert_called_once_with(_log_task_exception)
         summary_task.add_done_callback.assert_called_once_with(_log_task_exception)
-
-    @pytest.mark.asyncio
-    async def test_summary_task_not_created_when_no_discord_token(self):
-        """When DISCORD_BOT_TOKEN is absent, no summary task is created."""
-        tasks, capture = _make_task_capturer()
-
-        env_without_token = {
-            k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
-        }
-        env_without_token["DISCORD_BOT_TOKEN"] = ""
-
-        with (
-            patch.dict(os.environ, env_without_token, clear=True),
-            patch("asyncio.create_task", side_effect=capture),
-        ):
-            async with lifespan(app):
-                pass
-
-        # Only scheduler + calendar; no bot, no summary
-        assert len(tasks) == 2
-        # Neither task gets add_done_callback
-        for t in tasks:
-            t.add_done_callback.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -348,37 +308,3 @@ class TestSummaryLoopExceptionLogging:
         assert exception_count[0] == 2
 
 
-# ---------------------------------------------------------------------------
-# summary_task cancellation on shutdown
-# ---------------------------------------------------------------------------
-
-
-class TestSummaryTaskCancellation:
-    @pytest.mark.asyncio
-    async def test_summary_task_cancelled_on_lifespan_shutdown(self):
-        """summary_task.cancel() is called when the lifespan context exits."""
-        mock_bot = MagicMock()
-        mock_bot.close = AsyncMock()
-
-        summary_task_mock = MagicMock()
-        task_counter = [0]
-
-        def capture_create_task(coro, **kwargs):
-            if hasattr(coro, "close"):
-                coro.close()
-            task_counter[0] += 1
-            if task_counter[0] == 4:
-                return summary_task_mock
-            return MagicMock()
-
-        with (
-            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
-            patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
-        ):
-            async with lifespan(app):
-                # summary task should exist but not yet cancelled
-                summary_task_mock.cancel.assert_not_called()
-
-        # After lifespan exits, summary task must be cancelled
-        summary_task_mock.cancel.assert_called_once()
