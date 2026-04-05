@@ -67,11 +67,12 @@ def _find_pg_root() -> Path:
     Bzlmod repo names use ``+postgres+postgres_test`` prefix.
     """
     srcdir = os.environ.get("TEST_SRCDIR", "")
-    # Bazel bzlmod external repo paths
+    # Bazel bzlmod: external repos live at the runfiles root (not under _main/external/)
     candidates = [
+        Path(srcdir) / "+postgres+postgres_test",
+        Path(srcdir) / "postgres_test",
         Path(srcdir) / "_main" / "external" / "+postgres+postgres_test",
         Path(srcdir) / "_main" / "external" / "postgres_test",
-        Path(srcdir) / "postgres_test",
     ]
     for candidate in candidates:
         # Check Debian-style path first (OCI extraction preserves it)
