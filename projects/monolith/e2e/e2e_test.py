@@ -448,6 +448,8 @@ class TestAgentTools:
         self, store, embed_client
     ):
         """Seed a message, run agent with TestModel, verify tool chain completes."""
+        from unittest.mock import patch
+
         from pydantic_ai.models.test import TestModel
 
         from chat.agent import ChatDeps, create_agent
@@ -467,11 +469,13 @@ class TestAgentTools:
             store=store,
             embed_client=embed_client,
         )
-        result = await agent.run(
-            "Search for messages about deployment",
-            deps=deps,
-            model=TestModel(custom_output_text="Found deployment messages."),
-        )
+        # Mock web_search since SearXNG is not available in test
+        with patch("chat.web_search.search_web", return_value="No results found."):
+            result = await agent.run(
+                "Search for messages about deployment",
+                deps=deps,
+                model=TestModel(custom_output_text="Found deployment messages."),
+            )
         assert result.output == "Found deployment messages."
 
         # Verify that tools were actually called
@@ -488,6 +492,8 @@ class TestAgentTools:
     @pytest.mark.asyncio
     async def test_get_user_summary_returns_real_data(self, store, embed_client):
         """Upsert a summary, run agent with TestModel, verify agent retrieves it."""
+        from unittest.mock import patch
+
         from pydantic_ai.models.test import TestModel
 
         from chat.agent import ChatDeps, create_agent
@@ -515,13 +521,15 @@ class TestAgentTools:
             store=store,
             embed_client=embed_client,
         )
-        result = await agent.run(
-            "What has alice been talking about?",
-            deps=deps,
-            model=TestModel(
-                custom_output_text="Alice discusses Kubernetes and GitOps."
-            ),
-        )
+        # Mock web_search since SearXNG is not available in test
+        with patch("chat.web_search.search_web", return_value="No results found."):
+            result = await agent.run(
+                "What has alice been talking about?",
+                deps=deps,
+                model=TestModel(
+                    custom_output_text="Alice discusses Kubernetes and GitOps."
+                ),
+            )
         assert result.output == "Alice discusses Kubernetes and GitOps."
 
         # Verify that tools were actually called
