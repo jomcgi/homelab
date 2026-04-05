@@ -220,9 +220,9 @@ py_test(
 
 py_test(
     name = "integration_test",
+    size = "medium",
     srcs = ["app/integration_test.py"],
     imports = ["."],
-    size = "medium",
     tags = ["integration"],
     deps = [
         ":monolith_backend",
