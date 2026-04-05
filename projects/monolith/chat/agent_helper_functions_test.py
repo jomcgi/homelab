@@ -9,6 +9,11 @@ Covers gaps not addressed by existing test files:
   limit boundary (exactly 20, over 20, under 20), username=None skips user lookup
 - get_user_summary tool: list path, specific-user path, dict username coercion
 - build_system_prompt: exact tool descriptions, conciseness guidance, tool usage prompt
+- build_system_prompt (DO/DON'T): persona ('friend hanging out'), DO:/DON'T: section
+  headers and ordering, DO section phrases ('Answer directly', 'Match the vibe',
+  proactive tool usage, 'one or two sentences'), DON'T section phrases
+  ('contextually, they are referring to', essay/report style, filler starters
+  'Sure!'/'Of course!'/'Great question!', announcing tool usage, 'as an AI')
 - format_context_messages: timestamp format, bot "Assistant" label, multiple messages,
   multiple attachments per message, missing message id in attachment map
 """
@@ -941,3 +946,106 @@ class TestGetUserSummarySpecificUserPath:
 
         store.list_user_summaries.assert_called_once()
         store.get_user_summary.assert_not_called()
+
+
+# ===========================================================================
+# build_system_prompt — persona, DO/DON'T structure, and behavioral guidance
+# ===========================================================================
+
+
+class TestBuildSystemPromptPersona:
+    def test_describes_friend_persona(self):
+        """System prompt uses 'friend hanging out' persona, not 'helpful assistant'."""
+        prompt = build_system_prompt()
+        assert "friend hanging out" in prompt
+
+    def test_does_not_describe_helpful_assistant(self):
+        """System prompt does NOT describe the agent as a 'helpful assistant'."""
+        prompt = build_system_prompt()
+        assert "helpful assistant" not in prompt
+
+    def test_mentions_casual_natural_tone(self):
+        """System prompt describes a casual, direct, and natural conversation style."""
+        prompt = build_system_prompt()
+        assert "casual" in prompt
+
+
+class TestBuildSystemPromptDoSectionHeader:
+    def test_do_section_header_present(self):
+        """System prompt contains a 'DO:' section header."""
+        prompt = build_system_prompt()
+        assert "DO:" in prompt
+
+    def test_dont_section_header_present(self):
+        """System prompt contains a \"DON'T:\" section header."""
+        prompt = build_system_prompt()
+        assert "DON'T:" in prompt
+
+    def test_do_header_appears_before_dont_header(self):
+        """The DO: section comes before the DON'T: section in the prompt."""
+        prompt = build_system_prompt()
+        do_pos = prompt.index("DO:")
+        dont_pos = prompt.index("DON'T:")
+        assert do_pos < dont_pos
+
+
+class TestBuildSystemPromptDoSection:
+    def test_instructs_answer_directly(self):
+        """DO section tells the agent to answer directly."""
+        prompt = build_system_prompt()
+        assert "Answer directly" in prompt
+
+    def test_instructs_match_the_vibe(self):
+        """DO section tells the agent to match the vibe of the conversation."""
+        prompt = build_system_prompt()
+        assert "Match the vibe" in prompt
+
+    def test_instructs_proactive_tool_usage(self):
+        """DO section explicitly says to use tools proactively."""
+        prompt = build_system_prompt()
+        assert "proactively" in prompt
+
+    def test_instructs_one_or_two_sentences(self):
+        """DO section advises keeping responses to one or two sentences."""
+        prompt = build_system_prompt()
+        assert "one or two sentences" in prompt.lower()
+
+
+class TestBuildSystemPromptDontSection:
+    def test_prohibits_contextual_narration(self):
+        """DON'T section forbids narrating with 'contextually, they are referring to'."""
+        prompt = build_system_prompt()
+        assert "contextually, they are referring to" in prompt
+
+    def test_prohibits_essay_or_report_style(self):
+        """DON'T section forbids writing like an essay or report."""
+        prompt = build_system_prompt()
+        # both "essay" and "report" must appear in the prohibition
+        assert "essay" in prompt
+        assert "report" in prompt
+
+    def test_prohibits_sure_filler_starter(self):
+        """DON'T section lists 'Sure!' as a prohibited filler starter."""
+        prompt = build_system_prompt()
+        assert "Sure!" in prompt
+
+    def test_prohibits_of_course_filler_starter(self):
+        """DON'T section lists 'Of course!' as a prohibited filler starter."""
+        prompt = build_system_prompt()
+        assert "Of course!" in prompt
+
+    def test_prohibits_great_question_filler_starter(self):
+        """DON'T section lists 'Great question!' as a prohibited filler starter."""
+        prompt = build_system_prompt()
+        assert "Great question!" in prompt
+
+    def test_prohibits_announcing_tool_usage(self):
+        """DON'T section tells the agent not to announce that it is using a tool."""
+        prompt = build_system_prompt()
+        # The prompt says "Announce that you're using a tool"
+        assert "Announce" in prompt
+
+    def test_prohibits_as_an_ai_apology(self):
+        """DON'T section forbids saying 'as an AI'."""
+        prompt = build_system_prompt()
+        assert "as an AI" in prompt
