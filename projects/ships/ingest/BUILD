@@ -131,7 +131,6 @@ py_test(
     deps = [
         ":ais-ingest",
         "@pip//fastapi",
-        "@pip//httpx",
         "@pip//pytest",
     ],
 )
