@@ -569,4 +569,179 @@ var _ = Describe("Service Controller — ensureHTTPRoute and ensureAccessPolicy"
 			})
 		})
 	})
+
+	// -----------------------------------------------------------------------
+	// ensureGateway
+	// -----------------------------------------------------------------------
+	Context("ensureGateway success paths", func() {
+		It("should create a new Cloudflare Gateway when none exists and return its name", func() {
+			svcName := fmt.Sprintf("svc-ensure-%d", time.Now().UnixNano())
+			svc := createEnsureTestService(svcName, map[string]string{
+				AnnotationHostname: "new-gw.example.com",
+			}, defaultPorts())
+
+			// Use a unique gateway name to avoid collision with other tests
+			uniqueGWName := fmt.Sprintf("namespace-new-%d", time.Now().UnixNano())
+			config := ServiceAnnotationConfig{
+				Hostname:         "new-gw.example.com",
+				Port:             8080,
+				GatewayName:      uniqueGWName,
+				GatewayNamespace: "default",
+			}
+
+			r := newEnsureReconciler()
+			gatewayName, err := r.ensureGateway(ctx, svc, config)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gatewayName).To(Equal(uniqueGWName))
+
+			By("Verifying the Gateway was created in k8s")
+			gw := &gatewayv1.Gateway{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: uniqueGWName, Namespace: "default"}, gw)).To(Succeed())
+
+			By("Verifying GatewayClassName is 'cloudflare'")
+			Expect(string(gw.Spec.GatewayClassName)).To(Equal("cloudflare"))
+
+			By("Verifying a single HTTPS listener on port 443")
+			Expect(gw.Spec.Listeners).To(HaveLen(1))
+			Expect(string(gw.Spec.Listeners[0].Name)).To(Equal("https"))
+			Expect(gw.Spec.Listeners[0].Port).To(Equal(gatewayv1.PortNumber(443)))
+			Expect(gw.Spec.Listeners[0].Protocol).To(Equal(gatewayv1.HTTPSProtocolType))
+
+			By("Verifying labels mark it as cloudflare-operator managed")
+			Expect(gw.Labels["app.kubernetes.io/name"]).To(Equal("cloudflare-gateway"))
+			Expect(gw.Labels["app.kubernetes.io/managed-by"]).To(Equal("cloudflare-operator"))
+			Expect(gw.Labels["cloudflare.io/gateway-scope"]).To(Equal("namespace"))
+
+			DeferCleanup(func() {
+				gw.Finalizers = []string{}
+				_ = k8sClient.Update(ctx, gw)
+				_ = k8sClient.Delete(ctx, gw)
+			})
+		})
+
+		It("should return the existing Gateway name without error when a Cloudflare Gateway already exists", func() {
+			svcName := fmt.Sprintf("svc-ensure-%d", time.Now().UnixNano())
+			svc := createEnsureTestService(svcName, map[string]string{
+				AnnotationHostname: "existing-gw.example.com",
+			}, defaultPorts())
+
+			existingGWName := fmt.Sprintf("cf-gw-existing-%d", time.Now().UnixNano())
+			gw := &gatewayv1.Gateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      existingGWName,
+					Namespace: "default",
+				},
+				Spec: gatewayv1.GatewaySpec{
+					GatewayClassName: "cloudflare",
+					Listeners: []gatewayv1.Listener{
+						{Name: "https", Protocol: gatewayv1.HTTPSProtocolType, Port: 443},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, gw)).To(Succeed())
+			DeferCleanup(func() {
+				gw.Finalizers = []string{}
+				_ = k8sClient.Update(ctx, gw)
+				_ = k8sClient.Delete(ctx, gw)
+			})
+
+			config := ServiceAnnotationConfig{
+				Hostname:         "existing-gw.example.com",
+				Port:             8080,
+				GatewayName:      existingGWName,
+				GatewayNamespace: "default",
+			}
+
+			r := newEnsureReconciler()
+			returnedName, err := r.ensureGateway(ctx, svc, config)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(returnedName).To(Equal(existingGWName))
+
+			By("Verifying no duplicate Gateway was created")
+			gwList := &gatewayv1.GatewayList{}
+			Expect(k8sClient.List(ctx, gwList)).To(Succeed())
+			count := 0
+			for _, g := range gwList.Items {
+				if g.Name == existingGWName && g.Namespace == "default" {
+					count++
+				}
+			}
+			Expect(count).To(Equal(1))
+		})
+
+		It("should return error when existing Gateway has a non-cloudflare GatewayClass", func() {
+			svcName := fmt.Sprintf("svc-ensure-%d", time.Now().UnixNano())
+			svc := createEnsureTestService(svcName, map[string]string{
+				AnnotationHostname: "wrong-class.example.com",
+			}, defaultPorts())
+
+			wrongGWName := fmt.Sprintf("wrong-class-gw-%d", time.Now().UnixNano())
+			gw := &gatewayv1.Gateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      wrongGWName,
+					Namespace: "default",
+				},
+				Spec: gatewayv1.GatewaySpec{
+					GatewayClassName: "istio",
+					Listeners: []gatewayv1.Listener{
+						{Name: "http", Protocol: gatewayv1.HTTPProtocolType, Port: 80},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, gw)).To(Succeed())
+			DeferCleanup(func() {
+				gw.Finalizers = []string{}
+				_ = k8sClient.Update(ctx, gw)
+				_ = k8sClient.Delete(ctx, gw)
+			})
+
+			config := ServiceAnnotationConfig{
+				Hostname:         "wrong-class.example.com",
+				Port:             8080,
+				GatewayName:      wrongGWName,
+				GatewayNamespace: "default",
+			}
+
+			r := newEnsureReconciler()
+			_, err := r.ensureGateway(ctx, svc, config)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("not a Cloudflare Gateway"))
+			Expect(err.Error()).To(ContainSubstring("istio"))
+		})
+
+		It("should be idempotent — second call with existing cloudflare Gateway returns name without error", func() {
+			svcName := fmt.Sprintf("svc-ensure-%d", time.Now().UnixNano())
+			svc := createEnsureTestService(svcName, map[string]string{
+				AnnotationHostname: "idempotent-gw.example.com",
+			}, defaultPorts())
+
+			idempotentGWName := fmt.Sprintf("cf-gw-idem-%d", time.Now().UnixNano())
+			config := ServiceAnnotationConfig{
+				Hostname:         "idempotent-gw.example.com",
+				Port:             8080,
+				GatewayName:      idempotentGWName,
+				GatewayNamespace: "default",
+			}
+
+			r := newEnsureReconciler()
+
+			By("First call — creates the Gateway")
+			name1, err := r.ensureGateway(ctx, svc, config)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(name1).To(Equal(idempotentGWName))
+
+			gw := &gatewayv1.Gateway{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: idempotentGWName, Namespace: "default"}, gw)).To(Succeed())
+			DeferCleanup(func() {
+				gw.Finalizers = []string{}
+				_ = k8sClient.Update(ctx, gw)
+				_ = k8sClient.Delete(ctx, gw)
+			})
+
+			By("Second call — returns existing Gateway without error")
+			name2, err := r.ensureGateway(ctx, svc, config)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(name2).To(Equal(idempotentGWName))
+		})
+	})
 })
