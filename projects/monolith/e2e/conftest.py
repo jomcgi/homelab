@@ -170,11 +170,13 @@ def pg(tmp_path_factory):
         )
 
     # --- initdb ---
-    # If running as root (BuildBuddy CI), chown the datadir so the demoted
-    # user (nobody) can write to it.
+    # If running as root (BuildBuddy CI), ensure the demoted user (nobody)
+    # can read PG files and write to the datadir.
     if os.getuid() == 0:
         nobody = pwd.getpwnam("nobody")
         os.chown(datadir, nobody.pw_uid, nobody.pw_gid)
+        # Make PG runfiles readable+traversable by nobody
+        subprocess.run(["chmod", "-R", "a+rX", str(pg_root)], check=True, timeout=30)
 
     initdb_result = subprocess.run(
         [
