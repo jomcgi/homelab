@@ -139,40 +139,17 @@ def pg(tmp_path_factory):
 
     env = os.environ.copy()
 
-    # PG binaries from the Debian OCI image must run with the matching
-    # Debian dynamic linker (ld-linux) and libraries. Mixing them with
-    # the CI host's glibc causes segfaults or missing symbol errors.
-    # We invoke all PG binaries via the extracted ld-linux with
-    # --library-path to keep them fully isolated from the host.
+    # The OCI extraction provides non-glibc Debian libraries (ICU, libssl,
+    # libpq, etc.) while excluding glibc components. We set LD_LIBRARY_PATH
+    # so PG binaries (and their child processes like postgres -V) find these.
     pg_lib_internal = pg_lib / "postgresql" / "16" / "lib"
     pg_arch_lib = pg_lib / "x86_64-linux-gnu"
     lib_path_str = f"{pg_arch_lib}:{pg_lib_internal}:{pg_lib}"
-
-    # Find the Debian dynamic linker extracted from the OCI image
-    ld_linux = None
-    for candidate in [
-        pg_root / "lib64" / "ld-linux-x86-64.so.2",
-        pg_root / "lib" / "x86_64-linux-gnu" / "ld-linux-x86-64.so.2",
-    ]:
-        if candidate.exists():
-            ld_linux = candidate
-            break
-
-    def _pg_cmd(binary: str, args: list[str]) -> list[str]:
-        """Build command to run a PG binary, using ld-linux if available."""
-        bin_path = str(pg_bin / binary)
-        if ld_linux is not None:
-            return [str(ld_linux), "--library-path", lib_path_str, bin_path] + args
-        return [bin_path] + args
-
-    # Always set LD_LIBRARY_PATH so child processes spawned by PG binaries
-    # (e.g. initdb running "postgres -V") also find the Debian libraries.
-    # The ld-linux --library-path only affects the immediate exec.
     existing_ld = env.get("LD_LIBRARY_PATH", "")
     env["LD_LIBRARY_PATH"] = (
         f"{lib_path_str}:{existing_ld}" if existing_ld else lib_path_str
     )
-    # macOS equivalent (no ld-linux on macOS)
+    # macOS equivalent
     existing_dyld = env.get("DYLD_LIBRARY_PATH", "")
     env["DYLD_LIBRARY_PATH"] = (
         f"{lib_path_str}:{existing_dyld}" if existing_dyld else lib_path_str
@@ -180,15 +157,13 @@ def pg(tmp_path_factory):
 
     # --- initdb ---
     initdb_result = subprocess.run(
-        _pg_cmd("initdb", ["-D", str(datadir), "--no-locale", "-U", "test"]),
+        [str(pg_bin / "initdb"), "-D", str(datadir), "--no-locale", "-U", "test"],
         env=env,
         capture_output=True,
     )
     if initdb_result.returncode != 0:
         raise RuntimeError(
             f"initdb failed (rc={initdb_result.returncode}).\n"
-            f"  cmd: {_pg_cmd('initdb', ['-D', str(datadir), '--no-locale', '-U', 'test'])}\n"
-            f"  ld_linux: {ld_linux}\n"
             f"  lib_path: {lib_path_str}\n"
             f"  stdout: {initdb_result.stdout.decode(errors='replace')}\n"
             f"  stderr: {initdb_result.stderr.decode(errors='replace')}"
@@ -196,32 +171,31 @@ def pg(tmp_path_factory):
 
     # --- start postgres ---
     proc = subprocess.Popen(
-        _pg_cmd(
-            "postgres",
-            [
-                "-D",
-                str(datadir),
-                "-p",
-                str(port),
-                "-k",
-                str(datadir),  # unix socket dir
-                "-c",
-                f"dynamic_library_path={lib_path_str}",
-                "-c",
-                f"extension_dir={pg_share}/extension",
-            ],
-        ),
+        [
+            str(pg_bin / "postgres"),
+            "-D",
+            str(datadir),
+            "-p",
+            str(port),
+            "-k",
+            str(datadir),  # unix socket dir
+            "-c",
+            f"dynamic_library_path={lib_path_str}",
+            "-c",
+            f"extension_dir={pg_share}/extension",
+        ],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
 
     # --- wait for ready ---
+    pg_isready = pg_bin / "pg_isready"
     deadline = time.monotonic() + 6.0
     ready = False
     while time.monotonic() < deadline:
         result = subprocess.run(
-            _pg_cmd("pg_isready", ["-h", "127.0.0.1", "-p", str(port), "-U", "test"]),
+            [str(pg_isready), "-h", "127.0.0.1", "-p", str(port), "-U", "test"],
             env=env,
             capture_output=True,
         )
