@@ -393,25 +393,24 @@ run_git_test \
 	""
 
 # 16. Write tool (content field instead of new_string) -- WARNING emitted when only test changed
-(
-	export GIT_STUB_TOPLEVEL="$FIXTURE"
-	export GIT_STUB_CACHED_FILES="projects/myservice/chart/tests/e2e_test.go"
-	export GIT_STUB_DIFF_FILES=""
-	export GIT_STUB_STATUS_FILES=""
-	INPUT=$(printf '{"tool_input":{"file_path":"%s","content":"version: 0.2.0\nname: myservice\n"}}' "$CHART_PATH")
-	STDERR=$(printf '%s' "$INPUT" | bash "$HOOK" 2>&1 >/dev/null)
-	GOT_EXIT=$?
-	if [[ "$GOT_EXIT" -ne 0 ]]; then
-		echo "FAIL [write_tool_content_field]: unexpected exit $GOT_EXIT"
-		FAIL=$((FAIL + 1))
-	elif ! echo "$STDERR" | grep -qE "WARNING:"; then
-		echo "FAIL [write_tool_content_field]: stderr $(printf '%q' "$STDERR") did not match /WARNING:/"
-		FAIL=$((FAIL + 1))
-	else
-		echo "PASS [write_tool_content_field]"
-		PASS=$((PASS + 1))
-	fi
-)
+#     Uses a custom input_json with the content field rather than new_string.
+write_tool_input=$(printf '{"tool_input":{"file_path":"%s","content":"version: 0.2.0\\nname: myservice\\n"}}' "$CHART_PATH")
+GIT_STUB_TOPLEVEL="$FIXTURE" \
+GIT_STUB_CACHED_FILES="projects/myservice/chart/tests/e2e_test.go" \
+GIT_STUB_DIFF_FILES="" \
+GIT_STUB_STATUS_FILES="" \
+	run_test "write_tool_content_field" "$write_tool_input" "WARNING:"
+
+# 17. Version changing, only a shell test file changed -- WARNING emitted
+run_git_test \
+	"version_bump_only_sh_test_emits_warning" \
+	"$CHART_PATH" \
+	"version: 0.2.0" \
+	"$FIXTURE" \
+	"projects/myservice/chart/tests/deploy_test.sh" \
+	"" \
+	"" \
+	"WARNING:"
 
 # ---------------------------------------------------------------------------
 # Summary
