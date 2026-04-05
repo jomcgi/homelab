@@ -68,6 +68,16 @@ class UserChannelSummary(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class MessageLock(SQLModel, table=True):
+    __tablename__ = "message_locks"
+    __table_args__ = {"schema": "chat"}
+
+    discord_message_id: str = Field(primary_key=True)
+    channel_id: str
+    claimed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    completed: bool = Field(default=False)
+
+
 class ChannelSummary(SQLModel, table=True):
     __tablename__ = "channel_summaries"
     __table_args__ = {"schema": "chat"}

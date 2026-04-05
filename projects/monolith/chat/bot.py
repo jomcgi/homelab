@@ -180,11 +180,24 @@ class ChatBot(discord.Client):
         if message.author.id == self.user.id:
             return
 
-        # Default to empty list so `attachments` is always bound even if the
-        # store block raises before download_image_attachments() is called.
+        # Acquire lock before any expensive work (embedding, vision, LLM).
+        # If another pod already claimed this message, skip it entirely.
+        msg_id = str(message.id)
+        channel_id = str(message.channel.id)
+        with Session(get_engine()) as session:
+            store = MessageStore(session=session, embed_client=self.embed_client)
+            if not store.acquire_lock(msg_id, channel_id):
+                logger.debug("Message %s already claimed by another pod", msg_id)
+                return
+
+        await self._process_message(message)
+
+    async def _process_message(self, message: discord.Message) -> None:
+        """Process a message that this pod has locked."""
+        msg_id = str(message.id)
+        channel_id = str(message.channel.id)
         attachments: list[dict] = []
 
-        # Process image attachments (pass store for blob dedup)
         try:
             with Session(get_engine()) as session:
                 store = MessageStore(session=session, embed_client=self.embed_client)
@@ -192,8 +205,8 @@ class ChatBot(discord.Client):
                     message.attachments, self.vision_client, store=store
                 )
                 await store.save_message(
-                    discord_message_id=str(message.id),
-                    channel_id=str(message.channel.id),
+                    discord_message_id=msg_id,
+                    channel_id=channel_id,
                     user_id=str(message.author.id),
                     username=message.author.display_name,
                     content=message.content,
@@ -201,9 +214,18 @@ class ChatBot(discord.Client):
                     attachments=attachments if attachments else None,
                 )
         except Exception:
-            logger.exception("Failed to store message %s", message.id)
+            logger.exception("Failed to store message %s", msg_id)
+            # Release lock so sweep can retry
+            with Session(get_engine()) as session:
+                store = MessageStore(session=session, embed_client=self.embed_client)
+                store.release_lock(msg_id)
+            return
 
         if not should_respond(message, self.user):
+            # Message stored successfully, mark lock done
+            with Session(get_engine()) as session:
+                store = MessageStore(session=session, embed_client=self.embed_client)
+                store.mark_completed(msg_id)
             return
 
         try:
@@ -216,33 +238,39 @@ class ChatBot(discord.Client):
             else:
                 sent = await message.reply(response_text)
         except Exception:
-            logger.exception("Failed to respond to message %s", message.id)
+            logger.exception("Failed to respond to message %s", msg_id)
             try:
                 await message.reply(
                     "Sorry, I'm having trouble reaching the language model right now. "
                     "Please try again in a moment."
                 )
             except Exception:
-                logger.exception(
-                    "Failed to send error reply for message %s", message.id
-                )
+                logger.exception("Failed to send error reply for message %s", msg_id)
+            # Mark completed even on LLM failure — the message was stored,
+            # and retrying the response would be confusing for the user.
+            with Session(get_engine()) as session:
+                store = MessageStore(session=session, embed_client=self.embed_client)
+                store.mark_completed(msg_id)
             return
 
-        # Store bot response separately — a storage failure shouldn't
-        # trigger an error reply when the user already received an answer.
+        # Store bot response separately
         try:
             with Session(get_engine()) as session:
                 store = MessageStore(session=session, embed_client=self.embed_client)
                 await store.save_message(
                     discord_message_id=str(sent.id),
-                    channel_id=str(message.channel.id),
+                    channel_id=channel_id,
                     user_id=str(self.user.id),
                     username=self.user.display_name,
                     content=response_text,
                     is_bot=True,
                 )
         except Exception:
-            logger.exception("Failed to store bot response for message %s", message.id)
+            logger.exception("Failed to store bot response for message %s", msg_id)
+
+        with Session(get_engine()) as session:
+            store = MessageStore(session=session, embed_client=self.embed_client)
+            store.mark_completed(msg_id)
 
     async def _generate_response(
         self,
@@ -385,6 +413,33 @@ class ChatBot(discord.Client):
                         )
                         await asyncio.sleep(delay)
             raise last_exc
+
+    async def reprocess_message(self, discord_message_id: str, channel_id: str) -> None:
+        """Re-fetch a message from Discord and process it. Used by the sweep."""
+        channel = self.get_channel(int(channel_id))
+        if not channel:
+            logger.warning(
+                "Cannot reprocess %s: channel %s not found",
+                discord_message_id,
+                channel_id,
+            )
+            return
+        try:
+            message = await channel.fetch_message(int(discord_message_id))
+        except discord.NotFound:
+            logger.info(
+                "Message %s was deleted, marking lock completed", discord_message_id
+            )
+            with Session(get_engine()) as session:
+                store = MessageStore(session=session, embed_client=self.embed_client)
+                store.mark_completed(discord_message_id)
+            return
+        except discord.HTTPException:
+            logger.exception(
+                "Failed to fetch message %s for reprocessing", discord_message_id
+            )
+            return
+        await self._process_message(message)
 
 
 def create_bot() -> ChatBot:

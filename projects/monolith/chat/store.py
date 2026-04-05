@@ -7,7 +7,14 @@ from dataclasses import dataclass
 from sqlmodel import Session, select
 
 from chat.embedding import EmbeddingClient
-from chat.models import Attachment, Blob, ChannelSummary, Message, UserChannelSummary
+from chat.models import (
+    Attachment,
+    Blob,
+    ChannelSummary,
+    Message,
+    MessageLock,
+    UserChannelSummary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -317,3 +324,88 @@ class MessageStore:
             UserChannelSummary.user_id.in_(user_ids),
         )
         return list(self.session.exec(stmt).all())
+
+    # -- Message lock operations ------------------------------------------------
+
+    def acquire_lock(self, discord_message_id: str, channel_id: str) -> bool:
+        """Try to claim a message for processing. Returns True if this caller won."""
+        from sqlalchemy.exc import IntegrityError
+
+        nested = self.session.begin_nested()
+        try:
+            self.session.add(
+                MessageLock(
+                    discord_message_id=discord_message_id,
+                    channel_id=channel_id,
+                )
+            )
+            self.session.flush()
+            nested.commit()
+            return True
+        except IntegrityError:
+            nested.rollback()
+            return False
+
+    def mark_completed(self, discord_message_id: str) -> None:
+        """Mark a lock as completed after successful processing."""
+        lock = self.session.get(MessageLock, discord_message_id)
+        if lock:
+            lock.completed = True
+            self.session.add(lock)
+            self.session.commit()
+
+    def release_lock(self, discord_message_id: str) -> None:
+        """Delete a lock on failure so it can be reclaimed immediately."""
+        lock = self.session.get(MessageLock, discord_message_id)
+        if lock:
+            self.session.delete(lock)
+            self.session.commit()
+
+    def reclaim_expired(
+        self, ttl_seconds: int = 30, limit: int = 5
+    ) -> list[MessageLock]:
+        """Reclaim locks that expired without completing.
+
+        Uses FOR UPDATE SKIP LOCKED so multiple pods won't grab the same row.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        from sqlalchemy import text
+
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=ttl_seconds)
+        sql = text(
+            "SELECT * FROM chat.message_locks "
+            "WHERE completed = false AND claimed_at < :cutoff "
+            "ORDER BY claimed_at "
+            "LIMIT :limit "
+            "FOR UPDATE SKIP LOCKED"
+        )
+        rows = self.session.exec(sql, params={"cutoff": cutoff, "limit": limit})
+        locks = [MessageLock.model_validate(row) for row in rows]
+
+        # Re-claim by bumping claimed_at
+        now = datetime.now(timezone.utc)
+        for lock in locks:
+            refreshed = self.session.get(MessageLock, lock.discord_message_id)
+            if refreshed:
+                refreshed.claimed_at = now
+                self.session.add(refreshed)
+        self.session.commit()
+        return locks
+
+    def cleanup_completed(self, max_age_seconds: int = 3600) -> int:
+        """Delete completed locks older than max_age. Returns count deleted."""
+        from datetime import datetime, timedelta, timezone
+
+        from sqlalchemy import text
+
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)
+        result = self.session.exec(
+            text(
+                "DELETE FROM chat.message_locks "
+                "WHERE completed = true AND claimed_at < :cutoff"
+            ),
+            params={"cutoff": cutoff},
+        )
+        self.session.commit()
+        return result.rowcount

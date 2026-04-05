@@ -15,7 +15,7 @@ from app.main import app, lifespan  # noqa: E402
 class TestLifespanWithDiscordToken:
     @pytest.mark.asyncio
     async def test_lifespan_starts_bot_when_token_set(self):
-        """When DISCORD_BOT_TOKEN is set lifespan creates four tasks (scheduler, calendar, bot, summary)."""
+        """When DISCORD_BOT_TOKEN is set lifespan creates five tasks (scheduler, calendar, bot, summary, sweep)."""
         created_tasks = []
 
         def capture_create_task(coro, **kwargs):
@@ -37,8 +37,8 @@ class TestLifespanWithDiscordToken:
             async with lifespan(app):
                 pass
 
-        # scheduler + calendar + bot + summary = 4 tasks
-        assert len(created_tasks) == 4
+        # scheduler + calendar + bot + summary + sweep = 5 tasks
+        assert len(created_tasks) == 5
 
     @pytest.mark.asyncio
     async def test_lifespan_closes_bot_on_shutdown(self):

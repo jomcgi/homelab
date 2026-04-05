@@ -141,11 +141,48 @@ async def lifespan(app: FastAPI):
         summary_task.add_done_callback(_log_task_exception)
         logger.info("Summary loop started (24h interval)")
 
+    # Sweep for expired message locks and clean up old completed ones
+    sweep_task = None
+    if discord_token and bot:
+
+        async def _lock_sweep_loop():
+            from chat.embedding import EmbeddingClient
+            from chat.store import MessageStore
+
+            embed_client = EmbeddingClient()
+            # Wait for bot to connect before sweeping
+            await bot.wait_until_ready()
+            while True:
+                await asyncio.sleep(30)
+                try:
+                    with Session(get_engine()) as session:
+                        store = MessageStore(session=session, embed_client=embed_client)
+                        expired = store.reclaim_expired(ttl_seconds=30, limit=5)
+                        for lock in expired:
+                            logger.info(
+                                "Reclaiming expired lock for message %s",
+                                lock.discord_message_id,
+                            )
+                            await bot.reprocess_message(
+                                lock.discord_message_id, lock.channel_id
+                            )
+                        cleaned = store.cleanup_completed(max_age_seconds=3600)
+                        if cleaned:
+                            logger.debug("Cleaned up %d completed locks", cleaned)
+                except Exception:
+                    logger.exception("Lock sweep failed")
+
+        sweep_task = asyncio.create_task(_lock_sweep_loop())
+        sweep_task.add_done_callback(_log_task_exception)
+        logger.info("Message lock sweep started (30s interval)")
+
     logger.info("Monolith started")
     yield
     backfill_task = getattr(app.state, "backfill_task", None)
     if backfill_task and not backfill_task.done():
         backfill_task.cancel()
+    if sweep_task:
+        sweep_task.cancel()
     if summary_task:
         summary_task.cancel()
     if bot:
