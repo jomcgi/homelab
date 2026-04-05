@@ -21,6 +21,23 @@ import (
 	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf"
 )
 
+// readAll drains rc and returns (total bytes, error). Used in tests to trigger
+// progressReader's EOF-triggered callback by consuming the reader fully.
+func readAll(rc io.ReadCloser) (int64, error) {
+	buf := make([]byte, 512)
+	var total int64
+	for {
+		n, err := rc.Read(buf)
+		total += int64(n)
+		if err == io.EOF {
+			return total, io.EOF
+		}
+		if err != nil {
+			return total, err
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // progressReader unit tests
 // ---------------------------------------------------------------------------
@@ -38,8 +55,8 @@ func TestProgressReader_ReportsTotalBytesOnEOF(t *testing.T) {
 		interval: 100 << 20, // 100MB — much larger than test data; only EOF triggers
 	}
 
-	buf := make([]byte, 4096)
-	_, err := pr.Read(buf)
+	// Read until EOF so the progressReader sees io.EOF and fires the callback.
+	_, err := readAll(pr)
 	require.ErrorIs(t, err, io.EOF)
 
 	assert.Equal(t, int64(1024), lastRead, "should report all bytes on EOF")
@@ -93,7 +110,8 @@ func TestProgressReader_TracksBytesRead(t *testing.T) {
 	assert.Equal(t, 256, n)
 	assert.Equal(t, int64(256), pr.read, "internal read counter should be updated")
 
-	_, _ = pr.Read(buf) // read remaining + EOF
+	// Read remaining + drain to EOF.
+	_, _ = readAll(pr)
 	assert.Equal(t, int64(512), reported)
 }
 
@@ -137,13 +155,12 @@ func TestShardProgressReader_AccumulatesAggregate(t *testing.T) {
 
 	data := make([]byte, 50)
 
-	// Wrap two readers.
+	// Wrap two readers and drain them both so EOF fires the callback.
 	r1 := agg.wrapShardProgress(io.NopCloser(bytes.NewReader(data)), 1, 50)
 	r2 := agg.wrapShardProgress(io.NopCloser(bytes.NewReader(data)), 2, 50)
 
-	buf := make([]byte, 100)
-	_, _ = r1.Read(buf)
-	_, _ = r2.Read(buf)
+	_, _ = readAll(r1)
+	_, _ = readAll(r2)
 
 	agg.mu.Lock()
 	total := agg.totalRead
@@ -176,8 +193,8 @@ func TestShardProgressReader_ReportsPerShardAndOverall(t *testing.T) {
 	data := make([]byte, 200)
 	reader := agg.wrapShardProgress(io.NopCloser(bytes.NewReader(data)), 1, 200)
 
-	buf := make([]byte, 4096)
-	_, _ = reader.Read(buf) // reads all + EOF triggers report
+	// Drain the reader so EOF is reached and the callback fires.
+	_, _ = readAll(reader)
 
 	require.NotEmpty(t, reports)
 	last := reports[len(reports)-1]
@@ -214,13 +231,8 @@ func TestShardProgressReader_ConcurrentSafeAggregation(t *testing.T) {
 			defer wg.Done()
 			data := make([]byte, chunkSize)
 			r := agg.wrapShardProgress(io.NopCloser(bytes.NewReader(data)), int64(i+1), int64(chunkSize))
-			buf := make([]byte, 4096)
-			for {
-				_, err := r.Read(buf)
-				if err == io.EOF {
-					break
-				}
-			}
+			// Drain the reader fully so EOF fires the final progress report.
+			_, _ = readAll(r)
 		}()
 	}
 	wg.Wait()
