@@ -97,8 +97,10 @@ class TestGenerateResponseWithAttachments:
 
         assert result == ("That's a cat.", None)
         prompt_arg = bot.agent.run.call_args[0][0]
-        assert "cat.png" in prompt_arg
-        assert "A tabby cat sitting on a windowsill" in prompt_arg
+        # prompt_arg is a list when images are present; text is the first element
+        text = prompt_arg[0] if isinstance(prompt_arg, list) else prompt_arg
+        assert "cat.png" in text
+        assert "A tabby cat sitting on a windowsill" in text
 
     @pytest.mark.asyncio
     async def test_image_context_uses_attached_image_format(self):
@@ -136,8 +138,10 @@ class TestGenerateResponseWithAttachments:
             await bot._generate_response(msg, current_attachments=attachments)
 
         prompt_arg = bot.agent.run.call_args[0][0]
+        # prompt_arg is a list when images are present; text is the first element
+        text = prompt_arg[0] if isinstance(prompt_arg, list) else prompt_arg
         # The format is: [Attached image 'filename': description]
-        assert "[Attached image 'photo.jpg': A mountain landscape]" in prompt_arg
+        assert "[Attached image 'photo.jpg': A mountain landscape]" in text
 
     @pytest.mark.asyncio
     async def test_multiple_attachments_all_included_in_prompt(self):
@@ -181,10 +185,12 @@ class TestGenerateResponseWithAttachments:
             await bot._generate_response(msg, current_attachments=attachments)
 
         prompt_arg = bot.agent.run.call_args[0][0]
-        assert "first.png" in prompt_arg
-        assert "First image: a dog" in prompt_arg
-        assert "second.jpg" in prompt_arg
-        assert "Second image: a cat" in prompt_arg
+        # prompt_arg is a list when images are present; text is the first element
+        text = prompt_arg[0] if isinstance(prompt_arg, list) else prompt_arg
+        assert "first.png" in text
+        assert "First image: a dog" in text
+        assert "second.jpg" in text
+        assert "Second image: a cat" in text
 
     @pytest.mark.asyncio
     async def test_no_image_context_when_attachments_is_none(self):

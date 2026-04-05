@@ -773,6 +773,19 @@ py_test(
 )
 
 py_test(
+    name = "chat_bot_multimodal_test",
+    srcs = ["chat/bot_multimodal_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "chat_summarizer_prompts_test",
     srcs = ["chat/summarizer_prompts_test.py"],
     imports = ["."],
