@@ -96,6 +96,20 @@ async def _summarize_thinking(
         return thinking[:THINKING_TRUNCATE_AT] + "... (truncated)"
 
 
+class ThinkingView(discord.ui.View):
+    """Discord View with a 'Show thinking' button that reveals model reasoning."""
+
+    def __init__(self, thinking_text: str):
+        super().__init__(timeout=None)
+        self.thinking_text = thinking_text
+
+    @discord.ui.button(label="Show thinking", style=discord.ButtonStyle.secondary)
+    async def show_thinking(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        await interaction.response.send_message(self.thinking_text, ephemeral=True)
+
+
 def should_respond(message: discord.Message, bot_user: discord.User) -> bool:
     """Determine if the bot should respond to a message."""
     if message.author.bot:
@@ -193,8 +207,13 @@ class ChatBot(discord.Client):
 
         try:
             async with message.channel.typing():
-                response_text = await self._generate_response(message, attachments)
-            sent = await message.reply(response_text)
+                response_text, thinking = await self._generate_response(
+                    message, attachments
+                )
+            if thinking:
+                sent = await message.reply(response_text, view=ThinkingView(thinking))
+            else:
+                sent = await message.reply(response_text)
         except Exception:
             logger.exception("Failed to respond to message %s", message.id)
             try:
@@ -228,8 +247,12 @@ class ChatBot(discord.Client):
         self,
         message: discord.Message,
         current_attachments: list[dict] | None = None,
-    ) -> str:
-        """Build context and run the PydanticAI agent."""
+    ) -> tuple[str, str | None]:
+        """Build context and run the PydanticAI agent.
+
+        Returns (response_text, thinking_text). thinking_text is None when
+        the model produced no <think> blocks.
+        """
         from chat.agent import ChatDeps
 
         with Session(get_engine()) as session:
@@ -270,7 +293,28 @@ class ChatBot(discord.Client):
             for attempt in range(LLM_MAX_RETRIES):
                 try:
                     result = await self.agent.run(user_prompt, deps=deps)
-                    return result.output
+                    response, thinking = _parse_thinking(result.output)
+
+                    # Retry once if model produced thinking but no response
+                    if not response:
+                        nudge = (
+                            f"{user_prompt}\n\n"
+                            "You produced reasoning but no visible response. "
+                            "Please respond to the user directly."
+                        )
+                        result = await self.agent.run(nudge, deps=deps)
+                        response, thinking = _parse_thinking(result.output)
+                        if not response:
+                            response = (
+                                "Sorry, I'm having trouble formulating a response. "
+                                "Please try again."
+                            )
+
+                    # Summarize long thinking
+                    if thinking:
+                        thinking = await _summarize_thinking(thinking)
+
+                    return response, thinking
                 except Exception as exc:
                     last_exc = exc
                     if attempt < LLM_MAX_RETRIES - 1:
