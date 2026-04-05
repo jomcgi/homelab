@@ -21,6 +21,12 @@ import pytest
 from sqlalchemy import event, text
 from sqlmodel import Session, create_engine
 
+
+def pytest_configure(config):
+    """Set asyncio_mode so @pytest.mark.asyncio works without ini config."""
+    config.option.asyncio_mode = "auto"
+
+
 # ---------------------------------------------------------------------------
 # Suppress env vars BEFORE importing app modules (module-level side effects)
 # ---------------------------------------------------------------------------

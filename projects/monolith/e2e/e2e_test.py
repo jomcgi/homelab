@@ -5,6 +5,7 @@ Tests run against real PostgreSQL 16 + pgvector. External services
 """
 
 import pytest
+from pydantic_ai.messages import ToolCallPart
 
 
 def test_postgres_is_running(pg):
@@ -70,9 +71,9 @@ class TestHomeAPI:
         assert data["daily"][1]["done"] is True
 
     def test_reset_daily_clears_tasks_and_creates_archive(self, client):
-        """PUT, reset daily, verify archive created."""
+        """PUT, reset daily, verify archive created and tasks cleared."""
         payload = {
-            "weekly": {"task": "weekly stays", "done": False},
+            "weekly": {"task": "Weekly goal", "done": False},
             "daily": [
                 {"task": "daily to archive", "done": True},
             ],
@@ -87,6 +88,11 @@ class TestHomeAPI:
         assert dates_resp.status_code == 200
         dates = dates_resp.json()
         assert len(dates) >= 1
+
+        # Verify daily tasks were actually cleared
+        after = client.get("/api/home").json()
+        assert all(d["task"] == "" for d in after["daily"])
+        assert after["weekly"]["task"] == "Weekly goal"  # weekly preserved
 
     def test_reset_weekly_clears_weekly_task(self, client):
         """PUT, reset weekly, verify cleared."""
@@ -334,8 +340,7 @@ class TestMessageStore:
         assert blob.content_type == "image/jpeg"
         assert blob.data == b"blob-data-for-join-test"
 
-    @pytest.mark.asyncio
-    async def test_upsert_summary_insert_and_update(self, store):
+    def test_upsert_summary_insert_and_update(self, store):
         """Insert then update same (channel, user) pair."""
         store.upsert_summary(
             channel_id="ch-sum",
@@ -360,8 +365,7 @@ class TestMessageStore:
         assert summary.summary == "Updated summary"
         assert summary.last_message_id == 200
 
-    @pytest.mark.asyncio
-    async def test_upsert_summary_unique_constraint(self, store):
+    def test_upsert_summary_unique_constraint(self, store):
         """(channel_id, user_id) enforced, exactly one row."""
         from sqlmodel import select
 
@@ -428,6 +432,17 @@ class TestAgentTools:
         )
         assert result.output == "Found deployment messages."
 
+        # Verify that tools were actually called
+        messages = result.all_messages()
+        tool_call_messages = [
+            m
+            for m in messages
+            if hasattr(m, "parts") and any(isinstance(p, ToolCallPart) for p in m.parts)
+        ]
+        assert len(tool_call_messages) >= 1, (
+            "Agent should have called at least one tool"
+        )
+
     @pytest.mark.asyncio
     async def test_get_user_summary_returns_real_data(self, store, embed_client):
         """Upsert a summary, run agent with TestModel, verify agent retrieves it."""
@@ -457,3 +472,14 @@ class TestAgentTools:
             ),
         )
         assert result.output == "Alice discusses Kubernetes and GitOps."
+
+        # Verify that tools were actually called
+        messages = result.all_messages()
+        tool_call_messages = [
+            m
+            for m in messages
+            if hasattr(m, "parts") and any(isinstance(p, ToolCallPart) for p in m.parts)
+        ]
+        assert len(tool_call_messages) >= 1, (
+            "Agent should have called at least one tool"
+        )
