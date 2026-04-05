@@ -151,10 +151,10 @@ class TestBuildSystemPromptReturnType:
 
 
 class TestBuildSystemPromptToolGuidance:
-    def test_encourages_proactive_tool_use(self):
-        """System prompt encourages proactive tool usage."""
+    def test_encourages_proactive_search(self):
+        """System prompt encourages search-first behavior."""
         prompt = build_system_prompt()
-        assert "tools" in prompt.lower()
+        assert "Search before you respond" in prompt
 
     def test_includes_dont_pretend_rule(self):
         """System prompt warns against claiming to have searched without doing so."""
@@ -178,10 +178,10 @@ class TestBuildSystemPromptGuidance:
         prompt = build_system_prompt()
         assert "concise" in prompt
 
-    def test_instructs_use_tools_before_claiming_no_context(self):
-        """System prompt tells the agent to use tools before saying it lacks context."""
+    def test_instructs_search_first_for_factual_content(self):
+        """System prompt tells the agent to search before responding to factual content."""
         prompt = build_system_prompt()
-        assert "Use your tools" in prompt
+        assert "search" in prompt.lower()
 
     def test_instructs_matching_conversation_vibe(self):
         """System prompt tells the agent to match conversation vibe."""
@@ -976,10 +976,10 @@ class TestBuildSystemPromptDoSection:
         prompt = build_system_prompt()
         assert "Match the vibe" in prompt
 
-    def test_instructs_proactive_tool_usage(self):
-        """DO section explicitly says to use tools proactively."""
+    def test_instructs_search_first_behavior(self):
+        """DO section explicitly says to search before responding."""
         prompt = build_system_prompt()
-        assert "proactively" in prompt
+        assert "Search before you respond" in prompt
 
     def test_instructs_one_or_two_sentences(self):
         """DO section advises keeping responses to one or two sentences."""
