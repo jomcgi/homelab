@@ -191,8 +191,8 @@ class TestLifespanEvents:
 
     @pytest.mark.asyncio
     async def test_lifespan_calls_stop_on_shutdown(self):
-        """service.stop() is called when the app shuts down."""
-        from projects.ships.backend.main import app, service
+        """service.stop() is called when the lifespan context shuts down."""
+        import projects.ships.backend.main as main_module
 
         stop_called = False
 
@@ -200,13 +200,13 @@ class TestLifespanEvents:
             nonlocal stop_called
             stop_called = True
 
-        with patch.object(service, "start", new_callable=AsyncMock):
-            with patch.object(service, "stop", side_effect=mock_stop):
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test"):
-                    pass  # Context exit triggers shutdown
+        with patch.object(main_module.service, "start", new_callable=AsyncMock):
+            with patch.object(main_module.service, "stop", side_effect=mock_stop):
+                # Directly invoke the lifespan context manager; shutdown runs on exit
+                async with main_module.lifespan(main_module.app):
+                    pass
 
-        assert stop_called, "service.stop() must be called during app shutdown"
+        assert stop_called, "service.stop() must be called during lifespan shutdown"
 
 
 class TestHealthEndpoint:

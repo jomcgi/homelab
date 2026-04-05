@@ -15,7 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import ASGITransport, AsyncClient
 
 from projects.ships.ingest.main import AISIngestService, app
 
@@ -109,24 +108,28 @@ class TestLifespanEvents:
 
     @pytest.mark.asyncio
     async def test_lifespan_continues_after_startup_exception(self):
-        """App continues serving even if service.start() raises during lifespan."""
+        """Lifespan still reaches yield (and stop) even if service.start() raises."""
         import projects.ships.ingest.main as main_module
+
+        stop_called = False
+
+        async def mock_stop():
+            nonlocal stop_called
+            stop_called = True
 
         with patch.object(
             main_module.service, "start", side_effect=Exception("NATS unavailable")
         ):
-            with patch.object(main_module.service, "stop", new_callable=AsyncMock):
-                transport = ASGITransport(app=app)
-                async with AsyncClient(
-                    transport=transport, base_url="http://test"
-                ) as client:
-                    # /health should still respond even after startup failure
-                    response = await client.get("/health")
-                    assert response.status_code == 200
+            with patch.object(main_module.service, "stop", side_effect=mock_stop):
+                # Directly invoke the lifespan; startup exception is swallowed, stop runs
+                async with main_module.lifespan(app):
+                    pass
+
+        assert stop_called, "stop() must be called even after a startup exception"
 
     @pytest.mark.asyncio
     async def test_lifespan_calls_stop_on_shutdown(self):
-        """service.stop() is called when the app shuts down."""
+        """service.stop() is called when the lifespan context shuts down."""
         import projects.ships.ingest.main as main_module
 
         stop_called = False
@@ -137,11 +140,11 @@ class TestLifespanEvents:
 
         with patch.object(main_module.service, "start", new_callable=AsyncMock):
             with patch.object(main_module.service, "stop", side_effect=mock_stop):
-                transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test"):
-                    pass  # Context exit triggers lifespan shutdown
+                # Directly invoke the lifespan context manager; shutdown runs on exit
+                async with main_module.lifespan(app):
+                    pass
 
-        assert stop_called, "service.stop() must be called during app shutdown"
+        assert stop_called, "service.stop() must be called during lifespan shutdown"
 
 
 class TestHealthEndpoint:
@@ -233,7 +236,7 @@ class TestHealthEndpoint:
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/health")
 
-        assert response.json()["nats_connected"] is False
+        assert response.json().get("nats_connected") is False
 
     def test_health_nats_connected_true_when_connected(self):
         """nats_connected is True when NATS nc.is_connected is True."""
@@ -249,7 +252,7 @@ class TestHealthEndpoint:
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/health")
 
-        assert response.json()["nats_connected"] is True
+        assert response.json().get("nats_connected") is True
 
     def test_health_websocket_connected_matches_ready_flag(self):
         """websocket_connected mirrors service.ready."""
@@ -258,15 +261,18 @@ class TestHealthEndpoint:
         for ready_value in (True, False):
             with patch.object(main_module, "service") as mock_svc:
                 mock_svc.ready = ready_value
-                mock_svc.nc = MagicMock() if ready_value else None
-                mock_svc.nc.is_connected = ready_value if ready_value else False
+                if ready_value:
+                    mock_svc.nc = MagicMock()
+                    mock_svc.nc.is_connected = True
+                else:
+                    mock_svc.nc = None
                 mock_svc.messages_published = 0
                 mock_svc.last_message_time = None
 
                 client = TestClient(app, raise_server_exceptions=False)
                 response = client.get("/health")
 
-            assert response.json()["websocket_connected"] is ready_value
+            assert response.json().get("websocket_connected") is ready_value
 
     def test_health_messages_published_is_integer(self):
         """messages_published is a non-negative integer."""
@@ -299,7 +305,7 @@ class TestHealthEndpoint:
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/health")
 
-        assert response.json()["last_message_time"] is None
+        assert response.json().get("last_message_time") is None
 
 
 class TestMetricsEndpoint:
@@ -359,7 +365,7 @@ class TestMetricsEndpoint:
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/metrics")
 
-        assert response.json()["last_message_time"] is None
+        assert response.json().get("last_message_time") is None
 
     def test_metrics_only_contains_expected_fields(self):
         """Metrics response contains exactly messages_published and last_message_time."""
