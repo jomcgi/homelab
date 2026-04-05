@@ -1248,7 +1248,7 @@ py_test(
         "e2e/e2e_test.py",
     ],
     data = [
-        "//projects/monolith/chart/migrations",
+        "//projects/monolith/chart:migrations",
         "@postgres_test//:postgres",
     ],
     imports = ["."],
@@ -1278,7 +1278,7 @@ py_test(
     ],
     data = [
         ":frontend_dist",
-        "//projects/monolith/chart/migrations",
+        "//projects/monolith/chart:migrations",
         "@postgres_test//:postgres",
     ],
     imports = ["."],

@@ -1,5 +1,11 @@
 load("//bazel/helm:defs.bzl", "helm_chart")
 
+filegroup(
+    name = "migrations",
+    srcs = glob(["migrations/*.sql", "migrations/atlas.sum"]),
+    visibility = ["//projects/monolith:__subpackages__"],
+)
+
 helm_chart(
     name = "chart",
     images = {
