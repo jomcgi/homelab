@@ -56,6 +56,8 @@ class MessageStore:
             self.session.flush()
             if attachments:
                 for a in attachments:
+                    if a["data"] is None:
+                        continue
                     sha = hashlib.sha256(a["data"]).hexdigest()
                     existing_blob = self.session.get(Blob, sha)
                     if not existing_blob:
