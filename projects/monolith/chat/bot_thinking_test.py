@@ -232,6 +232,8 @@ class TestThinkingIntegration:
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_result = _make_result("Hello!", thinking="reasoning here")
         bot.agent.run = AsyncMock(return_value=mock_result)
@@ -267,6 +269,8 @@ class TestThinkingIntegration:
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_result = _make_result("Hello!")
         bot.agent.run = AsyncMock(return_value=mock_result)
@@ -295,6 +299,8 @@ class TestThinkingIntegration:
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         thinking_only = _make_result("", thinking="just reasoning")
         proper_response = _make_result("Here's my answer!")
@@ -330,6 +336,8 @@ class TestThinkingIntegration:
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         # Both results: empty output, no thinking
         empty_result1 = _make_result("")
@@ -363,6 +371,8 @@ class TestThinkingIntegration:
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         # result.output contains literal '<think>' text — not a ThinkingPart
         literal_output = "Use <think> tags to structure your reasoning."

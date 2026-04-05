@@ -66,6 +66,8 @@ def _setup_bot_mocks(bot, response_text="That's a cool image."):
     mock_store = MagicMock()
     mock_store.get_recent = MagicMock(return_value=[])
     mock_store.get_attachments = MagicMock(return_value={})
+    mock_store.get_channel_summary = MagicMock(return_value=None)
+    mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
     mock_result = MagicMock()
     mock_result.new_messages.return_value = []

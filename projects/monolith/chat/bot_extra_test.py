@@ -134,6 +134,8 @@ class TestGenerateResponseStoreFailure:
         mock_store = MagicMock()
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         bot.agent.run = AsyncMock(side_effect=RuntimeError("model unavailable"))
 
@@ -167,6 +169,8 @@ class TestGenerateResponseStoreFailure:
         mock_store = MagicMock()
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_result = MagicMock()
         mock_result.new_messages.return_value = []
@@ -263,6 +267,8 @@ class TestOnMessageDoubleSave:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
         mock_store.save_message = AsyncMock(side_effect=save_side_effect)
 
         with (
@@ -299,6 +305,8 @@ class TestGenerateResponseEmptyContext:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
         mock_agent_result.new_messages.return_value = []
@@ -328,6 +336,8 @@ class TestGenerateResponseEmptyContext:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
         mock_agent_result.new_messages.return_value = []
@@ -357,6 +367,8 @@ class TestGenerateResponseEmptyContext:
 
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_agent_result = MagicMock()
         mock_agent_result.new_messages.return_value = []

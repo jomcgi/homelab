@@ -83,6 +83,8 @@ class TestExponentialBackoffDelays:
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         # Agent always raises
         bot.agent.run = AsyncMock(side_effect=RuntimeError("LLM down"))
@@ -120,6 +122,8 @@ class TestExponentialBackoffDelays:
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         error = ConnectionError("timeout")
         bot.agent.run = AsyncMock(side_effect=error)
@@ -152,6 +156,8 @@ class TestExponentialBackoffDelays:
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_result = MagicMock()
         mock_result.new_messages.return_value = []
@@ -185,6 +191,8 @@ class TestExponentialBackoffDelays:
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_result = MagicMock()
         mock_result.new_messages.return_value = []
@@ -219,6 +227,8 @@ class TestExponentialBackoffDelays:
         mock_store = MagicMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         bot.agent.run = AsyncMock(side_effect=ValueError("model error"))
 
@@ -264,6 +274,8 @@ class TestNestedErrorReplyFailure:
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_result = MagicMock()
         mock_result.new_messages.return_value = []
@@ -300,6 +312,8 @@ class TestNestedErrorReplyFailure:
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         mock_result = MagicMock()
         mock_result.new_messages.return_value = []
@@ -342,6 +356,8 @@ class TestNestedErrorReplyFailure:
         mock_store.save_message = AsyncMock()
         mock_store.get_recent = MagicMock(return_value=[])
         mock_store.get_attachments = MagicMock(return_value={})
+        mock_store.get_channel_summary = MagicMock(return_value=None)
+        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
         # Agent always fails — triggers _generate_response to raise
         bot.agent.run = AsyncMock(side_effect=RuntimeError("LLM down"))
