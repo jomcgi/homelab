@@ -76,11 +76,13 @@ class TestVisionClientErrorPaths:
     @pytest.mark.asyncio
     async def test_propagates_http_error_from_raise_for_status(self, client):
         """describe() propagates HTTPStatusError raised by raise_for_status()."""
+        error_resp = MagicMock()
+        error_resp.status_code = 400  # 4xx is not retryable
         fake_response = MagicMock()
         fake_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "500 Internal Server Error",
+            "400 Bad Request",
             request=MagicMock(),
-            response=MagicMock(),
+            response=error_resp,
         )
 
         with patch("chat.vision.httpx.AsyncClient") as mock_cls:

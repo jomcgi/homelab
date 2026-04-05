@@ -19,6 +19,7 @@ class TestVisionClient:
         """describe() returns a text description from Gemma 4 vision."""
         fake_response = MagicMock()
         fake_response.status_code = 200
+        fake_response.raise_for_status = MagicMock()
         fake_response.json.return_value = {
             "choices": [{"message": {"content": "A photo of a sunset over the ocean"}}]
         }
@@ -40,6 +41,7 @@ class TestVisionClient:
         image_bytes = b"\x89PNG\r\n"
         fake_response = MagicMock()
         fake_response.status_code = 200
+        fake_response.raise_for_status = MagicMock()
         fake_response.json.return_value = {
             "choices": [{"message": {"content": "A picture"}}]
         }
