@@ -630,9 +630,7 @@ class TestWebsocketLiveDisconnect:
 
         mock_ws = AsyncMock()
         # First receive returns "ping", second raises WebSocketDisconnect
-        mock_ws.receive_text = AsyncMock(
-            side_effect=["ping", WebSocketDisconnect()]
-        )
+        mock_ws.receive_text = AsyncMock(side_effect=["ping", WebSocketDisconnect()])
         mock_ws.send_json = AsyncMock()
         mock_ws.send_text = AsyncMock()
 

@@ -70,9 +70,7 @@ class TestSubscribeToAisstreamBoundingBox:
                 "projects.ships.ingest.main.websockets.connect",
                 return_value=_EmptyWebSocket(),
             ),
-            patch(
-                "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
-            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             # Must not raise — the generic except block catches json.JSONDecodeError
             await service.subscribe_to_aisstream()
@@ -95,16 +93,12 @@ class TestSubscribeToAisstreamBoundingBox:
                 "projects.ships.ingest.main.certifi.where",
                 return_value=fake_ca_path,
             ),
-            patch(
-                "projects.ships.ingest.main.ssl.create_default_context"
-            ) as mock_ssl,
+            patch("projects.ships.ingest.main.ssl.create_default_context") as mock_ssl,
             patch(
                 "projects.ships.ingest.main.websockets.connect",
                 return_value=_EmptyWebSocket(),
             ),
-            patch(
-                "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
-            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
 
@@ -127,9 +121,7 @@ class TestSubscribeToAisstreamBoundingBox:
                 "projects.ships.ingest.main.websockets.connect",
                 return_value=_EmptyWebSocket(),
             ),
-            patch(
-                "projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep
-            ),
+            patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
 
@@ -225,8 +217,12 @@ class TestMetricsCounterIncrements:
 
         # Simulate three sequential publishes
         await service.publish_position("123456789", data)
-        await service.publish_position("123456789", {**data, "timestamp": "2024-01-15T10:01:00Z"})
-        await service.publish_position("123456789", {**data, "timestamp": "2024-01-15T10:02:00Z"})
+        await service.publish_position(
+            "123456789", {**data, "timestamp": "2024-01-15T10:01:00Z"}
+        )
+        await service.publish_position(
+            "123456789", {**data, "timestamp": "2024-01-15T10:02:00Z"}
+        )
 
         assert service.messages_published == 3
 
