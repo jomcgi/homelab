@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+from dataclasses import dataclass
 
 from sqlmodel import Session, select
 
@@ -9,6 +10,12 @@ from chat.embedding import EmbeddingClient
 from chat.models import Attachment, Blob, Message, UserChannelSummary
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SaveResult:
+    stored: int
+    skipped: int
 
 
 def _build_embed_text(content: str, descriptions: list[str]) -> str:
@@ -24,38 +31,44 @@ class MessageStore:
         self.session = session
         self.embed_client = embed_client
 
-    async def save_message(
-        self,
-        discord_message_id: str,
-        channel_id: str,
-        user_id: str,
-        username: str,
-        content: str,
-        is_bot: bool,
-        attachments: list[dict] | None = None,
-    ) -> Message | None:
-        """Embed and persist a message. Returns None if already stored."""
+    async def save_messages(self, messages: list[dict]) -> SaveResult:
+        """Embed and persist a batch of messages. Skips duplicates via savepoints."""
         from sqlalchemy.exc import IntegrityError
 
-        descriptions = [
-            a["description"] for a in (attachments or []) if a.get("description")
-        ]
-        embed_text = _build_embed_text(content, descriptions)
-        embedding = await self.embed_client.embed(embed_text)
-        msg = Message(
-            discord_message_id=discord_message_id,
-            channel_id=channel_id,
-            user_id=user_id,
-            username=username,
-            content=content,
-            is_bot=is_bot,
-            embedding=embedding,
-        )
-        try:
-            self.session.add(msg)
-            self.session.flush()
-            if attachments:
-                for a in attachments:
+        if not messages:
+            return SaveResult(stored=0, skipped=0)
+
+        # Build embed texts for the whole batch
+        embed_texts = []
+        for m in messages:
+            descriptions = [
+                a["description"]
+                for a in (m.get("attachments") or [])
+                if a.get("description")
+            ]
+            embed_texts.append(_build_embed_text(m["content"], descriptions))
+
+        # Single batch embedding call
+        embeddings = await self.embed_client.embed_batch(embed_texts)
+
+        stored = 0
+        skipped = 0
+
+        for m, embedding in zip(messages, embeddings, strict=True):
+            nested = self.session.begin_nested()
+            try:
+                msg = Message(
+                    discord_message_id=m["discord_message_id"],
+                    channel_id=m["channel_id"],
+                    user_id=m["user_id"],
+                    username=m["username"],
+                    content=m["content"],
+                    is_bot=m["is_bot"],
+                    embedding=embedding,
+                )
+                self.session.add(msg)
+                self.session.flush()
+                for a in m.get("attachments") or []:
                     if a["data"] is None:
                         continue
                     sha = hashlib.sha256(a["data"]).hexdigest()
@@ -77,12 +90,42 @@ class MessageStore:
                             filename=a["filename"],
                         )
                     )
-            self.session.commit()
-            self.session.refresh(msg)
-            return msg
-        except IntegrityError:
-            self.session.rollback()
+                nested.commit()
+                stored += 1
+            except IntegrityError:
+                nested.rollback()
+                skipped += 1
+
+        self.session.commit()
+        return SaveResult(stored=stored, skipped=skipped)
+
+    async def save_message(
+        self,
+        discord_message_id: str,
+        channel_id: str,
+        user_id: str,
+        username: str,
+        content: str,
+        is_bot: bool,
+        attachments: list[dict] | None = None,
+    ) -> Message | None:
+        """Embed and persist a message. Returns None if already stored."""
+        msg_dict = {
+            "discord_message_id": discord_message_id,
+            "channel_id": channel_id,
+            "user_id": user_id,
+            "username": username,
+            "content": content,
+            "is_bot": is_bot,
+            "attachments": attachments,
+        }
+        result = await self.save_messages([msg_dict])
+        if result.skipped:
             return None
+        saved = self.session.exec(
+            select(Message).where(Message.discord_message_id == discord_message_id)
+        ).first()
+        return saved
 
     def get_recent(self, channel_id: str, limit: int = 20) -> list[Message]:
         """Return the most recent messages in a channel, oldest first."""
