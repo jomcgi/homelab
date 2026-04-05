@@ -3,7 +3,7 @@
 Covers:
 - ConnectTimeout retry-then-succeed cycle (gap: only ConnectError was tested)
 - EMBED_RETRY_MAX_DELAY (30s) cap on exponential backoff (gap: cap was never asserted)
-- httpx.Timeout passed to AsyncClient with correct EMBED_CONNECT_TIMEOUT / EMBED_READ_TIMEOUT
+- httpx.Timeout passed to AsyncClient with correct EMBED_CONNECT_TIMEOUT / EMBED_BATCH_READ_TIMEOUT
   values (gap: timeout values were never verified)
 """
 
@@ -13,8 +13,8 @@ import httpx
 import pytest
 
 from chat.embedding import (
+    EMBED_BATCH_READ_TIMEOUT,
     EMBED_CONNECT_TIMEOUT,
-    EMBED_READ_TIMEOUT,
     EmbeddingClient,
 )
 
@@ -39,7 +39,9 @@ def _make_mock_http_client(response=None, side_effect=None):
 def _ok_response(embedding=None) -> MagicMock:
     resp = MagicMock()
     resp.raise_for_status = MagicMock()
-    resp.json.return_value = {"data": [{"embedding": embedding or [0.1] * 1024}]}
+    resp.json.return_value = {
+        "data": [{"index": 0, "embedding": embedding or [0.1] * 1024}]
+    }
     return resp
 
 
@@ -182,12 +184,14 @@ class TestRetryMaxDelayCap:
 class TestEmbedTimeoutConfiguration:
     @pytest.mark.asyncio
     async def test_embed_passes_correct_timeout_to_async_client(self):
-        """embed() passes httpx.Timeout with EMBED_READ_TIMEOUT and EMBED_CONNECT_TIMEOUT to AsyncClient."""
+        """embed() passes httpx.Timeout with EMBED_BATCH_READ_TIMEOUT and EMBED_CONNECT_TIMEOUT to AsyncClient."""
         client = EmbeddingClient(base_url="http://fake:8080")
 
         fake_response = MagicMock()
         fake_response.raise_for_status = MagicMock()
-        fake_response.json.return_value = {"data": [{"embedding": [0.0] * 1024}]}
+        fake_response.json.return_value = {
+            "data": [{"index": 0, "embedding": [0.0] * 1024}]
+        }
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
             mock_http = AsyncMock()
@@ -210,12 +214,14 @@ class TestEmbedTimeoutConfiguration:
 
     @pytest.mark.asyncio
     async def test_embed_timeout_read_matches_constant(self):
-        """embed() configures the AsyncClient read timeout to EMBED_READ_TIMEOUT."""
+        """embed() configures the AsyncClient read timeout to EMBED_BATCH_READ_TIMEOUT."""
         client = EmbeddingClient(base_url="http://fake:8080")
 
         fake_response = MagicMock()
         fake_response.raise_for_status = MagicMock()
-        fake_response.json.return_value = {"data": [{"embedding": [0.0] * 1024}]}
+        fake_response.json.return_value = {
+            "data": [{"index": 0, "embedding": [0.0] * 1024}]
+        }
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
             mock_http = AsyncMock()
@@ -232,7 +238,7 @@ class TestEmbedTimeoutConfiguration:
             if call_kwargs.kwargs
             else call_kwargs[1].get("timeout")
         )
-        assert timeout_arg.read == pytest.approx(EMBED_READ_TIMEOUT)
+        assert timeout_arg.read == pytest.approx(EMBED_BATCH_READ_TIMEOUT)
 
     @pytest.mark.asyncio
     async def test_embed_timeout_connect_matches_constant(self):
@@ -241,7 +247,9 @@ class TestEmbedTimeoutConfiguration:
 
         fake_response = MagicMock()
         fake_response.raise_for_status = MagicMock()
-        fake_response.json.return_value = {"data": [{"embedding": [0.0] * 1024}]}
+        fake_response.json.return_value = {
+            "data": [{"index": 0, "embedding": [0.0] * 1024}]
+        }
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
             mock_http = AsyncMock()

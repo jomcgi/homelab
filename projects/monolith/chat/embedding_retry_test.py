@@ -29,7 +29,9 @@ def _make_mock_http_client(response=None, side_effect=None):
 def _ok_response(embedding=None) -> MagicMock:
     resp = MagicMock()
     resp.raise_for_status = MagicMock()
-    resp.json.return_value = {"data": [{"embedding": embedding or [0.1] * 1024}]}
+    resp.json.return_value = {
+        "data": [{"index": 0, "embedding": embedding or [0.1] * 1024}]
+    }
     return resp
 
 
