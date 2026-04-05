@@ -60,3 +60,58 @@ class TestParseThinking:
         response, thinking = _parse_thinking(text)
         assert response == "Hello!"
         assert thinking is None
+
+
+from unittest.mock import AsyncMock, patch, MagicMock
+import httpx
+
+from chat.bot import _summarize_thinking
+
+
+class TestSummarizeThinking:
+    @pytest.mark.asyncio
+    async def test_short_thinking_returned_as_is(self):
+        """Thinking under 2000 chars is not summarized."""
+        result = await _summarize_thinking(
+            "short reasoning", base_url="http://fake:8080"
+        )
+        assert result == "short reasoning"
+
+    @pytest.mark.asyncio
+    async def test_long_thinking_calls_llm(self):
+        """Thinking over 2000 chars triggers an LLM summarization call."""
+        long_text = "x" * 2001
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "summarized"}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("chat.bot.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock(return_value=mock_response)
+            mock_client_cls.return_value = mock_client
+            result = await _summarize_thinking(long_text, base_url="http://fake:8080")
+
+        assert result == "summarized"
+        call_kwargs = mock_client.post.call_args
+        payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
+        assert payload["max_tokens"] == 1024
+
+    @pytest.mark.asyncio
+    async def test_llm_failure_truncates(self):
+        """If summarization LLM call fails, truncate to 1990 chars."""
+        long_text = "x" * 2500
+
+        with patch("chat.bot.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock(side_effect=httpx.HTTPError("timeout"))
+            mock_client_cls.return_value = mock_client
+            result = await _summarize_thinking(long_text, base_url="http://fake:8080")
+
+        assert len(result) <= 2000
+        assert result.endswith("... (truncated)")

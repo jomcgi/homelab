@@ -7,6 +7,7 @@ import os
 import re
 
 import discord
+import httpx
 
 from chat.agent import create_agent, format_context_messages
 from chat.embedding import EmbeddingClient
@@ -19,6 +20,9 @@ from sqlmodel import Session
 logger = logging.getLogger(__name__)
 
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
+DISCORD_MESSAGE_LIMIT = 2000
+THINKING_TRUNCATE_AT = 1985
+LLAMA_CPP_URL = os.environ.get("LLAMA_CPP_URL", "")
 
 LLM_MAX_RETRIES = 3
 LLM_RETRY_BASE_DELAY = 1.0  # seconds
@@ -52,6 +56,44 @@ def _parse_thinking(text: str) -> tuple[str, str | None]:
     response = cleaned.strip()
     thinking = "\n\n".join(thinking_parts) if thinking_parts else None
     return response, thinking
+
+
+async def _summarize_thinking(
+    thinking: str,
+    base_url: str | None = None,
+) -> str:
+    """Summarize thinking text if it exceeds Discord's message limit."""
+    if len(thinking) <= DISCORD_MESSAGE_LIMIT:
+        return thinking
+
+    url = base_url or LLAMA_CPP_URL
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+            resp = await client.post(
+                f"{url}/v1/chat/completions",
+                json={
+                    "model": "gemma-4-26b-a4b",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": (
+                                "Summarize this reasoning concisely. "
+                                "Keep the key points but make it much shorter:\n\n"
+                                f"{thinking}"
+                            ),
+                        }
+                    ],
+                    "max_tokens": 1024,
+                },
+            )
+            resp.raise_for_status()
+            summary = resp.json()["choices"][0]["message"]["content"]
+            if len(summary) > DISCORD_MESSAGE_LIMIT:
+                return summary[:THINKING_TRUNCATE_AT] + "... (truncated)"
+            return summary
+    except Exception:
+        logger.warning("Failed to summarize thinking, truncating")
+        return thinking[:THINKING_TRUNCATE_AT] + "... (truncated)"
 
 
 def should_respond(message: discord.Message, bot_user: discord.User) -> bool:
