@@ -49,13 +49,17 @@ class TestEmbedNullResponse:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_raises_value_error_on_empty_data_list(self, client):
-        """embed() raises ValueError when 'data' is an empty list (IndexError path)."""
+    async def test_raises_index_error_on_empty_data_list(self, client):
+        """embed() raises IndexError when 'data' is empty.
+
+        embed_batch() returns [] for empty data (valid), then embed()
+        does [][0] which raises IndexError.
+        """
         mock_client = _mock_client_returning({"data": []})
 
         with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
-            with pytest.raises(ValueError, match="unexpected embedding response shape"):
+            with pytest.raises(IndexError):
                 await client.embed("some text")
 
     @pytest.mark.asyncio

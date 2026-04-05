@@ -109,7 +109,7 @@ class TestSaveMessageNonIntegrityError:
             "disk full", params=None, orig=None
         )
         embed_client = AsyncMock()
-        embed_client.embed.return_value = [0.0] * 1024
+        embed_client.embed_batch.return_value = [[0.0] * 1024]
         store = MessageStore(session=mock_session, embed_client=embed_client)
 
         with pytest.raises(OperationalError):
@@ -128,7 +128,7 @@ class TestSaveMessageNonIntegrityError:
         mock_session = MagicMock()
         mock_session.commit.side_effect = RuntimeError("unexpected DB failure")
         embed_client = AsyncMock()
-        embed_client.embed.return_value = [0.0] * 1024
+        embed_client.embed_batch.return_value = [[0.0] * 1024]
         store = MessageStore(session=mock_session, embed_client=embed_client)
 
         with pytest.raises(RuntimeError, match="unexpected DB failure"):
@@ -151,7 +151,7 @@ class TestSaveMessageNonIntegrityError:
             "lock timeout", params=None, orig=None
         )
         embed_client = AsyncMock()
-        embed_client.embed.return_value = [0.0] * 1024
+        embed_client.embed_batch.return_value = [[0.0] * 1024]
         store = MessageStore(session=mock_session, embed_client=embed_client)
 
         try:
