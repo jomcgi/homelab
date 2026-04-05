@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from sqlmodel import Session, select
 
 from chat.embedding import EmbeddingClient
-from chat.models import Attachment, Blob, Message, UserChannelSummary
+from chat.models import Attachment, Blob, ChannelSummary, Message, UserChannelSummary
 
 logger = logging.getLogger(__name__)
 
@@ -270,3 +270,50 @@ class MessageStore:
                 )
             )
         self.session.commit()
+
+    def get_channel_summary(self, channel_id: str) -> ChannelSummary | None:
+        """Return the rolling summary for a channel, or None."""
+        stmt = select(ChannelSummary).where(ChannelSummary.channel_id == channel_id)
+        return self.session.exec(stmt).first()
+
+    def upsert_channel_summary(
+        self,
+        channel_id: str,
+        summary_text: str,
+        last_message_id: int,
+        message_count: int,
+    ) -> None:
+        """Insert or update a rolling summary for a channel."""
+        from datetime import datetime, timezone
+
+        existing = self.session.exec(
+            select(ChannelSummary).where(ChannelSummary.channel_id == channel_id)
+        ).first()
+        if existing:
+            existing.summary = summary_text
+            existing.last_message_id = last_message_id
+            existing.message_count = message_count
+            existing.updated_at = datetime.now(timezone.utc)
+            self.session.add(existing)
+        else:
+            self.session.add(
+                ChannelSummary(
+                    channel_id=channel_id,
+                    summary=summary_text,
+                    last_message_id=last_message_id,
+                    message_count=message_count,
+                )
+            )
+        self.session.commit()
+
+    def get_user_summaries_for_users(
+        self, channel_id: str, user_ids: list[str]
+    ) -> list[UserChannelSummary]:
+        """Return user summaries for a specific set of users in a channel."""
+        if not user_ids:
+            return []
+        stmt = select(UserChannelSummary).where(
+            UserChannelSummary.channel_id == channel_id,
+            UserChannelSummary.user_id.in_(user_ids),
+        )
+        return list(self.session.exec(stmt).all())
