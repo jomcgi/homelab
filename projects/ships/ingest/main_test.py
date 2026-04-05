@@ -13,6 +13,7 @@ Covers:
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx  # noqa: F401 - required transitively by fastapi.testclient.TestClient
 import pytest
 from fastapi.testclient import TestClient
 
