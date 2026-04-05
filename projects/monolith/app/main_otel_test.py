@@ -22,22 +22,38 @@ os.environ.pop("STATIC_DIR", None)
 import app.main  # noqa: F401, E402
 
 
+def _make_otel_fake_modules():
+    """Build fake sys.modules entries for all opentelemetry subpackages used by main.py."""
+    mock_instrumentor_class = MagicMock()
+    mock_instrumentor_class.instrument_app = MagicMock()
+
+    mock_fastapi_module = MagicMock()
+    mock_fastapi_module.FastAPIInstrumentor = mock_instrumentor_class
+
+    mock_trace = MagicMock()
+
+    # Inject fakes for all OTEL subpackages imported by main.py.
+    # Do NOT replace the root opentelemetry package — pydantic_ai and other
+    # transitive deps import opentelemetry.trace, opentelemetry.baggage, etc.
+    return {
+        "opentelemetry.exporter": MagicMock(),
+        "opentelemetry.exporter.otlp": MagicMock(),
+        "opentelemetry.exporter.otlp.proto": MagicMock(),
+        "opentelemetry.exporter.otlp.proto.http": MagicMock(),
+        "opentelemetry.exporter.otlp.proto.http.trace_exporter": MagicMock(),
+        "opentelemetry.instrumentation": MagicMock(),
+        "opentelemetry.instrumentation.fastapi": mock_fastapi_module,
+        "opentelemetry.sdk": MagicMock(),
+        "opentelemetry.sdk.resources": MagicMock(),
+        "opentelemetry.sdk.trace": MagicMock(),
+        "opentelemetry.sdk.trace.export": MagicMock(),
+    }, mock_instrumentor_class
+
+
 class TestOtelInstrumentationSuccessBranch:
     def test_instrument_app_called_when_opentelemetry_available(self):
         """FastAPIInstrumentor.instrument_app() is called when the package is present."""
-        mock_instrumentor_class = MagicMock()
-        mock_instrumentor_class.instrument_app = MagicMock()
-
-        mock_otel_module = MagicMock()
-        mock_otel_module.FastAPIInstrumentor = mock_instrumentor_class
-
-        # Inject a fake opentelemetry.instrumentation.fastapi into sys.modules.
-        # Do NOT replace the root opentelemetry package — pydantic_ai and other
-        # transitive deps import opentelemetry.trace, opentelemetry.baggage, etc.
-        fake_modules = {
-            "opentelemetry.instrumentation": MagicMock(),
-            "opentelemetry.instrumentation.fastapi": mock_otel_module,
-        }
+        fake_modules, mock_instrumentor_class = _make_otel_fake_modules()
 
         with patch.dict(sys.modules, fake_modules):
             importlib.reload(app.main)
@@ -55,12 +71,21 @@ class TestOtelInstrumentationImportErrorBranch:
 
     def _reload_main_without_otel(self):
         """Reload app.main with opentelemetry instrumentation blocked."""
-        # Only block the instrumentation subpackage (not the root opentelemetry
-        # package) because pydantic_ai imports opentelemetry.trace at import
-        # time and would fail if the root package were blocked.
+        # Only block the instrumentation/SDK/exporter subpackages (not the root
+        # opentelemetry package) because pydantic_ai imports opentelemetry.trace
+        # at import time and would fail if the root package were blocked.
         blocked = {
+            "opentelemetry.exporter": None,
+            "opentelemetry.exporter.otlp": None,
+            "opentelemetry.exporter.otlp.proto": None,
+            "opentelemetry.exporter.otlp.proto.http": None,
+            "opentelemetry.exporter.otlp.proto.http.trace_exporter": None,
             "opentelemetry.instrumentation": None,
             "opentelemetry.instrumentation.fastapi": None,
+            "opentelemetry.sdk": None,
+            "opentelemetry.sdk.resources": None,
+            "opentelemetry.sdk.trace": None,
+            "opentelemetry.sdk.trace.export": None,
         }
 
         log_records: list[logging.LogRecord] = []

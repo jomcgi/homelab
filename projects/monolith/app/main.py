@@ -143,10 +143,27 @@ if Path(_static_dir).is_dir():
     app.mount("/", StaticFiles(directory=_static_dir, html=True), name="frontend")
     logger.info("Serving frontend from %s", _static_dir)
 
-# OTEL instrumentation (optional -- enabled by auto-instrumentation annotation)
+# OTEL instrumentation (manual setup -- operator auto-inject breaks Bazel runfiles)
 try:
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+    resource = Resource.create({"service.name": "monolith-backend"})
+    exporter = OTLPSpanExporter(
+        endpoint=os.environ.get(
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+            "http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318/v1/traces",
+        ),
+    )
+    provider = TracerProvider(resource=resource)
+    provider.add_span_processor(BatchSpanProcessor(exporter))
+
+    from opentelemetry import trace
+
+    trace.set_tracer_provider(provider)
     FastAPIInstrumentor.instrument_app(app)
     logger.info("OpenTelemetry instrumentation enabled")
 except ImportError:
