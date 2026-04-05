@@ -396,9 +396,9 @@ run_git_test \
 #     Uses a custom input_json with the content field rather than new_string.
 write_tool_input=$(printf '{"tool_input":{"file_path":"%s","content":"version: 0.2.0\\nname: myservice\\n"}}' "$CHART_PATH")
 GIT_STUB_TOPLEVEL="$FIXTURE" \
-GIT_STUB_CACHED_FILES="projects/myservice/chart/tests/e2e_test.go" \
-GIT_STUB_DIFF_FILES="" \
-GIT_STUB_STATUS_FILES="" \
+	GIT_STUB_CACHED_FILES="projects/myservice/chart/tests/e2e_test.go" \
+	GIT_STUB_DIFF_FILES="" \
+	GIT_STUB_STATUS_FILES="" \
 	run_test "write_tool_content_field" "$write_tool_input" "WARNING:"
 
 # 17. Version changing, only a shell test file changed -- WARNING emitted

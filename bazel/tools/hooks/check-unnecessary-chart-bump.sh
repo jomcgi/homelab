@@ -66,8 +66,8 @@ ALL_CHANGED=$(
 	git -C "$REPO_ROOT" diff --name-only HEAD -- \
 		"${SERVICE_DIR_REL}/chart/" "${SERVICE_DIR_REL}/deploy/" 2>/dev/null || true
 	git -C "$REPO_ROOT" status --porcelain -- \
-		"${SERVICE_DIR_REL}/chart/" "${SERVICE_DIR_REL}/deploy/" 2>/dev/null \
-		| awk '{print $NF}' || true
+		"${SERVICE_DIR_REL}/chart/" "${SERVICE_DIR_REL}/deploy/" 2>/dev/null |
+		awk '{print $NF}' || true
 )
 
 # Deduplicate, filter out the Chart.yaml itself and blank lines
@@ -93,7 +93,7 @@ while IFS= read -r f; do
 	if ! echo "$f" | grep -qE '(_test\.(py|go|ts|sh)$|/(tests?|fixtures?|testdata)/)'; then
 		NON_TEST_FILES="${NON_TEST_FILES:+$NON_TEST_FILES$'\n'}$f"
 	fi
-done <<< "$CHANGED_FILES"
+done <<<"$CHANGED_FILES"
 
 if [[ -z "$NON_TEST_FILES" ]]; then
 	cat >&2 <<-EOF
