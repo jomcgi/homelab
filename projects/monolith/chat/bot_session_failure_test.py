@@ -1,13 +1,9 @@
-"""Tests for on_message() when the DB session fails before attachments is assigned.
+"""Tests for on_message() when the DB session fails during lock acquisition.
 
-Regression test for a latent NameError: if get_engine() or Session.__enter__()
-raises *before* `attachments = await download_image_attachments(...)` is reached,
-the variable `attachments` is unbound.  A subsequent `should_respond` check
-returning True would then cause _generate_response(message, attachments) to raise
-NameError, propagating out of the catch-all try/except and crashing the handler.
-
-The fix (bot.py) initialises `attachments = []` before the try block, ensuring
-the variable is always bound regardless of how early the session fails.
+With the message lock pattern, get_engine() or Session failures during
+acquire_lock() cause on_message to return early — the message is not
+processed and no response is attempted. This is the correct behaviour:
+if we can't claim the lock, we can't safely process.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -68,54 +64,33 @@ def _make_message(
     return msg
 
 
-class TestOnMessageSessionFailureBeforeAttachments:
+class TestOnMessageSessionFailureDuringLock:
     @pytest.mark.asyncio
-    async def test_get_engine_raises_before_attachments_no_name_error(self):
-        """on_message does not raise NameError when get_engine() fails.
+    async def test_get_engine_raises_during_lock_returns_cleanly(self):
+        """on_message returns cleanly when get_engine() fails during lock acquisition.
 
-        This tests the fix where attachments=[] is initialised before the
-        try block.  Without the fix, get_engine() raising means 'attachments'
-        is unbound; calling _generate_response(message, attachments) later
-        would raise NameError when the bot is mentioned.
+        With the lock-first pattern, a DB failure during acquire_lock means the
+        message cannot be claimed. on_message should return without processing.
         """
         bot = _make_bot()
         bot_user = bot.user
         message = _make_message(content="Hey bot!", mentions=[bot_user])
         message.reference = None
 
-        mock_generate_response = AsyncMock(return_value=("Hello!", None))
-
-        with (
-            patch(
-                "chat.bot.get_engine", side_effect=RuntimeError("engine unavailable")
-            ),
-            patch("chat.bot.Session"),
-            patch.object(bot, "_generate_response", mock_generate_response),
+        with patch(
+            "chat.bot.get_engine", side_effect=RuntimeError("engine unavailable")
         ):
-            # Must not raise NameError (or any other unhandled exception)
             await bot.on_message(message)
 
-        # The bot should still have attempted to reply using an empty attachments list
-        mock_generate_response.assert_called_once()
-        _, kwargs = mock_generate_response.call_args
-        # current_attachments should be the empty-list fallback (falsy → None was passed)
-        # or []  — either way, not unbound
-        call_args = mock_generate_response.call_args[0]
-        # attachments arg is the second positional arg or keyword current_attachments
-        passed_attachments = (
-            call_args[1]
-            if len(call_args) > 1
-            else mock_generate_response.call_args[1].get("current_attachments", [])
-        )
-        assert passed_attachments == [] or passed_attachments is None
+        # No reply should be attempted — lock acquisition failed
+        message.reply.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_session_enter_raises_before_attachments_no_name_error(self):
-        """on_message does not raise NameError when Session.__enter__() fails.
+    async def test_session_enter_raises_during_lock_returns_cleanly(self):
+        """on_message returns cleanly when Session.__enter__() fails during lock.
 
-        Session.__enter__ raising before download_image_attachments() is called
-        means attachments was never assigned inside the try block.  The initialised
-        attachments=[] default ensures _generate_response is still callable.
+        Session context manager failure prevents lock acquisition, so the
+        message is not processed.
         """
         bot = _make_bot()
         bot_user = bot.user
@@ -128,21 +103,17 @@ class TestOnMessageSessionFailureBeforeAttachments:
         )
         mock_session_instance.__exit__ = MagicMock(return_value=False)
 
-        mock_generate_response = AsyncMock(return_value=("Hello!", None))
-
         with (
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session", return_value=mock_session_instance),
-            patch.object(bot, "_generate_response", mock_generate_response),
         ):
             await bot.on_message(message)
 
-        # The response was still generated (without a NameError)
-        mock_generate_response.assert_called_once()
+        message.reply.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_store_fails_not_responding_bot_returns_cleanly(self):
-        """on_message returns cleanly after store failure when bot is not mentioned."""
+        """on_message returns cleanly after lock failure when bot is not mentioned."""
         bot = _make_bot()
         message = _make_message(content="Just talking", mentions=[], author_bot=False)
         message.reference = None
@@ -153,7 +124,6 @@ class TestOnMessageSessionFailureBeforeAttachments:
             ),
             patch("chat.bot.Session"),
         ):
-            # Should not raise, and should not attempt to generate a response
             await bot.on_message(message)
 
         message.reply.assert_not_called()
