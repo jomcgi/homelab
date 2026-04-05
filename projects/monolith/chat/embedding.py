@@ -47,9 +47,7 @@ class EmbeddingClient:
         failures, timeouts, 5xx) for up to 5 minutes so the bot can
         survive a llama-server restart / model reload.
         """
-        timeout = httpx.Timeout(
-            EMBED_BATCH_READ_TIMEOUT, connect=EMBED_CONNECT_TIMEOUT
-        )
+        timeout = httpx.Timeout(EMBED_BATCH_READ_TIMEOUT, connect=EMBED_CONNECT_TIMEOUT)
         elapsed = 0.0
         last_exc: Exception | None = None
 
