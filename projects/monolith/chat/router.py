@@ -9,6 +9,13 @@ from chat.backfill import run_backfill
 
 logger = logging.getLogger(__name__)
 
+
+def _log_backfill_exception(task: "asyncio.Task[object]") -> None:
+    """Log unhandled exceptions from the backfill task."""
+    if not task.cancelled() and task.exception():
+        logger.error("Backfill task failed", exc_info=task.exception())
+
+
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
@@ -24,6 +31,7 @@ async def backfill(request: Request):
         raise HTTPException(409, "Backfill already running")
 
     task = asyncio.create_task(run_backfill(bot))
+    task.add_done_callback(_log_backfill_exception)
     request.app.state.backfill_task = task
 
     channels = [c for g in bot.guilds for c in g.text_channels]

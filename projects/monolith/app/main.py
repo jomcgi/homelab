@@ -107,6 +107,9 @@ async def lifespan(app: FastAPI):
 
     logger.info("Monolith started")
     yield
+    backfill_task = getattr(app.state, "backfill_task", None)
+    if backfill_task and not backfill_task.done():
+        backfill_task.cancel()
     if summary_task:
         summary_task.cancel()
     if bot:
