@@ -176,118 +176,38 @@ def _copy_postgres_files(rctx, staging_dir):
                 err = cp_result.stderr,
             ))
 
-    # Copy non-glibc shared libraries from the Debian arch-specific dir.
-    # We MUST exclude all glibc components (libc, libm, libresolv, libnss_*,
-    # ld-linux, etc.) because they must come from the CI host — the dynamic
-    # linker and libc must be from the same build. Non-glibc libraries
-    # (ICU, libssl, libpq, etc.) are compatible with any glibc version.
+    # Copy the ENTIRE Debian arch-specific shared library directory.
+    # The CI host's glibc is older than Debian Bookworm's (2.36), so even
+    # non-glibc libraries like libstdc++ require newer glibc symbols.
+    # We must provide ALL Debian libraries and use the Debian dynamic
+    # linker (ld-linux) for full isolation. Wrapper scripts in bin/
+    # ensure all PG binaries (including child processes like postgres -V
+    # spawned by initdb) go through the Debian ld-linux.
     arch_lib_src = _child_path(staging_dir, "usr/lib/x86_64-linux-gnu")
     arch_lib_dest = _child_path(repo_dir, "usr/lib/x86_64-linux-gnu")
     result = rctx.execute(["test", "-d", arch_lib_src], timeout = 5)
     if result.return_code == 0:
         rctx.execute(["mkdir", "-p", arch_lib_dest], timeout = 10)
         result = rctx.execute(
-            [
-                "find",
-                arch_lib_src,
-                "-maxdepth",
-                "1",
-                "-name",
-                "*.so*",
-                "!",
-                "-type",
-                "d",
-                # Exclude ALL glibc components — must use host versions.
-                # Mixing Debian glibc with host ld-linux causes segfaults.
-                "!",
-                "-name",
-                "libc.so*",
-                "!",
-                "-name",
-                "libc-*",
-                "!",
-                "-name",
-                "libm.so*",
-                "!",
-                "-name",
-                "libm-*",
-                "!",
-                "-name",
-                "libmvec.so*",
-                "!",
-                "-name",
-                "libmvec-*",
-                "!",
-                "-name",
-                "libdl.so*",
-                "!",
-                "-name",
-                "libdl-*",
-                "!",
-                "-name",
-                "librt.so*",
-                "!",
-                "-name",
-                "librt-*",
-                "!",
-                "-name",
-                "libpthread.so*",
-                "!",
-                "-name",
-                "libpthread-*",
-                "!",
-                "-name",
-                "libresolv.so*",
-                "!",
-                "-name",
-                "libresolv-*",
-                "!",
-                "-name",
-                "libnss_*",
-                "!",
-                "-name",
-                "libnsl.so*",
-                "!",
-                "-name",
-                "libnsl-*",
-                "!",
-                "-name",
-                "libutil.so*",
-                "!",
-                "-name",
-                "libutil-*",
-                "!",
-                "-name",
-                "libBrokenLocale*",
-                "!",
-                "-name",
-                "libthread_db*",
-                "!",
-                "-name",
-                "libanl*",
-                "!",
-                "-name",
-                "libmemusage*",
-                "!",
-                "-name",
-                "libpcprofile*",
-                "!",
-                "-name",
-                "libSegFault*",
-                "!",
-                "-name",
-                "libcrypt.so*",
-                "!",
-                "-name",
-                "ld-linux*",
-            ],
-            timeout = 30,
+            ["cp", "-a", "-R", arch_lib_src + "/.", arch_lib_dest + "/"],
+            timeout = 120,
         )
         if result.return_code != 0:
-            fail("Failed to find shared libraries: {err}".format(err = result.stderr))
-        arch_libs = [f for f in result.stdout.strip().split("\n") if f]
-        for lib_file in arch_libs:
-            rctx.execute(["cp", "-a", lib_file, arch_lib_dest + "/"], timeout = 10)
+            fail("Failed to copy arch lib directory: {err}".format(err = result.stderr))
+
+    # Copy the Debian dynamic linker (ld-linux-x86-64.so.2).
+    for ld_src_rel in ["lib64", "lib/x86_64-linux-gnu"]:
+        ld_src_dir = _child_path(staging_dir, ld_src_rel)
+        result = rctx.execute(
+            ["find", ld_src_dir, "-maxdepth", "1", "-name", "ld-linux*"],
+            timeout = 10,
+        )
+        if result.return_code == 0 and result.stdout.strip():
+            ld_dest_dir = _child_path(repo_dir, ld_src_rel)
+            rctx.execute(["mkdir", "-p", ld_dest_dir], timeout = 10)
+            for ld_file in result.stdout.strip().split("\n"):
+                if ld_file:
+                    rctx.execute(["cp", "-a", ld_file, ld_dest_dir + "/"], timeout = 10)
 
     # Copy the postgresql lib directory (contains internal .so files)
     pg_lib_src = _child_path(staging_dir, "usr/lib/postgresql/16/lib")
@@ -304,6 +224,62 @@ def _copy_postgres_files(rctx, staging_dir):
     result = rctx.execute(["cp", "-a", "-R", pg_share_src + "/.", pg_share_dest + "/"], timeout = 30)
     if result.return_code != 0:
         fail("Failed to copy postgresql share directory: {err}".format(err = result.stderr))
+
+def _create_pg_wrappers(rctx):
+    """Create wrapper scripts for PG binaries to use the Debian ld-linux.
+
+    Renames each real binary to <name>.bin and creates a shell wrapper
+    that execs through the Debian dynamic linker with --library-path.
+    This ensures child processes (e.g. initdb calling postgres -V) also
+    use the Debian libraries, avoiding glibc version mismatches.
+    """
+    repo_dir = str(rctx.path(""))
+    bin_dir = _child_path(repo_dir, "usr/lib/postgresql/16/bin")
+
+    # Find the Debian ld-linux
+    ld_linux = None
+    for ld_rel in ["lib64/ld-linux-x86-64.so.2", "lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"]:
+        ld_path = _child_path(repo_dir, ld_rel)
+        result = rctx.execute(["test", "-f", ld_path], timeout = 5)
+        if result.return_code == 0:
+            ld_linux = ld_path
+            break
+
+    if not ld_linux:
+        # No ld-linux found (e.g. macOS) — skip wrapper creation
+        return
+
+    # Library search path for the Debian libraries
+    lib_paths = ":".join([
+        _child_path(repo_dir, "usr/lib/x86_64-linux-gnu"),
+        _child_path(repo_dir, "usr/lib/postgresql/16/lib"),
+        _child_path(repo_dir, "usr/lib"),
+    ])
+
+    # Rename each binary and create wrapper
+    binaries = ["postgres", "initdb", "pg_isready", "pg_ctl"]
+    for binary in binaries:
+        bin_path = _child_path(bin_dir, binary)
+        real_path = _child_path(bin_dir, binary + ".bin")
+
+        result = rctx.execute(["test", "-f", bin_path], timeout = 5)
+        if result.return_code != 0:
+            continue
+
+        # Rename: binary -> binary.bin
+        rctx.execute(["mv", bin_path, real_path], timeout = 5)
+
+        # Create wrapper script
+        wrapper_content = '#!/bin/sh\nexec "{ld}" --library-path "{libs}" "{bin}" "$@"\n'.format(
+            ld = ld_linux,
+            libs = lib_paths,
+            bin = real_path,
+        )
+        rctx.file(
+            "usr/lib/postgresql/16/bin/" + binary,
+            wrapper_content,
+            executable = True,
+        )
 
 def _oci_postgres_impl(rctx):
     """Implementation of the oci_postgres repository rule."""
@@ -324,10 +300,18 @@ def _oci_postgres_impl(rctx):
     # Step 3: Copy only the PostgreSQL files we need
     _copy_postgres_files(rctx, staging_dir)
 
-    # Step 4: Clean up the staging directory
+    # Step 4: Create wrapper scripts for PG binaries.
+    # initdb internally runs `postgres -V` using find_my_exec() which
+    # looks in the same directory as the calling binary. We must ensure
+    # ALL PG binaries go through ld-linux, including child processes.
+    # Solution: rename real binaries to .bin, create shell wrappers that
+    # exec through ld-linux with the correct library path.
+    _create_pg_wrappers(rctx)
+
+    # Step 5: Clean up the staging directory
     rctx.execute(["rm", "-rf", staging_dir], timeout = 60)
 
-    # Step 5: Write BUILD file
+    # Step 6: Write BUILD file
     rctx.file("BUILD.bazel", _BUILD_FILE_CONTENT)
 
 oci_postgres = repository_rule(

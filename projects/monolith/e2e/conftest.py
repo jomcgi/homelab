@@ -139,9 +139,9 @@ def pg(tmp_path_factory):
 
     env = os.environ.copy()
 
-    # The OCI extraction provides non-glibc Debian libraries (ICU, libssl,
-    # libpq, etc.) while excluding glibc components. We set LD_LIBRARY_PATH
-    # so PG binaries (and their child processes like postgres -V) find these.
+    # PG binaries are wrapped by the OCI extraction to use the Debian
+    # ld-linux and library path. We still set LD_LIBRARY_PATH as fallback
+    # for macOS or non-wrapped scenarios.
     pg_lib_internal = pg_lib / "postgresql" / "16" / "lib"
     pg_arch_lib = pg_lib / "x86_64-linux-gnu"
     lib_path_str = f"{pg_arch_lib}:{pg_lib_internal}:{pg_lib}"
@@ -149,7 +149,6 @@ def pg(tmp_path_factory):
     env["LD_LIBRARY_PATH"] = (
         f"{lib_path_str}:{existing_ld}" if existing_ld else lib_path_str
     )
-    # macOS equivalent
     existing_dyld = env.get("DYLD_LIBRARY_PATH", "")
     env["DYLD_LIBRARY_PATH"] = (
         f"{lib_path_str}:{existing_dyld}" if existing_dyld else lib_path_str
@@ -164,6 +163,7 @@ def pg(tmp_path_factory):
     if initdb_result.returncode != 0:
         raise RuntimeError(
             f"initdb failed (rc={initdb_result.returncode}).\n"
+            f"  pg_bin: {pg_bin}\n"
             f"  lib_path: {lib_path_str}\n"
             f"  stdout: {initdb_result.stdout.decode(errors='replace')}\n"
             f"  stderr: {initdb_result.stderr.decode(errors='replace')}"
