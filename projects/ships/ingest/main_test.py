@@ -61,8 +61,7 @@ class TestRouteRegistration:
         custom_paths = [
             r.path
             for r in app.routes
-            if not r.path.startswith("/openapi")
-            and r.path not in ("/docs", "/redoc")
+            if not r.path.startswith("/openapi") and r.path not in ("/docs", "/redoc")
         ]
         assert "/health" in custom_paths
         assert "/metrics" in custom_paths
@@ -116,11 +115,11 @@ class TestLifespanEvents:
         with patch.object(
             main_module.service, "start", side_effect=Exception("NATS unavailable")
         ):
-            with patch.object(
-                main_module.service, "stop", new_callable=AsyncMock
-            ):
+            with patch.object(main_module.service, "stop", new_callable=AsyncMock):
                 transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=transport, base_url="http://test"
+                ) as client:
                     # /health should still respond even after startup failure
                     response = await client.get("/health")
                     assert response.status_code == 200

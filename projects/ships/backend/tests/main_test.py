@@ -88,7 +88,12 @@ class TestRouteRegistration:
         from projects.ships.backend.main import app
 
         api_paths = [r.path for r in app.routes if r.path.startswith("/api/")]
-        expected = {"/api/vessels", "/api/vessels/{mmsi}", "/api/vessels/{mmsi}/track", "/api/stats"}
+        expected = {
+            "/api/vessels",
+            "/api/vessels/{mmsi}",
+            "/api/vessels/{mmsi}/track",
+            "/api/stats",
+        }
         assert set(api_paths) == expected
 
 
@@ -177,7 +182,9 @@ class TestLifespanEvents:
         with patch.object(service, "start", side_effect=Exception("NATS unavailable")):
             with patch.object(service, "stop", new_callable=AsyncMock):
                 transport = ASGITransport(app=app)
-                async with AsyncClient(transport=transport, base_url="http://test") as client:
+                async with AsyncClient(
+                    transport=transport, base_url="http://test"
+                ) as client:
                     # /health should still respond — lifespan catches startup errors
                     response = await client.get("/health")
                     assert response.status_code == 200
@@ -246,7 +253,9 @@ class TestHealthEndpoint:
         assert data["messages_processed"] >= 0
 
     @pytest.mark.asyncio
-    async def test_health_caught_up_reflects_replay_state(self, test_client: AsyncClient):
+    async def test_health_caught_up_reflects_replay_state(
+        self, test_client: AsyncClient
+    ):
         """caught_up in health reflects service.replay_complete."""
         from projects.ships.backend.main import service
 
