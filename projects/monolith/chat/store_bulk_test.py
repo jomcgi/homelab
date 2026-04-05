@@ -42,7 +42,7 @@ def session_fixture():
 @pytest.fixture
 def store(session):
     embed_client = AsyncMock()
-    embed_client.embed.return_value = [0.0] * 1024
+    embed_client.embed_batch.return_value = [[0.0] * 1024]
     return MessageStore(session=session, embed_client=embed_client)
 
 
@@ -74,7 +74,7 @@ class TestSaveMessageAttachmentNoDescription:
             ],
         )
         # Without a description, embed text is exactly the content
-        store.embed_client.embed.assert_called_once_with("Look at this!")
+        store.embed_client.embed_batch.assert_called_once_with(["Look at this!"])
 
     @pytest.mark.asyncio
     async def test_attachment_without_description_key_blob_description_empty(
@@ -122,7 +122,7 @@ class TestSaveMessageAttachmentNoDescription:
             ],
         )
         # Empty description is falsy → not included in embed text
-        store.embed_client.embed.assert_called_once_with("Here!")
+        store.embed_client.embed_batch.assert_called_once_with(["Here!"])
 
     @pytest.mark.asyncio
     async def test_attachment_with_empty_string_description_blob_description_empty(
@@ -176,7 +176,7 @@ class TestSaveMessageAttachmentNoDescription:
                 },
             ],
         )
-        embed_text = store.embed_client.embed.call_args[0][0]
+        embed_text = store.embed_client.embed_batch.call_args[0][0][0]
         assert "[Image: A sunset]" in embed_text
         # Second attachment has no description so should NOT appear
         assert embed_text.count("[Image:") == 1

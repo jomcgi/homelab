@@ -42,7 +42,7 @@ def session_fixture():
 @pytest.fixture
 def store(session):
     embed_client = AsyncMock()
-    embed_client.embed.return_value = [0.0] * 1024
+    embed_client.embed_batch.return_value = [[0.0] * 1024]
     return MessageStore(session=session, embed_client=embed_client)
 
 
