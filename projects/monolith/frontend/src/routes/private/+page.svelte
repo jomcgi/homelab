@@ -15,10 +15,11 @@
   async function submitCapture() {
     if (!note.trim()) return;
     try {
-      const res = await fetch("/api/notes", {
+      const formData = new FormData();
+      formData.append("content", note);
+      const res = await fetch("?/capture", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: note }),
+        body: formData,
       });
       if (!res.ok) throw new Error();
       sent = true;

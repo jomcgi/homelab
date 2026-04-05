@@ -24,4 +24,15 @@ export const actions = {
       signal: AbortSignal.timeout(10000),
     });
   },
+  capture: async ({ request, fetch }) => {
+    const data = await request.formData();
+    const content = data.get("content");
+    const res = await fetch(`${API_BASE}/api/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { error: true };
+  },
 };
