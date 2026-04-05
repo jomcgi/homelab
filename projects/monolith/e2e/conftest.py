@@ -155,15 +155,34 @@ def pg(tmp_path_factory):
     )
 
     # --- initdb ---
+    initdb_path = pg_bin / "initdb"
+    # Check if initdb is a wrapper script or a binary
+    initdb_is_wrapper = False
+    try:
+        with open(initdb_path) as f:
+            first_line = f.readline()
+            initdb_is_wrapper = first_line.startswith("#!/bin/sh")
+    except (UnicodeDecodeError, OSError):
+        pass  # binary file, not a wrapper
+
     initdb_result = subprocess.run(
-        [str(pg_bin / "initdb"), "-D", str(datadir), "--no-locale", "-U", "test"],
+        [str(initdb_path), "-D", str(datadir), "--no-locale", "-U", "test"],
         env=env,
         capture_output=True,
     )
     if initdb_result.returncode != 0:
+        # Read wrapper content for diagnostics
+        wrapper_content = ""
+        if initdb_is_wrapper:
+            try:
+                wrapper_content = initdb_path.read_text()
+            except OSError:
+                wrapper_content = "(unreadable)"
         raise RuntimeError(
             f"initdb failed (rc={initdb_result.returncode}).\n"
             f"  pg_bin: {pg_bin}\n"
+            f"  initdb_is_wrapper: {initdb_is_wrapper}\n"
+            f"  wrapper_content: {wrapper_content!r}\n"
             f"  lib_path: {lib_path_str}\n"
             f"  stdout: {initdb_result.stdout.decode(errors='replace')}\n"
             f"  stderr: {initdb_result.stderr.decode(errors='replace')}"
