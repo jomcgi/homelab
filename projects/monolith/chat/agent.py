@@ -19,6 +19,16 @@ LLAMA_CPP_URL = os.environ.get("LLAMA_CPP_URL", "")
 logger = logging.getLogger(__name__)
 
 
+def signposted(text: str):
+    """Attach a usage signpost to a tool function."""
+
+    def decorator(fn):
+        fn.signpost = text
+        return fn
+
+    return decorator
+
+
 def _coerce_username(value: Any) -> str | None:
     """Coerce a username value to a string.
 

@@ -30,3 +30,25 @@ class TestAgentToolRegistration:
         tool_names = set(agent._function_toolset.tools.keys())
         expected_tools = {"web_search", "search_history", "get_user_summary"}
         assert expected_tools.issubset(tool_names)
+
+
+class TestSignpostedDecorator:
+    def test_attaches_signpost_attribute(self):
+        """signposted decorator attaches .signpost to the function."""
+        from chat.agent import signposted
+
+        @signposted("test guidance")
+        def dummy():
+            pass
+
+        assert dummy.signpost == "test guidance"
+
+    def test_preserves_function_name(self):
+        """signposted decorator preserves the original function name."""
+        from chat.agent import signposted
+
+        @signposted("test")
+        def my_func():
+            pass
+
+        assert my_func.__name__ == "my_func"
