@@ -177,12 +177,20 @@ def pg(tmp_path_factory):
         )
 
     # --- initdb ---
-    subprocess.run(
+    initdb_result = subprocess.run(
         _pg_cmd("initdb", ["-D", str(datadir), "--no-locale", "-U", "test"]),
         env=env,
-        check=True,
         capture_output=True,
     )
+    if initdb_result.returncode != 0:
+        raise RuntimeError(
+            f"initdb failed (rc={initdb_result.returncode}).\n"
+            f"  cmd: {_pg_cmd('initdb', ['-D', str(datadir), '--no-locale', '-U', 'test'])}\n"
+            f"  ld_linux: {ld_linux}\n"
+            f"  lib_path: {lib_path_str}\n"
+            f"  stdout: {initdb_result.stdout.decode(errors='replace')}\n"
+            f"  stderr: {initdb_result.stderr.decode(errors='replace')}"
+        )
 
     # --- start postgres ---
     proc = subprocess.Popen(
