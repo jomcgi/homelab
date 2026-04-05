@@ -81,9 +81,22 @@ def _find_pg_root() -> Path:
         # Also check flat layout (in case extraction is restructured later)
         if (candidate / "bin" / "postgres").exists():
             return candidate
+    # Diagnostics: list what's actually in the runfiles to help debug path issues
+    diag_lines = []
+    base = Path(srcdir)
+    for search_dir in [base, base / "_main", base / "_main" / "external"]:
+        if search_dir.is_dir():
+            entries = sorted(search_dir.iterdir())[:20]
+            diag_lines.append(f"  {search_dir}: {[e.name for e in entries]}")
+    for candidate in candidates:
+        if candidate.is_dir():
+            entries = sorted(candidate.iterdir())[:10]
+            diag_lines.append(f"  {candidate}: {[e.name for e in entries]}")
+    diag = "\n".join(diag_lines) if diag_lines else "  (no directories found)"
     raise FileNotFoundError(
-        f"Could not find postgres_test binaries under TEST_SRCDIR={srcdir!r}. "
-        f"Searched: {[str(c) for c in candidates]}"
+        f"Could not find postgres_test binaries under TEST_SRCDIR={srcdir!r}.\n"
+        f"Searched: {[str(c) for c in candidates]}\n"
+        f"Directory contents:\n{diag}"
     )
 
 
