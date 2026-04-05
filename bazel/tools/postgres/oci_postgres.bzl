@@ -176,80 +176,38 @@ def _copy_postgres_files(rctx, staging_dir):
                 err = cp_result.stderr,
             ))
 
-    # Copy shared libraries from the Debian arch-specific directory,
-    # EXCLUDING glibc core components (libc, libm, ld-linux) which must
-    # come from the CI host to avoid ABI mismatches and segfaults.
-    # Everything else (ICU, libssl, libpq, etc.) is safe to use from
-    # the Debian image.
+    # Copy the ENTIRE Debian arch-specific shared library directory and
+    # the Debian dynamic linker. PG binaries must run with the matching
+    # ld-linux + libc from the same Debian image — mixing with the CI
+    # host's glibc causes segfaults or symbol resolution failures.
+    # The conftest.py fixture invokes PG binaries via the extracted
+    # ld-linux with --library-path to keep them fully isolated.
     arch_lib_src = _child_path(staging_dir, "usr/lib/x86_64-linux-gnu")
     arch_lib_dest = _child_path(repo_dir, "usr/lib/x86_64-linux-gnu")
     result = rctx.execute(["test", "-d", arch_lib_src], timeout = 5)
     if result.return_code == 0:
         rctx.execute(["mkdir", "-p", arch_lib_dest], timeout = 10)
         result = rctx.execute(
-            [
-                "find",
-                arch_lib_src,
-                "-maxdepth",
-                "1",
-                "(",
-                "-name",
-                "*.so*",
-                "-o",
-                "-name",
-                "*.a",
-                ")",
-                "!",
-                "-type",
-                "d",
-                # Exclude glibc core — must use host versions
-                "!",
-                "-name",
-                "libc.so*",
-                "!",
-                "-name",
-                "libc-*.so",
-                "!",
-                "-name",
-                "libm.so*",
-                "!",
-                "-name",
-                "libm-*.so",
-                "!",
-                "-name",
-                "libmvec.so*",
-                "!",
-                "-name",
-                "libmvec-*.so",
-                "!",
-                "-name",
-                "libdl.so*",
-                "!",
-                "-name",
-                "libdl-*.so",
-                "!",
-                "-name",
-                "librt.so*",
-                "!",
-                "-name",
-                "librt-*.so",
-                "!",
-                "-name",
-                "libpthread.so*",
-                "!",
-                "-name",
-                "libpthread-*.so",
-                "!",
-                "-name",
-                "ld-linux*",
-            ],
-            timeout = 30,
+            ["cp", "-a", "-R", arch_lib_src + "/.", arch_lib_dest + "/"],
+            timeout = 120,
         )
         if result.return_code != 0:
-            fail("Failed to find shared libraries: {err}".format(err = result.stderr))
-        arch_libs = [f for f in result.stdout.strip().split("\n") if f]
-        for lib_file in arch_libs:
-            rctx.execute(["cp", "-a", lib_file, arch_lib_dest + "/"], timeout = 10)
+            fail("Failed to copy arch lib directory: {err}".format(err = result.stderr))
+
+    # Copy the Debian dynamic linker (ld-linux-x86-64.so.2).
+    # It may live under lib64/ or lib/x86_64-linux-gnu/ depending on image.
+    for ld_src_rel in ["lib64", "lib/x86_64-linux-gnu"]:
+        ld_src_dir = _child_path(staging_dir, ld_src_rel)
+        result = rctx.execute(
+            ["find", ld_src_dir, "-maxdepth", "1", "-name", "ld-linux*"],
+            timeout = 10,
+        )
+        if result.return_code == 0 and result.stdout.strip():
+            ld_dest_dir = _child_path(repo_dir, ld_src_rel)
+            rctx.execute(["mkdir", "-p", ld_dest_dir], timeout = 10)
+            for ld_file in result.stdout.strip().split("\n"):
+                if ld_file:
+                    rctx.execute(["cp", "-a", ld_file, ld_dest_dir + "/"], timeout = 10)
 
     # Copy the postgresql lib directory (contains internal .so files)
     pg_lib_src = _child_path(staging_dir, "usr/lib/postgresql/16/lib")
