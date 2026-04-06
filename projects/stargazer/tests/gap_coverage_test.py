@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, patch
 import geopandas as gpd
 import numpy as np
 import pytest
+import pytest_asyncio  # noqa: F401 — needed to register pytest-asyncio plugin
 from shapely.geometry import Polygon
 
 from projects.stargazer.backend.config import Settings
