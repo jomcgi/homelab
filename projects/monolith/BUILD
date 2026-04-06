@@ -1359,6 +1359,53 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_store_find_user_test",
+    srcs = ["chat/store_find_user_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "chat_store_search_model_validate_test",
+    srcs = ["chat/store_search_model_validate_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "chat_bot_summarize_oversized_test",
+    srcs = ["chat/bot_summarize_oversized_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "scripts_red_dashboard_extra_test",
+    srcs = ["scripts/generate_red_dashboard_extra_test.py"],
+    data = ["scripts/generate-red-dashboard.py"],
+    imports = ["."],
+    deps = [
+        "@pip//pytest",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
