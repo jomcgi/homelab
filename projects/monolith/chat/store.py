@@ -3,7 +3,10 @@
 import hashlib
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from chat.embedding import EmbeddingClient
@@ -42,8 +45,6 @@ class MessageStore:
         """Embed and persist a batch of messages. Skips duplicates via savepoints."""
         if not messages:
             return SaveResult(stored=0, skipped=0)
-
-        from sqlalchemy.exc import IntegrityError
 
         if not messages:
             return SaveResult(stored=0, skipped=0)
@@ -162,8 +163,6 @@ class MessageStore:
         Note: This uses raw SQL because SQLModel doesn't natively support
         pgvector's <=> operator. Falls back gracefully in SQLite tests.
         """
-        from sqlalchemy import text
-
         exclude = exclude_ids or []
         params: dict[str, object] = {
             "channel_id": channel_id,
@@ -252,8 +251,6 @@ class MessageStore:
         last_message_id: int,
     ) -> None:
         """Insert or update a rolling summary for a user in a channel."""
-        from datetime import datetime, timezone
-
         existing = self.session.exec(
             select(UserChannelSummary).where(
                 UserChannelSummary.channel_id == channel_id,
@@ -291,8 +288,6 @@ class MessageStore:
         message_count: int,
     ) -> None:
         """Insert or update a rolling summary for a channel."""
-        from datetime import datetime, timezone
-
         existing = self.session.exec(
             select(ChannelSummary).where(ChannelSummary.channel_id == channel_id)
         ).first()
@@ -329,8 +324,6 @@ class MessageStore:
 
     def acquire_lock(self, discord_message_id: str, channel_id: str) -> bool:
         """Try to claim a message for processing. Returns True if this caller won."""
-        from sqlalchemy.exc import IntegrityError
-
         nested = self.session.begin_nested()
         try:
             self.session.add(
@@ -368,10 +361,6 @@ class MessageStore:
 
         Uses FOR UPDATE SKIP LOCKED so multiple pods won't grab the same row.
         """
-        from datetime import datetime, timedelta, timezone
-
-        from sqlalchemy import text
-
         cutoff = datetime.now(timezone.utc) - timedelta(seconds=ttl_seconds)
         sql = text(
             "SELECT * FROM chat.message_locks "
@@ -395,10 +384,6 @@ class MessageStore:
 
     def cleanup_completed(self, max_age_seconds: int = 3600) -> int:
         """Delete completed locks older than max_age. Returns count deleted."""
-        from datetime import datetime, timedelta, timezone
-
-        from sqlalchemy import text
-
         cutoff = datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)
         result = self.session.exec(
             text(
