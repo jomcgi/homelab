@@ -782,30 +782,32 @@ class TestScoreLocationsSortedByScore:
             json.dumps(sample_geojson_points)
         )
 
-        # Two winter night hours: one clear (high score) and one foggy (lower score).
-        # Both at 02:00 and 03:00 UTC in January — dark at Scotland latitudes.
+        # Two winter night hours in January — both dark at Scotland latitudes.
+        # First hour: partly cloudy (cloud=30) → cloud_score≈83, overall ≈ 87 (>= min=60)
+        # Second hour: perfectly clear (cloud=0) → overall = 100 (>= min=60)
+        # After sorting descending, the clear (higher-score) hour must come first.
         forecast = {
             "properties": {
                 "timeseries": [
                     {
-                        "time": "2024-01-15T02:00:00Z",  # foggy hour — lower score
+                        "time": "2024-01-15T02:00:00Z",  # partly cloudy — lower score (~87)
                         "data": {
                             "instant": {
                                 "details": {
-                                    "cloud_area_fraction": 60.0,
-                                    "relative_humidity": 85.0,
-                                    "fog_area_fraction": 10.0,
-                                    "wind_speed": 7.0,
-                                    "air_temperature": 8.0,
-                                    "dew_point_temperature": 7.0,
-                                    "air_pressure_at_sea_level": 1010.0,
+                                    "cloud_area_fraction": 30.0,
+                                    "relative_humidity": 70.0,
+                                    "fog_area_fraction": 5.0,
+                                    "wind_speed": 5.0,
+                                    "air_temperature": 10.0,
+                                    "dew_point_temperature": 7.0,   # spread=3, dew_score≈50
+                                    "air_pressure_at_sea_level": 1013.25,
                                 }
                             },
-                            "next_1_hours": {"summary": {"symbol_code": "cloudy"}},
+                            "next_1_hours": {"summary": {"symbol_code": "partlycloudy_night"}},
                         },
                     },
                     {
-                        "time": "2024-01-15T03:00:00Z",  # clear hour — higher score
+                        "time": "2024-01-15T03:00:00Z",  # perfectly clear — higher score (100)
                         "data": {
                             "instant": {
                                 "details": {
@@ -814,8 +816,8 @@ class TestScoreLocationsSortedByScore:
                                     "fog_area_fraction": 0.0,
                                     "wind_speed": 1.0,
                                     "air_temperature": 10.0,
-                                    "dew_point_temperature": 2.0,
-                                    "air_pressure_at_sea_level": 1025.0,
+                                    "dew_point_temperature": 2.0,   # spread=8, dew_score=100
+                                    "air_pressure_at_sea_level": 1013.25,
                                 }
                             },
                             "next_1_hours": {"summary": {"symbol_code": "clearsky_night"}},
@@ -835,12 +837,12 @@ class TestScoreLocationsSortedByScore:
         with open(result) as f:
             scored = json.load(f)
 
-        if first_id in scored:
-            hours = scored[first_id]["scored_hours"]
-            if len(hours) > 1:
-                # First hour must have the highest score
-                for i in range(len(hours) - 1):
-                    assert hours[i]["score"] >= hours[i + 1]["score"]
+        assert first_id in scored, "Expected point to appear in scored output"
+        hours = scored[first_id]["scored_hours"]
+        assert len(hours) >= 2, "Both hours should score >= 60 and appear in output"
+        # Verify descending sort order
+        for i in range(len(hours) - 1):
+            assert hours[i]["score"] >= hours[i + 1]["score"]
 
 
 class TestScoreLocationsDewSpreadOutput:
