@@ -16,6 +16,7 @@ go_test(
     srcs = [
         "convert_coverage_test.go",
         "convert_extra_test.go",
+        "convert_gaps_test.go",
         "convert_helpers_test.go",
         "convert_test.go",
         "types_test.go",

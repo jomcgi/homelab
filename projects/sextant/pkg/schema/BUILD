@@ -19,6 +19,7 @@ go_test(
         "types_test.go",
         "validate_extra_test.go",
         "validate_fileio_test.go",
+        "validate_gaps_test.go",
         "validate_internal_test.go",
         "validate_test.go",
     ],

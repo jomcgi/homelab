@@ -23,6 +23,7 @@ go_test(
     srcs = [
         "builddata_test.go",
         "generator_coverage_test.go",
+        "generator_gaps_test.go",
         "generator_helpers_test.go",
         "generator_test.go",
     ],
