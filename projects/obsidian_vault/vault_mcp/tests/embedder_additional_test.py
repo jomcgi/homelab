@@ -12,7 +12,9 @@ from projects.obsidian_vault.vault_mcp.app.embedder import VaultEmbedder
 _PATCH_TARGET = "projects.obsidian_vault.vault_mcp.app.embedder.TextEmbedding"
 
 
-def _make_embedder(model: str = "test-model", cache_dir: str = "/tmp/cache") -> tuple[VaultEmbedder, MagicMock]:
+def _make_embedder(
+    model: str = "test-model", cache_dir: str = "/tmp/cache"
+) -> tuple[VaultEmbedder, MagicMock]:
     mock_model = MagicMock()
     with patch(_PATCH_TARGET, return_value=mock_model) as _:
         embedder = VaultEmbedder(model=model, cache_dir=cache_dir)
@@ -83,9 +85,7 @@ class TestEmbedEdgeCases:
     def test_embed_multiple_texts_returns_one_vector_per_text(self):
         """embed() returns exactly one vector per input text."""
         mock_model = MagicMock()
-        mock_model.embed.return_value = iter(
-            [np.full(768, float(i)) for i in range(4)]
-        )
+        mock_model.embed.return_value = iter([np.full(768, float(i)) for i in range(4)])
         with patch(_PATCH_TARGET, return_value=mock_model):
             embedder = VaultEmbedder(model="m", cache_dir="/c")
         result = embedder.embed(["a", "b", "c", "d"])
