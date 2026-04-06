@@ -90,7 +90,9 @@ class TestSettingsAdditional:
         assert s.embed_cache_dir == "/tmp/mymodel"
 
     def test_embed_model_env_override(self, monkeypatch):
-        monkeypatch.setenv("VAULT_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        monkeypatch.setenv(
+            "VAULT_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+        )
         s = Settings()
         assert s.embed_model == "sentence-transformers/all-MiniLM-L6-v2"
 
@@ -114,9 +116,7 @@ class TestSearchSemanticEdgeCases:
     async def test_result_without_source_url_passes_through_unchanged(self, tmp_path):
         """Results lacking source_url are returned as-is (no KeyError)."""
         mock_qdrant = AsyncMock()
-        mock_qdrant.search.return_value = [
-            {"score": 0.8, "chunk_text": "some text"}
-        ]
+        mock_qdrant.search.return_value = [{"score": 0.8, "chunk_text": "some text"}]
         mock_embedder = MagicMock()
         mock_embedder.embed_query.return_value = [0.0] * 768
 
