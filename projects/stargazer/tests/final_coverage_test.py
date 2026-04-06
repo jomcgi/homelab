@@ -87,7 +87,9 @@ class TestApiMain:
 
         mock_server = MagicMock()
 
-        with patch("projects.stargazer.backend.api.HTTPServer", return_value=mock_server) as mock_cls:
+        with patch(
+            "projects.stargazer.backend.api.HTTPServer", return_value=mock_server
+        ) as mock_cls:
             with patch.dict(os.environ, {}, clear=False):
                 os.environ.pop("PORT", None)  # Ensure PORT is not set
                 main_thread = None
@@ -111,7 +113,9 @@ class TestApiMain:
         mock_server = MagicMock()
         mock_server.serve_forever.side_effect = KeyboardInterrupt
 
-        with patch("projects.stargazer.backend.api.HTTPServer", return_value=mock_server) as mock_cls:
+        with patch(
+            "projects.stargazer.backend.api.HTTPServer", return_value=mock_server
+        ) as mock_cls:
             with patch.dict(os.environ, {"PORT": "9999"}):
                 try:
                     main()
@@ -128,7 +132,9 @@ class TestApiMain:
         mock_server = MagicMock()
         mock_server.serve_forever.side_effect = KeyboardInterrupt
 
-        with patch("projects.stargazer.backend.api.HTTPServer", return_value=mock_server):
+        with patch(
+            "projects.stargazer.backend.api.HTTPServer", return_value=mock_server
+        ):
             try:
                 main()
             except SystemExit:
@@ -423,7 +429,10 @@ class TestSetupTelemetryImportError:
         # Warning should have been logged
         mock_logger.warning.assert_called()
         warning_msg = mock_logger.warning.call_args[0][0]
-        assert "not available" in warning_msg.lower() or "tracing disabled" in warning_msg.lower()
+        assert (
+            "not available" in warning_msg.lower()
+            or "tracing disabled" in warning_msg.lower()
+        )
 
 
 class TestSetupTelemetryWithEndpoint:
@@ -453,7 +462,9 @@ class TestSetupTelemetryWithEndpoint:
             "opentelemetry.trace": mock_trace,
             "opentelemetry.sdk.resources": MagicMock(Resource=mock_resource_cls),
             "opentelemetry.sdk.trace": MagicMock(TracerProvider=mock_provider_cls),
-            "opentelemetry.sdk.trace.export": MagicMock(BatchSpanProcessor=mock_batch_cls),
+            "opentelemetry.sdk.trace.export": MagicMock(
+                BatchSpanProcessor=mock_batch_cls
+            ),
             "opentelemetry.exporter.otlp.proto.grpc.trace_exporter": MagicMock(
                 OTLPSpanExporter=mock_exporter_cls
             ),
@@ -488,7 +499,9 @@ class TestGeoreferenceRasterGdalwarpFailure:
         def controlled_run(cmd, *args, **kwargs):
             call_count["n"] += 1
             if call_count["n"] == 2:  # gdalwarp is the second call
-                raise subprocess.CalledProcessError(1, cmd, output=b"", stderr=b"warp error")
+                raise subprocess.CalledProcessError(
+                    1, cmd, output=b"", stderr=b"warp error"
+                )
             return MagicMock(returncode=0)
 
         from projects.stargazer.backend.preprocessing import georeference_raster
@@ -533,12 +546,12 @@ class TestFogScoreBoundaries:
     def _make_weather(self, fog: float) -> WeatherData:
         """Helper: create weather with only fog varying, all others optimal."""
         return WeatherData(
-            cloud_area_fraction=0.0,   # < 20 → cloud_score = 100
-            relative_humidity=0.0,     # < 70 → humidity_score = 100
+            cloud_area_fraction=0.0,  # < 20 → cloud_score = 100
+            relative_humidity=0.0,  # < 70 → humidity_score = 100
             fog_area_fraction=fog,
-            wind_speed=0.0,            # < 5  → wind_score = 100
+            wind_speed=0.0,  # < 5  → wind_score = 100
             air_temperature=15.0,
-            dew_point_temperature=5.0, # spread = 10 > 5 → dew_score = 100
+            dew_point_temperature=5.0,  # spread = 10 > 5 → dew_score = 100
             air_pressure_at_sea_level=1013.25,  # no pressure bonus
         )
 
@@ -621,7 +634,9 @@ class TestEnrichPointsWithDem:
                 }
             ],
         }
-        (settings.processed_dir / "sample_points.geojson").write_text(json.dumps(points_data))
+        (settings.processed_dir / "sample_points.geojson").write_text(
+            json.dumps(points_data)
+        )
         (settings.processed_dir / "color_palette.json").write_text(
             json.dumps(sample_color_palette)
         )
@@ -656,7 +671,9 @@ class TestEnrichPointsWithDem:
 class TestGenerateSampleGridEmpty:
     """Tests for generate_sample_grid when no grid points fall inside the area."""
 
-    def test_generate_sample_grid_produces_valid_geojson_when_empty(self, settings: Settings):
+    def test_generate_sample_grid_produces_valid_geojson_when_empty(
+        self, settings: Settings
+    ):
         """generate_sample_grid creates a valid GeoJSON FeatureCollection even with 0 points."""
         from projects.stargazer.backend.spatial import generate_sample_grid, WGS84_CRS
 
@@ -694,7 +711,9 @@ class TestGenerateSampleGridEmpty:
 class TestScoreLocationsEmptyTimeseries:
     """Tests for score_locations when a forecast has an empty timeseries."""
 
-    def test_empty_timeseries_location_not_in_output(self, settings: Settings, sample_geojson_points: dict):
+    def test_empty_timeseries_location_not_in_output(
+        self, settings: Settings, sample_geojson_points: dict
+    ):
         """Locations with empty timeseries produce no scored_hours and are excluded from output."""
         from projects.stargazer.backend.weather import score_locations
 
@@ -721,7 +740,9 @@ class TestScoreLocationsEmptyTimeseries:
 class TestScoreLocationsMissingNextHours:
     """Tests for score_locations when next_1_hours is absent from a timeseries entry."""
 
-    def test_missing_next_1_hours_gives_empty_symbol(self, settings: Settings, sample_geojson_points: dict):
+    def test_missing_next_1_hours_gives_empty_symbol(
+        self, settings: Settings, sample_geojson_points: dict
+    ):
         """When next_1_hours is absent, the symbol field in scored output is empty string."""
         from projects.stargazer.backend.weather import score_locations
 
@@ -774,7 +795,9 @@ class TestScoreLocationsMissingNextHours:
 class TestScoreLocationsSortedByScore:
     """Tests for score_locations producing hours sorted by score descending."""
 
-    def test_scored_hours_sorted_descending(self, settings: Settings, sample_geojson_points: dict):
+    def test_scored_hours_sorted_descending(
+        self, settings: Settings, sample_geojson_points: dict
+    ):
         """score_locations sorts scored_hours by score descending."""
         from projects.stargazer.backend.weather import score_locations
 
@@ -799,11 +822,13 @@ class TestScoreLocationsSortedByScore:
                                     "fog_area_fraction": 5.0,
                                     "wind_speed": 5.0,
                                     "air_temperature": 10.0,
-                                    "dew_point_temperature": 7.0,   # spread=3, dew_score≈50
+                                    "dew_point_temperature": 7.0,  # spread=3, dew_score≈50
                                     "air_pressure_at_sea_level": 1013.25,
                                 }
                             },
-                            "next_1_hours": {"summary": {"symbol_code": "partlycloudy_night"}},
+                            "next_1_hours": {
+                                "summary": {"symbol_code": "partlycloudy_night"}
+                            },
                         },
                     },
                     {
@@ -816,11 +841,13 @@ class TestScoreLocationsSortedByScore:
                                     "fog_area_fraction": 0.0,
                                     "wind_speed": 1.0,
                                     "air_temperature": 10.0,
-                                    "dew_point_temperature": 2.0,   # spread=8, dew_score=100
+                                    "dew_point_temperature": 2.0,  # spread=8, dew_score=100
                                     "air_pressure_at_sea_level": 1013.25,
                                 }
                             },
-                            "next_1_hours": {"summary": {"symbol_code": "clearsky_night"}},
+                            "next_1_hours": {
+                                "summary": {"symbol_code": "clearsky_night"}
+                            },
                         },
                     },
                 ]
@@ -848,7 +875,9 @@ class TestScoreLocationsSortedByScore:
 class TestScoreLocationsDewSpreadOutput:
     """Tests for dew_spread calculation in score_locations output."""
 
-    def test_dew_spread_is_temp_minus_dew_point(self, settings: Settings, sample_geojson_points: dict):
+    def test_dew_spread_is_temp_minus_dew_point(
+        self, settings: Settings, sample_geojson_points: dict
+    ):
         """score_locations computes dew_spread as air_temperature - dew_point_temperature."""
         from projects.stargazer.backend.weather import score_locations
 
@@ -874,7 +903,9 @@ class TestScoreLocationsDewSpreadOutput:
                                     "air_pressure_at_sea_level": 1020.0,
                                 }
                             },
-                            "next_1_hours": {"summary": {"symbol_code": "clearsky_night"}},
+                            "next_1_hours": {
+                                "summary": {"symbol_code": "clearsky_night"}
+                            },
                         },
                     }
                 ]
@@ -962,7 +993,9 @@ class TestOutputBestLocationsEmpty:
                 ],
             }
         }
-        (settings.output_dir / "forecasts_scored.json").write_text(json.dumps(scored_data))
+        (settings.output_dir / "forecasts_scored.json").write_text(
+            json.dumps(scored_data)
+        )
 
         result = output_best_locations(settings)
 
@@ -1000,7 +1033,9 @@ class TestOutputBestLocationsEmpty:
                 ],
             }
         }
-        (settings.output_dir / "forecasts_scored.json").write_text(json.dumps(scored_data))
+        (settings.output_dir / "forecasts_scored.json").write_text(
+            json.dumps(scored_data)
+        )
 
         result = output_best_locations(settings)
 

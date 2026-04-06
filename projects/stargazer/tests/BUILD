@@ -228,9 +228,7 @@ py_test(
         ":conftest",
         "//projects/stargazer/backend",
         "@pip//geopandas",
-        "@pip//httpx",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
         "@pip//shapely",
     ],
 )
