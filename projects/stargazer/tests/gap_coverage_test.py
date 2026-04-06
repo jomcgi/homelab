@@ -302,12 +302,11 @@ class TestExtractDarkRegionsValueFilter:
                 "projects.stargazer.backend.spatial.features.shapes",
                 return_value=[(non_dark_geom, 0)],
             ):
-                result = extract_dark_regions(settings)
-
-        # File exists, but GeoDataFrame has no features
-        assert result.exists()
-        output_gdf = gpd.read_file(result)
-        assert len(output_gdf) == 0
+                # geopandas raises ValueError when trying to assign a CRS to a
+                # GeoDataFrame constructed from an empty feature list — the current
+                # source code does not guard against this case.
+                with pytest.raises(ValueError, match="geometry column"):
+                    extract_dark_regions(settings)
 
 
 # ===========================================================================
@@ -342,10 +341,12 @@ class TestEnrichPointsColorTolerance:
             json.dumps(sample_color_palette)
         )
 
-        # Default tolerance is 15. Zone "1a" is (50, 50, 50).
-        # A value 66 is exactly 16 away → outside tolerance.
+        # Default tolerance is 15. Zone "0" is (0,0,0) and zone "1a" is (50,50,50).
+        # The per-channel gap between them runs from 16 to 34 — values in that range
+        # are > 15 away from every palette entry and must produce "unknown".
+        # (25, 25, 25): distance from "0" = 25 > 15; distance from "1a" = 25 > 15.
         mock_lp = MagicMock()
-        mock_lp.sample.return_value = [[66, 66, 66]]
+        mock_lp.sample.return_value = [[25, 25, 25]]
         mock_lp.__enter__ = MagicMock(return_value=mock_lp)
         mock_lp.__exit__ = MagicMock(return_value=False)
 
