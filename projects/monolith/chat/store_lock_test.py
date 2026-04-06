@@ -170,7 +170,9 @@ class TestReclaimExpired:
     timestamp-bumping / return-value logic can be tested with SQLite.
     """
 
-    def _insert_lock(self, session, msg_id, channel_id, *, completed=False, age_seconds=0):
+    def _insert_lock(
+        self, session, msg_id, channel_id, *, completed=False, age_seconds=0
+    ):
         """Helper: insert a lock with a specific age."""
         claimed_at = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
         lock = MessageLock(
