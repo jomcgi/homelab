@@ -1,0 +1,634 @@
+"""Tests for the _lock_sweep_loop background task in app.main.
+
+Covers paths not addressed by existing main_* test files:
+- _lock_sweep_loop runs sweep and cleanup when no locks are expired
+- _lock_sweep_loop calls bot.reprocess_message for each expired lock
+- _lock_sweep_loop logs info for each reclaimed lock
+- _lock_sweep_loop logs debug when cleanup_completed returns a non-zero count
+- _lock_sweep_loop does NOT log debug when cleanup_completed returns 0
+- _lock_sweep_loop catches Exception and calls logger.exception('Lock sweep failed')
+- _lock_sweep_loop continues after an exception (resilience)
+- sweep_task.add_done_callback(_log_task_exception) is registered
+- 'Message lock sweep started (30s interval)' is logged when token is set
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+# Ensure no valid STATIC_DIR is set before importing main
+os.environ.pop("STATIC_DIR", None)
+
+from app.main import app, lifespan, _log_task_exception  # noqa: E402
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _capture_sweep_coro():
+    """Capture the _lock_sweep_loop coroutine (task 5) without closing it.
+
+    Task order when DISCORD_BOT_TOKEN is set:
+      1=scheduler, 2=calendar, 3=bot, 4=summary, 5=sweep
+    """
+    mock_bot = MagicMock()
+    mock_bot.close = AsyncMock()
+    mock_bot.wait_until_ready = AsyncMock()
+
+    coros: list = []
+    task_counter = [0]
+
+    def capture_create_task(coro, **kwargs):
+        task_counter[0] += 1
+        t = MagicMock()
+        if task_counter[0] == 5:
+            coros.append(coro)  # preserve — do NOT close
+        else:
+            if hasattr(coro, "close"):
+                coro.close()
+        return t
+
+    return coros, capture_create_task, mock_bot
+
+
+def _make_lock(discord_message_id: int, channel_id: int) -> MagicMock:
+    """Build a mock lock object with discord_message_id and channel_id attributes."""
+    lock = MagicMock()
+    lock.discord_message_id = discord_message_id
+    lock.channel_id = channel_id
+    return lock
+
+
+# ---------------------------------------------------------------------------
+# sweep_task registration wiring
+# ---------------------------------------------------------------------------
+
+
+class TestSweepTaskRegistration:
+    @pytest.mark.asyncio
+    async def test_sweep_task_registers_done_callback_with_log_task_exception(self):
+        """When DISCORD_BOT_TOKEN is set, sweep_task.add_done_callback(_log_task_exception) is called.
+
+        Task order: 1=scheduler, 2=calendar, 3=bot, 4=summary, 5=sweep.
+        """
+        mock_bot = MagicMock()
+        mock_bot.close = AsyncMock()
+
+        sweep_task_mock = MagicMock()
+        task_counter = [0]
+
+        def capture_create_task(coro, **kwargs):
+            if hasattr(coro, "close"):
+                coro.close()
+            task_counter[0] += 1
+            if task_counter[0] == 5:
+                return sweep_task_mock
+            return MagicMock()
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_create_task),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        sweep_task_mock.add_done_callback.assert_called_once_with(_log_task_exception)
+
+    @pytest.mark.asyncio
+    async def test_sweep_started_log_message_when_token_set(self):
+        """'Message lock sweep started (30s interval)' is logged when DISCORD_BOT_TOKEN is set."""
+        mock_bot = MagicMock()
+        mock_bot.close = AsyncMock()
+
+        def capture_create_task(coro, **kwargs):
+            if hasattr(coro, "close"):
+                coro.close()
+            return MagicMock()
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_create_task),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+            patch("app.main.logger") as mock_logger,
+        ):
+            async with lifespan(app):
+                pass
+
+        messages = [str(c) for c in mock_logger.info.call_args_list]
+        assert any("Message lock sweep started" in m for m in messages), (
+            "Expected 'Message lock sweep started' to be logged when DISCORD_BOT_TOKEN is set"
+        )
+
+    @pytest.mark.asyncio
+    async def test_sweep_not_started_when_token_absent(self):
+        """'Message lock sweep started' is NOT logged when DISCORD_BOT_TOKEN is absent."""
+        tasks_created = []
+
+        def capture_create_task(coro, **kwargs):
+            if hasattr(coro, "close"):
+                coro.close()
+            t = MagicMock()
+            tasks_created.append(t)
+            return t
+
+        env_without_token = {
+            k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
+        }
+        env_without_token["DISCORD_BOT_TOKEN"] = ""
+
+        with (
+            patch.dict(os.environ, env_without_token, clear=True),
+            patch("asyncio.create_task", side_effect=capture_create_task),
+            patch("app.main.logger") as mock_logger,
+        ):
+            async with lifespan(app):
+                pass
+
+        # Only 2 tasks should be created (scheduler + calendar)
+        assert len(tasks_created) == 2
+        messages = [str(c) for c in mock_logger.info.call_args_list]
+        assert not any("Message lock sweep started" in m for m in messages)
+
+
+# ---------------------------------------------------------------------------
+# _lock_sweep_loop body: no expired locks
+# ---------------------------------------------------------------------------
+
+
+class TestLockSweepLoopNoExpiredLocks:
+    @pytest.mark.asyncio
+    async def test_sweep_loop_calls_reclaim_expired_on_each_iteration(self):
+        """_lock_sweep_loop calls store.reclaim_expired on each iteration."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+
+        mock_store = MagicMock()
+        mock_store.reclaim_expired.return_value = []  # no expired locks
+        mock_store.cleanup_completed.return_value = 0
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        sleep_count = [0]
+
+        async def controlled_sleep(_secs):
+            sleep_count[0] += 1
+            if sleep_count[0] >= 1:
+                raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=controlled_sleep),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger"),
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        mock_store.reclaim_expired.assert_called_once_with(ttl_seconds=30, limit=5)
+
+    @pytest.mark.asyncio
+    async def test_sweep_loop_calls_cleanup_completed_on_each_iteration(self):
+        """_lock_sweep_loop calls store.cleanup_completed on each iteration."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+
+        mock_store = MagicMock()
+        mock_store.reclaim_expired.return_value = []
+        mock_store.cleanup_completed.return_value = 0
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        sleep_count = [0]
+
+        async def controlled_sleep(_secs):
+            sleep_count[0] += 1
+            if sleep_count[0] >= 1:
+                raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=controlled_sleep),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger"),
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        mock_store.cleanup_completed.assert_called_once_with(max_age_seconds=3600)
+
+    @pytest.mark.asyncio
+    async def test_sweep_loop_sleeps_30s_between_iterations(self):
+        """_lock_sweep_loop calls asyncio.sleep(30) at the start of each sweep iteration."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+
+        mock_store = MagicMock()
+        mock_store.reclaim_expired.return_value = []
+        mock_store.cleanup_completed.return_value = 0
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        sleep_calls = []
+
+        async def capturing_sleep(secs):
+            sleep_calls.append(secs)
+            raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=capturing_sleep),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger"),
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        assert sleep_calls == [30], (
+            f"Expected asyncio.sleep(30) but got calls: {sleep_calls}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_sweep_loop_does_not_log_debug_when_no_locks_cleaned(self):
+        """_lock_sweep_loop does not call logger.debug when cleanup_completed returns 0."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+
+        mock_store = MagicMock()
+        mock_store.reclaim_expired.return_value = []
+        mock_store.cleanup_completed.return_value = 0
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        async def cancel_immediately(_secs):
+            raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=cancel_immediately),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger") as mock_logger,
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        mock_logger.debug.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# _lock_sweep_loop body: expired locks present
+# ---------------------------------------------------------------------------
+
+
+class TestLockSweepLoopWithExpiredLocks:
+    @pytest.mark.asyncio
+    async def test_sweep_loop_calls_reprocess_for_each_expired_lock(self):
+        """_lock_sweep_loop calls bot.reprocess_message for every expired lock returned."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+        mock_bot.reprocess_message = AsyncMock()
+
+        lock1 = _make_lock(discord_message_id=111, channel_id=999)
+        lock2 = _make_lock(discord_message_id=222, channel_id=888)
+
+        mock_store = MagicMock()
+        mock_store.reclaim_expired.return_value = [lock1, lock2]
+        mock_store.cleanup_completed.return_value = 0
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        async def cancel_after_sleep(_secs):
+            raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=cancel_after_sleep),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger"),
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        assert mock_bot.reprocess_message.await_count == 2
+        mock_bot.reprocess_message.assert_any_await(111, 999)
+        mock_bot.reprocess_message.assert_any_await(222, 888)
+
+    @pytest.mark.asyncio
+    async def test_sweep_loop_logs_info_for_each_reclaimed_lock(self):
+        """_lock_sweep_loop calls logger.info with the lock's discord_message_id for each reclaimed lock."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+        mock_bot.reprocess_message = AsyncMock()
+
+        lock = _make_lock(discord_message_id=42, channel_id=7)
+
+        mock_store = MagicMock()
+        mock_store.reclaim_expired.return_value = [lock]
+        mock_store.cleanup_completed.return_value = 0
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        async def cancel_after_sleep(_secs):
+            raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=cancel_after_sleep),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger") as mock_logger,
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        # Check that info was logged with the message ID
+        info_calls = [str(c) for c in mock_logger.info.call_args_list]
+        assert any("42" in m for m in info_calls), (
+            "Expected logger.info to include the discord_message_id (42)"
+        )
+
+    @pytest.mark.asyncio
+    async def test_sweep_loop_logs_debug_when_locks_cleaned(self):
+        """_lock_sweep_loop calls logger.debug when cleanup_completed returns a non-zero count."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+        mock_bot.reprocess_message = AsyncMock()
+
+        mock_store = MagicMock()
+        mock_store.reclaim_expired.return_value = []
+        mock_store.cleanup_completed.return_value = 3  # 3 locks cleaned
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        async def cancel_after_sleep(_secs):
+            raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=cancel_after_sleep),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger") as mock_logger,
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        mock_logger.debug.assert_called_once()
+        debug_msg = str(mock_logger.debug.call_args)
+        assert "3" in debug_msg, "Expected the cleaned count (3) in the debug log"
+
+
+# ---------------------------------------------------------------------------
+# _lock_sweep_loop exception handling
+# ---------------------------------------------------------------------------
+
+
+class TestLockSweepLoopExceptionHandling:
+    @pytest.mark.asyncio
+    async def test_sweep_loop_logs_exception_when_store_raises(self):
+        """_lock_sweep_loop calls logger.exception('Lock sweep failed') when an error occurs."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+
+        mock_store = MagicMock()
+        mock_store.reclaim_expired.side_effect = RuntimeError("DB connection lost")
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        sleep_count = [0]
+
+        async def controlled_sleep(_secs):
+            sleep_count[0] += 1
+            if sleep_count[0] >= 1:
+                raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=controlled_sleep),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger") as mock_logger,
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        mock_logger.exception.assert_called_once_with("Lock sweep failed")
+
+    @pytest.mark.asyncio
+    async def test_sweep_loop_continues_after_exception(self):
+        """_lock_sweep_loop does not propagate exceptions — it catches and logs, then loops."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+
+        store_call_count = [0]
+
+        mock_store = MagicMock()
+
+        def raising_reclaim(*_args, **_kwargs):
+            store_call_count[0] += 1
+            raise RuntimeError("transient error")
+
+        mock_store.reclaim_expired.side_effect = raising_reclaim
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        sleep_count = [0]
+
+        async def controlled_sleep(_secs):
+            sleep_count[0] += 1
+            if sleep_count[0] >= 2:
+                raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=controlled_sleep),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger"),
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        # The loop ran twice despite repeated failures
+        assert store_call_count[0] == 2, (
+            f"Expected 2 sweep iterations but got {store_call_count[0]}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_sweep_loop_awaits_bot_wait_until_ready_before_loop(self):
+        """_lock_sweep_loop calls bot.wait_until_ready() before entering the while loop."""
+        coros, capture_fn, mock_bot = _capture_sweep_coro()
+        mock_bot.wait_until_ready = AsyncMock()
+
+        mock_store = MagicMock()
+        mock_store.reclaim_expired.return_value = []
+        mock_store.cleanup_completed.return_value = 0
+
+        mock_session_obj = MagicMock()
+        mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+        mock_session_obj.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_fn),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1
+
+        async def cancel_on_sleep(_secs):
+            raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=cancel_on_sleep),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session_obj),
+            patch("chat.store.MessageStore", return_value=mock_store),
+            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("app.main.logger"),
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        mock_bot.wait_until_ready.assert_awaited_once()
