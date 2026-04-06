@@ -256,7 +256,9 @@ class TestLifespanShutdownBackfillDone:
                 coro.close()
             return MagicMock()
 
-        env_without_token = {k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"}
+        env_without_token = {
+            k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
+        }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
         with (
@@ -281,7 +283,9 @@ class TestLifespanShutdownBackfillDone:
                 coro.close()
             return MagicMock()
 
-        env_without_token = {k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"}
+        env_without_token = {
+            k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
+        }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
         with (
