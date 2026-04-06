@@ -1443,6 +1443,36 @@ py_test(
     ],
 )
 
+py_test(
+    name = "home_router_archive_test",
+    srcs = ["home/router_archive_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
+    name = "main_lock_sweep_test",
+    srcs = ["app/main_lock_sweep_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
