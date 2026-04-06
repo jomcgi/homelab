@@ -188,3 +188,35 @@ semgrep_test(
     srcs = ["preprocessing_coverage_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "scoring_additional_test",
+    srcs = ["scoring_additional_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/stargazer/backend",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "scoring_additional_test_semgrep_test",
+    srcs = ["scoring_additional_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "api_additional_test",
+    srcs = ["api_additional_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/stargazer/backend",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "api_additional_test_semgrep_test",
+    srcs = ["api_additional_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
