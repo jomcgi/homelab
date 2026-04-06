@@ -41,7 +41,9 @@ class TestReconcilerFileNotFoundRace:
         )
 
         # Simulate: walk finds the file with some hash, but it doesn't exist on disk
-        with patch.object(reconciler, "_walk_vault", return_value={"vault://ghost.md": "abc123"}):
+        with patch.object(
+            reconciler, "_walk_vault", return_value={"vault://ghost.md": "abc123"}
+        ):
             with pytest.raises(FileNotFoundError):
                 await reconciler.run()
 
