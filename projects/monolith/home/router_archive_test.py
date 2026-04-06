@@ -62,7 +62,10 @@ def client_fixture(session):
 def test_get_archive_returns_200_with_existing_archive(client, session):
     """GET /api/home/archive/{date} returns 200 when an Archive exists for that date."""
     archive_date = date(2024, 1, 15)
-    archive = Archive(date=archive_date, content="## Weekly\n- [ ] Ship feature\n## Daily\n- [x] Write tests")
+    archive = Archive(
+        date=archive_date,
+        content="## Weekly\n- [ ] Ship feature\n## Daily\n- [x] Write tests",
+    )
     session.add(archive)
     session.commit()
 
