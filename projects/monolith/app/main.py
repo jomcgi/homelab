@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -87,8 +88,6 @@ async def lifespan(app: FastAPI):
     if discord_token:
 
         async def _summary_loop():
-            from datetime import datetime, timezone
-
             from chat.models import ChannelSummary, UserChannelSummary
             from chat.summarizer import (
                 build_llm_caller,
