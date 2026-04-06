@@ -260,3 +260,19 @@ semgrep_test(
     srcs = ["gap_coverage_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "new_coverage_test",
+    srcs = ["new_coverage_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/stargazer/backend",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "new_coverage_test_semgrep_test",
+    srcs = ["new_coverage_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
