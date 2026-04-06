@@ -4,6 +4,9 @@ Covers the three outcomes:
   1. Channel not found → logs warning and returns without processing.
   2. Message deleted (discord.NotFound) → marks lock completed, returns.
   3. Happy path → calls _process_message with the fetched message.
+
+Note: reprocess_message calls ``int(channel_id)`` so all channel_id
+arguments must be valid numeric strings.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -45,15 +48,14 @@ class TestReprocessMessage:
     async def test_channel_not_found_logs_warning_and_returns(self):
         """When get_channel returns None, a warning is logged and we return early."""
         bot = _make_bot()
-        # get_channel is inherited from discord.Client; patch it on the instance
         bot.get_channel = MagicMock(return_value=None)
 
         with patch("chat.bot.logger") as mock_logger:
-            await bot.reprocess_message("msg-42", "ch-99")
+            await bot.reprocess_message("123456", "99")
 
         mock_logger.warning.assert_called_once()
-        warning_args = mock_logger.warning.call_args[0]
-        assert "ch-99" in str(warning_args) or "msg-42" in str(warning_args)
+        warning_args = str(mock_logger.warning.call_args)
+        assert "99" in warning_args or "123456" in warning_args
 
     @pytest.mark.asyncio
     async def test_channel_not_found_does_not_call_process_message(self):
@@ -62,7 +64,7 @@ class TestReprocessMessage:
         bot.get_channel = MagicMock(return_value=None)
 
         with patch.object(bot, "_process_message", new_callable=AsyncMock) as mock_pm:
-            await bot.reprocess_message("msg-43", "ch-99")
+            await bot.reprocess_message("123457", "99")
 
         mock_pm.assert_not_called()
 
@@ -87,9 +89,9 @@ class TestReprocessMessage:
             patch("chat.bot.Session", return_value=mock_session_instance),
             patch("chat.bot.MessageStore", return_value=mock_store),
         ):
-            await bot.reprocess_message("msg-deleted", "ch-1")
+            await bot.reprocess_message("123458", "100")
 
-        mock_store.mark_completed.assert_called_once_with("msg-deleted")
+        mock_store.mark_completed.assert_called_once_with("123458")
 
     @pytest.mark.asyncio
     async def test_message_deleted_does_not_call_process_message(self):
@@ -108,7 +110,7 @@ class TestReprocessMessage:
             patch("chat.bot.MessageStore"),
             patch.object(bot, "_process_message", new_callable=AsyncMock) as mock_pm,
         ):
-            await bot.reprocess_message("msg-deleted-2", "ch-1")
+            await bot.reprocess_message("123459", "100")
 
         mock_pm.assert_not_called()
 
@@ -123,7 +125,7 @@ class TestReprocessMessage:
         bot.get_channel = MagicMock(return_value=mock_channel)
 
         with patch.object(bot, "_process_message", new_callable=AsyncMock) as mock_pm:
-            await bot.reprocess_message("msg-ok", "ch-1")
+            await bot.reprocess_message("123460", "100")
 
         mock_pm.assert_called_once_with(fetched_message)
 
@@ -142,7 +144,7 @@ class TestReprocessMessage:
             patch("chat.bot.logger") as mock_logger,
             patch.object(bot, "_process_message", new_callable=AsyncMock) as mock_pm,
         ):
-            await bot.reprocess_message("msg-http-err", "ch-1")
+            await bot.reprocess_message("123461", "100")
 
         mock_logger.exception.assert_called_once()
         mock_pm.assert_not_called()
@@ -165,6 +167,6 @@ class TestReprocessMessage:
             patch("chat.bot.Session"),
             patch("chat.bot.MessageStore", return_value=mock_store),
         ):
-            await bot.reprocess_message("msg-http-err-2", "ch-1")
+            await bot.reprocess_message("123462", "100")
 
         mock_store.mark_completed.assert_not_called()
