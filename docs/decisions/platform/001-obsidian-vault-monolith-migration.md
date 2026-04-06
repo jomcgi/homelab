@@ -36,18 +36,18 @@ Migrate the Obsidian vault into the monolith by:
 4. **Using Postgres `LISTEN/NOTIFY` + `SKIP LOCKED`** for file change deduplication across pods
 5. **Removing `projects/obsidian_vault/`** as a standalone service
 
-| Aspect                    | Today                                       | Proposed                                                    |
-| ------------------------- | ------------------------------------------- | ----------------------------------------------------------- |
-| **Vault storage**         | RWO PVC (5Gi)                               | TigerFS FUSE → CNPG Postgres                                |
-| **Vector search**         | Qdrant subchart (768-dim, cosine)           | pgvector in existing CNPG cluster                           |
-| **Embedding model**       | nomic-embed-text-v1.5 in vault-mcp pod      | Same model, runs in monolith pod                            |
-| **File change detection** | git-sidecar (inotify → git commit)          | Postgres `LISTEN/NOTIFY` on row changes                     |
-| **Obsidian Sync**         | headless-sync sidecar on RWO PVC            | headless-sync sidecar on TigerFS FUSE mount                 |
-| **Deploy strategy**       | `Recreate` (RWO constraint)                 | `RollingUpdate` (all pods share Postgres)                   |
-| **Replicas**              | 1 (hard limit)                              | N (limited only by Postgres connections)                    |
-| **Stateful dependencies** | PVC + Qdrant + git remote                   | Postgres only                                               |
-| **MCP registration**      | Standalone gateway registration job         | Monolith registers vault tools alongside existing MCP tools |
-| **Notes API**             | HTTP proxy (`notes/service.py` → vault-mcp) | Direct database access                                      |
+| Aspect                    | Today                                        | Proposed                                                    |
+| ------------------------- | -------------------------------------------- | ----------------------------------------------------------- |
+| **Vault storage**         | RWO PVC (5Gi)                                | TigerFS FUSE → CNPG Postgres                                |
+| **Vector search**         | Qdrant subchart (768-dim, cosine)            | pgvector in existing CNPG cluster                           |
+| **Embedding model**       | nomic-embed-text-v1.5 in-process (FastEmbed) | voyage-4-nano via existing llama.cpp on node-4 (1024-dim)   |
+| **File change detection** | git-sidecar (inotify → git commit)           | Postgres `LISTEN/NOTIFY` on row changes                     |
+| **Obsidian Sync**         | headless-sync sidecar on RWO PVC             | headless-sync sidecar on TigerFS FUSE mount                 |
+| **Deploy strategy**       | `Recreate` (RWO constraint)                  | `RollingUpdate` (all pods share Postgres)                   |
+| **Replicas**              | 1 (hard limit)                               | N (limited only by Postgres connections)                    |
+| **Stateful dependencies** | PVC + Qdrant + git remote                    | Postgres only                                               |
+| **MCP registration**      | Standalone gateway registration job          | Monolith registers vault tools alongside existing MCP tools |
+| **Notes API**             | HTTP proxy (`notes/service.py` → vault-mcp)  | Direct database access                                      |
 
 ---
 
@@ -60,7 +60,6 @@ graph TB
     subgraph "Monolith Pod (one of N)"
         HS[headless-sync<br/>Obsidian Sync] -->|reads/writes| FUSE
         MO[monolith<br/>FastAPI + vault tools] -->|reads/writes| FUSE
-        MO -->|embeddings| PGV[pgvector queries]
 
         subgraph "TigerFS sidecar"
             FUSE["/vault FUSE mount"]
@@ -68,7 +67,8 @@ graph TB
     end
 
     FUSE -->|SQL| PG[(CNPG PostgreSQL<br/>pgvector)]
-    PGV -->|SQL| PG
+    MO -->|embed HTTP| LLAMA[llama.cpp<br/>voyage-4-nano on node-4]
+    MO -->|pgvector queries| PG
     PG -->|LISTEN/NOTIFY| MO
 ```
 
@@ -112,7 +112,7 @@ CREATE TABLE vault.embeddings (
     note_id INTEGER NOT NULL REFERENCES vault.notes(id) ON DELETE CASCADE,
     chunk_index INTEGER NOT NULL,
     chunk_text TEXT NOT NULL,
-    embedding vector(768) NOT NULL,  -- nomic-embed-text-v1.5
+    embedding vector(1024) NOT NULL, -- voyage-4-nano via llama.cpp
     UNIQUE(note_id, chunk_index)
 );
 
@@ -153,30 +153,36 @@ No `SYS_ADMIN` capability required. Existing `DROP ALL` + `runAsNonRoot` securit
 
 ## Implementation
 
-### Phase 1: pgvector Migration (low risk, no TigerFS dependency)
+Single-phase approach — try it, revert if it doesn't work.
 
-- [ ] Add `vault` schema migration with `notes` and `embeddings` tables
-- [ ] Migrate embedding logic from `vault_mcp/app/embedder.py` to monolith
-- [ ] Migrate chunking logic from `vault_mcp/app/chunker.py` to monolith
-- [ ] Implement pgvector-backed semantic search (replace Qdrant client)
-- [ ] Add reconciler that re-embeds changed notes on a schedule
+### Schema & Data
+
+- [ ] Add `vault` schema migration with `notes` and `embeddings` tables (1024-dim vectors)
+- [ ] Backfill existing vault notes into Postgres (one-time migration script from git repo)
+
+### Monolith Integration
+
+- [ ] Migrate chunking logic from `vault_mcp/app/chunker.py` into monolith
+- [ ] Reuse existing `chat/embedding.py` client (already calls voyage-4-nano via llama.cpp)
+- [ ] Implement pgvector-backed semantic search (replace Qdrant)
+- [ ] Add reconciler using `LISTEN/NOTIFY` + `SKIP LOCKED` for change deduplication
 - [ ] Replace `notes/service.py` HTTP proxy with direct DB access
 - [ ] Register vault MCP tools from monolith's gateway registration
-- [ ] Bump CNPG resource limits (memory: 256Mi → 512Mi, storage: 10Gi → 15Gi)
-- [ ] Backfill existing vault notes into Postgres (one-time migration script)
 
-### Phase 2: TigerFS Integration (higher risk, depends on TigerFS maturity)
+### TigerFS + Obsidian Sync
 
-- [ ] Evaluate TigerFS stability — run in a test pod for 1 week with synthetic load
 - [ ] Add TigerFS sidecar container to monolith deployment
 - [ ] Configure `/dev/fuse` device access in pod spec
 - [ ] Add liveness probe on FUSE mount health (e.g. `stat /vault/.tigerfs-health`)
-- [ ] Wire headless-sync sidecar to TigerFS mount instead of PVC
-- [ ] Implement `LISTEN/NOTIFY` + `SKIP LOCKED` change deduplication
-- [ ] Switch deploy strategy from `Recreate` to `RollingUpdate`
+- [ ] Wire headless-sync sidecar to TigerFS FUSE mount
 - [ ] Test Obsidian Sync end-to-end: mobile edit → cloud → headless-sync → TigerFS → Postgres → re-embed
 
-### Phase 3: Cleanup
+### Deploy Changes
+
+- [ ] Switch deploy strategy from `Recreate` to `RollingUpdate`
+- [ ] Bump CNPG resource limits (memory: 256Mi → 512Mi, storage: 10Gi → 15Gi)
+
+### Cleanup
 
 - [ ] Remove `projects/obsidian_vault/` (chart, deploy, image, vault_mcp)
 - [ ] Remove Qdrant from cluster
@@ -197,23 +203,20 @@ Baseline per `docs/security.md`. Deviations:
 
 ## Risks
 
-| Risk                                     | Likelihood | Impact                          | Mitigation                                                                                                                   |
-| ---------------------------------------- | ---------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| TigerFS is too immature for production   | Medium     | High — blocks Phase 2           | Phase 1 is independent; pgvector migration delivers value without TigerFS. Evaluate stability in test pod before committing. |
-| FUSE mount goes stale (TigerFS crash)    | Low-Medium | High — pod becomes unresponsive | Liveness probe on mount; kubelet restarts pod. TigerFS sidecar with restart policy.                                          |
-| Postgres becomes single point of failure | Low        | High — all vault access lost    | CNPG handles failover (already configured). Postgres is already SPOF for todo/chat/notes.                                    |
-| CNPG resource pressure from embeddings   | Low        | Medium — slower queries         | Monitor with SigNoz; bump resources proactively in Phase 1. IVFFlat index keeps search fast.                                 |
-| Obsidian Sync incompatibility with FUSE  | Low        | High — breaks paid sync         | Test extensively in Phase 2 before cutting over. Fallback: keep standalone service.                                          |
-| Embedding model memory in monolith pod   | Medium     | Medium — OOM risk               | nomic-embed-text-v1.5 needs ~1.5GB. Monolith pod limits need bumping (256Mi → 2Gi+).                                         |
+| Risk                                     | Likelihood | Impact                          | Mitigation                                                                                            |
+| ---------------------------------------- | ---------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| TigerFS is too immature                  | Medium     | Medium — revert to standalone   | Keep `projects/obsidian_vault/` until migration is verified. Revert is a single ArgoCD app re-enable. |
+| FUSE mount goes stale (TigerFS crash)    | Low-Medium | High — pod becomes unresponsive | Liveness probe on mount; kubelet restarts pod. TigerFS sidecar with restart policy.                   |
+| Postgres becomes single point of failure | Low        | High — all vault access lost    | CNPG handles failover (already configured). Postgres is already SPOF for todo/chat/notes.             |
+| CNPG resource pressure from embeddings   | Low        | Medium — slower queries         | Monitor with SigNoz; bump resources proactively. IVFFlat index keeps search fast.                     |
+| Obsidian Sync incompatibility with FUSE  | Low        | High — breaks paid sync         | Test end-to-end before cutting over. Fallback: revert to standalone service with RWO PVC.             |
 
 ---
 
 ## Open Questions
 
 1. **TigerFS versioning vs git** — TigerFS claims built-in version history. Is it sufficient to replace the git audit trail, or should we keep async git pushes as a backup?
-2. **Embedding model placement** — Should the embedding model run in-process (simpler) or as a sidecar/separate service (isolates memory pressure)?
-3. **Migration cutover** — Big-bang switchover or run both systems in parallel with a feature flag?
-4. **CNPG connection pooling** — With N monolith replicas each running TigerFS + app connections, do we need PgBouncer in front of CNPG?
+2. **CNPG connection pooling** — With N monolith replicas each running TigerFS + app connections, do we need PgBouncer in front of CNPG?
 
 ---
 
@@ -227,4 +230,6 @@ Baseline per `docs/security.md`. Deviations:
 | [Unprivileged FUSE](https://www.kernel.org/doc/html/latest/filesystems/fuse.html) | Kernel docs on FUSE without SYS_ADMIN                    |
 | `projects/obsidian_vault/`                                                        | Current standalone service being migrated                |
 | `projects/monolith/notes/`                                                        | Existing HTTP proxy to vault-mcp (integration seam)      |
+| `projects/monolith/chat/embedding.py`                                             | Existing voyage-4-nano client with retry logic (reuse)   |
+| `projects/agent_platform/llama_cpp_embeddings/`                                   | Already-deployed voyage-4-nano on node-4 via llama.cpp   |
 | `projects/monolith/chart/templates/cnpg-cluster.yaml`                             | Existing CNPG cluster with pgvector                      |
