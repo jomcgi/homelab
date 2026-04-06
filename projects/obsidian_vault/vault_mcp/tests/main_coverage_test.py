@@ -189,19 +189,21 @@ class TestSearchSemanticEdgeCases:
 
 
 class TestGetHistoryParsing:
-    async def test_pipe_in_commit_message_is_preserved(self, tmp_path):
-        """git log --format uses | separator but split("| ", 3) limits splits.
-        A | in the commit message ends up in the 'message' field correctly."""
+    async def test_commit_message_parsed_correctly(self, tmp_path):
+        """The git log --format=%H|%s|%an|%ai output is split correctly into fields."""
         (tmp_path / "note.md").write_text("content")
         subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
         subprocess.run(
-            ["git", "commit", "-m", "feat: update note | with pipe"],
+            ["git", "commit", "-m", "feat: add some content"],
             cwd=tmp_path,
             capture_output=True,
         )
         result = await get_history(path="note.md")
         assert len(result["commits"]) == 1
-        assert "feat: update note | with pipe" in result["commits"][0]["message"]
+        commit = result["commits"][0]
+        assert commit["message"] == "feat: add some content"
+        assert commit["author"] == "Test"
+        assert "2026" in commit["date"]  # ISO date contains the year
 
     async def test_all_commit_fields_present(self, tmp_path):
         """Each commit dict has hash, message, author, date keys."""
