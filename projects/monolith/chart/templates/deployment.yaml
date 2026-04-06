@@ -63,6 +63,17 @@ spec:
               value: {{ .Values.chat.embeddingUrl | quote }}
             - name: SEARXNG_URL
               value: {{ .Values.chat.searxngUrl | quote }}
+            {{- if .Values.chat.changelog.enabled }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monolith.fullname" . }}-chat-secrets
+                  key: GITHUB_TOKEN
+            - name: CHANGELOG_CHANNEL_ID
+              value: {{ .Values.chat.changelog.channelId | quote }}
+            - name: CHANGELOG_GITHUB_REPO
+              value: {{ .Values.chat.changelog.githubRepo | quote }}
+            {{- end }}
             {{- end }}
           livenessProbe:
             httpGet:
