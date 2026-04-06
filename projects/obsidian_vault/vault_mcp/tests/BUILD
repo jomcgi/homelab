@@ -126,3 +126,53 @@ semgrep_test(
     srcs = ["reconciler_extra_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "chunker_additional_test",
+    srcs = ["chunker_additional_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "chunker_additional_test_semgrep_test",
+    srcs = ["chunker_additional_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "qdrant_additional_test",
+    srcs = ["qdrant_additional_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "qdrant_additional_test_semgrep_test",
+    srcs = ["qdrant_additional_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "embedder_additional_test",
+    srcs = ["embedder_additional_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app",
+        "@pip//numpy",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "embedder_additional_test_semgrep_test",
+    srcs = ["embedder_additional_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
