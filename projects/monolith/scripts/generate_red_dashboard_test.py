@@ -252,8 +252,15 @@ class TestBaseQuery:
         assert len(q["filters"]["items"]) == 2
 
     def test_group_by_is_set(self):
-        gb = [{"key": "name", "dataType": "string", "type": "tag",
-               "isColumn": True, "isJSON": False}]
+        gb = [
+            {
+                "key": "name",
+                "dataType": "string",
+                "type": "tag",
+                "isColumn": True,
+                "isJSON": False,
+            }
+        ]
         q = _base_query("A", "rate", group_by=gb)
         assert q["groupBy"] == gb
 
