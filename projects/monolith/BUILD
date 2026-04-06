@@ -1397,6 +1397,18 @@ py_test(
 )
 
 py_test(
+    name = "chat_bot_thinking_view_callback_test",
+    srcs = ["chat/bot_thinking_view_callback_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "scripts_red_dashboard_extra_test",
     srcs = ["scripts/generate_red_dashboard_extra_test.py"],
     data = ["scripts/generate-red-dashboard.py"],
