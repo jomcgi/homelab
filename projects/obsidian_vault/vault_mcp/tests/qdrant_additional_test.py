@@ -14,7 +14,9 @@ _NAMESPACE = uuid.UUID("00000000-0000-0000-0000-000000000000")
 _PATCH_TARGET = "projects.obsidian_vault.vault_mcp.app.qdrant_client.httpx.AsyncClient"
 
 
-def _mock_response(status_code: int = 200, json_data: dict | None = None) -> httpx.Response:
+def _mock_response(
+    status_code: int = 200, json_data: dict | None = None
+) -> httpx.Response:
     return httpx.Response(
         status_code=status_code,
         json=json_data or {},
@@ -201,9 +203,7 @@ class TestSearchAdditional:
 
         async def capture_post(url, *, json):
             captured.append(json)
-            return _mock_response(
-                200, {"result": {"points": []}}
-            )
+            return _mock_response(200, {"result": {"points": []}})
 
         qdrant = QdrantClient(url="http://localhost:6333", collection="test")
         mock = _mock_async_client()
@@ -293,7 +293,12 @@ class TestGetIndexedSourcesAdditional:
                     "result": {
                         "points": [
                             {"payload": {"source_url": "", "content_hash": "h"}},
-                            {"payload": {"source_url": "vault://valid.md", "content_hash": "h2"}},
+                            {
+                                "payload": {
+                                    "source_url": "vault://valid.md",
+                                    "content_hash": "h2",
+                                }
+                            },
                         ],
                         "next_page_offset": None,
                     }
@@ -312,13 +317,17 @@ class TestGetIndexedSourcesAdditional:
         """get_indexed_sources follows next_page_offset to fetch all pages."""
         page1 = {
             "result": {
-                "points": [{"payload": {"source_url": "vault://a.md", "content_hash": "h1"}}],
+                "points": [
+                    {"payload": {"source_url": "vault://a.md", "content_hash": "h1"}}
+                ],
                 "next_page_offset": "page2-token",
             }
         }
         page2 = {
             "result": {
-                "points": [{"payload": {"source_url": "vault://b.md", "content_hash": "h2"}}],
+                "points": [
+                    {"payload": {"source_url": "vault://b.md", "content_hash": "h2"}}
+                ],
                 "next_page_offset": None,
             }
         }
@@ -395,8 +404,18 @@ class TestGetIndexedSourcesAdditional:
                 {
                     "result": {
                         "points": [
-                            {"payload": {"source_url": "vault://x.md", "content_hash": "first"}},
-                            {"payload": {"source_url": "vault://x.md", "content_hash": "second"}},
+                            {
+                                "payload": {
+                                    "source_url": "vault://x.md",
+                                    "content_hash": "first",
+                                }
+                            },
+                            {
+                                "payload": {
+                                    "source_url": "vault://x.md",
+                                    "content_hash": "second",
+                                }
+                            },
                         ],
                         "next_page_offset": None,
                     }

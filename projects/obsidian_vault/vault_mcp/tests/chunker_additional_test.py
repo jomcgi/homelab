@@ -179,9 +179,7 @@ class TestChunkMarkdownAdditional:
 
     def test_chunk_indices_are_sequential(self):
         # Generate many sections to get multiple chunks
-        sections = "\n\n".join(
-            f"# Section {i}\n\n{'word ' * 60}" for i in range(5)
-        )
+        sections = "\n\n".join(f"# Section {i}\n\n{'word ' * 60}" for i in range(5))
         chunks = chunk_markdown(
             content=sections,
             content_hash="hash",
