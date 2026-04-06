@@ -25,6 +25,7 @@ go_test(
         "generator_coverage_test.go",
         "generator_gaps_test.go",
         "generator_helpers_test.go",
+        "generator_new_test.go",
         "generator_test.go",
     ],
     embed = [":codegen"],

@@ -21,6 +21,7 @@ go_test(
         "validate_fileio_test.go",
         "validate_gaps_test.go",
         "validate_internal_test.go",
+        "validate_new_test.go",
         "validate_test.go",
     ],
     embed = [":schema"],
