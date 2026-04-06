@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
     name = "sextant_lib",
@@ -12,4 +12,10 @@ go_binary(
     name = "sextant",
     embed = [":sextant_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "main_test",
+    srcs = ["main_test.go"],
+    embed = [":sextant_lib"],
 )
