@@ -971,6 +971,16 @@ py_test(
 )
 
 py_test(
+    name = "scripts_red_dashboard_test",
+    srcs = ["scripts/generate_red_dashboard_test.py"],
+    data = ["scripts/generate-red-dashboard.py"],
+    imports = ["."],
+    deps = [
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "chat_agent_helper_functions_test",
     srcs = ["chat/agent_helper_functions_test.py"],
     imports = ["."],

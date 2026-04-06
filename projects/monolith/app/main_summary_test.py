@@ -7,12 +7,15 @@ Covers gaps not addressed by existing main_* test files:
 - "Summary loop started" is NOT logged without a token
 - _summary_loop logs logger.exception when generate_summaries raises
 - _summary_loop continues after repeated failures (resilience)
+- Fresh summaries (< 24 h) → staleness-check skips generation
+- Summary age exactly at stale_threshold → staleness-check triggers generation
 """
 
 from __future__ import annotations
 
 import asyncio
 import os
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -315,3 +318,146 @@ class TestSummaryLoopExceptionLogging:
 
         # Exception was raised (and caught internally) on both iterations
         assert exception_count[0] == 2
+
+
+# ---------------------------------------------------------------------------
+# Staleness-check path
+# ---------------------------------------------------------------------------
+
+
+def _capture_summary_coro():
+    """
+    Helper: run lifespan and capture the _summary_loop coroutine (task 4)
+    without closing it.  Returns (coro, mock_session, inner_session).
+    """
+    mock_bot = MagicMock()
+    mock_bot.close = AsyncMock()
+
+    coros: list = []
+    task_counter = [0]
+
+    def capture_create_task(coro, **kwargs):
+        task_counter[0] += 1
+        t = MagicMock()
+        if task_counter[0] == 4:
+            coros.append(coro)
+        else:
+            if hasattr(coro, "close"):
+                coro.close()
+        return t
+
+    inner_session = MagicMock()
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=inner_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+
+    return coros, inner_session, mock_session, mock_bot, capture_create_task
+
+
+class TestStalenessCheck:
+    @pytest.mark.asyncio
+    async def test_fresh_summaries_skip_generation(self):
+        """When both user and channel summaries are < 24 h old, generate_summaries is NOT called.
+
+        Strategy:
+        1. Capture the summary loop coroutine (task 4).
+        2. Configure mock session exec().first() to return a datetime 1 hour ago (fresh).
+        3. Run the coro; cancel on the very first asyncio.sleep (end of first iteration).
+        4. Assert generate_summaries was never called.
+        """
+        coros, inner_session, mock_session, mock_bot, capture_create_task = (
+            _capture_summary_coro()
+        )
+
+        # Return a fresh datetime — 1 hour ago is well within the 24-hour threshold
+        fresh_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        inner_session.exec.return_value.first.return_value = fresh_time
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_create_task),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", MagicMock(return_value=mock_session)),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1, "Expected exactly one summary loop coroutine captured"
+
+        generate_mock = AsyncMock()
+
+        async def cancel_on_first_sleep(_secs):
+            raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=cancel_on_first_sleep),
+            patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
+            patch("chat.summarizer.generate_summaries", generate_mock),
+            patch("chat.summarizer.generate_channel_summaries", AsyncMock()),
+            patch("app.main.logger"),
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        generate_mock.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_boundary_at_stale_threshold_triggers_generation(self):
+        """When the most-recent summary is exactly at the stale threshold, generation runs.
+
+        The stale_threshold is 86400 s.  Setting the mock datetime to exactly
+        86400 s ago guarantees age >= stale_threshold (it is marginally older by
+        the time the coro runs), so needs_run = True.
+        """
+        coros, inner_session, mock_session, mock_bot, capture_create_task = (
+            _capture_summary_coro()
+        )
+
+        # Exactly 86400 s ago — the coro will compute age ≥ 86400 → needs_run = True
+        boundary_time = datetime.now(timezone.utc) - timedelta(seconds=86400)
+        inner_session.exec.return_value.first.return_value = boundary_time
+
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
+            patch("asyncio.create_task", side_effect=capture_create_task),
+            patch("chat.bot.create_bot", return_value=mock_bot),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", MagicMock(return_value=mock_session)),
+        ):
+            async with lifespan(app):
+                pass
+
+        assert len(coros) == 1, "Expected exactly one summary loop coroutine captured"
+
+        generate_called = [0]
+
+        async def tracking_generate(*_args, **_kwargs):
+            generate_called[0] += 1
+
+        async def cancel_on_first_sleep(_secs):
+            raise asyncio.CancelledError()
+
+        with (
+            patch("asyncio.sleep", side_effect=cancel_on_first_sleep),
+            patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
+            patch(
+                "chat.summarizer.generate_summaries",
+                side_effect=tracking_generate,
+            ),
+            patch(
+                "chat.summarizer.generate_channel_summaries",
+                new_callable=AsyncMock,
+            ),
+            patch("app.main.logger"),
+        ):
+            try:
+                await coros[0]
+            except asyncio.CancelledError:
+                pass
+
+        assert generate_called[0] == 1, (
+            "generate_summaries should have been called once when age >= stale_threshold"
+        )
