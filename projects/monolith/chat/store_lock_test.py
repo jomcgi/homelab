@@ -198,7 +198,9 @@ class TestReclaimExpired:
     executes against the test database.
     """
 
-    def _insert_lock(self, session, msg_id, channel_id, *, completed=False, age_seconds=0):
+    def _insert_lock(
+        self, session, msg_id, channel_id, *, completed=False, age_seconds=0
+    ):
         """Insert a lock with a specific age."""
         claimed_at = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
         lock = MessageLock(
