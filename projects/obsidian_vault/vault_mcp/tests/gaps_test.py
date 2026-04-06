@@ -148,7 +148,12 @@ class TestQdrantSearchMissingPoints:
                 {
                     "result": {
                         "points": [
-                            {"payload": {"source_url": "vault://x.md", "chunk_text": "t"}}
+                            {
+                                "payload": {
+                                    "source_url": "vault://x.md",
+                                    "chunk_text": "t",
+                                }
+                            }
                         ]
                     }
                 },
@@ -419,7 +424,9 @@ class TestReconcilerGcCollect:
             vault_path=str(tmp_path), embedder=mock_embedder, qdrant=mock_qdrant
         )
 
-        with patch("projects.obsidian_vault.vault_mcp.app.reconciler.gc.collect") as mock_gc:
+        with patch(
+            "projects.obsidian_vault.vault_mcp.app.reconciler.gc.collect"
+        ) as mock_gc:
             await reconciler.run()
 
         # gc.collect() should be called once per embedded file (2 files)
