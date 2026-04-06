@@ -175,11 +175,23 @@ async def lifespan(app: FastAPI):
         sweep_task.add_done_callback(_log_task_exception)
         logger.info("Message lock sweep started (30s interval)")
 
+    # Hourly changelog notifier
+    changelog_task = None
+    if discord_token and bot and os.environ.get("GITHUB_TOKEN"):
+        from chat.changelog import changelog_loop
+        from chat.summarizer import build_llm_caller
+
+        changelog_task = asyncio.create_task(changelog_loop(bot, build_llm_caller()))
+        changelog_task.add_done_callback(_log_task_exception)
+        logger.info("Changelog notifier started (hourly)")
+
     logger.info("Monolith started")
     yield
     backfill_task = getattr(app.state, "backfill_task", None)
     if backfill_task and not backfill_task.done():
         backfill_task.cancel()
+    if changelog_task:
+        changelog_task.cancel()
     if sweep_task:
         sweep_task.cancel()
     if summary_task:

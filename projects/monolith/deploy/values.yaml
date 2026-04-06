@@ -75,5 +75,9 @@ chat:
   llamaCppUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
   embeddingUrl: "http://llama-cpp-embeddings.llama-cpp.svc.cluster.local:8080"
   searxngUrl: "http://monolith-searxng:8080"
+  changelog:
+    enabled: true
+    channelId: "1375032589093703680"
+    githubRepo: "jomcgi/homelab"
   onepassword:
     itemPath: "vaults/k8s-homelab/items/discord-bot"
