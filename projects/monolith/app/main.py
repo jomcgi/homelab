@@ -149,8 +149,9 @@ async def lifespan(app: FastAPI):
             from chat.store import MessageStore
 
             embed_client = EmbeddingClient()
-            # Wait for bot to connect before sweeping
-            await bot.wait_until_ready()
+            # Wait for bot to be initialized (start() is delayed by sidecar check)
+            while not bot.is_ready():
+                await asyncio.sleep(2)
             while True:
                 await asyncio.sleep(30)
                 try:
