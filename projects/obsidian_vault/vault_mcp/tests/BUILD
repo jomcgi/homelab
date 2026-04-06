@@ -176,3 +176,19 @@ semgrep_test(
     srcs = ["embedder_additional_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "main_coverage_test",
+    srcs = ["main_coverage_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "main_coverage_test_semgrep_test",
+    srcs = ["main_coverage_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
