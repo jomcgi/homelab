@@ -6,8 +6,8 @@ ephemeral (private) message to the user who clicks the button.
 These tests complement the basic ephemeral-send test in bot_thinking_test.py
 by exercising the method's contract more thoroughly:
 
-- Direct invocation via ``view.show_thinking(interaction, button)`` (full
-  method signature including the ``button`` parameter).
+- Invocation via the real button descriptor extracted from ``view.children``
+  (the correct way to call ``@discord.ui.button``-decorated callbacks).
 - Varied thinking content: empty, multiline, Unicode, Discord markdown.
 - Side-effect isolation: only ``response.send_message`` is called; no other
   Discord response primitives (``defer``, ``edit_message``, etc.) are
@@ -32,9 +32,11 @@ def _make_interaction() -> AsyncMock:
     return interaction
 
 
-def _make_button() -> MagicMock:
-    """Return a minimal mock of discord.ui.Button."""
-    return MagicMock(spec=discord.ui.Button)
+def _get_button(view: ThinkingView) -> discord.ui.Button:
+    """Extract the real Button descriptor from a ThinkingView."""
+    buttons = [c for c in view.children if isinstance(c, discord.ui.Button)]
+    assert len(buttons) == 1, "ThinkingView should have exactly one button"
+    return buttons[0]
 
 
 class TestShowThinkingCallback:
@@ -45,9 +47,8 @@ class TestShowThinkingCallback:
         """Clicking the button sends the stored thinking text as an ephemeral reply."""
         view = ThinkingView("AI reasoning text")
         interaction = _make_interaction()
-        button = _make_button()
 
-        await view.show_thinking(interaction, button)
+        await _get_button(view).callback(interaction)
 
         interaction.response.send_message.assert_called_once_with(
             "AI reasoning text", ephemeral=True
@@ -58,9 +59,8 @@ class TestShowThinkingCallback:
         """The ephemeral=True keyword argument must always be present."""
         view = ThinkingView("some reasoning")
         interaction = _make_interaction()
-        button = _make_button()
 
-        await view.show_thinking(interaction, button)
+        await _get_button(view).callback(interaction)
 
         _, kwargs = interaction.response.send_message.call_args
         assert kwargs.get("ephemeral") is True
@@ -71,9 +71,8 @@ class TestShowThinkingCallback:
         thinking = "Step 1: consider X\nStep 2: conclude Y"
         view = ThinkingView(thinking)
         interaction = _make_interaction()
-        button = _make_button()
 
-        await view.show_thinking(interaction, button)
+        await _get_button(view).callback(interaction)
 
         args, _ = interaction.response.send_message.call_args
         assert args[0] == thinking
@@ -83,9 +82,8 @@ class TestShowThinkingCallback:
         """An empty thinking string is forwarded unchanged (no special-casing)."""
         view = ThinkingView("")
         interaction = _make_interaction()
-        button = _make_button()
 
-        await view.show_thinking(interaction, button)
+        await _get_button(view).callback(interaction)
 
         interaction.response.send_message.assert_called_once_with("", ephemeral=True)
 
@@ -95,9 +93,8 @@ class TestShowThinkingCallback:
         multiline = "First thought.\n\nSecond thought.\n\nConclusion."
         view = ThinkingView(multiline)
         interaction = _make_interaction()
-        button = _make_button()
 
-        await view.show_thinking(interaction, button)
+        await _get_button(view).callback(interaction)
 
         interaction.response.send_message.assert_called_once_with(
             multiline, ephemeral=True
@@ -109,9 +106,8 @@ class TestShowThinkingCallback:
         unicode_thinking = "思考: 🤔 résumé — naïve approach → 42"
         view = ThinkingView(unicode_thinking)
         interaction = _make_interaction()
-        button = _make_button()
 
-        await view.show_thinking(interaction, button)
+        await _get_button(view).callback(interaction)
 
         interaction.response.send_message.assert_called_once_with(
             unicode_thinking, ephemeral=True
@@ -123,9 +119,8 @@ class TestShowThinkingCallback:
         markdown_thinking = "**bold** _italic_ `code` ~~strike~~ > blockquote"
         view = ThinkingView(markdown_thinking)
         interaction = _make_interaction()
-        button = _make_button()
 
-        await view.show_thinking(interaction, button)
+        await _get_button(view).callback(interaction)
 
         interaction.response.send_message.assert_called_once_with(
             markdown_thinking, ephemeral=True
@@ -136,9 +131,8 @@ class TestShowThinkingCallback:
         """No other response methods (defer, edit_message) are invoked."""
         view = ThinkingView("reasoning")
         interaction = _make_interaction()
-        button = _make_button()
 
-        await view.show_thinking(interaction, button)
+        await _get_button(view).callback(interaction)
 
         interaction.response.defer.assert_not_called()
         interaction.response.edit_message.assert_not_called()
@@ -149,9 +143,8 @@ class TestShowThinkingCallback:
         """send_message is called exactly once — no duplicate responses."""
         view = ThinkingView("reasoning")
         interaction = _make_interaction()
-        button = _make_button()
 
-        await view.show_thinking(interaction, button)
+        await _get_button(view).callback(interaction)
 
         assert interaction.response.send_message.call_count == 1
 
@@ -162,10 +155,9 @@ class TestShowThinkingCallback:
         view_b = ThinkingView("reasoning B")
         interaction_a = _make_interaction()
         interaction_b = _make_interaction()
-        button = _make_button()
 
-        await view_a.show_thinking(interaction_a, button)
-        await view_b.show_thinking(interaction_b, button)
+        await _get_button(view_a).callback(interaction_a)
+        await _get_button(view_b).callback(interaction_b)
 
         args_a, _ = interaction_a.response.send_message.call_args
         args_b, _ = interaction_b.response.send_message.call_args
@@ -173,20 +165,19 @@ class TestShowThinkingCallback:
         assert args_b[0] == "reasoning B"
 
     @pytest.mark.asyncio
-    async def test_button_argument_is_not_used_in_response(self):
-        """The button parameter does not influence the message sent to the user."""
+    async def test_button_callback_is_independent_of_button_label(self):
+        """The stored thinking text is what's sent — button label has no effect."""
         view = ThinkingView("consistent thinking")
-        interaction = _make_interaction()
+        interaction_1 = _make_interaction()
+        interaction_2 = _make_interaction()
 
-        # Two different button mocks — message should be identical
-        button_1 = MagicMock(spec=discord.ui.Button, label="Show thinking")
-        button_2 = MagicMock(spec=discord.ui.Button, label="Other label")
+        # Call the same button callback twice with separate interactions
+        button = _get_button(view)
+        await button.callback(interaction_1)
+        await button.callback(interaction_2)
 
-        await view.show_thinking(interaction, button_1)
-        first_call_args = interaction.response.send_message.call_args
-
-        interaction.response.send_message.reset_mock()
-        await view.show_thinking(interaction, button_2)
-        second_call_args = interaction.response.send_message.call_args
-
-        assert first_call_args == second_call_args
+        args_1, kwargs_1 = interaction_1.response.send_message.call_args
+        args_2, kwargs_2 = interaction_2.response.send_message.call_args
+        assert args_1[0] == args_2[0] == "consistent thinking"
+        assert kwargs_1.get("ephemeral") is True
+        assert kwargs_2.get("ephemeral") is True
