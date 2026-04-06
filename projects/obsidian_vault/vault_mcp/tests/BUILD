@@ -192,3 +192,20 @@ semgrep_test(
     srcs = ["main_coverage_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "gaps_test",
+    srcs = ["gaps_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "gaps_test_semgrep_test",
+    srcs = ["gaps_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
