@@ -139,7 +139,9 @@ async def changelog_loop(
         )
         return
 
-    await bot.wait_until_ready()
+    # Wait for bot to be initialized (start() is called after sidecar is healthy)
+    while not bot.is_ready():
+        await asyncio.sleep(2)
     logger.info("Changelog loop started")
 
     while True:
