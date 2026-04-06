@@ -16,41 +16,27 @@ logger = logging.getLogger(__name__)
 _CHANGELOG_TYPES = re.compile(r"^(feat|fix)(\(.+?\))?!?:\s")
 
 GITHUB_API = "https://api.github.com"
+_GITHUB_HEADERS = {"Accept": "application/vnd.github+json"}
 
 
-async def _fetch_new_commits(
+def _auth_headers(token: str) -> dict[str, str]:
+    return {**_GITHUB_HEADERS, "Authorization": f"token {token}"}
+
+
+async def _fetch_commits_since(
     client: httpx.AsyncClient,
     repo: str,
     token: str,
-    since_sha: str,
-) -> tuple[list[dict], str]:
-    """Fetch commits on main newer than since_sha. Returns (commits, new_head_sha)."""
+    since: datetime,
+) -> list[dict]:
+    """Fetch commits on main since the given timestamp."""
     resp = await client.get(
         f"{GITHUB_API}/repos/{repo}/commits",
-        params={"sha": "main", "per_page": 100},
-        headers={
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github+json",
-        },
+        params={"sha": "main", "since": since.isoformat(), "per_page": 100},
+        headers=_auth_headers(token),
     )
     resp.raise_for_status()
-    all_commits = resp.json()
-
-    if not all_commits:
-        return [], since_sha
-
-    new_head = all_commits[0]["sha"]
-    if new_head == since_sha:
-        return [], since_sha
-
-    # Collect commits until we hit the previously seen sha
-    new_commits = []
-    for commit in all_commits:
-        if commit["sha"] == since_sha:
-            break
-        new_commits.append(commit)
-
-    return new_commits, new_head
+    return resp.json()
 
 
 def _filter_changelog_commits(commits: list[dict]) -> list[dict]:
@@ -72,18 +58,14 @@ async def _fetch_ci_status(
     resp = await client.get(
         f"{GITHUB_API}/repos/{repo}/commits/main/check-suites",
         params={"per_page": 10},
-        headers={
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github+json",
-        },
+        headers=_auth_headers(token),
     )
     resp.raise_for_status()
     suites = resp.json().get("check_suites", [])
 
     for suite in suites:
         if suite.get("status") == "completed":
-            conclusion = suite.get("conclusion", "unknown")
-            return conclusion
+            return suite.get("conclusion", "unknown")
 
     return "pending"
 
@@ -158,25 +140,7 @@ async def changelog_loop(
         return
 
     await bot.wait_until_ready()
-
-    # Seed with current HEAD so we don't replay history on first startup
-    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
-        resp = await client.get(
-            f"{GITHUB_API}/repos/{github_repo}/commits",
-            params={"sha": "main", "per_page": 1},
-            headers={
-                "Authorization": f"token {github_token}",
-                "Accept": "application/vnd.github+json",
-            },
-        )
-        resp.raise_for_status()
-        try:
-            last_sha = resp.json()[0]["sha"]
-        except (KeyError, IndexError, ValueError) as e:
-            logger.error("Failed to seed changelog SHA: %s", e)
-            return
-
-    logger.info("Changelog loop started, seeded at %s", last_sha[:8])
+    logger.info("Changelog loop started")
 
     while True:
         sleep_seconds = _seconds_until_next_hour()
@@ -184,14 +148,16 @@ async def changelog_loop(
         await asyncio.sleep(sleep_seconds)
 
         try:
+            # Fetch commits from the last hour — fully stateless, survives restarts
+            since = datetime.now(timezone.utc) - timedelta(hours=1)
+
             async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
-                commits, new_sha = await _fetch_new_commits(
-                    client, github_repo, github_token, last_sha
+                commits = await _fetch_commits_since(
+                    client, github_repo, github_token, since
                 )
 
                 if not commits:
-                    logger.info("Changelog: no new commits")
-                    last_sha = new_sha
+                    logger.info("Changelog: no new commits in the last hour")
                     continue
 
                 changelog_commits = _filter_changelog_commits(commits)
@@ -201,7 +167,6 @@ async def changelog_loop(
                 logger.info(
                     "Changelog: %d new commits but none are feat/fix", len(commits)
                 )
-                last_sha = new_sha
                 continue
 
             summary = await _summarize_with_gemma(changelog_commits, llm_call)
@@ -218,6 +183,5 @@ async def changelog_loop(
             else:
                 logger.warning("Changelog: channel %s not found", channel_id)
 
-            last_sha = new_sha
         except Exception:
             logger.exception("Changelog loop iteration failed")
