@@ -18,6 +18,8 @@ go_test(
         "reserved_test.go",
         "types_test.go",
         "validate_extra_test.go",
+        "validate_fileio_test.go",
+        "validate_internal_test.go",
         "validate_test.go",
     ],
     deps = [
