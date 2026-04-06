@@ -690,3 +690,102 @@ func TestCopyTargetKinds(t *testing.T) {
 		t.Error("copyTargetKinds(nil) should return nil")
 	}
 }
+
+// TestConfigure_SCARulesGlobalOverride verifies the global (single-token) form of the
+// semgrep_sca_rules directive: # gazelle:semgrep_sca_rules //shared:all_sca
+// This must rewrite every existing ecosystem entry to the same label.
+func TestConfigure_SCARulesGlobalOverride(t *testing.T) {
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	f := &rule.File{
+		Directives: []rule.Directive{
+			{Key: "semgrep_sca_rules", Value: "//shared:all_sca"},
+		},
+	}
+
+	configure(c, "", f)
+	cfg := c.Exts[semgrepConfigKey].(*semgrepConfig)
+
+	// All three default ecosystems must be rewritten to the single global label.
+	for _, eco := range []string{"pip", "pnpm", "gomod"} {
+		if cfg.scaRules[eco] != "//shared:all_sca" {
+			t.Errorf("scaRules[%q] = %q, want %q (global override)", eco, cfg.scaRules[eco], "//shared:all_sca")
+		}
+	}
+}
+
+// TestConfigure_SCARulesGlobalOverrideDoesNotAffectParent verifies that the
+// global sca_rules override copies before writing, leaving the parent intact.
+func TestConfigure_SCARulesGlobalOverrideDoesNotAffectParent(t *testing.T) {
+	parent := &semgrepConfig{
+		enabled:     true,
+		scaEnabled:  true,
+		scaRules:    copyScaRules(defaultScaRules),
+		lockfiles:   copyLockfiles(defaultLockfiles),
+		targetKinds: copyTargetKinds(defaultTargetKinds),
+		languages:   []string{"py"},
+	}
+	origPip := parent.scaRules["pip"]
+
+	c := &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: parent,
+		},
+	}
+
+	f := &rule.File{
+		Directives: []rule.Directive{
+			{Key: "semgrep_sca_rules", Value: "//shared:override"},
+		},
+	}
+
+	configure(c, "", f)
+
+	// Parent's scaRules must not be mutated.
+	if parent.scaRules["pip"] != origPip {
+		t.Errorf("parent scaRules[pip] was mutated: got %q, want %q", parent.scaRules["pip"], origPip)
+	}
+
+	// Child must carry the global label for every ecosystem.
+	cfg := c.Exts[semgrepConfigKey].(*semgrepConfig)
+	for _, eco := range []string{"pip", "pnpm", "gomod"} {
+		if cfg.scaRules[eco] != "//shared:override" {
+			t.Errorf("child scaRules[%q] = %q, want %q", eco, cfg.scaRules[eco], "//shared:override")
+		}
+	}
+}
+
+// TestConfigure_SCARulesEmptyValueIgnored verifies that a bare semgrep_sca_rules
+// directive with an empty value does not modify the inherited config.
+func TestConfigure_SCARulesEmptyValueIgnored(t *testing.T) {
+	parent := &semgrepConfig{
+		enabled:     true,
+		scaEnabled:  true,
+		scaRules:    copyScaRules(defaultScaRules),
+		lockfiles:   copyLockfiles(defaultLockfiles),
+		targetKinds: copyTargetKinds(defaultTargetKinds),
+		languages:   []string{"py"},
+	}
+
+	c := &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: parent,
+		},
+	}
+
+	f := &rule.File{
+		Directives: []rule.Directive{
+			{Key: "semgrep_sca_rules", Value: ""},
+		},
+	}
+
+	configure(c, "", f)
+	cfg := c.Exts[semgrepConfigKey].(*semgrepConfig)
+
+	// Should be unchanged from the parent defaults.
+	if cfg.scaRules["pip"] != defaultScaRules["pip"] {
+		t.Errorf("scaRules[pip] = %q, want %q (empty value should not override)", cfg.scaRules["pip"], defaultScaRules["pip"])
+	}
+}
