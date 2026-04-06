@@ -250,6 +250,7 @@ py_test(
         "@pip//numpy",
         "@pip//pillow",
         "@pip//pytest",
+        "@pip//pytest_asyncio",
         "@pip//shapely",
     ],
 )
