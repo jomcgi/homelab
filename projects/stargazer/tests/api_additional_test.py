@@ -160,9 +160,7 @@ class TestBestLocationsEdgeCases:
                 "lon": -3.8,
                 "altitude_m": 300,
                 "lp_zone": "1b",
-                "best_hours": [
-                    {"time": "2024-01-15T22:00:00Z", "score": 88.0}
-                ],
+                "best_hours": [{"time": "2024-01-15T22:00:00Z", "score": 88.0}],
             }
         ]
         (output_dir / "best_locations.json").write_text(json.dumps(test_data))
@@ -315,4 +313,8 @@ class TestHealthTimestamp:
 
         response = json.loads(wfile.getvalue().decode())
         # ISO format with timezone info
-        assert "+" in response["timestamp"] or response["timestamp"].endswith("Z") or "UTC" in response["timestamp"]
+        assert (
+            "+" in response["timestamp"]
+            or response["timestamp"].endswith("Z")
+            or "UTC" in response["timestamp"]
+        )

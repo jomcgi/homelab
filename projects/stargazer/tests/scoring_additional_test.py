@@ -255,7 +255,9 @@ class TestHumidityScoreBoundaries:
         score = calculate_astronomy_score(w)
         expected_humidity = 100 - (85 - 70) * 3.33  # ≈ 50.05
         # all other scores = 100
-        expected = 100 * 0.5 + expected_humidity * 0.15 + 100 * 0.1 + 100 * 0.1 + 100 * 0.15
+        expected = (
+            100 * 0.5 + expected_humidity * 0.15 + 100 * 0.1 + 100 * 0.1 + 100 * 0.15
+        )
         assert score == pytest.approx(expected, abs=1.0)
 
     def test_humidity_at_100_gives_low_humidity_score(self):
@@ -263,7 +265,9 @@ class TestHumidityScoreBoundaries:
         w = self._make_weather(100.0)
         score = calculate_astronomy_score(w)
         expected_humidity = max(0, 50 - (100 - 85) * 3.33)  # max(0, 0.05)
-        expected = 100 * 0.5 + expected_humidity * 0.15 + 100 * 0.1 + 100 * 0.1 + 100 * 0.15
+        expected = (
+            100 * 0.5 + expected_humidity * 0.15 + 100 * 0.1 + 100 * 0.1 + 100 * 0.15
+        )
         assert score == pytest.approx(expected, abs=1.0)
 
 
@@ -395,7 +399,9 @@ class TestPressureBonusBoundariesAndCap:
     def test_pressure_at_exactly_1015_gives_no_bonus(self):
         """Pressure = 1015 hPa → NOT > 1015, bonus = 0."""
         no_bonus = self._make_weather(1013.25)  # standard pressure, no bonus
-        at_threshold = self._make_weather(1015.0)  # exactly at threshold, still no bonus
+        at_threshold = self._make_weather(
+            1015.0
+        )  # exactly at threshold, still no bonus
         # Both should give same base score (no bonus)
         assert calculate_astronomy_score(no_bonus) == pytest.approx(
             calculate_astronomy_score(at_threshold), abs=0.1
@@ -403,7 +409,7 @@ class TestPressureBonusBoundariesAndCap:
 
     def test_pressure_just_above_1015_gives_small_bonus(self):
         """Pressure = 1016 hPa → bonus = (1016-1015)*2 = 2."""
-        low = self._make_weather(1015.0)   # no bonus
+        low = self._make_weather(1015.0)  # no bonus
         high = self._make_weather(1016.0)  # bonus = 2
         diff = calculate_astronomy_score(high) - calculate_astronomy_score(low)
         # base ≈ 75, so 75 + 2 = 77 — well below 100 ceiling
@@ -411,7 +417,7 @@ class TestPressureBonusBoundariesAndCap:
 
     def test_pressure_bonus_capped_at_10(self):
         """Pressure >= 1020 hPa → bonus capped at 10 regardless of higher pressure."""
-        at_cap = self._make_weather(1020.0)     # (1020-1015)*2 = 10 → at cap
+        at_cap = self._make_weather(1020.0)  # (1020-1015)*2 = 10 → at cap
         above_cap = self._make_weather(1030.0)  # (1030-1015)*2 = 30 → still 10
         # Scores should be equal because bonus is capped at 10
         assert calculate_astronomy_score(at_cap) == pytest.approx(
@@ -422,6 +428,8 @@ class TestPressureBonusBoundariesAndCap:
         """Pressure = 1020 hPa → bonus = exactly 10 points over no-bonus case."""
         no_bonus = self._make_weather(1015.0)
         max_bonus = self._make_weather(1020.0)
-        diff = calculate_astronomy_score(max_bonus) - calculate_astronomy_score(no_bonus)
+        diff = calculate_astronomy_score(max_bonus) - calculate_astronomy_score(
+            no_bonus
+        )
         # base ≈ 75, so 75 + 10 = 85 — below 100 ceiling, full 10-point bonus applies
         assert diff == pytest.approx(10.0, abs=0.1)
