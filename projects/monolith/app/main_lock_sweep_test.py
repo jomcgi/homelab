@@ -12,7 +12,7 @@ Covers paths not addressed by existing main_* test files:
 - 'Message lock sweep started (30s interval)' is logged when token is set
 
 NOTE on loop structure in _lock_sweep_loop (from app/main.py):
-  1. await bot.wait_until_ready()          # once, before loop
+  1. while not bot.is_ready(): sleep(2)    # poll until bot connected
   2. while True:
        await asyncio.sleep(30)             # sleep is FIRST in each iteration
        try:
@@ -52,7 +52,7 @@ def _capture_sweep_coro():
     """
     mock_bot = MagicMock()
     mock_bot.close = AsyncMock()
-    mock_bot.wait_until_ready = AsyncMock()
+    mock_bot.is_ready = MagicMock(return_value=True)
 
     coros: list = []
     task_counter = [0]
@@ -662,10 +662,9 @@ class TestLockSweepLoopExceptionHandling:
         )
 
     @pytest.mark.asyncio
-    async def test_sweep_loop_awaits_bot_wait_until_ready_before_loop(self):
-        """_lock_sweep_loop calls bot.wait_until_ready() before entering the while loop."""
+    async def test_sweep_loop_awaits_bot_ready_before_loop(self):
+        """_lock_sweep_loop polls bot.is_ready() before entering the while loop."""
         coros, capture_fn, mock_bot = _capture_sweep_coro()
-        mock_bot.wait_until_ready = AsyncMock()
 
         mock_store = MagicMock()
         mock_store.reclaim_expired.return_value = []
@@ -686,7 +685,7 @@ class TestLockSweepLoopExceptionHandling:
         assert len(coros) == 1
 
         # Cancel immediately on the first sleep — we only care that
-        # wait_until_ready was called before the loop started.
+        # is_ready was called before the loop started.
         async def cancel_on_sleep(_secs):
             raise asyncio.CancelledError()
 
@@ -703,4 +702,4 @@ class TestLockSweepLoopExceptionHandling:
             except asyncio.CancelledError:
                 pass
 
-        mock_bot.wait_until_ready.assert_awaited_once()
+        mock_bot.is_ready.assert_called()
