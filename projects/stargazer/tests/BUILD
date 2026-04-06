@@ -239,3 +239,24 @@ semgrep_test(
     srcs = ["final_coverage_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "gap_coverage_test",
+    srcs = ["gap_coverage_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/stargazer/backend",
+        "@pip//geopandas",
+        "@pip//numpy",
+        "@pip//pillow",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//shapely",
+    ],
+)
+
+semgrep_test(
+    name = "gap_coverage_test_semgrep_test",
+    srcs = ["gap_coverage_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
