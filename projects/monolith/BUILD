@@ -971,6 +971,21 @@ py_test(
 )
 
 py_test(
+    name = "app_main_summary_edge_test",
+    srcs = ["app/main_summary_edge_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
     name = "scripts_red_dashboard_test",
     srcs = ["scripts/generate_red_dashboard_test.py"],
     data = ["scripts/generate-red-dashboard.py"],
