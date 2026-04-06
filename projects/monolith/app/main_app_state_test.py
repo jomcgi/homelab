@@ -141,6 +141,7 @@ class TestLifespanAppStateBotAssignment:
         With no token the Discord bot branch is skipped entirely, so the initial
         ``app.state.bot = None`` assignment from lifespan should be visible.
         """
+
         def capture_create_task(coro, **kwargs):
             if hasattr(coro, "close"):
                 coro.close()
@@ -171,6 +172,7 @@ class TestLifespanAppStateBotAssignment:
         ``getattr(app.state, 'backfill_task', None)`` cannot encounter an
         uninitialised attribute on first run.
         """
+
         def capture_create_task(coro, **kwargs):
             if hasattr(coro, "close"):
                 coro.close()
