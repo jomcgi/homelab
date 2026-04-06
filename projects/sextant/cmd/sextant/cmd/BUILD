@@ -23,6 +23,8 @@ go_test(
         "cmd_cli_test.go",
         "cmd_extra_test.go",
         "cmd_test.go",
+        "generate_test.go",
+        "validate_test.go",
     ],
     embed = [":cmd"],
     deps = [
