@@ -26,6 +26,7 @@ go_test(
         "config_test.go",
         "generate_test.go",
         "language_test.go",
+        "sca_test.go",
     ],
     embed = [":gazelle"],
     deps = [
