@@ -1,20 +1,45 @@
 """Tests for MessageStore message lock operations.
 
 Covers acquire_lock, mark_completed, release_lock, reclaim_expired, and
-cleanup_completed.  All tests run against an in-memory SQLite database;
-the Postgres-only FOR UPDATE SKIP LOCKED clause in reclaim_expired is
-exercised by mocking the raw-SQL call so tests remain deterministic.
+cleanup_completed.  All tests run against an in-memory SQLite database.
+
+The raw SQL in reclaim_expired and cleanup_completed uses ``chat.message_locks``
+(Postgres schema prefix) and ``FOR UPDATE SKIP LOCKED`` (Postgres-only locking).
+We patch ``chat.store.text`` with a SQLite-compatible translation helper so the
+queries run against the stripped-schema SQLite test database.
 """
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from sqlalchemy import text as _real_text
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
 from chat.models import MessageLock
 from chat.store import MessageStore
+
+
+# ---------------------------------------------------------------------------
+# SQLite compatibility helper
+# ---------------------------------------------------------------------------
+
+
+def _sqlite_text(sql: str):
+    """Translate Postgres-specific SQL to SQLite-compatible SQL.
+
+    Strips the ``chat.`` schema prefix (SQLite has no schema support) and
+    removes ``FOR UPDATE SKIP LOCKED`` (Postgres-only locking clause).
+    """
+    sql = sql.replace("chat.message_locks", "message_locks")
+    sql = sql.replace("FOR UPDATE SKIP LOCKED", "").rstrip()
+    return _real_text(sql)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture(name="session")
@@ -42,6 +67,8 @@ def session_fixture():
 
 @pytest.fixture
 def store(session):
+    from unittest.mock import AsyncMock
+
     embed_client = AsyncMock()
     embed_client.embed_batch.return_value = [[0.0] * 1024]
     return MessageStore(session=session, embed_client=embed_client)
@@ -66,10 +93,10 @@ class TestAcquireLock:
 
     def test_lock_row_created_in_db(self, store, session):
         """acquire_lock inserts a MessageLock row."""
-        store.acquire_lock("msg-3", "ch-99")
+        store.acquire_lock("msg-3", "99")
         lock = session.get(MessageLock, "msg-3")
         assert lock is not None
-        assert lock.channel_id == "ch-99"
+        assert lock.channel_id == "99"
         assert lock.completed is False
 
     def test_different_messages_can_be_acquired_independently(self, store):
@@ -105,7 +132,7 @@ class TestMarkCompleted:
     def test_noop_when_lock_does_not_exist(self, store, session):
         """mark_completed on a non-existent ID is a no-op (no exception)."""
         store.mark_completed("nonexistent-id")
-        # no error and no row created
+        # No error and no row created.
         lock = session.get(MessageLock, "nonexistent-id")
         assert lock is None
 
@@ -137,7 +164,6 @@ class TestReleaseLock:
     def test_noop_when_lock_does_not_exist(self, store, session):
         """release_lock on a non-existent ID is a no-op (no exception)."""
         store.release_lock("ghost-message-id")
-        # still nothing in the table
         lock = session.get(MessageLock, "ghost-message-id")
         assert lock is None
 
@@ -159,21 +185,21 @@ class TestReleaseLock:
 
 
 # ---------------------------------------------------------------------------
-# reclaim_expired — mocked raw SQL for SQLite compat
+# reclaim_expired
 # ---------------------------------------------------------------------------
 
 
 class TestReclaimExpired:
-    """reclaim_expired uses FOR UPDATE SKIP LOCKED (Postgres-only).
+    """Tests for reclaim_expired.
 
-    We mock session.exec so the raw SQL path is bypassed and the
-    timestamp-bumping / return-value logic can be tested with SQLite.
+    The method uses raw SQL with ``FOR UPDATE SKIP LOCKED`` and the
+    ``chat.`` schema prefix — both Postgres-only features.  We patch
+    ``chat.store.text`` with a SQLite-compatible helper so the query
+    executes against the test database.
     """
 
-    def _insert_lock(
-        self, session, msg_id, channel_id, *, completed=False, age_seconds=0
-    ):
-        """Helper: insert a lock with a specific age."""
+    def _insert_lock(self, session, msg_id, channel_id, *, completed=False, age_seconds=0):
+        """Insert a lock with a specific age."""
         claimed_at = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
         lock = MessageLock(
             discord_message_id=msg_id,
@@ -188,19 +214,9 @@ class TestReclaimExpired:
 
     def test_returns_expired_uncompleted_locks(self, store, session):
         """reclaim_expired returns locks older than TTL that are not completed."""
-        old_lock = self._insert_lock(session, "exp-1", "ch-1", age_seconds=60)
+        self._insert_lock(session, "exp-1", "ch-1", age_seconds=60)
 
-        # Patch session.exec so the FOR UPDATE SKIP LOCKED query returns our row
-        original_exec = session.exec
-
-        def fake_exec(statement, **kwargs):
-            params = kwargs.get("params", {})
-            # Only intercept the raw SQL text call (has 'cutoff' param)
-            if isinstance(params, dict) and "cutoff" in params:
-                return iter([old_lock])
-            return original_exec(statement, **kwargs)
-
-        with patch.object(session, "exec", side_effect=fake_exec):
+        with patch("chat.store.text", side_effect=_sqlite_text):
             result = store.reclaim_expired(ttl_seconds=30, limit=5)
 
         assert len(result) == 1
@@ -211,78 +227,45 @@ class TestReclaimExpired:
         old_lock = self._insert_lock(session, "exp-2", "ch-1", age_seconds=60)
         original_claimed_at = old_lock.claimed_at
 
-        original_exec = session.exec
-
-        def fake_exec(statement, **kwargs):
-            params = kwargs.get("params", {})
-            if isinstance(params, dict) and "cutoff" in params:
-                return iter([old_lock])
-            return original_exec(statement, **kwargs)
-
         before = datetime.now(timezone.utc)
-        with patch.object(session, "exec", side_effect=fake_exec):
+        with patch("chat.store.text", side_effect=_sqlite_text):
             store.reclaim_expired(ttl_seconds=30, limit=5)
         after = datetime.now(timezone.utc)
 
+        session.expire_all()
         refreshed = session.get(MessageLock, "exp-2")
+        assert refreshed is not None
         assert refreshed.claimed_at > original_claimed_at
         assert before <= refreshed.claimed_at <= after
 
     def test_completed_locks_not_returned(self, store, session):
         """reclaim_expired does not return completed locks (query filters them)."""
-        completed_lock = self._insert_lock(
-            session, "done-1", "ch-1", completed=True, age_seconds=120
-        )
+        self._insert_lock(session, "done-1", "ch-1", completed=True, age_seconds=120)
 
-        original_exec = session.exec
-
-        def fake_exec(statement, **kwargs):
-            params = kwargs.get("params", {})
-            if isinstance(params, dict) and "cutoff" in params:
-                # Simulate Postgres filtering out completed rows
-                return iter([])
-            return original_exec(statement, **kwargs)
-
-        with patch.object(session, "exec", side_effect=fake_exec):
+        with patch("chat.store.text", side_effect=_sqlite_text):
             result = store.reclaim_expired(ttl_seconds=30, limit=5)
 
         assert result == []
-        # completed lock is untouched
+        # Completed lock untouched.
         lock = session.get(MessageLock, "done-1")
         assert lock.completed is True
 
     def test_limit_restricts_number_of_results(self, store, session):
         """reclaim_expired respects the limit parameter."""
-        locks = [
+        for i in range(5):
             self._insert_lock(session, f"lim-{i}", "ch-1", age_seconds=60)
-            for i in range(5)
-        ]
 
-        original_exec = session.exec
-
-        def fake_exec(statement, **kwargs):
-            params = kwargs.get("params", {})
-            if isinstance(params, dict) and "cutoff" in params:
-                limit = params.get("limit", 5)
-                return iter(locks[:limit])
-            return original_exec(statement, **kwargs)
-
-        with patch.object(session, "exec", side_effect=fake_exec):
+        with patch("chat.store.text", side_effect=_sqlite_text):
             result = store.reclaim_expired(ttl_seconds=30, limit=2)
 
         assert len(result) == 2
 
     def test_empty_result_when_no_expired_locks(self, store, session):
-        """reclaim_expired returns empty list when nothing is expired."""
-        original_exec = session.exec
+        """reclaim_expired returns empty list when no locks are expired."""
+        # Insert a recent lock (5s old, TTL is 30s).
+        self._insert_lock(session, "fresh-1", "ch-1", age_seconds=5)
 
-        def fake_exec(statement, **kwargs):
-            params = kwargs.get("params", {})
-            if isinstance(params, dict) and "cutoff" in params:
-                return iter([])
-            return original_exec(statement, **kwargs)
-
-        with patch.object(session, "exec", side_effect=fake_exec):
+        with patch("chat.store.text", side_effect=_sqlite_text):
             result = store.reclaim_expired(ttl_seconds=30, limit=5)
 
         assert result == []
@@ -294,6 +277,12 @@ class TestReclaimExpired:
 
 
 class TestCleanupCompleted:
+    """Tests for cleanup_completed.
+
+    The method uses raw SQL with the ``chat.`` schema prefix.  We patch
+    ``chat.store.text`` with a SQLite-compatible helper for each test.
+    """
+
     def _insert_completed(self, session, msg_id, age_seconds):
         """Insert a completed lock with a given age."""
         claimed_at = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
@@ -309,14 +298,20 @@ class TestCleanupCompleted:
     def test_deletes_old_completed_locks(self, store, session):
         """cleanup_completed removes completed locks older than max_age."""
         self._insert_completed(session, "old-done-1", age_seconds=7200)
-        count = store.cleanup_completed(max_age_seconds=3600)
+
+        with patch("chat.store.text", side_effect=_sqlite_text):
+            count = store.cleanup_completed(max_age_seconds=3600)
+
         assert count == 1
         assert session.get(MessageLock, "old-done-1") is None
 
     def test_keeps_young_completed_locks(self, store, session):
         """cleanup_completed retains completed locks newer than max_age."""
         self._insert_completed(session, "new-done-1", age_seconds=60)
-        count = store.cleanup_completed(max_age_seconds=3600)
+
+        with patch("chat.store.text", side_effect=_sqlite_text):
+            count = store.cleanup_completed(max_age_seconds=3600)
+
         assert count == 0
         assert session.get(MessageLock, "new-done-1") is not None
 
@@ -332,7 +327,9 @@ class TestCleanupCompleted:
         session.add(lock)
         session.commit()
 
-        count = store.cleanup_completed(max_age_seconds=3600)
+        with patch("chat.store.text", side_effect=_sqlite_text):
+            count = store.cleanup_completed(max_age_seconds=3600)
+
         assert count == 0
         assert session.get(MessageLock, "old-incomplete") is not None
 
@@ -340,22 +337,29 @@ class TestCleanupCompleted:
         """cleanup_completed returns the number of rows deleted."""
         for i in range(3):
             self._insert_completed(session, f"bulk-old-{i}", age_seconds=7200)
-        # One young one that should survive
+        # One young one that should survive.
         self._insert_completed(session, "bulk-young", age_seconds=10)
 
-        count = store.cleanup_completed(max_age_seconds=3600)
+        with patch("chat.store.text", side_effect=_sqlite_text):
+            count = store.cleanup_completed(max_age_seconds=3600)
+
         assert count == 3
 
     def test_returns_zero_when_nothing_to_clean(self, store, session):
         """cleanup_completed returns 0 when there is nothing to delete."""
-        count = store.cleanup_completed(max_age_seconds=3600)
+        with patch("chat.store.text", side_effect=_sqlite_text):
+            count = store.cleanup_completed(max_age_seconds=3600)
+
         assert count == 0
 
     def test_deletes_multiple_old_completed_locks(self, store, session):
         """cleanup_completed deletes all qualifying rows in one call."""
         for i in range(5):
             self._insert_completed(session, f"multi-old-{i}", age_seconds=7200)
-        count = store.cleanup_completed(max_age_seconds=3600)
+
+        with patch("chat.store.text", side_effect=_sqlite_text):
+            count = store.cleanup_completed(max_age_seconds=3600)
+
         assert count == 5
         remaining = session.exec(select(MessageLock)).all()
         assert len(remaining) == 0
