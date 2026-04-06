@@ -180,3 +180,21 @@ func TestSemgrepLang_Embeds(t *testing.T) {
 		t.Errorf("Embeds() should return nil, got %v", embeds)
 	}
 }
+
+func TestSemgrepLang_RegisterFlags(t *testing.T) {
+	// RegisterFlags is a no-op — calling it must not panic.
+	lang := NewLanguage()
+	lang.RegisterFlags(nil, "update", nil)
+}
+
+func TestSemgrepLang_Fix(t *testing.T) {
+	// Fix is a no-op — calling it must not panic.
+	lang := NewLanguage()
+	lang.Fix(nil, nil)
+}
+
+func TestSemgrepLang_Resolve(t *testing.T) {
+	// Resolve is a no-op — calling it must not panic.
+	lang := NewLanguage()
+	lang.Resolve(nil, nil, nil, nil, nil, label.Label{})
+}

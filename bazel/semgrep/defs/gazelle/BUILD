@@ -26,6 +26,7 @@ go_test(
         "config_extra_test.go",
         "config_test.go",
         "generate_extra_test.go",
+        "generate_helpers_test.go",
         "generate_test.go",
         "language_test.go",
         "sca_test.go",
