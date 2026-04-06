@@ -377,21 +377,25 @@ class TestPressureBonusBoundariesAndCap:
     """Tests for pressure bonus boundary and cap behavior."""
 
     def _make_weather(self, pressure: float) -> WeatherData:
-        """Helper: create perfect-conditions weather with varying pressure."""
+        """Helper: create weather with 50% cloud cover (base score ≈ 75) and varying pressure.
+
+        Using 50% cloud cover deliberately lowers the base score to ≈ 75 so that
+        pressure bonus points are not swallowed by the max(0, min(100, ...)) ceiling.
+        """
         return WeatherData(
-            cloud_area_fraction=0.0,
+            cloud_area_fraction=50.0,  # cloud_score = 50 → base ≈ 75, leaving room for bonus
             relative_humidity=0.0,
             fog_area_fraction=0.0,
             wind_speed=0.0,
             air_temperature=15.0,
-            dew_point_temperature=5.0,  # spread = 10 > 5
+            dew_point_temperature=5.0,  # spread = 10 > 5 → dew_score = 100
             air_pressure_at_sea_level=pressure,
         )
 
     def test_pressure_at_exactly_1015_gives_no_bonus(self):
         """Pressure = 1015 hPa → NOT > 1015, bonus = 0."""
-        no_bonus = self._make_weather(1013.25)  # standard
-        at_threshold = self._make_weather(1015.0)  # exactly at threshold
+        no_bonus = self._make_weather(1013.25)  # standard pressure, no bonus
+        at_threshold = self._make_weather(1015.0)  # exactly at threshold, still no bonus
         # Both should give same base score (no bonus)
         assert calculate_astronomy_score(no_bonus) == pytest.approx(
             calculate_astronomy_score(at_threshold), abs=0.1
@@ -402,13 +406,14 @@ class TestPressureBonusBoundariesAndCap:
         low = self._make_weather(1015.0)   # no bonus
         high = self._make_weather(1016.0)  # bonus = 2
         diff = calculate_astronomy_score(high) - calculate_astronomy_score(low)
+        # base ≈ 75, so 75 + 2 = 77 — well below 100 ceiling
         assert diff == pytest.approx(2.0, abs=0.1)
 
     def test_pressure_bonus_capped_at_10(self):
         """Pressure >= 1020 hPa → bonus capped at 10 regardless of higher pressure."""
         at_cap = self._make_weather(1020.0)     # (1020-1015)*2 = 10 → at cap
         above_cap = self._make_weather(1030.0)  # (1030-1015)*2 = 30 → still 10
-        # Scores should be equal because bonus is capped
+        # Scores should be equal because bonus is capped at 10
         assert calculate_astronomy_score(at_cap) == pytest.approx(
             calculate_astronomy_score(above_cap), abs=0.01
         )
@@ -418,4 +423,5 @@ class TestPressureBonusBoundariesAndCap:
         no_bonus = self._make_weather(1015.0)
         max_bonus = self._make_weather(1020.0)
         diff = calculate_astronomy_score(max_bonus) - calculate_astronomy_score(no_bonus)
+        # base ≈ 75, so 75 + 10 = 85 — below 100 ceiling, full 10-point bonus applies
         assert diff == pytest.approx(10.0, abs=0.1)
