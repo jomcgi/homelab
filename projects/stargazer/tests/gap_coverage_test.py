@@ -27,7 +27,7 @@ import pytest
 from shapely.geometry import Polygon
 
 from projects.stargazer.backend.config import Settings
-from projects.stargazer.backend.scoring import WeatherData, calculate_astronomy_score
+from projects.stargazer.backend.scoring import WeatherData
 
 
 # ---------------------------------------------------------------------------
