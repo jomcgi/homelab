@@ -10,6 +10,19 @@ Covers paths not addressed by existing main_* test files:
 - _lock_sweep_loop continues after an exception (resilience)
 - sweep_task.add_done_callback(_log_task_exception) is registered
 - 'Message lock sweep started (30s interval)' is logged when token is set
+
+NOTE on loop structure in _lock_sweep_loop (from app/main.py):
+  1. await bot.wait_until_ready()          # once, before loop
+  2. while True:
+       await asyncio.sleep(30)             # sleep is FIRST in each iteration
+       try:
+           ... store operations ...
+       except Exception:
+           logger.exception(...)
+
+So to reach the store operations, the first asyncio.sleep must NOT raise.
+Tests that want to verify store behaviour let the first sleep pass through
+and cancel on the second sleep (or raise inside the store itself).
 """
 
 from __future__ import annotations
@@ -63,6 +76,14 @@ def _make_lock(discord_message_id: int, channel_id: int) -> MagicMock:
     lock.discord_message_id = discord_message_id
     lock.channel_id = channel_id
     return lock
+
+
+def _make_session_mock(store: MagicMock) -> MagicMock:
+    """Return a context-manager session mock that yields the given store's session."""
+    mock_session_obj = MagicMock()
+    mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
+    mock_session_obj.__exit__ = MagicMock(return_value=False)
+    return mock_session_obj
 
 
 # ---------------------------------------------------------------------------
@@ -159,13 +180,23 @@ class TestSweepTaskRegistration:
 
 # ---------------------------------------------------------------------------
 # _lock_sweep_loop body: no expired locks
+#
+# The loop structure is:
+#   while True:
+#     await asyncio.sleep(30)      <-- sleep FIRST
+#     try:
+#       ... store ops ...
+#     except Exception:
+#       logger.exception(...)
+#
+# So we let the first sleep pass (return normally) and cancel on the second.
 # ---------------------------------------------------------------------------
 
 
 class TestLockSweepLoopNoExpiredLocks:
     @pytest.mark.asyncio
     async def test_sweep_loop_calls_reclaim_expired_on_each_iteration(self):
-        """_lock_sweep_loop calls store.reclaim_expired on each iteration."""
+        """_lock_sweep_loop calls store.reclaim_expired on each iteration after the sleep."""
         coros, capture_fn, mock_bot = _capture_sweep_coro()
 
         mock_store = MagicMock()
@@ -186,11 +217,13 @@ class TestLockSweepLoopNoExpiredLocks:
 
         assert len(coros) == 1
 
+        # Sleep #1: pass through (let iteration 1 execute the store operations).
+        # Sleep #2: cancel to exit the loop.
         sleep_count = [0]
 
         async def controlled_sleep(_secs):
             sleep_count[0] += 1
-            if sleep_count[0] >= 1:
+            if sleep_count[0] >= 2:
                 raise asyncio.CancelledError()
 
         with (
@@ -235,7 +268,7 @@ class TestLockSweepLoopNoExpiredLocks:
 
         async def controlled_sleep(_secs):
             sleep_count[0] += 1
-            if sleep_count[0] >= 1:
+            if sleep_count[0] >= 2:
                 raise asyncio.CancelledError()
 
         with (
@@ -277,10 +310,13 @@ class TestLockSweepLoopNoExpiredLocks:
         assert len(coros) == 1
 
         sleep_calls = []
+        sleep_count = [0]
 
         async def capturing_sleep(secs):
             sleep_calls.append(secs)
-            raise asyncio.CancelledError()
+            sleep_count[0] += 1
+            if sleep_count[0] >= 1:
+                raise asyncio.CancelledError()
 
         with (
             patch("asyncio.sleep", side_effect=capturing_sleep),
@@ -322,11 +358,16 @@ class TestLockSweepLoopNoExpiredLocks:
 
         assert len(coros) == 1
 
-        async def cancel_immediately(_secs):
-            raise asyncio.CancelledError()
+        # Let one full iteration run (sleep passes), cancel on the second sleep.
+        sleep_count = [0]
+
+        async def controlled_sleep(_secs):
+            sleep_count[0] += 1
+            if sleep_count[0] >= 2:
+                raise asyncio.CancelledError()
 
         with (
-            patch("asyncio.sleep", side_effect=cancel_immediately),
+            patch("asyncio.sleep", side_effect=controlled_sleep),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
@@ -374,11 +415,16 @@ class TestLockSweepLoopWithExpiredLocks:
 
         assert len(coros) == 1
 
-        async def cancel_after_sleep(_secs):
-            raise asyncio.CancelledError()
+        # Let one full iteration run, cancel on the second sleep.
+        sleep_count = [0]
+
+        async def controlled_sleep(_secs):
+            sleep_count[0] += 1
+            if sleep_count[0] >= 2:
+                raise asyncio.CancelledError()
 
         with (
-            patch("asyncio.sleep", side_effect=cancel_after_sleep),
+            patch("asyncio.sleep", side_effect=controlled_sleep),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
@@ -420,11 +466,16 @@ class TestLockSweepLoopWithExpiredLocks:
 
         assert len(coros) == 1
 
-        async def cancel_after_sleep(_secs):
-            raise asyncio.CancelledError()
+        # Let one full iteration run, cancel on the second sleep.
+        sleep_count = [0]
+
+        async def controlled_sleep(_secs):
+            sleep_count[0] += 1
+            if sleep_count[0] >= 2:
+                raise asyncio.CancelledError()
 
         with (
-            patch("asyncio.sleep", side_effect=cancel_after_sleep),
+            patch("asyncio.sleep", side_effect=controlled_sleep),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
@@ -466,11 +517,16 @@ class TestLockSweepLoopWithExpiredLocks:
 
         assert len(coros) == 1
 
-        async def cancel_after_sleep(_secs):
-            raise asyncio.CancelledError()
+        # Let one full iteration run, cancel on the second sleep.
+        sleep_count = [0]
+
+        async def controlled_sleep(_secs):
+            sleep_count[0] += 1
+            if sleep_count[0] >= 2:
+                raise asyncio.CancelledError()
 
         with (
-            patch("asyncio.sleep", side_effect=cancel_after_sleep),
+            patch("asyncio.sleep", side_effect=controlled_sleep),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
@@ -495,7 +551,11 @@ class TestLockSweepLoopWithExpiredLocks:
 class TestLockSweepLoopExceptionHandling:
     @pytest.mark.asyncio
     async def test_sweep_loop_logs_exception_when_store_raises(self):
-        """_lock_sweep_loop calls logger.exception('Lock sweep failed') when an error occurs."""
+        """_lock_sweep_loop calls logger.exception('Lock sweep failed') when an error occurs.
+
+        The store raises during the try block (after the sleep passes through).
+        We cancel on the second sleep to exit the loop after one full iteration.
+        """
         coros, capture_fn, mock_bot = _capture_sweep_coro()
 
         mock_store = MagicMock()
@@ -515,11 +575,13 @@ class TestLockSweepLoopExceptionHandling:
 
         assert len(coros) == 1
 
+        # Sleep #1 passes (lets the try-block run and fail).
+        # Sleep #2 cancels to exit the loop.
         sleep_count = [0]
 
         async def controlled_sleep(_secs):
             sleep_count[0] += 1
-            if sleep_count[0] >= 1:
+            if sleep_count[0] >= 2:
                 raise asyncio.CancelledError()
 
         with (
@@ -539,7 +601,11 @@ class TestLockSweepLoopExceptionHandling:
 
     @pytest.mark.asyncio
     async def test_sweep_loop_continues_after_exception(self):
-        """_lock_sweep_loop does not propagate exceptions — it catches and logs, then loops."""
+        """_lock_sweep_loop does not propagate exceptions — it catches, logs, then loops.
+
+        Two iterations are run: both fail, then the loop is cancelled on the
+        third sleep. reclaim_expired should be called exactly twice.
+        """
         coros, capture_fn, mock_bot = _capture_sweep_coro()
 
         store_call_count = [0]
@@ -566,11 +632,15 @@ class TestLockSweepLoopExceptionHandling:
 
         assert len(coros) == 1
 
+        # Sleeps 1 and 2 pass through; sleep 3 cancels.
+        # Iteration 1: sleep(30) [passes] → reclaim_expired [raises] → caught.
+        # Iteration 2: sleep(30) [passes] → reclaim_expired [raises] → caught.
+        # Iteration 3: sleep(30) [cancels] → loop exits.
         sleep_count = [0]
 
         async def controlled_sleep(_secs):
             sleep_count[0] += 1
-            if sleep_count[0] >= 2:
+            if sleep_count[0] >= 3:
                 raise asyncio.CancelledError()
 
         with (
@@ -586,7 +656,7 @@ class TestLockSweepLoopExceptionHandling:
             except asyncio.CancelledError:
                 pass
 
-        # The loop ran twice despite repeated failures
+        # The loop ran two iterations despite repeated failures.
         assert store_call_count[0] == 2, (
             f"Expected 2 sweep iterations but got {store_call_count[0]}"
         )
@@ -615,6 +685,8 @@ class TestLockSweepLoopExceptionHandling:
 
         assert len(coros) == 1
 
+        # Cancel immediately on the first sleep — we only care that
+        # wait_until_ready was called before the loop started.
         async def cancel_on_sleep(_secs):
             raise asyncio.CancelledError()
 
