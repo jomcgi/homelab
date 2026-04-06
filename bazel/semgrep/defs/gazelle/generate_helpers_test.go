@@ -78,10 +78,12 @@ func TestFileExtension_MultiDot(t *testing.T) {
 }
 
 func TestFileExtension_DotFile(t *testing.T) {
-	// A leading-dot file like ".gitignore" has no extension per filepath.Ext.
+	// filepath.Ext(".gitignore") returns ".gitignore" because the leading dot
+	// is treated as the start of an extension (Go considers the final dot the
+	// separator, which here is the first character).
 	got := fileExtension(".gitignore")
-	if got != "" {
-		t.Errorf("fileExtension('.gitignore') = %q, want empty", got)
+	if got != ".gitignore" {
+		t.Errorf("fileExtension('.gitignore') = %q, want '.gitignore'", got)
 	}
 }
 
