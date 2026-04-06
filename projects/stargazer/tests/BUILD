@@ -220,3 +220,23 @@ semgrep_test(
     srcs = ["api_additional_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "final_coverage_test",
+    srcs = ["final_coverage_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/stargazer/backend",
+        "@pip//geopandas",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//shapely",
+    ],
+)
+
+semgrep_test(
+    name = "final_coverage_test_semgrep_test",
+    srcs = ["final_coverage_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
