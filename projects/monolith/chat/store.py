@@ -46,9 +46,6 @@ class MessageStore:
         if not messages:
             return SaveResult(stored=0, skipped=0)
 
-        if not messages:
-            return SaveResult(stored=0, skipped=0)
-
         # Build embed texts for the whole batch
         embed_texts = []
         for m in messages:
