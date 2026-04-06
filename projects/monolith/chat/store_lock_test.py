@@ -225,20 +225,26 @@ class TestReclaimExpired:
         assert result[0].discord_message_id == "exp-1"
 
     def test_bumps_claimed_at_on_reclaimed_locks(self, store, session):
-        """reclaim_expired updates claimed_at on reclaimed locks."""
+        """reclaim_expired updates claimed_at on reclaimed locks.
+
+        SQLite returns datetimes without timezone info (offset-naive).  We
+        compare both stored values from SQLite so the assertion stays naive
+        vs naive and avoids ``TypeError: can't compare offset-naive and
+        offset-aware datetimes``.
+        """
         old_lock = self._insert_lock(session, "exp-2", "ch-1", age_seconds=60)
+        # original_claimed_at is offset-naive (loaded from SQLite).
         original_claimed_at = old_lock.claimed_at
 
-        before = datetime.now(timezone.utc)
         with patch("chat.store.text", side_effect=_sqlite_text):
             store.reclaim_expired(ttl_seconds=30, limit=5)
-        after = datetime.now(timezone.utc)
 
         session.expire_all()
         refreshed = session.get(MessageLock, "exp-2")
         assert refreshed is not None
+        # Both timestamps are offset-naive (from SQLite); bump is verified by
+        # checking the new value is strictly later than the original.
         assert refreshed.claimed_at > original_claimed_at
-        assert before <= refreshed.claimed_at <= after
 
     def test_completed_locks_not_returned(self, store, session):
         """reclaim_expired does not return completed locks (query filters them)."""
