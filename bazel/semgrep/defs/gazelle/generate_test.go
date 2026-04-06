@@ -764,6 +764,261 @@ func TestGenerateRules_StalePerFileTestsRemovedWhenBinaryCovers(t *testing.T) {
 	}
 }
 
+// newGoBinary creates a go_binary rule with the given name.
+func newGoBinary(name string) *rule.Rule {
+	r := rule.NewRule("go_binary", name)
+	return r
+}
+
+// TestGenerateRules_GoBinaryTargetKind verifies that go_binary entries in the
+// BUILD file generate a semgrep_target_test when go_binary is in targetKinds
+// (it is present in the defaultTargetKinds map).
+func TestGenerateRules_GoBinaryTargetKind(t *testing.T) {
+	// Use default config — go_binary is in defaultTargetKinds with attr "".
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	goBin := newGoBinary("server")
+	buildFile := buildFileWithRules(goBin)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "cmd/server",
+		RegularFiles: []string{"main.go", "handler.go"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+
+	// go_binary is in defaultTargetKinds with the default languages (["py"]).
+	// Since no .py files exist, scan files is empty but the go_binary target
+	// is still in targetKinds so we get a semgrep_target_test for it.
+	targetTests := 0
+	for _, r := range result.Gen {
+		if r.Kind() == "semgrep_target_test" {
+			targetTests++
+			if r.Name() != "server_semgrep_test" {
+				t.Errorf("semgrep_target_test name = %q, want server_semgrep_test", r.Name())
+			}
+			if r.AttrString("target") != ":server" {
+				t.Errorf("semgrep_target_test target = %q, want :server", r.AttrString("target"))
+			}
+		}
+	}
+	if targetTests != 1 {
+		t.Fatalf("expected 1 semgrep_target_test for go_binary, got %d (rules: %v)", targetTests, rulesKindNames(result.Gen))
+	}
+}
+
+// TestGenerateRules_GoBinaryWithGoLanguage verifies go_binary with go language
+// config generates semgrep_target_test and covers .go files.
+func TestGenerateRules_GoBinaryWithGoLanguage(t *testing.T) {
+	c := configWithLanguages(
+		map[string]string{"go_binary": ""},
+		[]string{"go"},
+	)
+
+	goBin := newGoBinary("server")
+	buildFile := buildFileWithRules(goBin)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "cmd/server",
+		RegularFiles: []string{"main.go", "handler.go"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+
+	// Expect 1 semgrep_target_test for go_binary + 2 orphan per-file tests
+	// (go_binary has no srcs attr in the rule, so no files are "covered").
+	targetTests := 0
+	for _, r := range result.Gen {
+		if r.Kind() == "semgrep_target_test" {
+			targetTests++
+			if r.AttrString("target") != ":server" {
+				t.Errorf("target = %q, want :server", r.AttrString("target"))
+			}
+			// rules attr should include golang_rules
+			rules := r.AttrStrings("rules")
+			foundGo := false
+			for _, rl := range rules {
+				if rl == "//bazel/semgrep/rules:golang_rules" {
+					foundGo = true
+				}
+			}
+			if !foundGo {
+				t.Errorf("go_binary semgrep_target_test rules %v missing golang_rules", rules)
+			}
+		}
+	}
+	if targetTests != 1 {
+		t.Fatalf("expected 1 semgrep_target_test for go_binary, got %d", targetTests)
+	}
+}
+
+// TestWalkLocalDeps_CircularDependencyGuard verifies that the visited map in
+// walkLocalDeps prevents infinite recursion when lib_a depends on lib_b and
+// lib_b depends on lib_a.
+func TestWalkLocalDeps_CircularDependencyGuard(t *testing.T) {
+	// Build a circular dep graph: lib_a → lib_b → lib_a
+	libA := rule.NewRule("py_library", "lib_a")
+	libA.SetAttr("srcs", []string{"a.py"})
+	libA.SetAttr("deps", []string{":lib_b"})
+
+	libB := rule.NewRule("py_library", "lib_b")
+	libB.SetAttr("srcs", []string{"b.py"})
+	libB.SetAttr("deps", []string{":lib_a"})
+
+	binary := newPyBinaryWithDeps("app", "main.py", []string{":lib_a"})
+
+	buildFile := buildFileWithRules(libA, libB, binary)
+
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"main.py", "a.py", "b.py"},
+		File:         buildFile,
+	}
+
+	// This must terminate — if the circular guard is broken, it would loop forever.
+	// We rely on the test timeout to catch an infinite loop.
+	result := generateRules(args)
+
+	// We expect 1 semgrep_target_test for the binary.
+	targetTests := 0
+	for _, r := range result.Gen {
+		if r.Kind() == "semgrep_target_test" {
+			targetTests++
+		}
+	}
+	if targetTests != 1 {
+		t.Errorf("expected 1 semgrep_target_test, got %d", targetTests)
+	}
+
+	// a.py and b.py should be covered (transitively reachable from binary via lib_a → lib_b).
+	for _, r := range result.Gen {
+		if r.Kind() == "semgrep_test" {
+			srcs := r.AttrStrings("srcs")
+			for _, src := range srcs {
+				if src == "a.py" || src == "b.py" {
+					t.Errorf("file %q should be covered by the binary's transitive deps, not orphaned", src)
+				}
+			}
+		}
+	}
+}
+
+// TestWalkLocalDeps_CircularDependencyBothDirections verifies the guard works
+// even when the cycle starts from the second library (lib_b → lib_a → lib_b).
+func TestWalkLocalDeps_CircularDependencyBothDirections(t *testing.T) {
+	libA := rule.NewRule("py_library", "lib_a")
+	libA.SetAttr("srcs", []string{"a.py"})
+	libA.SetAttr("deps", []string{":lib_b"})
+
+	libB := rule.NewRule("py_library", "lib_b")
+	libB.SetAttr("srcs", []string{"b.py"})
+	libB.SetAttr("deps", []string{":lib_a"})
+
+	// Binary depends directly on lib_b this time, which then reaches lib_a.
+	binary := newPyBinaryWithDeps("app", "main.py", []string{":lib_b"})
+
+	buildFile := buildFileWithRules(libA, libB, binary)
+
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"main.py", "a.py", "b.py"},
+		File:         buildFile,
+	}
+
+	// Must terminate without infinite loop.
+	result := generateRules(args)
+
+	targetTests := 0
+	for _, r := range result.Gen {
+		if r.Kind() == "semgrep_target_test" {
+			targetTests++
+		}
+	}
+	if targetTests != 1 {
+		t.Errorf("expected 1 semgrep_target_test, got %d", targetTests)
+	}
+}
+
+// TestRulesForLanguages_UnknownLanguage verifies that an unknown language key
+// silently returns an empty slice rather than panicking or returning an error.
+func TestRulesForLanguages_UnknownLanguage(t *testing.T) {
+	got := rulesForLanguages([]string{"rust"})
+	if len(got) != 0 {
+		t.Errorf("rulesForLanguages([rust]) = %v, want empty", got)
+	}
+}
+
+// TestRulesForLanguages_MixedKnownAndUnknown verifies that unknown languages
+// are silently skipped while known languages still return their rules.
+func TestRulesForLanguages_MixedKnownAndUnknown(t *testing.T) {
+	got := rulesForLanguages([]string{"rust", "py", "haskell"})
+	if len(got) != 1 {
+		t.Fatalf("rulesForLanguages([rust py haskell]) = %v, want 1 entry", got)
+	}
+	if got[0] != "//bazel/semgrep/rules:python_rules" {
+		t.Errorf("got[0] = %q, want //bazel/semgrep/rules:python_rules", got[0])
+	}
+}
+
+// TestScannableFiles_UnknownLanguage verifies that an unknown language key
+// produces no scannable files (no extension mapping exists).
+func TestScannableFiles_UnknownLanguage(t *testing.T) {
+	got := scannableFiles([]string{"main.rs", "lib.rs", "main.py"}, []string{"rust"})
+	if len(got) != 0 {
+		t.Errorf("scannableFiles with unknown lang rust = %v, want empty", got)
+	}
+}
+
+// TestGenerateRules_UnknownLanguageNoOutput verifies that configuring an unknown
+// language key produces no generated rules (no files match, no rules emitted).
+func TestGenerateRules_UnknownLanguageNoOutput(t *testing.T) {
+	c := configWithLanguages(
+		map[string]string{"py_venv_binary": ""},
+		[]string{"rust"},
+	)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"main.rs", "lib.rs"},
+	}
+
+	result := generateRules(args)
+	if len(result.Gen) != 0 {
+		t.Errorf("expected 0 rules for unknown language, got %d: %v", len(result.Gen), rulesKindNames(result.Gen))
+	}
+}
+
+// rulesKindNames is a helper for test failure messages.
+func rulesKindNames(rules []*rule.Rule) []string {
+	var out []string
+	for _, r := range rules {
+		out = append(out, r.Kind()+"/"+r.Name())
+	}
+	return out
+}
+
 // assertRule checks a rule's name, kind, and srcs.
 func assertRule(t *testing.T, r *rule.Rule, wantName string, wantSrcs []string) {
 	t.Helper()
