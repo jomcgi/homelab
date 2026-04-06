@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import geopandas as gpd
 import pytest
+import pytest_asyncio  # noqa: F401 — needed to register pytest-asyncio plugin
 from shapely.geometry import Point, Polygon
 
 from projects.stargazer.backend.config import BoundsConfig, EuropeBoundsConfig, Settings
@@ -101,10 +102,10 @@ class TestApiMain:
                     pass
 
         # Server was instantiated on the empty host and a port
+        # HTTPServer(("", port), StargazerAPIHandler) → call_args[0] = (addr_tuple, handler)
         mock_cls.assert_called_once()
-        call_args = mock_cls.call_args[0]
-        assert call_args[0] == ""  # bind to all interfaces
-        assert call_args[1] == 8080
+        addr_tuple = mock_cls.call_args[0][0]
+        assert addr_tuple == ("", 8080)
 
     def test_main_reads_port_from_env(self):
         """main() uses PORT environment variable when set."""
@@ -122,8 +123,9 @@ class TestApiMain:
                 except SystemExit:
                     pass
 
-        call_args = mock_cls.call_args[0]
-        assert call_args[1] == 9999
+        # call_args[0][0] is the address tuple ("", port)
+        addr_tuple = mock_cls.call_args[0][0]
+        assert addr_tuple[1] == 9999
 
     def test_main_calls_shutdown_on_keyboard_interrupt(self):
         """main() calls server.shutdown() when KeyboardInterrupt is raised."""
