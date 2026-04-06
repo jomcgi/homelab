@@ -19,3 +19,9 @@ go_test(
     srcs = ["main_test.go"],
     embed = [":sextant_lib"],
 )
+
+go_test(
+    name = "sextant_test",
+    srcs = ["main_test.go"],
+    embed = [":sextant_lib"],
+)
