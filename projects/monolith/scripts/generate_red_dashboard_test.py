@@ -35,6 +35,8 @@ _service_filter = _mod._service_filter
 _sub_service_filter = _mod._sub_service_filter
 _error_filter = _mod._error_filter
 _base_query = _mod._base_query
+_query_wrapper = _mod._query_wrapper
+_widget = _mod._widget
 
 # Stable widget IDs that the sidecar relies on for upsert-vs-create decisions.
 EXPECTED_WIDGET_IDS = {
@@ -283,3 +285,132 @@ class TestBaseQuery:
     def test_filters_op_is_and(self):
         q = _base_query("A", "count")
         assert q["filters"]["op"] == "AND"
+
+    def test_agg_attr_sets_aggregate_attribute(self):
+        """When agg_attr is provided, aggregateAttribute should equal that value."""
+        attr = {
+            "key": "durationNano",
+            "dataType": "float64",
+            "type": "tag",
+            "isColumn": True,
+            "isJSON": False,
+        }
+        q = _base_query("A", "p50", agg_attr=attr)
+        assert q["aggregateAttribute"] == attr
+
+    def test_no_agg_attr_gives_empty_dict(self):
+        """Without agg_attr, aggregateAttribute defaults to {}."""
+        q = _base_query("A", "count")
+        assert q["aggregateAttribute"] == {}
+
+    def test_legend_propagates(self):
+        """When legend is provided, it appears verbatim in the query."""
+        q = _base_query("A", "rate", legend="p50")
+        assert q["legend"] == "p50"
+
+    def test_default_legend_is_empty_string(self):
+        q = _base_query("A", "count")
+        assert q["legend"] == ""
+
+
+# ---------------------------------------------------------------------------
+# _query_wrapper
+# ---------------------------------------------------------------------------
+
+
+class TestQueryWrapper:
+    def test_query_type_is_builder(self):
+        w = _query_wrapper([])
+        assert w["queryType"] == "builder"
+
+    def test_query_data_is_stored(self):
+        qd = [_base_query("A", "rate")]
+        w = _query_wrapper(qd)
+        assert w["builder"]["queryData"] == qd
+
+    def test_no_formulas_gives_empty_list(self):
+        """When query_formulas is omitted, builder.queryFormulas should be []."""
+        w = _query_wrapper([])
+        assert w["builder"]["queryFormulas"] == []
+
+    def test_non_empty_query_formulas_are_stored(self):
+        """When query_formulas is provided, builder.queryFormulas is populated."""
+        formula = {
+            "queryName": "F1",
+            "expression": "A*100/B",
+            "disabled": False,
+            "legend": "error %",
+            "stepInterval": 60,
+            "dataSource": "traces",
+            "groupBy": [],
+            "having": {"expression": ""},
+            "limit": None,
+            "orderBy": [],
+            "selectColumns": [],
+            "functions": [],
+            "aggregations": [],
+        }
+        w = _query_wrapper([_base_query("A", "count")], query_formulas=[formula])
+        assert w["builder"]["queryFormulas"] == [formula]
+        assert len(w["builder"]["queryFormulas"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# _widget
+# ---------------------------------------------------------------------------
+
+
+class TestWidget:
+    def test_id_is_set(self):
+        q = _query_wrapper([_base_query("A", "rate")])
+        w = _widget("my-id", "Title", "Desc", q)
+        assert w["id"] == "my-id"
+
+    def test_title_is_set(self):
+        q = _query_wrapper([_base_query("A", "rate")])
+        w = _widget("id1", "My Title", "Desc", q)
+        assert w["title"] == "My Title"
+
+    def test_without_y_unit_key_is_absent(self):
+        """When y_unit is not provided, 'yAxisUnit' must not be present in the widget."""
+        q = _query_wrapper([_base_query("A", "rate")])
+        w = _widget("id1", "Title", "Desc", q)
+        assert "yAxisUnit" not in w
+
+    def test_with_y_unit_key_is_present(self):
+        """When y_unit is provided, 'yAxisUnit' should appear with that value."""
+        q = _query_wrapper([_base_query("A", "p50")])
+        w = _widget("id1", "Title", "Desc", q, y_unit="ns")
+        assert w["yAxisUnit"] == "ns"
+
+    def test_stacked_true_sets_is_stacked(self):
+        """When stacked=True, isStacked must be True in the returned dict."""
+        q = _query_wrapper([_base_query("A", "count")])
+        w = _widget("id1", "Title", "Desc", q, stacked=True)
+        assert w["isStacked"] is True
+
+    def test_stacked_false_by_default(self):
+        q = _query_wrapper([_base_query("A", "count")])
+        w = _widget("id1", "Title", "Desc", q)
+        assert w["isStacked"] is False
+
+    def test_query_is_embedded(self):
+        q = _query_wrapper([_base_query("A", "rate")])
+        w = _widget("id1", "Title", "Desc", q)
+        assert w["query"] == q
+
+
+# ---------------------------------------------------------------------------
+# build_dashboard – description mentions all sub-service keys
+# ---------------------------------------------------------------------------
+
+
+class TestBuildDashboardDescription:
+    def test_description_contains_all_sub_service_keys(self):
+        """Dashboard description must mention every key in SUB_SERVICES."""
+        d = build_dashboard()
+        description = d["description"]
+        for key in SUB_SERVICES.keys():
+            assert key in description, (
+                f"SUB_SERVICES key '{key}' not found in dashboard description: {description!r}"
+            )
