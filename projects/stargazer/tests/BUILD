@@ -229,6 +229,7 @@ py_test(
         "//projects/stargazer/backend",
         "@pip//geopandas",
         "@pip//pytest",
+        "@pip//pytest_asyncio",
         "@pip//shapely",
     ],
 )
