@@ -51,6 +51,13 @@ def bad_inline_sqlalchemy_exc():
     raise IntegrityError("test", {}, None)
 
 
+def bad_inline_sqlalchemy_orm():
+    # ruleid: no-inline-stdlib-import
+    from sqlalchemy.orm import Session
+
+    return Session
+
+
 def bad_inline_logging():
     # ruleid: no-inline-stdlib-import
     import logging
@@ -93,3 +100,12 @@ def ok_non_banned_third_party():
     from sqlmodel import Session
 
     return Session
+
+
+def ok_dotted_import_form():
+    # ok: `import os.path` binds $MOD="os.path" which does not match ^(os)$;
+    # dotted import form is a known gap in this rule — add the full dotted name
+    # to the metavariable-regex if it becomes a real pattern in this codebase.
+    import os.path
+
+    return os.path.join("a", "b")
