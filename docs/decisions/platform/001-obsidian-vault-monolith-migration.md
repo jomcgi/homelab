@@ -179,6 +179,7 @@ Single-phase approach — try it, revert if it doesn't work.
 
 ### Deploy Changes
 
+- [ ] Add CNPG `Pooler` CRD (`transaction` mode) — monolith + TigerFS connect via pooler
 - [ ] Switch deploy strategy from `Recreate` to `RollingUpdate`
 - [ ] Bump CNPG resource limits (memory: 256Mi → 512Mi, storage: 10Gi → 15Gi)
 
@@ -216,7 +217,6 @@ Baseline per `docs/security.md`. Deviations:
 ## Open Questions
 
 1. **TigerFS versioning vs git** — TigerFS claims built-in version history. Is it sufficient to replace the git audit trail, or should we keep async git pushes as a backup?
-2. **CNPG connection pooling** — With N monolith replicas each running TigerFS + app connections, do we need PgBouncer in front of CNPG?
 
 ---
 
