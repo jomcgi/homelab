@@ -184,11 +184,15 @@ class ChatBot(discord.Client):
         # If another pod already claimed this message, skip it entirely.
         msg_id = str(message.id)
         channel_id = str(message.channel.id)
-        with Session(get_engine()) as session:
-            store = MessageStore(session=session, embed_client=self.embed_client)
-            if not store.acquire_lock(msg_id, channel_id):
-                logger.debug("Message %s already claimed by another pod", msg_id)
-                return
+        try:
+            with Session(get_engine()) as session:
+                store = MessageStore(session=session, embed_client=self.embed_client)
+                if not store.acquire_lock(msg_id, channel_id):
+                    logger.debug("Message %s already claimed by another pod", msg_id)
+                    return
+        except Exception:
+            logger.exception("Failed to acquire lock for message %s", msg_id)
+            return
 
         await self._process_message(message)
 

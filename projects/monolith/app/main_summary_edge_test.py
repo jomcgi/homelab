@@ -33,7 +33,7 @@ def _capture_summary_coro():
 
     The summary loop is the 4th asyncio.create_task call in lifespan when
     DISCORD_BOT_TOKEN is set:
-      1 = scheduler, 2 = calendar, 3 = bot, 4 = summary.
+      1 = scheduler, 2 = calendar, 3 = bot, 4 = summary, 5 = sweep.
     """
     mock_bot = MagicMock()
     mock_bot.close = AsyncMock()
@@ -79,16 +79,18 @@ class TestSummaryLoopExceptionEdgeCases:
         # Both queries return None so needs_run is always True
         inner = MagicMock()
         inner.exec.return_value.first.return_value = None
-        session = MagicMock()
-        session.__enter__ = MagicMock(return_value=inner)
-        session.__exit__ = MagicMock(return_value=False)
+        mock_session = MagicMock()
+        mock_session.__enter__ = MagicMock(return_value=inner)
+        mock_session.__exit__ = MagicMock(return_value=False)
+        mock_session_cls = MagicMock(return_value=mock_session)
+        mock_engine = MagicMock()
 
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
             patch("chat.bot.create_bot", return_value=mock_bot),
-            patch("app.db.get_engine", return_value=MagicMock()),
-            patch("sqlmodel.Session", MagicMock(return_value=session)),
+            patch("app.db.get_engine", return_value=mock_engine),
+            patch("sqlmodel.Session", mock_session_cls),
         ):
             async with lifespan(app):
                 pass
@@ -97,21 +99,21 @@ class TestSummaryLoopExceptionEdgeCases:
 
         # Run two full iterations, then cancel on the third sleep.
         sleep_count = [0]
-        exception_count = [0]
 
         async def controlled_sleep(_):
             sleep_count[0] += 1
             if sleep_count[0] >= 2:
                 raise asyncio.CancelledError()
 
-        async def failing_generate(*_args, **_kwargs):
-            exception_count[0] += 1
-            raise RuntimeError("transient error")
+        mock_generate = AsyncMock(side_effect=RuntimeError("transient error"))
 
         with (
             patch("asyncio.sleep", side_effect=controlled_sleep),
             patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
-            patch("chat.summarizer.generate_summaries", side_effect=failing_generate),
+            patch(
+                "chat.summarizer.generate_summaries",
+                mock_generate,
+            ),
             patch("app.main.logger") as mock_logger,
         ):
             try:
@@ -122,7 +124,7 @@ class TestSummaryLoopExceptionEdgeCases:
         # logger.exception was called at least once
         mock_logger.exception.assert_called_with("Summary generation failed")
         # The loop ran both iterations (exceptions were caught, not propagated)
-        assert exception_count[0] == 2
+        assert mock_generate.call_count == 2
 
 
 # ---------------------------------------------------------------------------
@@ -141,23 +143,22 @@ class TestSummaryLoopNeedsRunEdgeCases:
         # Second .first() call → latest_channel = a recent datetime (fresh)
         recent_dt = datetime.now(timezone.utc)
         session = _session_mock(first_side_effect=[None, recent_dt])
+        mock_session_cls = MagicMock(return_value=session)
+        mock_engine = MagicMock()
 
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
             patch("chat.bot.create_bot", return_value=mock_bot),
-            patch("app.db.get_engine", return_value=MagicMock()),
-            patch("sqlmodel.Session", MagicMock(return_value=session)),
+            patch("app.db.get_engine", return_value=mock_engine),
+            patch("sqlmodel.Session", mock_session_cls),
         ):
             async with lifespan(app):
                 pass
 
         assert len(coros) == 1
 
-        generate_call_count = [0]
-
-        async def mock_generate(*_args, **_kwargs):
-            generate_call_count[0] += 1
+        mock_generate = AsyncMock()
 
         async def cancel_on_first_sleep(_):
             raise asyncio.CancelledError()
@@ -165,7 +166,7 @@ class TestSummaryLoopNeedsRunEdgeCases:
         with (
             patch("asyncio.sleep", side_effect=cancel_on_first_sleep),
             patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
-            patch("chat.summarizer.generate_summaries", side_effect=mock_generate),
+            patch("chat.summarizer.generate_summaries", mock_generate),
             patch(
                 "chat.summarizer.generate_channel_summaries",
                 new_callable=AsyncMock,
@@ -178,7 +179,7 @@ class TestSummaryLoopNeedsRunEdgeCases:
                 pass
 
         # generate_summaries must have been called — needs_run was True
-        assert generate_call_count[0] == 1, (
+        assert mock_generate.call_count == 1, (
             "generate_summaries should be called when latest_user is None"
         )
 
@@ -191,23 +192,22 @@ class TestSummaryLoopNeedsRunEdgeCases:
         # Second .first() call → latest_channel = None
         recent_dt = datetime.now(timezone.utc)
         session = _session_mock(first_side_effect=[recent_dt, None])
+        mock_session_cls = MagicMock(return_value=session)
+        mock_engine = MagicMock()
 
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
             patch("chat.bot.create_bot", return_value=mock_bot),
-            patch("app.db.get_engine", return_value=MagicMock()),
-            patch("sqlmodel.Session", MagicMock(return_value=session)),
+            patch("app.db.get_engine", return_value=mock_engine),
+            patch("sqlmodel.Session", mock_session_cls),
         ):
             async with lifespan(app):
                 pass
 
         assert len(coros) == 1
 
-        generate_call_count = [0]
-
-        async def mock_generate(*_args, **_kwargs):
-            generate_call_count[0] += 1
+        mock_generate = AsyncMock()
 
         async def cancel_on_first_sleep(_):
             raise asyncio.CancelledError()
@@ -215,7 +215,7 @@ class TestSummaryLoopNeedsRunEdgeCases:
         with (
             patch("asyncio.sleep", side_effect=cancel_on_first_sleep),
             patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
-            patch("chat.summarizer.generate_summaries", side_effect=mock_generate),
+            patch("chat.summarizer.generate_summaries", mock_generate),
             patch(
                 "chat.summarizer.generate_channel_summaries",
                 new_callable=AsyncMock,
@@ -228,7 +228,7 @@ class TestSummaryLoopNeedsRunEdgeCases:
                 pass
 
         # generate_summaries must have been called — needs_run was True
-        assert generate_call_count[0] == 1, (
+        assert mock_generate.call_count == 1, (
             "generate_summaries should be called when latest_channel is None"
         )
 
