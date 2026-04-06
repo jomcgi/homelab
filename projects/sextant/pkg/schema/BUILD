@@ -22,8 +22,6 @@ go_test(
         "validate_internal_test.go",
         "validate_test.go",
     ],
-    deps = [
-        ":schema",
-        "@in_gopkg_yaml_v3//:yaml_v3",
-    ],
+    embed = [":schema"],
+    deps = ["@in_gopkg_yaml_v3//:yaml_v3"],
 )
