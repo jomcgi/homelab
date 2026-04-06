@@ -278,6 +278,67 @@ class TestReclaimExpired:
 
         assert result == []
 
+    def test_mixed_population_only_returns_expired_uncompleted(self, store, session):
+        """reclaim_expired with mixed data only reclaims expired+uncompleted locks.
+
+        This test exercises the full WHERE predicate in a single fixture:
+          - ``mix-expired-uncompleted``: expired and not completed → SHOULD be reclaimed
+          - ``mix-expired-completed``:   expired but completed    → MUST NOT be returned
+          - ``mix-fresh-uncompleted``:   fresh and not completed  → MUST NOT be returned
+
+        A regression that dropped either ``AND`` clause would incorrectly include
+        one of the other two rows.
+        """
+        self._insert_lock(session, "mix-expired-uncompleted", "ch-1", age_seconds=60)
+        self._insert_lock(
+            session, "mix-expired-completed", "ch-1", completed=True, age_seconds=60
+        )
+        self._insert_lock(session, "mix-fresh-uncompleted", "ch-1", age_seconds=5)
+
+        with patch("chat.store.text", side_effect=_sqlite_text):
+            result = store.reclaim_expired(ttl_seconds=30, limit=10)
+
+        returned_ids = {r.discord_message_id for r in result}
+        assert returned_ids == {"mix-expired-uncompleted"}
+
+        # Verify the completed and fresh locks were not bumped.
+        session.expire_all()
+        completed_lock = session.get(MessageLock, "mix-expired-completed")
+        fresh_lock = session.get(MessageLock, "mix-fresh-uncompleted")
+        assert completed_lock.completed is True  # untouched
+        assert fresh_lock is not None  # still present
+
+    def test_return_value_carries_pre_bump_claimed_at(self, store, session):
+        """reclaim_expired returns objects with the *original* claimed_at, not the bumped one.
+
+        The implementation SELECTs rows, constructs MessageLock objects, then
+        updates claimed_at in a second pass.  The returned list is built before
+        the bump, so callers receive the pre-bump timestamps.  This contract is
+        intentional — callers can use it to compute how long the lock was stale.
+        """
+        old_lock = self._insert_lock(session, "ret-1", "ch-1", age_seconds=60)
+        original_claimed_at = old_lock.claimed_at
+
+        with patch("chat.store.text", side_effect=_sqlite_text):
+            result = store.reclaim_expired(ttl_seconds=30, limit=5)
+
+        assert len(result) == 1
+        returned_lock = result[0]
+        # The returned object carries the pre-bump timestamp (offset-naive from SQLite).
+        # Strip UTC tzinfo from original if present so comparison is naive vs naive.
+        original_naive = original_claimed_at.replace(tzinfo=None)
+        returned_naive = (
+            returned_lock.claimed_at.replace(tzinfo=None)
+            if returned_lock.claimed_at.tzinfo is not None
+            else returned_lock.claimed_at
+        )
+        assert returned_naive == original_naive
+
+        # Confirm the DB row *was* bumped (i.e. the bump actually happened).
+        session.expire_all()
+        refreshed = session.get(MessageLock, "ret-1")
+        assert refreshed.claimed_at > returned_lock.claimed_at
+
 
 # ---------------------------------------------------------------------------
 # cleanup_completed
