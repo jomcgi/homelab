@@ -22,7 +22,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jomcgi/homelab/projects/sextant/pkg/codegen"
 	"github.com/jomcgi/homelab/projects/sextant/pkg/schema"
 )
 
