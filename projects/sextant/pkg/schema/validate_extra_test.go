@@ -396,6 +396,46 @@ dependencies:
 	}
 }
 
+// TestValidate_DependencyMissingName checks that a dependency with an empty
+// name field produces a validation error ("name is required").
+func TestValidate_DependencyMissingName(t *testing.T) {
+	yaml := `
+apiVersion: controlflow.io/v1alpha1
+kind: StateMachine
+metadata:
+  name: TestResource
+  group: test.io
+  version: v1alpha1
+status:
+  phaseField: phase
+states:
+  - name: Pending
+    initial: true
+  - name: Ready
+    terminal: true
+transitions:
+  - from: Pending
+    to: Ready
+    action: MarkReady
+dependencies:
+  - name: ""
+    resource: SomeResource
+    group: core.io
+`
+	sm, err := schema.Parse([]byte(yaml))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	err = schema.Validate(sm)
+	if err == nil {
+		t.Fatal("expected validation error for dependency with empty name")
+	}
+	if !strings.Contains(err.Error(), "name") {
+		t.Errorf("error should mention 'name', got: %v", err)
+	}
+}
+
 // TestValidate_ValidDependency checks that a well-formed dependency passes.
 func TestValidate_ValidDependency(t *testing.T) {
 	yaml := `
