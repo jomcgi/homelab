@@ -77,16 +77,15 @@ async def test_changelog_handler_calls_run_changelog_iteration():
     llm_call = AsyncMock()
 
     with patch(
-        "shared.scheduler.register_job",
-        side_effect=lambda _s, **kw: _registry.__setitem__(kw["name"], kw["handler"]),
-    ):
-        summarizer.on_startup(session, bot=bot, llm_call=llm_call)
-
-    handler = _registry["chat.changelog"]
-
-    with patch(
         "chat.changelog.run_changelog_iteration", new_callable=AsyncMock
     ) as mock_iter:
+        with patch(
+            "shared.scheduler.register_job",
+            side_effect=lambda _s, **kw: _registry.__setitem__(kw["name"], kw["handler"]),
+        ):
+            summarizer.on_startup(session, bot=bot, llm_call=llm_call)
+
+        handler = _registry["chat.changelog"]
         await handler(session)
 
     mock_iter.assert_called_once_with(bot, llm_call)

@@ -17,7 +17,7 @@ _HOSTNAME = platform.node()
 
 class ScheduledJob(SQLModel, table=True):
     __tablename__ = "scheduled_jobs"
-    __table_args__ = {"schema": "scheduler"}
+    __table_args__ = {"schema": "scheduler", "extend_existing": True}
 
     name: str = Field(primary_key=True)
     interval_secs: int
