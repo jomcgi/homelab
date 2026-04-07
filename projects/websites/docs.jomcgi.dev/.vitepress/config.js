@@ -2,6 +2,11 @@ import { defineConfig } from "vitepress";
 import adrSidebar from "./adr-sidebar.json";
 
 export default defineConfig({
+  vite: {
+    build: {
+      target: "es2022",
+    },
+  },
   title: "Homelab Docs",
   description: "Documentation for jomcgi/homelab",
 
