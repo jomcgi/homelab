@@ -107,19 +107,6 @@ py_test(
 )
 
 py_test(
-    name = "home_scheduler_test",
-    srcs = ["home/scheduler_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
-    ],
-)
-
-py_test(
     name = "home_startup_test",
     srcs = ["home/startup_test.py"],
     imports = ["."],

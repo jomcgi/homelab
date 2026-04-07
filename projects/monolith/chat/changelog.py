@@ -1,6 +1,5 @@
 """Hourly changelog notifier — polls GitHub for new feat/fix commits, summarizes via Gemma, posts to Discord."""
 
-import asyncio
 import logging
 import os
 import re
@@ -156,40 +155,3 @@ async def run_changelog_iteration(
         logger.warning("Changelog: channel %s not found", channel_id)
 
 
-def _seconds_until_next_hour() -> float:
-    """Calculate seconds until the next hour boundary."""
-    now = datetime.now(timezone.utc)
-    next_hour = now.replace(minute=0, second=0, microsecond=0)
-    next_hour += timedelta(hours=1)
-    return (next_hour - now).total_seconds()
-
-
-async def changelog_loop(
-    bot: discord.Client,
-    llm_call: Callable[[str], Awaitable[str]],
-) -> None:
-    """Main loop: poll GitHub hourly on the hour, summarize and post changelog."""
-    channel_id = os.environ.get("CHANGELOG_CHANNEL_ID", "")
-    github_token = os.environ.get("GITHUB_TOKEN", "")
-    github_repo = os.environ.get("CHANGELOG_GITHUB_REPO", "")
-
-    if not all([channel_id, github_token, github_repo]):
-        logger.warning(
-            "Changelog loop disabled: missing CHANGELOG_CHANNEL_ID, GITHUB_TOKEN, or CHANGELOG_GITHUB_REPO"
-        )
-        return
-
-    # Wait for bot to be initialized (start() is called after sidecar is healthy)
-    while not bot.is_ready():
-        await asyncio.sleep(2)
-    logger.info("Changelog loop started")
-
-    while True:
-        sleep_seconds = _seconds_until_next_hour()
-        logger.info("Changelog: sleeping %.0fs until next hour", sleep_seconds)
-        await asyncio.sleep(sleep_seconds)
-
-        try:
-            await run_changelog_iteration(bot, llm_call)
-        except Exception:
-            logger.exception("Changelog loop iteration failed")

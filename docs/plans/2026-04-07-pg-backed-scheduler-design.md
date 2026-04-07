@@ -21,12 +21,12 @@ via `SKIP LOCKED`).
 
 ## Design
 
-### Table: `shared.scheduled_jobs`
+### Table: `scheduler.scheduled_jobs`
 
 ```sql
-CREATE SCHEMA IF NOT EXISTS shared;
+CREATE SCHEMA IF NOT EXISTS scheduler;
 
-CREATE TABLE shared.scheduled_jobs (
+CREATE TABLE scheduler.scheduled_jobs (
     name           TEXT PRIMARY KEY,
     interval_secs  INTEGER NOT NULL,
     next_run_at    TIMESTAMPTZ NOT NULL,
