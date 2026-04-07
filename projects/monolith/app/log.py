@@ -30,5 +30,7 @@ def configure_logging(level: int = logging.INFO) -> None:
     logging.getLogger("discord.client").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
     # Suppress healthcheck probe noise
     logging.getLogger("uvicorn.access").addFilter(_HealthzFilter())
