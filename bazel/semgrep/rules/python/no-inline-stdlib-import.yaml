@@ -6,7 +6,7 @@ rules:
             ...
       - pattern-either:
           - pattern: import $MOD
-          - pattern: from $MOD import $NAME
+          - pattern: from $MOD import ...
       - metavariable-regex:
           metavariable: $MOD
           regex: ^(datetime|sqlalchemy|sqlalchemy\.exc|sqlalchemy\.orm|typing|os|sys|json|re|collections|functools|itertools|logging|dataclasses)$
