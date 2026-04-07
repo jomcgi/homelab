@@ -147,8 +147,14 @@ class TestSweepTaskRegistration:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -170,8 +176,14 @@ class TestSweepTaskRegistration:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
             patch("app.main.logger") as mock_logger,
         ):
             async with lifespan(app):
@@ -203,7 +215,11 @@ class TestSweepTaskRegistration:
         with (
             patch.dict(os.environ, env_without_token, clear=True),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
             patch("app.main.logger") as mock_logger,
         ):
             async with lifespan(app):
@@ -238,8 +254,14 @@ class TestLockSweepLoopNoExpiredLocks:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -287,8 +309,14 @@ class TestLockSweepLoopNoExpiredLocks:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -334,8 +362,14 @@ class TestLockSweepLoopNoExpiredLocks:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -385,8 +419,14 @@ class TestLockSweepLoopNoExpiredLocks:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -444,8 +484,14 @@ class TestLockSweepLoopWithExpiredLocks:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -497,8 +543,14 @@ class TestLockSweepLoopWithExpiredLocks:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -550,8 +602,14 @@ class TestLockSweepLoopWithExpiredLocks:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -606,8 +664,14 @@ class TestLockSweepLoopExceptionHandling:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -659,8 +723,14 @@ class TestLockSweepLoopExceptionHandling:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -709,8 +779,14 @@ class TestLockSweepLoopExceptionHandling:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass

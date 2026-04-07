@@ -422,8 +422,13 @@ async def test_start_bot_when_ready_calls_wait_for_sidecar_before_bot_start():
         patch.dict(sys.modules, {"chat.bot": mock_chat_module}),
         patch("asyncio.create_task", side_effect=capture_create_task),
         patch("app.main._wait_for_sidecar", side_effect=_mock_wait_for_sidecar),
-        patches[0], patches[1], patches[2], patches[3], patches[4],
-        patches[5], patches[6],
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+        patches[5],
+        patches[6],
     ):
         async with lifespan(app):
             pass
@@ -461,7 +466,11 @@ async def test_start_bot_when_ready_not_scheduled_when_no_token():
     with (
         patch.dict(os.environ, env_without_token, clear=True),
         patch("asyncio.create_task", side_effect=capture_create_task),
-        patches[0], patches[1], patches[2], patches[3], patches[4],
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
     ):
         async with lifespan(app):
             pass

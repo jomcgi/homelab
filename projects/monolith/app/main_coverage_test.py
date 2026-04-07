@@ -64,8 +64,14 @@ class TestLifespanWithDiscordToken:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-xyz"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -92,8 +98,14 @@ class TestLifespanWithDiscordToken:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-xyz"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -119,8 +131,14 @@ class TestLifespanWithDiscordToken:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-xyz"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -150,7 +168,11 @@ class TestLifespanWithDiscordToken:
         with (
             patch.dict(os.environ, env_without_token, clear=True),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
         ):
             async with lifespan(app):
                 pass

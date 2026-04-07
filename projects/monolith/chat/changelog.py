@@ -150,8 +150,10 @@ async def run_changelog_iteration(
     channel = bot.get_channel(int(channel_id))
     if channel:
         await channel.send(embed=embed)
-        logger.info("Changelog: posted %d changes to channel %s", len(changelog_commits), channel_id)
+        logger.info(
+            "Changelog: posted %d changes to channel %s",
+            len(changelog_commits),
+            channel_id,
+        )
     else:
         logger.warning("Changelog: channel %s not found", channel_id)
-
-

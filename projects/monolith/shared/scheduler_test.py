@@ -138,9 +138,7 @@ class TestRegisterJobNew:
         async def my_handler(s: Session) -> None:
             return None
 
-        register_job(
-            session, name="new-job", interval_secs=60, handler=my_handler
-        )
+        register_job(session, name="new-job", interval_secs=60, handler=my_handler)
         assert "new-job" in _registry
         assert _registry["new-job"] is my_handler
 
@@ -183,7 +181,9 @@ class TestRegisterJobExisting:
         """register_job updates interval_secs and ttl_secs on an existing row."""
         now = datetime.now(timezone.utc)
         session.add(
-            ScheduledJob(name="existing", interval_secs=60, next_run_at=now, ttl_secs=300)
+            ScheduledJob(
+                name="existing", interval_secs=60, next_run_at=now, ttl_secs=300
+            )
         )
         session.commit()
 
@@ -219,9 +219,7 @@ class TestRegisterJobExisting:
         async def handler(s: Session) -> None:
             return None
 
-        register_job(
-            session, name="keep-timing", interval_secs=120, handler=handler
-        )
+        register_job(session, name="keep-timing", interval_secs=120, handler=handler)
 
         job = session.get(ScheduledJob, "keep-timing")
         assert job is not None
@@ -247,9 +245,7 @@ class TestRegisterJobExisting:
         async def handler(s: Session) -> None:
             return None
 
-        register_job(
-            session, name="has-history", interval_secs=90, handler=handler
-        )
+        register_job(session, name="has-history", interval_secs=90, handler=handler)
 
         job = session.get(ScheduledJob, "has-history")
         assert job is not None

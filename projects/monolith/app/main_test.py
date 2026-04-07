@@ -435,7 +435,16 @@ async def test_lifespan_registers_done_callback_on_bot_task_when_token_set():
     patches = _lifespan_patches_with_discord(mock_bot)
     with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-test-token"}):
         with patch("asyncio.create_task", side_effect=capture_create_task):
-            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7]:
+            with (
+                patches[0],
+                patches[1],
+                patches[2],
+                patches[3],
+                patches[4],
+                patches[5],
+                patches[6],
+                patches[7],
+            ):
                 async with lifespan(app):
                     pass
 
@@ -458,7 +467,16 @@ async def test_lifespan_logs_discord_bot_starting_when_token_set():
     patches = _lifespan_patches_with_discord(mock_bot)
     with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-test-token"}):
         with patch("asyncio.create_task", side_effect=capture_create_task):
-            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7]:
+            with (
+                patches[0],
+                patches[1],
+                patches[2],
+                patches[3],
+                patches[4],
+                patches[5],
+                patches[6],
+                patches[7],
+            ):
                 with patch("app.main.logger") as mock_logger:
                     async with lifespan(app):
                         pass
@@ -489,7 +507,16 @@ async def test_lifespan_creates_three_tasks_when_discord_token_set():
     patches = _lifespan_patches_with_discord(mock_bot)
     with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-test-token"}):
         with patch("asyncio.create_task", side_effect=capture_create_task):
-            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7]:
+            with (
+                patches[0],
+                patches[1],
+                patches[2],
+                patches[3],
+                patches[4],
+                patches[5],
+                patches[6],
+                patches[7],
+            ):
                 async with lifespan(app):
                     pass
 

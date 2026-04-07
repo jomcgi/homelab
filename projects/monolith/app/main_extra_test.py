@@ -80,8 +80,14 @@ class TestLifespanBotCloseException:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-abc"}),
             patch("asyncio.create_task", side_effect=capture),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             with pytest.raises(RuntimeError, match="Discord connection lost"):
                 async with lifespan(app):
@@ -99,8 +105,14 @@ class TestLifespanBotCloseException:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-abc"}),
             patch("asyncio.create_task", side_effect=capture),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             try:
                 async with lifespan(app):
@@ -145,7 +157,9 @@ class TestLifespanRunSchedulerLoopException:
                 await asyncio.sleep(0)
                 started = True
 
-        assert started, "lifespan should have yielded despite run_scheduler_loop failure"
+        assert started, (
+            "lifespan should have yielded despite run_scheduler_loop failure"
+        )
 
     @pytest.mark.asyncio
     async def test_lifespan_shuts_down_cleanly_after_run_scheduler_loop_failure(self):
@@ -196,8 +210,14 @@ class TestLifespanBotStartException:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "bad-token"}),
             patch("asyncio.create_task", side_effect=capture),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 started = True
@@ -217,8 +237,14 @@ class TestLifespanBotStartException:
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "bad-token"}),
             patch("asyncio.create_task", side_effect=capture),
-            patches[0], patches[1], patches[2], patches[3], patches[4],
-            patches[5], patches[6], patches[7],
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
         ):
             async with lifespan(app):
                 pass
