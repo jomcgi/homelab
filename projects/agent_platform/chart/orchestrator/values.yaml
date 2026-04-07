@@ -13,6 +13,12 @@ serviceAccount:
   annotations: {}
   name: ""
 
+# When enabled, renders RBAC rules for SandboxClaim/Sandbox CRDs and injects
+# SANDBOX_NAMESPACE / SANDBOX_TEMPLATE env vars. Disable when running without
+# the agents.x-k8s.io sandbox operator (API-only mode).
+sandbox:
+  enabled: true
+
 podAnnotations: {}
 
 podSecurityContext:
