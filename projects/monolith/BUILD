@@ -882,6 +882,18 @@ py_test(
 )
 
 py_test(
+    name = "chat_startup_test",
+    srcs = ["chat/startup_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "chat_summarizer_prompts_test",
     srcs = ["chat/summarizer_prompts_test.py"],
     imports = ["."],

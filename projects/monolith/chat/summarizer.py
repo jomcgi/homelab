@@ -189,6 +189,47 @@ async def generate_channel_summaries(
     logger.info("Channel summary generation complete for %d channels", len(channels))
 
 
+def on_startup(
+    session: "Session",
+    *,
+    bot: "discord.Client | None" = None,
+    llm_call: Callable[[str], Awaitable[str]] | None = None,
+) -> None:
+    """Register chat jobs with the scheduler."""
+    from shared.scheduler import register_job
+
+    if llm_call is None:
+        llm_call = build_llm_caller()
+
+    async def _summary_handler(session: "Session") -> None:
+        await generate_summaries(session, llm_call)
+        await generate_channel_summaries(session, llm_call)
+        return None
+
+    register_job(
+        session,
+        name="chat.summary_generation",
+        interval_secs=86400,
+        handler=_summary_handler,
+        ttl_secs=1800,
+    )
+
+    if bot is not None:
+        from chat.changelog import run_changelog_iteration
+
+        async def _changelog_handler(session: "Session") -> None:
+            await run_changelog_iteration(bot, llm_call)
+            return None
+
+        register_job(
+            session,
+            name="chat.changelog",
+            interval_secs=3600,
+            handler=_changelog_handler,
+            ttl_secs=300,
+        )
+
+
 def build_llm_caller(base_url: str | None = None) -> Callable[[str], Awaitable[str]]:
     """Create an async callable that sends a prompt to Gemma via llama.cpp."""
     url = base_url or os.environ.get("LLAMA_CPP_URL", "")
