@@ -57,6 +57,9 @@ use_repo(
     # Per-platform repos for tools packaged into the OCI tools image.
     # These are internal repos created by rules_multitool for each tool+platform
     # combination, needed by multitool_tar.bzl to package platform-specific binaries.
+    "multitool.atlas.linux_arm64",
+    "multitool.atlas.linux_x86_64",
+    "multitool.atlas.macos_arm64",
     "multitool.argocd.linux_arm64",
     "multitool.argocd.linux_x86_64",
     "multitool.argocd.macos_arm64",

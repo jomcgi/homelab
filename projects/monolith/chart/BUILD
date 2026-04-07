@@ -9,6 +9,19 @@ filegroup(
     visibility = ["//projects/monolith:__subpackages__"],
 )
 
+sh_test(
+    name = "atlas_sum_test",
+    srcs = ["//bazel/tools/format:validate-atlas-sum.sh"],
+    data = [
+        ":migrations",
+        "@multitool//tools/atlas",
+    ],
+    env = {
+        "ATLAS_BIN": "$(rootpath @multitool//tools/atlas)",
+        "MIGRATIONS_DIR": "projects/monolith/chart/migrations",
+    },
+)
+
 helm_chart(
     name = "chart",
     images = {

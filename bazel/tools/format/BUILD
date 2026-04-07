@@ -82,3 +82,6 @@ sh_binary(
     name = "fast_format",
     srcs = ["fast-format.sh"],
 )
+
+# Atlas migration checksum validator — used by sh_test targets in chart BUILD files
+exports_files(["validate-atlas-sum.sh"])
