@@ -12,7 +12,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "overrides": {
-    "lodash-es": ">=4.17.23"
+    "lodash-es": ">=4.18.0"
   },
   "dependencies": {
     "@astrojs/react": "^4.4.2",
