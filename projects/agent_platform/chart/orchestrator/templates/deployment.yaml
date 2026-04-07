@@ -37,11 +37,13 @@ spec:
         - name: NATS_URL
           {{- $natsUrl := .Values.config.natsUrl | default (printf "nats://%s-nats:4222" .Release.Name) }}
           value: {{ $natsUrl | quote }}
+        {{- if .Values.sandbox.enabled }}
         - name: SANDBOX_NAMESPACE
           {{- $sandboxNs := .Values.config.sandboxNamespace | default .Release.Namespace }}
           value: {{ $sandboxNs | quote }}
         - name: SANDBOX_TEMPLATE
           value: {{ .Values.config.sandboxTemplate | quote }}
+        {{- end }}
         - name: MAX_RETRIES
           value: {{ .Values.config.maxRetries | quote }}
         - name: MAX_CONCURRENT

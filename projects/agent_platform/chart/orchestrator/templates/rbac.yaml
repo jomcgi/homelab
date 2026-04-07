@@ -7,6 +7,7 @@ metadata:
   labels:
     {{- include "agent-orchestrator.labels" . | nindent 4 }}
 rules:
+  {{- if .Values.sandbox.enabled }}
   - apiGroups: ["extensions.agents.x-k8s.io"]
     resources: ["sandboxclaims"]
     verbs: ["create", "get", "list", "watch", "delete"]
@@ -19,6 +20,14 @@ rules:
   - apiGroups: [""]
     resources: ["pods/exec"]
     verbs: ["create"]
+  {{- else }}
+  # API-only mode: no sandbox CRD access needed.
+  # Minimal rule to satisfy Kubernetes (a Role with zero rules is valid but
+  # some policy engines flag it).
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
