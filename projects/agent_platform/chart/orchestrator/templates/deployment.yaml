@@ -57,9 +57,9 @@ spec:
         - name: RECONCILE_INTERVAL
           value: {{ .Values.config.reconcileInterval | quote }}
         - name: INFERENCE_URL
-          value: {{ .Values.config.inferenceUrl | quote }}
+          value: {{ .Values.config.openaiBaseUrl | quote }}
         - name: INFERENCE_MODEL
-          value: {{ .Values.config.inferenceModel | quote }}
+          value: {{ .Values.config.openaiModel | quote }}
         livenessProbe:
           httpGet:
             path: /health
