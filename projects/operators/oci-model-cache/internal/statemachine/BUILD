@@ -15,7 +15,7 @@ go_library(
     importpath = "github.com/jomcgi/homelab/projects/operators/oci-model-cache/internal/statemachine",
     visibility = ["//projects/operators/oci-model-cache:__subpackages__"],
     deps = [
-        "//projects/operators/oci-model-cache/api/v1alpha1:api",
+        "//projects/operators/oci-model-cache/api/v1alpha1:v1alpha1",
         "@com_github_go_logr_logr//:logr",
         "@com_github_prometheus_client_golang//prometheus",
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
@@ -38,7 +38,7 @@ go_test(
     ],
     embed = [":statemachine"],
     deps = [
-        "//projects/operators/oci-model-cache/api/v1alpha1:api",
+        "//projects/operators/oci-model-cache/api/v1alpha1:v1alpha1",
         "@com_github_go_logr_logr//:logr",
         "@com_github_go_logr_logr//testr",
         "@com_github_onsi_ginkgo_v2//:ginkgo",
