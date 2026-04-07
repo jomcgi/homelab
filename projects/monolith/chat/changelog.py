@@ -48,27 +48,6 @@ def _filter_changelog_commits(commits: list[dict]) -> list[dict]:
     return result
 
 
-async def _fetch_ci_status(
-    client: httpx.AsyncClient,
-    repo: str,
-    token: str,
-) -> str:
-    """Get the conclusion of the last completed check suite on main HEAD."""
-    resp = await client.get(
-        f"{GITHUB_API}/repos/{repo}/commits/main/check-suites",
-        params={"per_page": 10},
-        headers=_auth_headers(token),
-    )
-    resp.raise_for_status()
-    suites = resp.json().get("check_suites", [])
-
-    for suite in suites:
-        if suite.get("status") == "completed":
-            return suite.get("conclusion", "unknown")
-
-    return "pending"
-
-
 async def _summarize_with_gemma(
     commits: list[dict],
     llm_call: Callable[[str], Awaitable[str]],
@@ -93,25 +72,15 @@ async def _summarize_with_gemma(
     return await llm_call(prompt)
 
 
-def _build_embed(summary: str, ci_status: str, commit_count: int) -> discord.Embed:
+def _build_embed(summary: str, commit_count: int) -> discord.Embed:
     """Build a Discord embed for the changelog notification."""
-    ci_emoji = {
-        "success": "\u2705",
-        "failure": "\u274c",
-        "pending": "\u23f3",
-    }.get(ci_status, "\u2753")
-
     embed = discord.Embed(
         title="Homelab Changelog",
         description=summary,
-        color=0x2ECC71
-        if ci_status == "success"
-        else 0xE74C3C
-        if ci_status == "failure"
-        else 0x95A5A6,
+        color=0x2ECC71,
         timestamp=datetime.now(timezone.utc),
     )
-    embed.set_footer(text=f"{ci_emoji} CI: {ci_status} | {commit_count} commit(s)")
+    embed.set_footer(text=f"{commit_count} commit(s)")
     return embed
 
 
@@ -138,14 +107,13 @@ async def run_changelog_iteration(
             return
 
         changelog_commits = _filter_changelog_commits(commits)
-        ci_status = await _fetch_ci_status(client, github_repo, github_token)
 
     if not changelog_commits:
         logger.info("Changelog: %d new commits but none are feat/fix", len(commits))
         return
 
     summary = await _summarize_with_gemma(changelog_commits, llm_call)
-    embed = _build_embed(summary, ci_status, len(changelog_commits))
+    embed = _build_embed(summary, len(changelog_commits))
 
     channel = bot.get_channel(int(channel_id))
     if channel:
