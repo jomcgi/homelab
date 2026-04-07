@@ -139,6 +139,8 @@ async def lifespan(app: FastAPI):
     if bot_task:
         bot_task.cancel()
     scheduler_task.cancel()
+    if _tracer_provider is not None:
+        _tracer_provider.shutdown()
     logger.info("Monolith shutting down")
 
 
@@ -165,30 +167,29 @@ if Path(_static_dir).is_dir():
     logger.info("Serving frontend from %s", _static_dir)
 
 # OTEL instrumentation (manual setup -- operator auto-inject breaks Bazel runfiles)
-try:
-    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    from opentelemetry.sdk.resources import Resource
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-    resource = Resource.create({"service.name": "monolith-backend"})
-    exporter = OTLPSpanExporter(
-        endpoint=os.environ.get(
-            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
-            "http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318/v1/traces",
-        ),
+_tracer_provider = TracerProvider(
+    resource=Resource.create({"service.name": "monolith-backend"}),
+)
+_tracer_provider.add_span_processor(
+    BatchSpanProcessor(
+        OTLPSpanExporter(
+            endpoint=os.environ.get(
+                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+                "http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318/v1/traces",
+            ),
+        )
     )
-    provider = TracerProvider(resource=resource)
-    provider.add_span_processor(BatchSpanProcessor(exporter))
-
-    from opentelemetry import trace
-
-    trace.set_tracer_provider(provider)
-    FastAPIInstrumentor.instrument_app(app)
-    logger.info("OpenTelemetry instrumentation enabled")
-except ImportError:
-    logger.info("OpenTelemetry not available, skipping instrumentation")
+)
+trace.set_tracer_provider(_tracer_provider)
+FastAPIInstrumentor.instrument_app(app)
+logger.info("OpenTelemetry instrumentation enabled")
 
 if __name__ == "__main__":
     import uvicorn
