@@ -18,19 +18,9 @@ go_library(
 )
 
 go_test(
-    name = "api_test",
-    srcs = ["types_test.go"],
-    embed = [":api"],
-    deps = [
-        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
-        "@io_k8s_apimachinery//pkg/runtime",
-    ],
-)
-
-go_test(
     name = "v1alpha1_test",
     srcs = ["types_test.go"],
-    embed = [":v1alpha1"],
+    embed = [":api"],
     deps = [
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",
