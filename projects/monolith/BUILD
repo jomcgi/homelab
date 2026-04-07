@@ -1445,6 +1445,16 @@ py_test(
 )
 
 py_test(
+    name = "scripts_red_dashboard_coverage_test",
+    srcs = ["scripts/generate_red_dashboard_coverage_test.py"],
+    data = ["scripts/generate-red-dashboard.py"],
+    imports = ["."],
+    deps = [
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "chat_store_lock_test",
     srcs = ["chat/store_lock_test.py"],
     imports = ["."],
