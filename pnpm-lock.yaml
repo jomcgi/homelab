@@ -28,10 +28,10 @@ overrides:
 patchedDependencies:
   "@sveltejs/kit":
     hash: yr7jlkv3efqqhtawxk636tdpvm
-    path: patches/@sveltejs__kit.patch
+    path: bazel/patches/@sveltejs__kit.patch
   rollup:
     hash: ucodry5rwsvqoy3uc2v6oocfeq
-    path: patches/rollup.patch
+    path: bazel/patches/rollup.patch
 
 importers:
   .:
@@ -14633,7 +14633,7 @@ snapshots:
   "@types/vinyl@2.0.12":
     dependencies:
       "@types/expect": 1.20.4
-      "@types/node": 25.5.0
+      "@types/node": 22.19.15
 
   "@types/web-bluetooth@0.0.21": {}
 
@@ -17664,7 +17664,7 @@ snapshots:
 
   mem-fs@4.1.2:
     dependencies:
-      "@types/node": 25.5.0
+      "@types/node": 22.19.15
       "@types/vinyl": 2.0.12
       vinyl: 3.0.1
       vinyl-file: 5.0.0
