@@ -16,12 +16,21 @@ sandboxTemplate:
   image:
     repository: ghcr.io/jomcgi/homelab/projects/agent_platform/goose_agent/image
     tag: main
+  # Git repository clone configuration for sandbox workspace.
+  # When enabled, an initContainer clones the repo before the agent starts.
+  gitClone:
+    enabled: true
+    # Full HTTPS clone URL (token auth is injected via secret).
+    repoUrl: ""
+    # Short repo name — used as workspace subdirectory (/workspace/<repoName>).
+    repoName: ""
+    # Kubernetes Secret containing the git auth token.
+    secret:
+      name: "agent-secrets"
+      key: "GITHUB_TOKEN"
   env:
     gooseProvider: claude-code
     gooseModel: claude-sonnet-4-6
-    contextForgeUrl: ""
-    repoOwner: ""
-    repoName: ""
   resources:
     requests:
       cpu: "1"
