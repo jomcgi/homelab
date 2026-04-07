@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from icalendar import Calendar
+from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
 TZ = ZoneInfo("America/Vancouver")
@@ -90,3 +91,22 @@ async def poll_calendar() -> None:
         logger.info("Calendar refreshed: %d events for %s", len(_cached_events), today)
     except Exception:
         logger.exception("Failed to fetch calendar feed")
+
+
+async def calendar_poll_handler(session: Session) -> None:
+    """Scheduler handler for calendar polling. Session unused (stateless HTTP fetch)."""
+    await poll_calendar()
+    return None
+
+
+def on_startup(session: Session) -> None:
+    """Register shared jobs with the scheduler."""
+    from shared.scheduler import register_job
+
+    register_job(
+        session,
+        name="shared.calendar_poll",
+        interval_secs=900,  # 15 minutes
+        handler=calendar_poll_handler,
+        ttl_secs=120,
+    )

@@ -1514,6 +1514,18 @@ py_test(
 )
 
 py_test(
+    name = "shared_startup_test",
+    srcs = ["shared/startup_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "home_router_archive_date_format_test",
     srcs = ["home/router_archive_date_format_test.py"],
     imports = ["."],
