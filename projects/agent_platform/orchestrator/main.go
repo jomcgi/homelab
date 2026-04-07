@@ -109,7 +109,7 @@ func main() {
 	}
 
 	inferenceURL := envOr("INFERENCE_URL", "")
-	inferenceModel := envOr("INFERENCE_MODEL", "qwen3.5-35b-a3b")
+	inferenceModel := envOr("INFERENCE_MODEL", "")
 
 	var summarizer *Summarizer
 	if inferenceURL != "" {
