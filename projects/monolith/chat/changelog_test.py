@@ -269,7 +269,11 @@ class TestRunChangelogIteration:
             # Remove relevant keys if present
             import os
 
-            for key in ("CHANGELOG_CHANNEL_ID", "GITHUB_TOKEN", "CHANGELOG_GITHUB_REPO"):
+            for key in (
+                "CHANGELOG_CHANNEL_ID",
+                "GITHUB_TOKEN",
+                "CHANGELOG_GITHUB_REPO",
+            ):
                 os.environ.pop(key, None)
 
             await run_changelog_iteration(bot, mock_llm)
