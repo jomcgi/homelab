@@ -109,6 +109,19 @@ if $STAGED; then
 		PIDS+=($!)
 	fi
 
+	# Atlas migration checksums — only if migration SQL files are staged
+	for f in "${STAGED_FILES[@]}"; do
+		case "$f" in
+		*/migrations/*.sql)
+			if command -v atlas &>/dev/null; then
+				./bazel/tools/format/update-atlas-sum.sh 2>/dev/null &
+				PIDS+=($!)
+			fi
+			break
+			;;
+		esac
+	done
+
 	# Home-cluster generator (always run — it scans kustomization.yaml files, not BUILD)
 	./bazel/images/generate-home-cluster.sh 2>/dev/null &
 	PIDS+=($!)
@@ -181,6 +194,12 @@ PIDS+=($!)
 # Sync homelab-library dependency versions
 ./bazel/tools/format/sync-helm-deps.sh 2>/dev/null &
 PIDS+=($!)
+
+# Atlas migration checksums
+if command -v atlas &>/dev/null; then
+	./bazel/tools/format/update-atlas-sum.sh 2>/dev/null &
+	PIDS+=($!)
+fi
 
 # Wait for all parallel tasks
 for pid in "${PIDS[@]}"; do wait "$pid" 2>/dev/null || true; done
