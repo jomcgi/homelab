@@ -1565,6 +1565,21 @@ py_test(
     ],
 )
 
+py_test(
+    name = "main_log_coverage_test",
+    srcs = ["app/main_log_coverage_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
