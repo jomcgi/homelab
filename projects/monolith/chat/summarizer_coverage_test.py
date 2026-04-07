@@ -155,22 +155,82 @@ class TestBuildLlmCaller:
         assert "http://env:9090" in call_url
 
     @pytest.mark.asyncio
-    async def test_propagates_http_status_error(self):
-        """build_llm_caller() propagates HTTPStatusError from raise_for_status()."""
+    async def test_propagates_non_retryable_http_error(self):
+        """build_llm_caller() propagates non-retryable HTTP errors immediately."""
         mock_instance = MagicMock()
         mock_response = MagicMock()
-        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "503 Service Unavailable",
+        mock_response.status_code = 400
+        error = httpx.HTTPStatusError(
+            "400 Bad Request",
             request=MagicMock(),
-            response=MagicMock(),
+            response=mock_response,
         )
+        mock_response.raise_for_status.side_effect = error
         mock_instance.post = AsyncMock(return_value=mock_response)
 
         with patch("chat.summarizer.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_instance
             caller = build_llm_caller("http://fake:8080")
             with pytest.raises(httpx.HTTPStatusError):
-                await caller("some prompt")
+                await caller("some prompt", max_retries=0)
+
+    @pytest.mark.asyncio
+    async def test_retries_on_transient_http_errors(self):
+        """build_llm_caller() retries on 502/503/504 then returns on success."""
+        mock_instance = MagicMock()
+
+        fail_response = MagicMock()
+        fail_response.status_code = 504
+        fail_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "504 Gateway Timeout",
+            request=MagicMock(),
+            response=fail_response,
+        )
+
+        ok_response = MagicMock()
+        ok_response.raise_for_status = MagicMock()
+        ok_response.json.return_value = {
+            "choices": [{"message": {"content": "Retried OK"}}]
+        }
+
+        mock_instance.post = AsyncMock(side_effect=[fail_response, ok_response])
+
+        with (
+            patch("chat.summarizer.httpx.AsyncClient") as mock_cls,
+            patch("chat.summarizer.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            mock_cls.return_value = mock_instance
+            caller = build_llm_caller("http://fake:8080")
+            result = await caller("some prompt", max_retries=2)
+
+        assert result == "Retried OK"
+        assert mock_instance.post.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_raises_after_exhausting_retries(self):
+        """build_llm_caller() raises after all retries are exhausted."""
+        mock_instance = MagicMock()
+
+        fail_response = MagicMock()
+        fail_response.status_code = 502
+        fail_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "502 Bad Gateway",
+            request=MagicMock(),
+            response=fail_response,
+        )
+        mock_instance.post = AsyncMock(return_value=fail_response)
+
+        with (
+            patch("chat.summarizer.httpx.AsyncClient") as mock_cls,
+            patch("chat.summarizer.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            mock_cls.return_value = mock_instance
+            caller = build_llm_caller("http://fake:8080")
+            with pytest.raises(httpx.HTTPStatusError, match="502"):
+                await caller("some prompt", max_retries=2)
+
+        # 1 initial + 2 retries = 3 total attempts
+        assert mock_instance.post.call_count == 3
 
 
 # ---------------------------------------------------------------------------
