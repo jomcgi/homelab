@@ -111,3 +111,9 @@ sh_test(
     srcs = ["check-unnecessary-chart-bump_test.sh"],
     data = [":check-unnecessary-chart-bump.sh"],
 )
+
+sh_test(
+    name = "check_hardcoded_llm_model_test",
+    srcs = ["check-hardcoded-llm-model_test.sh"],
+    data = [":check-hardcoded-llm-model.sh"],
+)

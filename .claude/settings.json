@@ -221,6 +221,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-unnecessary-chart-bump.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-hardcoded-llm-model.sh",
+            "timeout": 5
           }
         ]
       }
