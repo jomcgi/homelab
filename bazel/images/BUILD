@@ -51,7 +51,6 @@ multirun(
         "//projects/grimoire/frontend:image.push",
         "//projects/grimoire/ws-gateway:image.push",
         "//projects/hikes/update_forecast:update_image.push",
-        "//projects/memgraph/chart:chart.push",
         "//projects/monolith/chart:chart.push",
         "//projects/monolith/frontend:image.push",
         "//projects/monolith:image.push",

@@ -39,7 +39,7 @@ Real-time AIS vessel tracking for the Pacific Northwest coast.
 Photo-based GPS trip logging - upload travel photos and it reconstructs the route from EXIF data.
 
 - `projects/trips/backend/` - Extracts GPS from photo EXIF, enriches with elevation from NRCan CDEM API, broadcasts via WebSocket. Replays NATS stream on startup to rebuild state
-- `projects/websites/trips.jomcgi.dev/` - Timeline view with day-by-day maps and elevation profiles
+- `projects/trips/frontend/` - Timeline view with day-by-day maps and elevation profiles
 
 ### Stargazer
 
@@ -53,18 +53,20 @@ AI-assisted D&D campaign manager.
 
 - `projects/grimoire/api/` - Go REST API with Firestore persistence, campaign/character/encounter management
 
-### Knowledge graph
+### Monolith
 
-RAG pipeline that scrapes, embeds, and searches content.
+`projects/monolith/` - Consolidated homelab web services. SvelteKit frontend with a FastAPI backend that bundles several modules: notes (markdown note-taking with full-text search), chat (Discord bot with AI responses, embeddings, channel summarization, vision, and web search), and application logging/observability dashboards.
 
-- `projects/blog_knowledge_graph/` - Three components: RSS/HTML scraper with SSRF protection → text chunker + vector embedder (Ollama or Gemini) → MCP server for semantic search over Qdrant
+### Obsidian vault
+
+`projects/obsidian_vault/` - Deploys an Obsidian vault to Kubernetes with semantic search over note embeddings (Qdrant + nomic-embed-text), git-based version history, and an MCP server so AI agents can read, write, and search notes.
 
 ### Hiking routes
 
 Scottish route finder with weather-aware surfacing.
 
 - `projects/hikes/` - Scrapes routes from WalkHighlands, enriches with weather forecasts
-- `projects/websites/hikes.jomcgi.dev/` - Surfaces hikes with good conditions for the coming days (static, Cloudflare R2)
+- `projects/hikes/frontend/` - Surfaces hikes with good conditions for the coming days (static, Cloudflare R2)
 
 ## Infrastructure patterns
 
@@ -92,6 +94,8 @@ projects/             # All services, operators, websites — colocated with dep
 ├── ships/            #   Marine vessel tracking
 ├── trips/            #   Trip tracker
 ├── grimoire/         #   D&D campaign manager
+├── monolith/         #   Consolidated web services (notes, chat, frontend)
+├── obsidian_vault/   #   Obsidian vault with semantic search + MCP server
 ├── stargazer/        #   Dark sky finder
 ├── hikes/            #   Scottish hiking routes
 ├── operators/        #   Custom Kubernetes operators
