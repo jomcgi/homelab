@@ -97,7 +97,11 @@ class TestCompleteJob:
         # next_run_at should be ~120s from now
         expected_min = datetime.now(timezone.utc) + timedelta(seconds=115)
         expected_max = datetime.now(timezone.utc) + timedelta(seconds=125)
-        next_run = job.next_run_at.replace(tzinfo=timezone.utc) if job.next_run_at.tzinfo is None else job.next_run_at
+        next_run = (
+            job.next_run_at.replace(tzinfo=timezone.utc)
+            if job.next_run_at.tzinfo is None
+            else job.next_run_at
+        )
         assert expected_min <= next_run <= expected_max
 
     def test_uses_override(self, session: Session):
@@ -109,7 +113,11 @@ class TestCompleteJob:
         override_time = datetime(2030, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
         _complete_job(session, job, override=override_time)
 
-        next_run = job.next_run_at.replace(tzinfo=timezone.utc) if job.next_run_at.tzinfo is None else job.next_run_at
+        next_run = (
+            job.next_run_at.replace(tzinfo=timezone.utc)
+            if job.next_run_at.tzinfo is None
+            else job.next_run_at
+        )
         assert next_run == override_time
         assert job.last_status == "ok"
 
@@ -134,7 +142,11 @@ class TestFailJob:
         assert job.last_run_at is not None
         expected_min = datetime.now(timezone.utc) + timedelta(seconds=85)
         expected_max = datetime.now(timezone.utc) + timedelta(seconds=95)
-        next_run = job.next_run_at.replace(tzinfo=timezone.utc) if job.next_run_at.tzinfo is None else job.next_run_at
+        next_run = (
+            job.next_run_at.replace(tzinfo=timezone.utc)
+            if job.next_run_at.tzinfo is None
+            else job.next_run_at
+        )
         assert expected_min <= next_run <= expected_max
 
     def test_truncates_long_error(self, session: Session):
@@ -175,8 +187,16 @@ class TestReleaseLock:
         assert job.locked_by is None
         assert job.locked_at is None
         # These should be unchanged
-        next_run = job.next_run_at.replace(tzinfo=timezone.utc) if job.next_run_at.tzinfo is None else job.next_run_at
-        last_run = job.last_run_at.replace(tzinfo=timezone.utc) if job.last_run_at.tzinfo is None else job.last_run_at
+        next_run = (
+            job.next_run_at.replace(tzinfo=timezone.utc)
+            if job.next_run_at.tzinfo is None
+            else job.next_run_at
+        )
+        last_run = (
+            job.last_run_at.replace(tzinfo=timezone.utc)
+            if job.last_run_at.tzinfo is None
+            else job.last_run_at
+        )
         assert next_run == original_next
         assert last_run == original_last
         assert job.last_status == "ok"
@@ -212,7 +232,9 @@ class TestTick:
             patch("shared.scheduler._claim_next_job", return_value="my-job"),
             patch("shared.scheduler._complete_job") as mock_complete,
         ):
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=mock_session)
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=mock_session
+            )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await _tick()
 
@@ -230,7 +252,9 @@ class TestTick:
             patch("shared.scheduler.Session") as mock_session_cls,
             patch("shared.scheduler._claim_next_job", return_value=None),
         ):
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=MagicMock(spec=Session))
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=MagicMock(spec=Session)
+            )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await _tick()
 
@@ -260,7 +284,9 @@ class TestTick:
             patch("shared.scheduler._claim_next_job", return_value="fail-job"),
             patch("shared.scheduler._fail_job") as mock_fail,
         ):
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=mock_session)
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=mock_session
+            )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await _tick()
 
@@ -287,7 +313,9 @@ class TestTick:
             patch("shared.scheduler._claim_next_job", return_value="orphan-job"),
             patch("shared.scheduler._release_lock") as mock_release,
         ):
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=mock_session)
+            mock_session_cls.return_value.__enter__ = MagicMock(
+                return_value=mock_session
+            )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await _tick()
 
@@ -315,7 +343,9 @@ class TestRunSchedulerLoop:
 
         with (
             patch("shared.scheduler._tick", side_effect=tick_side_effect),
-            patch("shared.scheduler.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch(
+                "shared.scheduler.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep,
         ):
             with pytest.raises(KeyboardInterrupt):
                 await run_scheduler_loop(poll_interval=1)

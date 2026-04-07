@@ -64,7 +64,9 @@ def register_job(
             )
         )
     session.commit()
-    logger.info("Registered job %s (interval=%ds, ttl=%ds)", name, interval_secs, ttl_secs)
+    logger.info(
+        "Registered job %s (interval=%ds, ttl=%ds)", name, interval_secs, ttl_secs
+    )
 
 
 async def run_scheduler_loop(poll_interval: int = 30) -> None:
@@ -128,7 +130,9 @@ def _claim_next_job(session: Session) -> str | None:
     return row[0] if row else None
 
 
-def _complete_job(session: Session, job: ScheduledJob, override: datetime | None) -> None:
+def _complete_job(
+    session: Session, job: ScheduledJob, override: datetime | None
+) -> None:
     """Mark a job as succeeded and advance next_run_at."""
     now = datetime.now(timezone.utc)
     job.locked_by = None
@@ -138,7 +142,9 @@ def _complete_job(session: Session, job: ScheduledJob, override: datetime | None
     job.next_run_at = override or (now + timedelta(seconds=job.interval_secs))
     session.add(job)
     session.commit()
-    logger.info("Job %s completed, next run at %s", job.name, job.next_run_at.isoformat())
+    logger.info(
+        "Job %s completed, next run at %s", job.name, job.next_run_at.isoformat()
+    )
 
 
 def _fail_job(session: Session, job: ScheduledJob, error: str) -> None:
