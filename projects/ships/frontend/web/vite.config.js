@@ -7,6 +7,7 @@ export default defineConfig({
     include: ["maplibre-gl"],
   },
   build: {
+    target: "es2022",
     rollupOptions: {
       output: {
         manualChunks: {
