@@ -176,8 +176,8 @@ func TestResource_AllStates(t *testing.T) {
 	rr := validResolveResultForAccessors()
 
 	tests := []struct {
-		name  string
-		stFn  func(mc *v1alpha1.ModelCache) ModelCacheState
+		name string
+		stFn func(mc *v1alpha1.ModelCache) ModelCacheState
 	}{
 		{
 			name: "Pending",
