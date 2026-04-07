@@ -61,8 +61,10 @@ config:
   jobInactivityTimeout: "10m"
   jobMaxDuration: "168h"
   reconcileInterval: "60s"
-  inferenceUrl: ""
-  inferenceModel: "gemma-4-26b-a4b"
+  # OpenAI-compatible chat completions endpoint (e.g. Ollama, vLLM, LiteLLM).
+  # Leave empty to disable LLM-powered job titles and summaries.
+  openaiBaseUrl: ""
+  openaiModel: ""
 
 httpRoute:
   enabled: false
