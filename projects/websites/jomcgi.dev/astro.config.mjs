@@ -12,6 +12,9 @@ export default defineConfig({
     },
     esbuild: {
       target: "es2022",
+      supported: {
+        destructuring: true,
+      },
     },
     server: {
       host: true,
