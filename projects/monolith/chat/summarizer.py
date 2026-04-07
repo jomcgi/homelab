@@ -1,5 +1,6 @@
 """Rolling summary generator -- incrementally updates per-user-per-channel summaries."""
 
+import asyncio
 import logging
 import os
 from collections.abc import Awaitable, Callable
@@ -230,24 +231,49 @@ def on_startup(
         )
 
 
+_RETRYABLE_STATUS_CODES = {502, 503, 504}
+
+
 def build_llm_caller(base_url: str | None = None) -> Callable[[str], Awaitable[str]]:
     """Create an async callable that sends a prompt to Gemma via llama.cpp."""
     url = base_url or os.environ.get("LLAMA_CPP_URL", "")
     client = httpx.AsyncClient(timeout=httpx.Timeout(60.0))
 
-    async def call_llm(prompt: str) -> str:
-        resp = await client.post(
-            f"{url}/v1/chat/completions",
-            json={
-                "model": "gemma-4-26b-a4b",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 16384,
-            },
-        )
-        resp.raise_for_status()
-        try:
-            return resp.json()["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, ValueError) as e:
-            raise RuntimeError(f"unexpected LLM response shape: {e}") from e
+    async def call_llm(prompt: str, *, max_retries: int = 3) -> str:
+        last_exc: Exception | None = None
+        for attempt in range(max_retries + 1):
+            try:
+                resp = await client.post(
+                    f"{url}/v1/chat/completions",
+                    json={
+                        "model": "gemma-4-26b-a4b",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 16384,
+                    },
+                )
+                resp.raise_for_status()
+                try:
+                    return resp.json()["choices"][0]["message"]["content"]
+                except (KeyError, IndexError, ValueError) as e:
+                    raise RuntimeError(f"unexpected LLM response shape: {e}") from e
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code not in _RETRYABLE_STATUS_CODES:
+                    raise
+                last_exc = exc
+            except httpx.ConnectError as exc:
+                last_exc = exc
+
+            if attempt < max_retries:
+                delay = 2**attempt  # 1s, 2s, 4s
+                logger.warning(
+                    "LLM call failed (attempt %d/%d): %s — retrying in %ds",
+                    attempt + 1,
+                    max_retries + 1,
+                    last_exc,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+
+        raise last_exc  # type: ignore[misc]
 
     return call_llm
