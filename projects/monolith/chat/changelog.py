@@ -1,4 +1,4 @@
-"""Hourly changelog notifier — polls GitHub for new feat/fix commits, summarizes via Gemma, posts to Discord."""
+"""Hourly changelog notifier — polls GitHub for new feat commits, summarizes via Gemma, posts to Discord."""
 
 import logging
 import os
@@ -12,7 +12,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # Conventional commit types we care about
-_CHANGELOG_TYPES = re.compile(r"^(feat|fix)(\(.+?\))?!?:\s")
+_CHANGELOG_TYPES = re.compile(r"^(feat)(\(.+?\))?!?:\s")
 
 GITHUB_API = "https://api.github.com"
 _GITHUB_HEADERS = {"Accept": "application/vnd.github+json"}
@@ -39,7 +39,7 @@ async def _fetch_commits_since(
 
 
 def _filter_changelog_commits(commits: list[dict]) -> list[dict]:
-    """Keep only feat/fix conventional commits."""
+    """Keep only feat conventional commits."""
     result = []
     for c in commits:
         msg = c["commit"]["message"].split("\n", 1)[0]
@@ -62,9 +62,9 @@ async def _summarize_with_gemma(
     commits_text = "\n".join(commit_descriptions)
     prompt = (
         "You are a changelog writer for a Kubernetes homelab project.\n"
-        "Below are recent git commits (features and bug fixes only).\n"
+        "Below are recent git commits (new features only).\n"
         "Write a concise changelog summarizing what changed. "
-        "Group by features and fixes. For each item, explain what it does in "
+        "For each item, explain what it does in "
         "one clear sentence — don't just repeat the commit message. "
         "Use plain language. No markdown headers, just plain text with bullet points.\n\n"
         f"Commits:\n{commits_text}"
@@ -109,7 +109,7 @@ async def run_changelog_iteration(
         changelog_commits = _filter_changelog_commits(commits)
 
     if not changelog_commits:
-        logger.info("Changelog: %d new commits but none are feat/fix", len(commits))
+        logger.info("Changelog: %d new commits but none are feat", len(commits))
         return
 
     summary = await _summarize_with_gemma(changelog_commits, llm_call)
