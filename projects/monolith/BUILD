@@ -519,6 +519,20 @@ py_test(
 )
 
 py_test(
+    name = "chat_changelog_test",
+    srcs = ["chat/changelog_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//httpx",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "chat_summarizer_test",
     srcs = ["chat/summarizer_test.py"],
     imports = ["."],
