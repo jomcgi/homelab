@@ -20,7 +20,7 @@ go_library(
 go_test(
     name = "v1alpha1_test",
     srcs = ["types_test.go"],
-    embed = [":api"],
+    embed = [":v1alpha1"],
     deps = [
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",
