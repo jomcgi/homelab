@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "api",
@@ -14,5 +14,15 @@ go_library(
         "@io_k8s_apimachinery//pkg/runtime",
         "@io_k8s_apimachinery//pkg/runtime/schema",
         "@io_k8s_sigs_controller_runtime//pkg/scheme",
+    ],
+)
+
+go_test(
+    name = "api_test",
+    srcs = ["types_test.go"],
+    embed = [":api"],
+    deps = [
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
     ],
 )
