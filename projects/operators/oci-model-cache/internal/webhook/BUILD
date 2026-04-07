@@ -8,7 +8,7 @@ go_library(
     deps = [
         "//bazel/tools/hf2oci/pkg/hf",
         "//bazel/tools/hf2oci/pkg/ociref",
-        "//projects/operators/oci-model-cache/api/v1alpha1:v1alpha1",
+        "//projects/operators/oci-model-cache/api/v1alpha1",
         "//projects/operators/oci-model-cache/internal/controller",
         "//projects/operators/oci-model-cache/internal/hfref",
         "//projects/operators/oci-model-cache/internal/naming",
@@ -31,7 +31,7 @@ go_test(
     embed = [":webhook"],
     deps = [
         "//bazel/tools/hf2oci/pkg/hf",
-        "//projects/operators/oci-model-cache/api/v1alpha1:v1alpha1",
+        "//projects/operators/oci-model-cache/api/v1alpha1",
         "//projects/operators/oci-model-cache/internal/statemachine",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",

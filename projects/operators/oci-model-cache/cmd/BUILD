@@ -8,7 +8,7 @@ go_library(
     deps = [
         "//bazel/tools/hf2oci/pkg/copy",
         "//bazel/tools/hf2oci/pkg/hf",
-        "//projects/operators/oci-model-cache/api/v1alpha1:v1alpha1",
+        "//projects/operators/oci-model-cache/api/v1alpha1",
         "//projects/operators/oci-model-cache/internal/config",
         "//projects/operators/oci-model-cache/internal/controller",
         "//projects/operators/oci-model-cache/internal/statemachine",
