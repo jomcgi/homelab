@@ -97,7 +97,15 @@ class TestMain:
         """JSON output contains all required top-level dashboard keys."""
         output = json.dumps(_mod.build_dashboard(), indent=2)
         parsed = json.loads(output)
-        for key in ("title", "description", "tags", "version", "layout", "widgets", "variables"):
+        for key in (
+            "title",
+            "description",
+            "tags",
+            "version",
+            "layout",
+            "widgets",
+            "variables",
+        ):
             assert key in parsed, f"Missing key: {key}"
 
     def test_main_output_is_indented(self):
@@ -272,8 +280,13 @@ class TestBaseQueryInternalFields:
         """Multiple extra_filters are all appended to the filter items."""
         extra1 = _error_filter()
         extra2 = {
-            "key": {"key": "http.status_code", "dataType": "int64", "type": "tag",
-                    "isColumn": False, "isJSON": False},
+            "key": {
+                "key": "http.status_code",
+                "dataType": "int64",
+                "type": "tag",
+                "isColumn": False,
+                "isJSON": False,
+            },
             "op": ">",
             "value": 400,
         }
@@ -334,11 +347,15 @@ class TestBuildDashboardLayoutGeometry:
 
     def test_all_widgets_have_height_3(self):
         for entry in self._layout():
-            assert entry["h"] == 3, f"Widget {entry['i']} has unexpected height {entry['h']}"
+            assert entry["h"] == 3, (
+                f"Widget {entry['i']} has unexpected height {entry['h']}"
+            )
 
     def test_all_widgets_have_width_6(self):
         for entry in self._layout():
-            assert entry["w"] == 6, f"Widget {entry['i']} has unexpected width {entry['w']}"
+            assert entry["w"] == 6, (
+                f"Widget {entry['i']} has unexpected width {entry['w']}"
+            )
 
     def test_x_positions_are_0_or_6(self):
         """A 2-column grid means x is either 0 (left) or 6 (right)."""
@@ -365,7 +382,9 @@ class TestBuildDashboardLayoutGeometry:
     def test_no_overlapping_cells(self):
         """Each cell occupies a unique (x, y) coordinate."""
         positions = [(e["x"], e["y"]) for e in self._layout()]
-        assert len(positions) == len(set(positions)), "Layout entries share a grid position"
+        assert len(positions) == len(set(positions)), (
+            "Layout entries share a grid position"
+        )
 
     def test_rate_widget_is_top_left(self):
         layout_by_id = {e["i"]: e for e in self._layout()}
