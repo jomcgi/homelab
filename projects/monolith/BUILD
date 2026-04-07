@@ -120,6 +120,19 @@ py_test(
 )
 
 py_test(
+    name = "home_startup_test",
+    srcs = ["home/startup_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
     name = "frontend_test",
     srcs = ["app/frontend_test.py"],
     imports = ["."],
