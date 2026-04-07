@@ -10,7 +10,7 @@ from sqlmodel import Field, Session, SQLModel, select, text
 
 from app.db import get_engine
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("monolith.scheduler")
 
 _HOSTNAME = platform.node()
 
