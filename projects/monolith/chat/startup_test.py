@@ -81,7 +81,9 @@ async def test_changelog_handler_calls_run_changelog_iteration():
     ) as mock_iter:
         with patch(
             "shared.scheduler.register_job",
-            side_effect=lambda _s, **kw: _registry.__setitem__(kw["name"], kw["handler"]),
+            side_effect=lambda _s, **kw: _registry.__setitem__(
+                kw["name"], kw["handler"]
+            ),
         ):
             summarizer.on_startup(session, bot=bot, llm_call=llm_call)
 

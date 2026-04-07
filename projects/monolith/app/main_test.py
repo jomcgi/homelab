@@ -262,10 +262,13 @@ async def test_lifespan_scheduler_task_is_run_scheduler_loop():
 
     patches = [
         patch("app.db.get_engine", return_value=MagicMock()),
-        patch("sqlmodel.Session", return_value=MagicMock(
-            __enter__=MagicMock(return_value=MagicMock()),
-            __exit__=MagicMock(return_value=False),
-        )),
+        patch(
+            "sqlmodel.Session",
+            return_value=MagicMock(
+                __enter__=MagicMock(return_value=MagicMock()),
+                __exit__=MagicMock(return_value=False),
+            ),
+        ),
         patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", mock_scheduler),
