@@ -116,6 +116,46 @@ def _build_embed(summary: str, ci_status: str, commit_count: int) -> discord.Emb
     return embed
 
 
+async def run_changelog_iteration(
+    bot: discord.Client,
+    llm_call: Callable[[str], Awaitable[str]],
+) -> None:
+    """Single iteration: fetch recent commits, summarize, post to Discord."""
+    channel_id = os.environ.get("CHANGELOG_CHANNEL_ID", "")
+    github_token = os.environ.get("GITHUB_TOKEN", "")
+    github_repo = os.environ.get("CHANGELOG_GITHUB_REPO", "")
+
+    if not all([channel_id, github_token, github_repo]):
+        logger.warning("Changelog disabled: missing env vars")
+        return
+
+    since = datetime.now(timezone.utc) - timedelta(hours=1)
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+        commits = await _fetch_commits_since(client, github_repo, github_token, since)
+
+        if not commits:
+            logger.info("Changelog: no new commits in the last hour")
+            return
+
+        changelog_commits = _filter_changelog_commits(commits)
+        ci_status = await _fetch_ci_status(client, github_repo, github_token)
+
+    if not changelog_commits:
+        logger.info("Changelog: %d new commits but none are feat/fix", len(commits))
+        return
+
+    summary = await _summarize_with_gemma(changelog_commits, llm_call)
+    embed = _build_embed(summary, ci_status, len(changelog_commits))
+
+    channel = bot.get_channel(int(channel_id))
+    if channel:
+        await channel.send(embed=embed)
+        logger.info("Changelog: posted %d changes to channel %s", len(changelog_commits), channel_id)
+    else:
+        logger.warning("Changelog: channel %s not found", channel_id)
+
+
 def _seconds_until_next_hour() -> float:
     """Calculate seconds until the next hour boundary."""
     now = datetime.now(timezone.utc)
@@ -150,40 +190,6 @@ async def changelog_loop(
         await asyncio.sleep(sleep_seconds)
 
         try:
-            # Fetch commits from the last hour — fully stateless, survives restarts
-            since = datetime.now(timezone.utc) - timedelta(hours=1)
-
-            async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
-                commits = await _fetch_commits_since(
-                    client, github_repo, github_token, since
-                )
-
-                if not commits:
-                    logger.info("Changelog: no new commits in the last hour")
-                    continue
-
-                changelog_commits = _filter_changelog_commits(commits)
-                ci_status = await _fetch_ci_status(client, github_repo, github_token)
-
-            if not changelog_commits:
-                logger.info(
-                    "Changelog: %d new commits but none are feat/fix", len(commits)
-                )
-                continue
-
-            summary = await _summarize_with_gemma(changelog_commits, llm_call)
-            embed = _build_embed(summary, ci_status, len(changelog_commits))
-
-            channel = bot.get_channel(int(channel_id))
-            if channel:
-                await channel.send(embed=embed)
-                logger.info(
-                    "Changelog: posted %d changes to channel %s",
-                    len(changelog_commits),
-                    channel_id,
-                )
-            else:
-                logger.warning("Changelog: channel %s not found", channel_id)
-
+            await run_changelog_iteration(bot, llm_call)
         except Exception:
             logger.exception("Changelog loop iteration failed")
