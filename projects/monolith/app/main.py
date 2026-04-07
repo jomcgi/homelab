@@ -16,7 +16,7 @@ from chat.router import router as chat_router
 from shared.router import router as schedule_router
 
 configure_logging()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("monolith.main")
 
 
 async def _wait_for_sidecar() -> None:
