@@ -1,5 +1,6 @@
 """Tests for the publish-gap-route tool."""
 
+import json
 import uuid
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
@@ -280,8 +281,6 @@ class TestPublishGapPoints:
 
     @pytest.mark.asyncio
     async def test_published_point_has_null_image(self):
-        import json
-
         mock_js = AsyncMock()
         coords = [(45.0, -122.0)]
         start = datetime(2025, 1, 1, 10, 0, 0)
@@ -293,8 +292,6 @@ class TestPublishGapPoints:
 
     @pytest.mark.asyncio
     async def test_published_point_has_gap_source(self):
-        import json
-
         mock_js = AsyncMock()
         coords = [(45.0, -122.0)]
         start = datetime(2025, 1, 1, 10, 0, 0)
@@ -306,8 +303,6 @@ class TestPublishGapPoints:
 
     @pytest.mark.asyncio
     async def test_timestamps_are_sequential_milliseconds(self):
-        import json
-
         mock_js = AsyncMock()
         coords = [(45.0, -122.0), (46.0, -123.0), (47.0, -124.0)]
         start = datetime(2025, 1, 1, 10, 0, 0)
@@ -335,8 +330,6 @@ class TestPublishGapPoints:
 
     @pytest.mark.asyncio
     async def test_point_id_is_deterministic(self):
-        import json
-
         mock_js = AsyncMock()
         coords = [(45.0, -122.0)]
         start = datetime(2025, 1, 1, 10, 0, 0)
@@ -352,8 +345,6 @@ class TestPublishGapPoints:
 
     @pytest.mark.asyncio
     async def test_coordinates_rounded_to_five_dp(self):
-        import json
-
         mock_js = AsyncMock()
         coords = [(45.123456789, -122.987654321)]
         start = datetime(2025, 1, 1, 10, 0, 0)
