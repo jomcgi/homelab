@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel/helm:defs.bzl", "helm_chart")
 
 filegroup(
