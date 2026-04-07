@@ -5,17 +5,22 @@ import tailwind from "@astrojs/tailwind";
 
 // https://astro.build/config
 export default defineConfig({
-  integrations: [react(), tailwind()],
-  vite: {
-    build: {
-      target: "esnext",
-    },
-    esbuild: {
-      target: "esnext",
-      supported: {
-        destructuring: true,
+  integrations: [
+    react(),
+    tailwind(),
+    {
+      name: "esnext-target",
+      hooks: {
+        "astro:build:setup": ({ updateConfig }) => {
+          updateConfig({
+            build: { target: "esnext" },
+            esbuild: { target: "esnext" },
+          });
+        },
       },
     },
+  ],
+  vite: {
     server: {
       host: true,
       hmr: {
