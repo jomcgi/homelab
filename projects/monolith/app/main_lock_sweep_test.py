@@ -44,11 +44,42 @@ from app.main import app, lifespan, _log_task_exception  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
+def _lifespan_patches_with_discord(mock_bot):
+    """Return patches needed for lifespan with discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+        patch("chat.summarizer.on_startup"),
+        patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
+        patch("chat.bot.create_bot", return_value=mock_bot),
+    ]
+
+
+def _lifespan_patches_no_discord():
+    """Return patches needed for lifespan without discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+    ]
+
+
 def _capture_sweep_coro():
-    """Capture the _lock_sweep_loop coroutine (task 5) without closing it.
+    """Capture the _lock_sweep_loop coroutine (task 3) without closing it.
 
     Task order when DISCORD_BOT_TOKEN is set:
-      1=scheduler, 2=calendar, 3=bot, 4=summary, 5=sweep
+      1=bot, 2=scheduler, 3=sweep
     """
     mock_bot = MagicMock()
     mock_bot.close = AsyncMock()
@@ -60,7 +91,7 @@ def _capture_sweep_coro():
     def capture_create_task(coro, **kwargs):
         task_counter[0] += 1
         t = MagicMock()
-        if task_counter[0] == 5:
+        if task_counter[0] == 3:
             coros.append(coro)  # preserve — do NOT close
         else:
             if hasattr(coro, "close"):
@@ -96,7 +127,7 @@ class TestSweepTaskRegistration:
     async def test_sweep_task_registers_done_callback_with_log_task_exception(self):
         """When DISCORD_BOT_TOKEN is set, sweep_task.add_done_callback(_log_task_exception) is called.
 
-        Task order: 1=scheduler, 2=calendar, 3=bot, 4=summary, 5=sweep.
+        Task order: 1=bot, 2=scheduler, 3=sweep.
         """
         mock_bot = MagicMock()
         mock_bot.close = AsyncMock()
@@ -108,14 +139,16 @@ class TestSweepTaskRegistration:
             if hasattr(coro, "close"):
                 coro.close()
             task_counter[0] += 1
-            if task_counter[0] == 5:
+            if task_counter[0] == 3:
                 return sweep_task_mock
             return MagicMock()
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -133,10 +166,12 @@ class TestSweepTaskRegistration:
                 coro.close()
             return MagicMock()
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
             patch("app.main.logger") as mock_logger,
         ):
             async with lifespan(app):
@@ -164,32 +199,24 @@ class TestSweepTaskRegistration:
         }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
+        patches = _lifespan_patches_no_discord()
         with (
             patch.dict(os.environ, env_without_token, clear=True),
             patch("asyncio.create_task", side_effect=capture_create_task),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
             patch("app.main.logger") as mock_logger,
         ):
             async with lifespan(app):
                 pass
 
-        # Only 2 tasks should be created (scheduler + calendar)
-        assert len(tasks_created) == 2
+        # Only 1 task should be created (scheduler)
+        assert len(tasks_created) == 1
         messages = [str(c) for c in mock_logger.info.call_args_list]
         assert not any("Message lock sweep started" in m for m in messages)
 
 
 # ---------------------------------------------------------------------------
 # _lock_sweep_loop body: no expired locks
-#
-# The loop structure is:
-#   while True:
-#     await asyncio.sleep(30)      <-- sleep FIRST
-#     try:
-#       ... store ops ...
-#     except Exception:
-#       logger.exception(...)
-#
-# So we let the first sleep pass (return normally) and cancel on the second.
 # ---------------------------------------------------------------------------
 
 
@@ -207,10 +234,12 @@ class TestLockSweepLoopNoExpiredLocks:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -254,10 +283,12 @@ class TestLockSweepLoopNoExpiredLocks:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -299,10 +330,12 @@ class TestLockSweepLoopNoExpiredLocks:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -348,10 +381,12 @@ class TestLockSweepLoopNoExpiredLocks:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -405,10 +440,12 @@ class TestLockSweepLoopWithExpiredLocks:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -456,10 +493,12 @@ class TestLockSweepLoopWithExpiredLocks:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -507,10 +546,12 @@ class TestLockSweepLoopWithExpiredLocks:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -551,11 +592,7 @@ class TestLockSweepLoopWithExpiredLocks:
 class TestLockSweepLoopExceptionHandling:
     @pytest.mark.asyncio
     async def test_sweep_loop_logs_exception_when_store_raises(self):
-        """_lock_sweep_loop calls logger.exception('Lock sweep failed') when an error occurs.
-
-        The store raises during the try block (after the sleep passes through).
-        We cancel on the second sleep to exit the loop after one full iteration.
-        """
+        """_lock_sweep_loop calls logger.exception('Lock sweep failed') when an error occurs."""
         coros, capture_fn, mock_bot = _capture_sweep_coro()
 
         mock_store = MagicMock()
@@ -565,18 +602,18 @@ class TestLockSweepLoopExceptionHandling:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
 
         assert len(coros) == 1
 
-        # Sleep #1 passes (lets the try-block run and fail).
-        # Sleep #2 cancels to exit the loop.
         sleep_count = [0]
 
         async def controlled_sleep(_secs):
@@ -601,11 +638,7 @@ class TestLockSweepLoopExceptionHandling:
 
     @pytest.mark.asyncio
     async def test_sweep_loop_continues_after_exception(self):
-        """_lock_sweep_loop does not propagate exceptions — it catches, logs, then loops.
-
-        Two iterations are run: both fail, then the loop is cancelled on the
-        third sleep. reclaim_expired should be called exactly twice.
-        """
+        """_lock_sweep_loop does not propagate exceptions — it catches, logs, then loops."""
         coros, capture_fn, mock_bot = _capture_sweep_coro()
 
         store_call_count = [0]
@@ -622,20 +655,18 @@ class TestLockSweepLoopExceptionHandling:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
 
         assert len(coros) == 1
 
-        # Sleeps 1 and 2 pass through; sleep 3 cancels.
-        # Iteration 1: sleep(30) [passes] → reclaim_expired [raises] → caught.
-        # Iteration 2: sleep(30) [passes] → reclaim_expired [raises] → caught.
-        # Iteration 3: sleep(30) [cancels] → loop exits.
         sleep_count = [0]
 
         async def controlled_sleep(_secs):
@@ -674,10 +705,12 @@ class TestLockSweepLoopExceptionHandling:
         mock_session_obj.__enter__ = MagicMock(return_value=mock_session_obj)
         mock_session_obj.__exit__ = MagicMock(return_value=False)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_fn),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass

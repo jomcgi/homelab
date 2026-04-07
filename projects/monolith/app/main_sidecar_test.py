@@ -50,6 +50,36 @@ def _resp(status_code: int) -> MagicMock:
     return r
 
 
+def _lifespan_patches_with_discord(mock_bot):
+    """Return patches needed for lifespan with discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+        patch("chat.summarizer.on_startup"),
+        patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
+    ]
+
+
+def _lifespan_patches_no_discord():
+    """Return patches needed for lifespan without discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # (1) Returns immediately when FRONTEND_HEALTH_URL is empty / unset
 # ---------------------------------------------------------------------------
@@ -352,12 +382,7 @@ async def test_wait_for_sidecar_logs_ready_message():
 
 @pytest.mark.asyncio
 async def test_start_bot_when_ready_calls_wait_for_sidecar_before_bot_start():
-    """_start_bot_when_ready awaits _wait_for_sidecar before calling bot.start.
-
-    Strategy: mock asyncio.create_task to capture the _start_bot_when_ready
-    coroutine without actually scheduling it, then manually await it to verify
-    the call order.
-    """
+    """_start_bot_when_ready awaits _wait_for_sidecar before calling bot.start."""
     from app.main import app, lifespan
 
     call_order = []
@@ -376,26 +401,29 @@ async def test_start_bot_when_ready_calls_wait_for_sidecar_before_bot_start():
     mock_chat_module = MagicMock()
     mock_chat_module.create_bot.return_value = mock_bot
 
-    # Capture the third coroutine passed to create_task (scheduler=1, calendar=2, bot=3)
+    # Capture the first coroutine passed to create_task (bot=1)
     captured_bot_coro: list = []
     task_counter = [0]
 
     def capture_create_task(coro, **kwargs):
         task_counter[0] += 1
-        if task_counter[0] == 3:
-            # Task 3 is the bot coroutine — capture it for sequencing test
+        if task_counter[0] == 1:
+            # Task 1 is the bot coroutine — capture it for sequencing test
             captured_bot_coro.append(coro)
         else:
-            # Drain scheduler (1), calendar (2), and summary (4) coroutines
+            # Drain scheduler (2) and sweep (3) coroutines
             if hasattr(coro, "close"):
                 coro.close()
         return MagicMock()
 
+    patches = _lifespan_patches_with_discord(mock_bot)
     with (
         patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-for-test"}),
         patch.dict(sys.modules, {"chat.bot": mock_chat_module}),
         patch("asyncio.create_task", side_effect=capture_create_task),
         patch("app.main._wait_for_sidecar", side_effect=_mock_wait_for_sidecar),
+        patches[0], patches[1], patches[2], patches[3], patches[4],
+        patches[5], patches[6],
     ):
         async with lifespan(app):
             pass
@@ -404,7 +432,6 @@ async def test_start_bot_when_ready_calls_wait_for_sidecar_before_bot_start():
             "Expected exactly one bot coroutine captured from create_task"
         )
         # Actually run _start_bot_when_ready to verify sequencing
-        # Must run inside the patch context so _wait_for_sidecar mock is still active
         await captured_bot_coro[0]
 
     assert call_order == ["_wait_for_sidecar", "bot.start"], (
@@ -430,14 +457,16 @@ async def test_start_bot_when_ready_not_scheduled_when_no_token():
         k: v for k, v in os.environ.items() if k != "DISCORD_BOT_TOKEN"
     }
 
+    patches = _lifespan_patches_no_discord()
     with (
         patch.dict(os.environ, env_without_token, clear=True),
         patch("asyncio.create_task", side_effect=capture_create_task),
+        patches[0], patches[1], patches[2], patches[3], patches[4],
     ):
         async with lifespan(app):
             pass
 
-    # Only scheduler + calendar — no bot task
-    assert len(created_tasks) == 2, (
-        f"Expected 2 tasks without a bot token, got {len(created_tasks)}"
+    # Only scheduler — no bot task
+    assert len(created_tasks) == 1, (
+        f"Expected 1 task without a bot token, got {len(created_tasks)}"
     )
