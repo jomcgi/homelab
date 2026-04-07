@@ -178,3 +178,30 @@ class TestLifespanWithDiscordToken:
                 pass
 
         assert len(created_tasks) == 1
+
+
+@pytest.mark.asyncio
+async def test_lifespan_calls_tracer_provider_shutdown_on_exit():
+    """_tracer_provider.shutdown() is called exactly once when the lifespan context exits."""
+
+    def capture_create_task(coro, **kwargs):
+        if hasattr(coro, "close"):
+            coro.close()
+        return MagicMock()
+
+    mock_tracer_provider = MagicMock()
+
+    patches = _lifespan_patches_no_discord()
+    with (
+        patch("asyncio.create_task", side_effect=capture_create_task),
+        patch("app.main._tracer_provider", mock_tracer_provider),
+        patches[0],
+        patches[1],
+        patches[2],
+        patches[3],
+        patches[4],
+    ):
+        async with lifespan(app):
+            mock_tracer_provider.shutdown.assert_not_called()
+
+    mock_tracer_provider.shutdown.assert_called_once()
