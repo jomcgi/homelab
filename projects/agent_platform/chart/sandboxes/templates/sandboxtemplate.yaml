@@ -15,6 +15,7 @@ spec:
         fsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
+      {{- if .Values.sandboxTemplate.gitClone.enabled }}
       initContainers:
         - name: clone-repo
           image: "{{ .Values.sandboxTemplate.image.repository }}:{{ .Values.sandboxTemplate.image.tag }}"
@@ -22,7 +23,8 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              git clone --depth 1 https://x-access-token:${GITHUB_TOKEN}@github.com/{{ .Values.sandboxTemplate.env.repoOwner }}/{{ .Values.sandboxTemplate.env.repoName }}.git /workspace/{{ .Values.sandboxTemplate.env.repoName }}
+              git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+              git clone --depth 1 {{ .Values.sandboxTemplate.gitClone.repoUrl }} /workspace/{{ .Values.sandboxTemplate.gitClone.repoName }}
           securityContext:
             runAsUser: 65532
             runAsGroup: 65532
@@ -34,11 +36,12 @@ spec:
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.agentSecrets.secretName }}
-                  key: GITHUB_TOKEN
+                  name: {{ .Values.sandboxTemplate.gitClone.secret.name }}
+                  key: {{ .Values.sandboxTemplate.gitClone.secret.key }}
           volumeMounts:
             - name: workspace
               mountPath: /workspace
+      {{- end }}
       containers:
         - name: goose
           image: "{{ .Values.sandboxTemplate.image.repository }}:{{ .Values.sandboxTemplate.image.tag }}"
@@ -60,7 +63,9 @@ spec:
               port: 8081
             initialDelaySeconds: 2
             periodSeconds: 5
-          workingDir: /workspace/{{ .Values.sandboxTemplate.env.repoName }}
+          {{- if .Values.sandboxTemplate.gitClone.enabled }}
+          workingDir: /workspace/{{ .Values.sandboxTemplate.gitClone.repoName }}
+          {{- end }}
           securityContext:
             runAsUser: 65532
             runAsGroup: 65532
@@ -81,23 +86,15 @@ spec:
                   key: {{ .Values.secrets.claudeAuth.key }}
             - name: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
               value: "1"
+            {{- if .Values.sandboxTemplate.gitClone.enabled }}
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.agentSecrets.secretName }}
-                  key: GITHUB_TOKEN
-            - name: BUILDBUDDY_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.agentSecrets.secretName }}
-                  key: BUILDBUDDY_API_KEY
-                  optional: true
+                  name: {{ .Values.sandboxTemplate.gitClone.secret.name }}
+                  key: {{ .Values.sandboxTemplate.gitClone.secret.key }}
             - name: GOOSE_WORKSPACE
-              value: /workspace/{{ .Values.sandboxTemplate.env.repoName }}
-            - name: RECIPES_DIR
-              value: /workspace/{{ .Values.sandboxTemplate.env.repoName }}/projects/agent_platform/goose_agent/image/recipes
-            - name: DEEP_PLAN_RECIPE
-              value: /workspace/{{ .Values.sandboxTemplate.env.repoName }}/projects/agent_platform/goose_agent/image/recipes/deep-plan.yaml
+              value: /workspace/{{ .Values.sandboxTemplate.gitClone.repoName }}
+            {{- end }}
             {{- if .Values.sandboxTemplate.extraEnv }}
             {{- toYaml .Values.sandboxTemplate.extraEnv | nindent 12 }}
             {{- end }}
