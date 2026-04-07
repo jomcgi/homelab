@@ -27,8 +27,8 @@ import (
 // This guards against silent typos in generated code (e.g. "Resoving" instead of "Resolving").
 func TestPhaseConstants_ExactStringValues(t *testing.T) {
 	cases := []struct {
-		name     string
-		got      string
+		name      string
+		got       string
 		wantExact string
 	}{
 		{"PhasePending", PhasePending, "Pending"},
@@ -119,14 +119,14 @@ func TestIsKnownPhase_EmptyStringIsInitialState(t *testing.T) {
 // to avoid duplication while still verifying the default branch is reachable.
 func TestIsKnownPhase_RejectsUnrelatedStrings(t *testing.T) {
 	invalids := []string{
-		"active",        // different domain entirely
-		"running",       // Kubernetes pod phase, not ours
-		"completed",     // job phase, not a ModelCache phase
-		"terminating",   // Kubernetes namespace phase
-		"null",          // JSON null as a string
-		"0",             // number
-		"true",          // boolean
-		"  ",            // whitespace only
+		"active",      // different domain entirely
+		"running",     // Kubernetes pod phase, not ours
+		"completed",   // job phase, not a ModelCache phase
+		"terminating", // Kubernetes namespace phase
+		"null",        // JSON null as a string
+		"0",           // number
+		"true",        // boolean
+		"  ",          // whitespace only
 	}
 	for _, phase := range invalids {
 		phase := phase
