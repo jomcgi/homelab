@@ -33,6 +33,7 @@ go_test(
         "model_cache_coverage_test.go",
         "model_cache_gaps_test.go",
         "model_cache_metrics_test.go",
+        "model_cache_missing_test.go",
         "model_cache_observability_test.go",
         "model_cache_statemachine_test.go",
         "model_cache_status_test.go",
