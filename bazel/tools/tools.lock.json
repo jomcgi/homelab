@@ -1,5 +1,30 @@
 {
   "$schema": "https://raw.githubusercontent.com/theoremlp/rules_multitool/main/lockfile.schema.json",
+  "atlas": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://release.ariga.io/atlas/atlas-community-linux-arm64-v1.1.0",
+        "sha256": "0268c01fab0baf112c53e6f2b6b8ffac2df4a6c2b0b691a83a76983168634592",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://release.ariga.io/atlas/atlas-community-linux-amd64-v1.1.0",
+        "sha256": "3070d4fea894b07dbed4e0ca8f0491331028c3ab680fb9e5e4d657babd6fb983",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://release.ariga.io/atlas/atlas-community-darwin-arm64-v1.1.0",
+        "sha256": "22eca359a41fcfce55e8d93cff25c77a80f7aef3100cd505a3ef0875bb76e43e",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
   "argocd": {
     "binaries": [
       {
