@@ -94,7 +94,7 @@ class TestOtelInstrumentationImportErrorBranch:
             def emit(self, record: logging.LogRecord) -> None:
                 log_records.append(record)
 
-        target_logger = logging.getLogger("app.main")
+        target_logger = logging.getLogger("monolith.main")
         handler = _Capture()
         target_logger.addHandler(handler)
         try:
