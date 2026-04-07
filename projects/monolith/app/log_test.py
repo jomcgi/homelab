@@ -73,10 +73,10 @@ class TestConfigureLogging:
         configure_logging()
         assert logging.getLogger("discord.gateway").level == logging.WARNING
 
-    def test_discord_client_set_to_warning(self):
-        """configure_logging() sets discord.client to WARNING."""
+    def test_discord_client_set_to_error(self):
+        """configure_logging() sets discord.client to ERROR."""
         configure_logging()
-        assert logging.getLogger("discord.client").level == logging.WARNING
+        assert logging.getLogger("discord.client").level == logging.ERROR
 
     def test_httpx_set_to_warning(self):
         """configure_logging() sets httpx to WARNING."""
