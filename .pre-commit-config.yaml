@@ -33,6 +33,13 @@ repos:
         files: 'apko\.yaml$'
         pass_filenames: false
 
+      - id: update-atlas-sum
+        name: Update Atlas migration checksums
+        entry: bazel/tools/format/update-atlas-sum.sh
+        language: script
+        files: 'migrations/.*\.sql$'
+        pass_filenames: false
+
       # Run format after rebase to catch formatting drift
       # Install with: pre-commit install --hook-type post-rewrite
       - id: post-rewrite-format
