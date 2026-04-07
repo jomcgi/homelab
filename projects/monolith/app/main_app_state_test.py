@@ -31,11 +31,7 @@ from app.main import app, lifespan, _wait_for_sidecar  # noqa: E402
 
 
 def _make_mock_async_client(responses):
-    """Return a mock httpx.AsyncClient context-manager and the client mock.
-
-    ``responses`` is a list of mock response objects with a ``status_code``
-    attribute or exception instances to raise from ``client.get()``.
-    """
+    """Return a mock httpx.AsyncClient context-manager and the client mock."""
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(side_effect=responses)
 
@@ -51,6 +47,37 @@ def _resp(status_code: int) -> MagicMock:
     return r
 
 
+def _lifespan_patches_no_discord():
+    """Return patches needed for lifespan without discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+    ]
+
+
+def _lifespan_patches_with_discord(mock_bot):
+    """Return patches needed for lifespan with discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+        patch("chat.summarizer.on_startup"),
+        patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
+        patch("chat.bot.create_bot", return_value=mock_bot),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # _wait_for_sidecar() — timeout kwarg forwarded to client.get()
 # ---------------------------------------------------------------------------
@@ -59,12 +86,7 @@ def _resp(status_code: int) -> MagicMock:
 class TestWaitForSidecarTimeoutKwarg:
     @pytest.mark.asyncio
     async def test_wait_for_sidecar_passes_timeout_2_to_client_get(self):
-        """client.get() is called with keyword argument timeout=2.
-
-        The implementation calls ``await client.get(url, timeout=2)``.
-        Existing tests verify the URL positional arg; this test pins the
-        timeout keyword arg so accidental removal is caught.
-        """
+        """client.get() is called with keyword argument timeout=2."""
         mock_cm, mock_client = _make_mock_async_client([_resp(200)])
 
         with patch.dict(os.environ, {"FRONTEND_HEALTH_URL": "http://sidecar/healthz"}):
@@ -106,15 +128,7 @@ class TestWaitForSidecarTimeoutKwarg:
 class TestLifespanAppStateBotAssignment:
     @pytest.mark.asyncio
     async def test_app_state_bot_is_set_to_bot_when_token_present(self):
-        """app.state.bot is set to the create_bot() return value during lifespan.
-
-        The lifespan code is:
-            bot = create_bot()
-            app.state.bot = bot
-
-        This test verifies that the bot stored in app.state.bot is exactly the
-        mock returned by create_bot() — i.e., the assignment happened correctly.
-        """
+        """app.state.bot is set to the create_bot() return value during lifespan."""
         mock_bot = MagicMock()
         mock_bot.close = AsyncMock()
 
@@ -123,10 +137,12 @@ class TestLifespanAppStateBotAssignment:
                 coro.close()
             return MagicMock()
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-xyz"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 # During the lifespan body, app.state.bot must be the created bot
@@ -136,11 +152,7 @@ class TestLifespanAppStateBotAssignment:
 
     @pytest.mark.asyncio
     async def test_app_state_bot_is_none_when_no_token(self):
-        """app.state.bot is None during lifespan when DISCORD_BOT_TOKEN is absent.
-
-        With no token the Discord bot branch is skipped entirely, so the initial
-        ``app.state.bot = None`` assignment from lifespan should be visible.
-        """
+        """app.state.bot is None during lifespan when DISCORD_BOT_TOKEN is absent."""
 
         def capture_create_task(coro, **kwargs):
             if hasattr(coro, "close"):
@@ -152,9 +164,11 @@ class TestLifespanAppStateBotAssignment:
         }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
+        patches = _lifespan_patches_no_discord()
         with (
             patch.dict(os.environ, env_without_token, clear=True),
             patch("asyncio.create_task", side_effect=capture_create_task),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
         ):
             async with lifespan(app):
                 assert app.state.bot is None, (
@@ -163,15 +177,7 @@ class TestLifespanAppStateBotAssignment:
 
     @pytest.mark.asyncio
     async def test_app_state_backfill_task_initialised_to_none_on_startup(self):
-        """lifespan initialises app.state.backfill_task to None at startup.
-
-        The lifespan code sets:
-            app.state.backfill_task = None
-
-        before yielding. This ensures the shutdown path's
-        ``getattr(app.state, 'backfill_task', None)`` cannot encounter an
-        uninitialised attribute on first run.
-        """
+        """lifespan initialises app.state.backfill_task to None at startup."""
 
         def capture_create_task(coro, **kwargs):
             if hasattr(coro, "close"):
@@ -183,9 +189,11 @@ class TestLifespanAppStateBotAssignment:
         }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
+        patches = _lifespan_patches_no_discord()
         with (
             patch.dict(os.environ, env_without_token, clear=True),
             patch("asyncio.create_task", side_effect=capture_create_task),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
         ):
             async with lifespan(app):
                 assert hasattr(app.state, "backfill_task"), (

@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -12,7 +11,6 @@ from fastapi.staticfiles import StaticFiles
 
 from app.log import configure_logging
 from home.router import router as home_router
-from home.scheduler import run_scheduler
 from notes.router import router as notes_router
 from chat.router import router as chat_router
 from shared.router import router as schedule_router
@@ -51,29 +49,35 @@ def _log_task_exception(task: "asyncio.Task[object]") -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from shared.service import poll_calendar
-
-    # Initial fetch, then poll every 5 minutes
-    async def calendar_loop():
-        while True:
-            await poll_calendar()
-            await asyncio.sleep(300)
-
-    scheduler_task = asyncio.create_task(run_scheduler())
-    calendar_task = asyncio.create_task(calendar_loop())
+    from app.db import get_engine
+    from shared.scheduler import run_scheduler_loop
+    from sqlmodel import Session
 
     app.state.bot = None
     app.state.backfill_task = None
 
-    # Start Discord bot if token is configured
+    # Register all scheduled jobs
+    with Session(get_engine()) as session:
+        from home.service import on_startup as home_startup
+        from shared.service import on_startup as shared_startup
+
+        home_startup(session)
+        shared_startup(session)
+
+    # Start Discord bot + chat jobs if configured
     bot = None
     bot_task = None
     discord_token = os.environ.get("DISCORD_BOT_TOKEN", "")
     if discord_token:
         from chat.bot import create_bot
+        from chat.summarizer import build_llm_caller
+        from chat.summarizer import on_startup as chat_startup
 
         bot = create_bot()
         app.state.bot = bot
+
+        with Session(get_engine()) as session:
+            chat_startup(session, bot=bot, llm_call=build_llm_caller())
 
         async def _start_bot_when_ready():
             await _wait_for_sidecar()
@@ -83,64 +87,11 @@ async def lifespan(app: FastAPI):
         bot_task.add_done_callback(_log_task_exception)
         logger.info("Discord bot starting")
 
-    # Start summary loop if chat is enabled
-    summary_task = None
-    if discord_token:
+    # Start the shared scheduler loop (replaces 4 separate asyncio tasks)
+    scheduler_task = asyncio.create_task(run_scheduler_loop())
+    scheduler_task.add_done_callback(_log_task_exception)
 
-        async def _summary_loop():
-            from chat.models import ChannelSummary, UserChannelSummary
-            from chat.summarizer import (
-                build_llm_caller,
-                generate_channel_summaries,
-                generate_summaries,
-            )
-
-            stale_threshold = 86400  # 24 hours in seconds
-
-            while True:
-                # Check if summaries need generating (missing or stale)
-                try:
-                    with Session(get_engine()) as session:
-                        from sqlmodel import select
-
-                        latest_user = session.exec(
-                            select(UserChannelSummary.updated_at)
-                            .order_by(UserChannelSummary.updated_at.desc())
-                            .limit(1)
-                        ).first()
-                        latest_channel = session.exec(
-                            select(ChannelSummary.updated_at)
-                            .order_by(ChannelSummary.updated_at.desc())
-                            .limit(1)
-                        ).first()
-
-                    now = datetime.now(timezone.utc)
-                    needs_run = True
-                    if latest_user and latest_channel:
-                        newest = max(latest_user, latest_channel)
-                        age = (now - newest).total_seconds()
-                        needs_run = age >= stale_threshold
-
-                    if needs_run:
-                        logger.info("Running summary generation (stale or missing)")
-                        with Session(get_engine()) as session:
-                            llm_caller = build_llm_caller()
-                            await generate_summaries(session, llm_caller)
-                            await generate_channel_summaries(session, llm_caller)
-                        logger.info("Summary generation complete")
-                except Exception:
-                    logger.exception("Summary generation failed")
-
-                await asyncio.sleep(stale_threshold)
-
-        from app.db import get_engine
-        from sqlmodel import Session
-
-        summary_task = asyncio.create_task(_summary_loop())
-        summary_task.add_done_callback(_log_task_exception)
-        logger.info("Summary loop started (24h interval)")
-
-    # Sweep for expired message locks and clean up old completed ones
+    # Lock sweep stays in-memory (30s, bot-coupled, already multi-pod safe via SKIP LOCKED)
     sweep_task = None
     if discord_token and bot:
 
@@ -149,7 +100,6 @@ async def lifespan(app: FastAPI):
             from chat.store import MessageStore
 
             embed_client = EmbeddingClient()
-            # Wait for bot to be initialized (start() is delayed by sidecar check)
             while not bot.is_ready():
                 await asyncio.sleep(2)
             while True:
@@ -176,32 +126,18 @@ async def lifespan(app: FastAPI):
         sweep_task.add_done_callback(_log_task_exception)
         logger.info("Message lock sweep started (30s interval)")
 
-    # Hourly changelog notifier
-    changelog_task = None
-    if discord_token and bot and os.environ.get("GITHUB_TOKEN"):
-        from chat.changelog import changelog_loop
-        from chat.summarizer import build_llm_caller
-
-        changelog_task = asyncio.create_task(changelog_loop(bot, build_llm_caller()))
-        changelog_task.add_done_callback(_log_task_exception)
-        logger.info("Changelog notifier started (hourly)")
-
     logger.info("Monolith started")
     yield
+
     backfill_task = getattr(app.state, "backfill_task", None)
     if backfill_task and not backfill_task.done():
         backfill_task.cancel()
-    if changelog_task:
-        changelog_task.cancel()
     if sweep_task:
         sweep_task.cancel()
-    if summary_task:
-        summary_task.cancel()
     if bot:
         await bot.close()
     if bot_task:
         bot_task.cancel()
-    calendar_task.cancel()
     scheduler_task.cancel()
     logger.info("Monolith shutting down")
 

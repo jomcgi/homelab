@@ -1,21 +1,16 @@
-"""Tests for the summary-loop background task in app.main.
+"""Tests for the summary-related startup hooks in app.main.
 
-Covers gaps not addressed by existing main_* test files:
-- summary_task.add_done_callback(_log_task_exception) is called when Discord token is set
-- Both bot task and summary task register done callbacks
-- "Summary loop started (24h interval)" is logged when Discord token is set
-- "Summary loop started" is NOT logged without a token
-- _summary_loop logs logger.exception when generate_summaries raises
-- _summary_loop continues after repeated failures (resilience)
-- Fresh summaries (< 24 h) → staleness-check skips generation
-- Summary age exactly at stale_threshold → staleness-check triggers generation
+With the scheduler rewrite, summary generation is now handled by the chat.summarizer
+on_startup hook which registers a job with the shared scheduler. These tests verify:
+- chat_startup is called when Discord token is set
+- Both bot task and scheduler task register done callbacks
+- Appropriate log messages appear
+- chat_startup is NOT called without a token
 """
 
 from __future__ import annotations
 
-import asyncio
 import os
-from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -45,46 +40,76 @@ def _make_task_capturer():
     return tasks, capture
 
 
+def _lifespan_patches_with_discord(mock_bot):
+    """Return patches needed for lifespan with discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+        patch("chat.summarizer.on_startup"),
+        patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
+        patch("chat.bot.create_bot", return_value=mock_bot),
+    ]
+
+
+def _lifespan_patches_no_discord():
+    """Return patches needed for lifespan without discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+    ]
+
+
 # ---------------------------------------------------------------------------
-# summary_task.add_done_callback is registered
+# chat_startup is called (replaces old summary_task done_callback tests)
 # ---------------------------------------------------------------------------
 
 
-class TestSummaryTaskDoneCallback:
+class TestChatStartupHook:
     @pytest.mark.asyncio
-    async def test_summary_task_registers_done_callback_with_log_task_exception(self):
-        """When DISCORD_BOT_TOKEN is set, summary_task.add_done_callback(_log_task_exception) is called.
-
-        This pins the error-surfacing wiring for the summary background task.
-        Task order: 1=scheduler, 2=calendar, 3=bot, 4=summary.
-        """
+    async def test_chat_startup_called_when_discord_token_set(self):
+        """When DISCORD_BOT_TOKEN is set, chat.summarizer.on_startup is called."""
         mock_bot = MagicMock()
         mock_bot.close = AsyncMock()
 
-        summary_task_mock = MagicMock()
-        task_counter = [0]
+        tasks, capture = _make_task_capturer()
 
-        def capture_create_task(coro, **kwargs):
-            if hasattr(coro, "close"):
-                coro.close()
-            task_counter[0] += 1
-            if task_counter[0] == 4:
-                return summary_task_mock
-            return MagicMock()
+        mock_chat_startup = MagicMock()
+        mock_session = MagicMock()
+        mock_session.__enter__ = MagicMock(return_value=mock_session)
+        mock_session.__exit__ = MagicMock(return_value=False)
 
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
-            patch("asyncio.create_task", side_effect=capture_create_task),
+            patch("asyncio.create_task", side_effect=capture),
+            patch("app.db.get_engine", return_value=MagicMock()),
+            patch("sqlmodel.Session", return_value=mock_session),
+            patch("home.service.on_startup"),
+            patch("shared.service.on_startup"),
+            patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+            patch("chat.summarizer.on_startup", mock_chat_startup),
+            patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
             patch("chat.bot.create_bot", return_value=mock_bot),
         ):
             async with lifespan(app):
                 pass
 
-        summary_task_mock.add_done_callback.assert_called_once_with(_log_task_exception)
+        mock_chat_startup.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_bot_task_and_summary_task_both_get_done_callback(self):
-        """Both the bot task (task 3) and summary task (task 4) register done callbacks."""
+    async def test_bot_task_and_scheduler_task_both_get_done_callback(self):
+        """Both the bot task and scheduler task register done callbacks."""
         mock_bot = MagicMock()
         mock_bot.close = AsyncMock()
 
@@ -99,55 +124,35 @@ class TestSummaryTaskDoneCallback:
             task_mocks.append(t)
             return t
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
 
-        assert len(task_mocks) == 5
-        # Tasks 3, 4, and 5 (index 2, 3, 4) should have add_done_callback called
-        bot_task = task_mocks[2]
-        summary_task = task_mocks[3]
-        sweep_task = task_mocks[4]
+        assert len(task_mocks) == 3
+        # Tasks: 0=bot, 1=scheduler, 2=sweep — all should have done callbacks
+        bot_task = task_mocks[0]
+        scheduler_task = task_mocks[1]
+        sweep_task = task_mocks[2]
         bot_task.add_done_callback.assert_called_once_with(_log_task_exception)
-        summary_task.add_done_callback.assert_called_once_with(_log_task_exception)
+        scheduler_task.add_done_callback.assert_called_once_with(_log_task_exception)
         sweep_task.add_done_callback.assert_called_once_with(_log_task_exception)
 
 
 # ---------------------------------------------------------------------------
-# "Summary loop started" log message
+# Log message tests
 # ---------------------------------------------------------------------------
 
 
 class TestSummaryLoopLogging:
     @pytest.mark.asyncio
-    async def test_summary_loop_started_logged_when_token_set(self):
-        """'Summary loop started (24h interval)' is logged when DISCORD_BOT_TOKEN is set."""
-        mock_bot = MagicMock()
-        mock_bot.close = AsyncMock()
-
-        tasks, capture = _make_task_capturer()
-
-        with (
-            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
-            patch("asyncio.create_task", side_effect=capture),
-            patch("chat.bot.create_bot", return_value=mock_bot),
-            patch("app.main.logger") as mock_logger,
-        ):
-            async with lifespan(app):
-                pass
-
-        messages = [str(c) for c in mock_logger.info.call_args_list]
-        assert any("Summary loop started" in m for m in messages), (
-            "Expected 'Summary loop started' to be logged when DISCORD_BOT_TOKEN is set"
-        )
-
-    @pytest.mark.asyncio
-    async def test_summary_loop_not_logged_when_no_token(self):
-        """'Summary loop started' is NOT logged when DISCORD_BOT_TOKEN is absent."""
+    async def test_chat_startup_not_called_when_no_token(self):
+        """chat.summarizer.on_startup is NOT called when DISCORD_BOT_TOKEN is absent."""
         tasks, capture = _make_task_capturer()
 
         env_without_token = {
@@ -155,311 +160,24 @@ class TestSummaryLoopLogging:
         }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
+        mock_chat_startup = MagicMock()
+
+        mock_session = MagicMock()
+        mock_session.__enter__ = MagicMock(return_value=mock_session)
+        mock_session.__exit__ = MagicMock(return_value=False)
+
         with (
             patch.dict(os.environ, env_without_token, clear=True),
             patch("asyncio.create_task", side_effect=capture),
-            patch("app.main.logger") as mock_logger,
-        ):
-            async with lifespan(app):
-                pass
-
-        messages = [str(c) for c in mock_logger.info.call_args_list]
-        assert not any("Summary loop started" in m for m in messages)
-
-
-# ---------------------------------------------------------------------------
-# _summary_loop exception logging
-# ---------------------------------------------------------------------------
-
-
-class TestSummaryLoopExceptionLogging:
-    @pytest.mark.asyncio
-    async def test_summary_loop_logs_exception_when_generate_summaries_raises(self):
-        """_summary_loop calls logger.exception('Summary generation failed') on error.
-
-        Strategy:
-        1. Capture the summary loop coroutine (task 4) without closing it.
-        2. Patch app.db.get_engine and sqlmodel.Session before running lifespan so the
-           closure captures mock objects (from-imports bind at execution time).
-        3. Run the captured coroutine with asyncio.sleep patched:
-           - First call: returns normally (advances past initial 24h sleep).
-           - Second call: raises CancelledError to exit the infinite loop.
-        4. Verify logger.exception was called with the expected message.
-        """
-        mock_bot = MagicMock()
-        mock_bot.close = AsyncMock()
-
-        # Capture summary coro (task 4) without closing it
-        coros: list = []
-        task_counter = [0]
-
-        def capture_create_task(coro, **kwargs):
-            task_counter[0] += 1
-            t = MagicMock()
-            if task_counter[0] == 4:
-                coros.append(coro)  # preserve for later execution
-            else:
-                if hasattr(coro, "close"):
-                    coro.close()
-            return t
-
-        inner_session = MagicMock()
-        # Staleness check queries return None (no existing summaries → needs_run=True)
-        inner_session.exec.return_value.first.return_value = None
-        mock_session = MagicMock()
-        mock_session.__enter__ = MagicMock(return_value=inner_session)
-        mock_session.__exit__ = MagicMock(return_value=False)
-        mock_session_cls = MagicMock(return_value=mock_session)
-        mock_engine = MagicMock()
-
-        # Patch Session and get_engine BEFORE lifespan runs so the closure
-        # captures the mocked objects when `from ... import ...` executes inside lifespan.
-        with (
-            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
-            patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
-            patch("app.db.get_engine", return_value=mock_engine),
-            patch("sqlmodel.Session", mock_session_cls),
-        ):
-            async with lifespan(app):
-                pass
-
-        assert len(coros) == 1, "Expected exactly one summary loop coroutine captured"
-
-        # Control the infinite loop: run once then cancel.
-        # Sleep is now at the END of the loop, so cancel on the first sleep
-        # to ensure only one iteration completes.
-        sleep_call_count = [0]
-
-        async def controlled_sleep(_secs):
-            sleep_call_count[0] += 1
-            if sleep_call_count[0] >= 1:
-                raise asyncio.CancelledError()
-
-        with (
-            patch("asyncio.sleep", side_effect=controlled_sleep),
-            patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
-            patch(
-                "chat.summarizer.generate_summaries",
-                new_callable=AsyncMock,
-                side_effect=RuntimeError("DB unavailable"),
-            ),
-            patch("app.main.logger") as mock_logger,
-        ):
-            try:
-                await coros[0]
-            except asyncio.CancelledError:
-                pass  # expected exit from the loop
-
-        mock_logger.exception.assert_called_once_with("Summary generation failed")
-
-    @pytest.mark.asyncio
-    async def test_summary_loop_continues_after_generate_summaries_raises(self):
-        """_summary_loop does not propagate the exception — it catches and logs it, then loops."""
-        mock_bot = MagicMock()
-        mock_bot.close = AsyncMock()
-
-        coros: list = []
-        task_counter = [0]
-
-        def capture_create_task(coro, **kwargs):
-            task_counter[0] += 1
-            t = MagicMock()
-            if task_counter[0] == 4:
-                coros.append(coro)
-            else:
-                if hasattr(coro, "close"):
-                    coro.close()
-            return t
-
-        inner_session = MagicMock()
-        # Staleness check queries return None (no existing summaries → needs_run=True)
-        inner_session.exec.return_value.first.return_value = None
-        mock_session = MagicMock()
-        mock_session.__enter__ = MagicMock(return_value=inner_session)
-        mock_session.__exit__ = MagicMock(return_value=False)
-
-        with (
-            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
-            patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
             patch("app.db.get_engine", return_value=MagicMock()),
-            patch("sqlmodel.Session", MagicMock(return_value=mock_session)),
+            patch("sqlmodel.Session", return_value=mock_session),
+            patch("home.service.on_startup"),
+            patch("shared.service.on_startup"),
+            patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         ):
             async with lifespan(app):
                 pass
 
-        assert len(coros) == 1
-
-        # Let the loop run twice (two generate_summaries failures) then cancel.
-        # Sleep is now at the END of the loop, so cancel on the 2nd sleep
-        # to ensure exactly two iterations complete.
-        sleep_call_count = [0]
-
-        async def controlled_sleep(_secs):
-            sleep_call_count[0] += 1
-            if sleep_call_count[0] >= 2:
-                raise asyncio.CancelledError()
-
-        exception_count = [0]
-
-        async def mock_generate(*_args, **_kwargs):
-            exception_count[0] += 1
-            raise RuntimeError("repeated failure")
-
-        with (
-            patch("asyncio.sleep", side_effect=controlled_sleep),
-            patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
-            patch("chat.summarizer.generate_summaries", side_effect=mock_generate),
-            patch("app.main.logger"),
-        ):
-            try:
-                await coros[0]
-            except asyncio.CancelledError:
-                pass
-
-        # Exception was raised (and caught internally) on both iterations
-        assert exception_count[0] == 2
-
-
-# ---------------------------------------------------------------------------
-# Staleness-check path
-# ---------------------------------------------------------------------------
-
-
-def _capture_summary_coro():
-    """
-    Helper: run lifespan and capture the _summary_loop coroutine (task 4)
-    without closing it.  Returns (coro, mock_session, inner_session).
-    """
-    mock_bot = MagicMock()
-    mock_bot.close = AsyncMock()
-
-    coros: list = []
-    task_counter = [0]
-
-    def capture_create_task(coro, **kwargs):
-        task_counter[0] += 1
-        t = MagicMock()
-        if task_counter[0] == 4:
-            coros.append(coro)
-        else:
-            if hasattr(coro, "close"):
-                coro.close()
-        return t
-
-    inner_session = MagicMock()
-    mock_session = MagicMock()
-    mock_session.__enter__ = MagicMock(return_value=inner_session)
-    mock_session.__exit__ = MagicMock(return_value=False)
-
-    return coros, inner_session, mock_session, mock_bot, capture_create_task
-
-
-class TestStalenessCheck:
-    @pytest.mark.asyncio
-    async def test_fresh_summaries_skip_generation(self):
-        """When both user and channel summaries are < 24 h old, generate_summaries is NOT called.
-
-        Strategy:
-        1. Capture the summary loop coroutine (task 4).
-        2. Configure mock session exec().first() to return a datetime 1 hour ago (fresh).
-        3. Run the coro; cancel on the very first asyncio.sleep (end of first iteration).
-        4. Assert generate_summaries was never called.
-        """
-        coros, inner_session, mock_session, mock_bot, capture_create_task = (
-            _capture_summary_coro()
-        )
-
-        # Return a fresh datetime — 1 hour ago is well within the 24-hour threshold
-        fresh_time = datetime.now(timezone.utc) - timedelta(hours=1)
-        inner_session.exec.return_value.first.return_value = fresh_time
-
-        with (
-            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
-            patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
-            patch("app.db.get_engine", return_value=MagicMock()),
-            patch("sqlmodel.Session", MagicMock(return_value=mock_session)),
-        ):
-            async with lifespan(app):
-                pass
-
-        assert len(coros) == 1, "Expected exactly one summary loop coroutine captured"
-
-        generate_mock = AsyncMock()
-
-        async def cancel_on_first_sleep(_secs):
-            raise asyncio.CancelledError()
-
-        with (
-            patch("asyncio.sleep", side_effect=cancel_on_first_sleep),
-            patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
-            patch("chat.summarizer.generate_summaries", generate_mock),
-            patch("chat.summarizer.generate_channel_summaries", AsyncMock()),
-            patch("app.main.logger"),
-        ):
-            try:
-                await coros[0]
-            except asyncio.CancelledError:
-                pass
-
-        generate_mock.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_boundary_at_stale_threshold_triggers_generation(self):
-        """When the most-recent summary is exactly at the stale threshold, generation runs.
-
-        The stale_threshold is 86400 s.  Setting the mock datetime to exactly
-        86400 s ago guarantees age >= stale_threshold (it is marginally older by
-        the time the coro runs), so needs_run = True.
-        """
-        coros, inner_session, mock_session, mock_bot, capture_create_task = (
-            _capture_summary_coro()
-        )
-
-        # Exactly 86400 s ago — the coro will compute age ≥ 86400 → needs_run = True
-        boundary_time = datetime.now(timezone.utc) - timedelta(seconds=86400)
-        inner_session.exec.return_value.first.return_value = boundary_time
-
-        with (
-            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token"}),
-            patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
-            patch("app.db.get_engine", return_value=MagicMock()),
-            patch("sqlmodel.Session", MagicMock(return_value=mock_session)),
-        ):
-            async with lifespan(app):
-                pass
-
-        assert len(coros) == 1, "Expected exactly one summary loop coroutine captured"
-
-        generate_called = [0]
-
-        async def tracking_generate(*_args, **_kwargs):
-            generate_called[0] += 1
-
-        async def cancel_on_first_sleep(_secs):
-            raise asyncio.CancelledError()
-
-        with (
-            patch("asyncio.sleep", side_effect=cancel_on_first_sleep),
-            patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
-            patch(
-                "chat.summarizer.generate_summaries",
-                side_effect=tracking_generate,
-            ),
-            patch(
-                "chat.summarizer.generate_channel_summaries",
-                new_callable=AsyncMock,
-            ),
-            patch("app.main.logger"),
-        ):
-            try:
-                await coros[0]
-            except asyncio.CancelledError:
-                pass
-
-        assert generate_called[0] == 1, (
-            "generate_summaries should have been called once when age >= stale_threshold"
-        )
+        # chat_startup should never have been imported/called since the discord
+        # branch was not entered
+        mock_chat_startup.assert_not_called()

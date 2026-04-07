@@ -12,10 +12,41 @@ os.environ.pop("STATIC_DIR", None)
 from app.main import app, lifespan  # noqa: E402
 
 
+def _lifespan_patches_no_discord():
+    """Return patches needed for lifespan without discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+    ]
+
+
+def _lifespan_patches_with_discord(mock_bot):
+    """Return patches needed for lifespan with discord token."""
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    return [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=mock_session),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
+        patch("chat.summarizer.on_startup"),
+        patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
+        patch("chat.bot.create_bot", return_value=mock_bot),
+    ]
+
+
 class TestLifespanWithDiscordToken:
     @pytest.mark.asyncio
     async def test_lifespan_starts_bot_when_token_set(self):
-        """When DISCORD_BOT_TOKEN is set lifespan creates five tasks (scheduler, calendar, bot, summary, sweep)."""
+        """When DISCORD_BOT_TOKEN is set lifespan creates three tasks (bot, scheduler, sweep)."""
         created_tasks = []
 
         def capture_create_task(coro, **kwargs):
@@ -29,16 +60,18 @@ class TestLifespanWithDiscordToken:
         mock_bot.close = AsyncMock()
         mock_bot.start = AsyncMock(return_value=None)
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-xyz"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
 
-        # scheduler + calendar + bot + summary + sweep = 5 tasks
-        assert len(created_tasks) == 5
+        # bot + scheduler + sweep = 3 tasks
+        assert len(created_tasks) == 3
 
     @pytest.mark.asyncio
     async def test_lifespan_closes_bot_on_shutdown(self):
@@ -55,10 +88,12 @@ class TestLifespanWithDiscordToken:
         mock_bot = MagicMock()
         mock_bot.close = AsyncMock()
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-xyz"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
@@ -80,21 +115,23 @@ class TestLifespanWithDiscordToken:
         mock_bot = MagicMock()
         mock_bot.close = AsyncMock()
 
+        patches = _lifespan_patches_with_discord(mock_bot)
         with (
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "fake-token-xyz"}),
             patch("asyncio.create_task", side_effect=capture_create_task),
-            patch("chat.bot.create_bot", return_value=mock_bot),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
+            patches[5], patches[6], patches[7],
         ):
             async with lifespan(app):
                 pass
 
-        # All three tasks (scheduler, calendar, bot) should be cancelled
+        # All three tasks (bot, scheduler, sweep) should be cancelled
         for task in created_tasks:
             task.cancel.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_lifespan_no_bot_task_when_token_empty(self):
-        """When DISCORD_BOT_TOKEN is absent lifespan creates exactly 2 tasks."""
+        """When DISCORD_BOT_TOKEN is absent lifespan creates exactly 1 task (scheduler)."""
         created_tasks = []
 
         def capture_create_task(coro, **kwargs):
@@ -109,11 +146,13 @@ class TestLifespanWithDiscordToken:
         }
         env_without_token["DISCORD_BOT_TOKEN"] = ""
 
+        patches = _lifespan_patches_no_discord()
         with (
             patch.dict(os.environ, env_without_token, clear=True),
             patch("asyncio.create_task", side_effect=capture_create_task),
+            patches[0], patches[1], patches[2], patches[3], patches[4],
         ):
             async with lifespan(app):
                 pass
 
-        assert len(created_tasks) == 2
+        assert len(created_tasks) == 1
