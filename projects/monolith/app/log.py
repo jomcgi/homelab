@@ -27,7 +27,7 @@ def configure_logging(level: int = logging.INFO) -> None:
     )
     # Quiet noisy libraries
     logging.getLogger("discord.gateway").setLevel(logging.WARNING)
-    logging.getLogger("discord.client").setLevel(logging.WARNING)
+    logging.getLogger("discord.client").setLevel(logging.ERROR)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("uvicorn").setLevel(logging.WARNING)
