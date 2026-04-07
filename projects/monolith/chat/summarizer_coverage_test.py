@@ -85,7 +85,7 @@ class TestBuildLlmCaller:
         assert payload["model"] == "gemma-4-26b-a4b"
         assert payload["messages"][0]["role"] == "user"
         assert payload["messages"][0]["content"] == "Summarize this conversation."
-        assert payload["max_tokens"] == 256
+        assert payload["max_tokens"] == 16384
 
     @pytest.mark.asyncio
     async def test_raises_runtime_error_on_missing_choices(self):

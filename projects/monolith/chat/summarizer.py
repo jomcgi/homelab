@@ -241,7 +241,7 @@ def build_llm_caller(base_url: str | None = None) -> Callable[[str], Awaitable[s
             json={
                 "model": "gemma-4-26b-a4b",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 256,
+                "max_tokens": 16384,
             },
         )
         resp.raise_for_status()
