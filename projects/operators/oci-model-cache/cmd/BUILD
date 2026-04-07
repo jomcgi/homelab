@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
     name = "cmd_lib",
@@ -33,4 +33,14 @@ go_binary(
     name = "cmd",
     embed = [":cmd_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "cmd_test",
+    srcs = ["resolver_test.go"],
+    embed = [":cmd_lib"],
+    deps = [
+        "//bazel/tools/hf2oci/pkg/hf",
+        "//projects/operators/oci-model-cache/internal/controller",
+    ],
 )
