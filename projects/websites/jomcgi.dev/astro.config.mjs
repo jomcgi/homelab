@@ -12,7 +12,13 @@ export default defineConfig({
       name: "force-es2022",
       hooks: {
         "astro:build:setup": ({ vite }) => {
-          vite.build = { ...vite.build, target: "es2022" };
+          // Force es2022 at top level
+          vite.build = vite.build || {};
+          vite.build.target = "es2022";
+          // Force es2022 in Vite 6 environment API (client build)
+          if (vite.environments?.client?.build) {
+            vite.environments.client.build.target = "es2022";
+          }
         },
       },
     },
@@ -20,6 +26,13 @@ export default defineConfig({
   vite: {
     build: {
       target: "es2022",
+    },
+    environments: {
+      client: {
+        build: {
+          target: "es2022",
+        },
+      },
     },
     server: {
       host: true,
