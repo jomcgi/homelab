@@ -13,6 +13,13 @@ export default defineConfig({
     esbuild: {
       target: "esnext",
     },
+    environments: {
+      client: {
+        build: {
+          target: "esnext",
+        },
+      },
+    },
     server: {
       host: true,
       hmr: {
