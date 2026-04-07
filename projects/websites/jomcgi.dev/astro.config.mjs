@@ -7,6 +7,9 @@ import tailwind from "@astrojs/tailwind";
 export default defineConfig({
   integrations: [react(), tailwind()],
   vite: {
+    build: {
+      target: "es2022",
+    },
     server: {
       host: true,
       hmr: {
