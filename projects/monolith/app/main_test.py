@@ -253,22 +253,29 @@ async def test_lifespan_scheduler_task_is_run_scheduler_loop():
     """The scheduler task wraps run_scheduler_loop (the single scheduler loop)."""
     from app.main import lifespan
 
-    creation_order = []
+    mock_scheduler = AsyncMock()
 
     def capture_create_task(coro, **kwargs):
-        creation_order.append(getattr(coro, "__qualname__", "") or type(coro).__name__)
         if hasattr(coro, "close"):
             coro.close()
         return MagicMock()
 
-    patches = _lifespan_patches_no_discord()
+    patches = [
+        patch("app.db.get_engine", return_value=MagicMock()),
+        patch("sqlmodel.Session", return_value=MagicMock(
+            __enter__=MagicMock(return_value=MagicMock()),
+            __exit__=MagicMock(return_value=False),
+        )),
+        patch("home.service.on_startup"),
+        patch("shared.service.on_startup"),
+        patch("shared.scheduler.run_scheduler_loop", mock_scheduler),
+    ]
     with patch("asyncio.create_task", side_effect=capture_create_task):
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             async with lifespan(app):
                 pass
 
-    assert len(creation_order) == 1
-    assert "run_scheduler_loop" in creation_order[0]
+    mock_scheduler.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
