@@ -10,6 +10,9 @@ export default defineConfig({
     build: {
       target: "esnext",
     },
+    esbuild: {
+      target: "esnext",
+    },
     server: {
       host: true,
       hmr: {

@@ -6,6 +6,9 @@ export default defineConfig({
     build: {
       target: "esnext",
     },
+    esbuild: {
+      target: "esnext",
+    },
   },
   title: "Homelab Docs",
   description: "Documentation for jomcgi/homelab",
