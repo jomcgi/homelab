@@ -20,10 +20,6 @@ spec:
       labels:
         {{- include "agent-orchestrator.selectorLabels" . | nindent 8 }}
     spec:
-      {{- if .Values.imagePullSecret.enabled }}
-      imagePullSecrets:
-        - name: ghcr-imagepull-secret
-      {{- end }}
       serviceAccountName: {{ include "agent-orchestrator.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}

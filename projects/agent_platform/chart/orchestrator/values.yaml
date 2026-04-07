@@ -5,12 +5,6 @@ image:
   tag: main
   pullPolicy: IfNotPresent
 
-imagePullSecret:
-  enabled: false
-  create: true
-  onepassword:
-    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
-
 nameOverride: ""
 fullnameOverride: ""
 
