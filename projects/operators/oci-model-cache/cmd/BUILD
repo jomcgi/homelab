@@ -37,9 +37,13 @@ go_binary(
 
 go_test(
     name = "cmd_test",
-    srcs = ["resolver_test.go"],
+    srcs = [
+        "resolver_adapter_test.go",
+        "resolver_test.go",
+    ],
     embed = [":cmd_lib"],
     deps = [
+        "//bazel/tools/hf2oci/pkg/copy",
         "//bazel/tools/hf2oci/pkg/hf",
         "//projects/operators/oci-model-cache/internal/controller",
     ],
