@@ -31,6 +31,8 @@ server:
     - "gemma-4-26b-a4b"
     - "--reasoning-budget"
     - "8192"
+    - "--cache-ram"
+    - "4096"
 
 nodeSelector:
   kubernetes.io/hostname: node-4
@@ -41,8 +43,8 @@ podAnnotations:
 resources:
   requests:
     cpu: 2
-    memory: "4Gi"
+    memory: "8Gi"
     nvidia.com/gpu: 1
   limits:
-    memory: "8Gi"
+    memory: "16Gi"
     nvidia.com/gpu: 1
