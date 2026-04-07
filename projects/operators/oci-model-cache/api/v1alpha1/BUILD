@@ -1,7 +1,7 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "api",
+    name = "v1alpha1",
     srcs = [
         "groupversion_info.go",
         "modelcache_types.go",

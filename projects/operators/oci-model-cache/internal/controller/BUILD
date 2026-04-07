@@ -13,7 +13,7 @@ go_library(
     importpath = "github.com/jomcgi/homelab/projects/operators/oci-model-cache/internal/controller",
     visibility = ["//projects/operators/oci-model-cache:__subpackages__"],
     deps = [
-        "//projects/operators/oci-model-cache/api/v1alpha1:api",
+        "//projects/operators/oci-model-cache/api/v1alpha1:v1alpha1",
         "//projects/operators/oci-model-cache/internal/config",
         "//projects/operators/oci-model-cache/internal/naming",
         "//projects/operators/oci-model-cache/internal/statemachine",
@@ -45,7 +45,7 @@ go_test(
     ],
     embed = [":controller"],
     deps = [
-        "//projects/operators/oci-model-cache/api/v1alpha1:api",
+        "//projects/operators/oci-model-cache/api/v1alpha1:v1alpha1",
         "//projects/operators/oci-model-cache/internal/config",
         "//projects/operators/oci-model-cache/internal/naming",
         "//projects/operators/oci-model-cache/internal/statemachine",
