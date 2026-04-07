@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlmodel import Session, select
@@ -218,9 +218,14 @@ def on_startup(
     if bot is not None:
         from chat.changelog import run_changelog_iteration
 
-        async def _changelog_handler(session: "Session") -> None:
+        async def _changelog_handler(session: "Session") -> datetime | None:
             await run_changelog_iteration(bot, llm_call)
-            return None
+            # Always align to the next hour boundary
+            now = datetime.now(timezone.utc)
+            next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(
+                hours=1
+            )
+            return next_hour
 
         register_job(
             session,
