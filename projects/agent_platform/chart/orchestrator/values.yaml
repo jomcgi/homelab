@@ -54,7 +54,7 @@ config:
   #   sandboxNamespace → <release-namespace>
   natsUrl: ""
   sandboxNamespace: ""
-  sandboxTemplate: "goose-agent"
+  sandboxTemplate: ""
   maxRetries: "2"
   maxConcurrent: "5"
   httpPort: "8080"
