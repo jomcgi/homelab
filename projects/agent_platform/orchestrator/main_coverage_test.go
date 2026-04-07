@@ -50,6 +50,37 @@ func TestEnvOr_ReturnsFallbackWhenEmpty(t *testing.T) {
 	}
 }
 
+// --- INFERENCE_MODEL env var tests --------------------------------------------
+
+// TestInferenceModel_DefaultsToEmptyString verifies that INFERENCE_MODEL
+// defaults to an empty string when the environment variable is not set.
+//
+// This documents the intentional change introduced in commit d0610857, which
+// removed the hardcoded default "qwen3.5-35b-a3b" in favour of an empty
+// string. An empty default means the operator must explicitly configure a
+// model name via the deployment values; no model is assumed at the
+// application level.
+func TestInferenceModel_DefaultsToEmptyString(t *testing.T) {
+	// Ensure the variable is absent for this test.
+	t.Setenv("INFERENCE_MODEL", "")
+
+	got := envOr("INFERENCE_MODEL", "")
+	if got != "" {
+		t.Errorf("INFERENCE_MODEL default = %q, want empty string", got)
+	}
+}
+
+// TestInferenceModel_ReadsFromEnv verifies that INFERENCE_MODEL is read from
+// the environment when it is explicitly set to a non-empty value.
+func TestInferenceModel_ReadsFromEnv(t *testing.T) {
+	t.Setenv("INFERENCE_MODEL", "qwen3.5-35b-a3b")
+
+	got := envOr("INFERENCE_MODEL", "")
+	if got != "qwen3.5-35b-a3b" {
+		t.Errorf("INFERENCE_MODEL from env = %q, want %q", got, "qwen3.5-35b-a3b")
+	}
+}
+
 // --- runPeriodicReconcile tests -----------------------------------------------
 
 // TestRunPeriodicReconcile_StopsOnContextCancel verifies that
