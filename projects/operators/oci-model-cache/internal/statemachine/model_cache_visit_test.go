@@ -27,12 +27,12 @@ import (
 // through ModelCacheFuncVisitor.
 type phaseCollector struct{}
 
-func (phaseCollector) VisitPending(s ModelCachePending) string   { return s.Phase() }
+func (phaseCollector) VisitPending(s ModelCachePending) string     { return s.Phase() }
 func (phaseCollector) VisitResolving(s ModelCacheResolving) string { return s.Phase() }
-func (phaseCollector) VisitSyncing(s ModelCacheSyncing) string   { return s.Phase() }
-func (phaseCollector) VisitReady(s ModelCacheReady) string       { return s.Phase() }
-func (phaseCollector) VisitFailed(s ModelCacheFailed) string     { return s.Phase() }
-func (phaseCollector) VisitUnknown(s ModelCacheUnknown) string   { return s.Phase() }
+func (phaseCollector) VisitSyncing(s ModelCacheSyncing) string     { return s.Phase() }
+func (phaseCollector) VisitReady(s ModelCacheReady) string         { return s.Phase() }
+func (phaseCollector) VisitFailed(s ModelCacheFailed) string       { return s.Phase() }
+func (phaseCollector) VisitUnknown(s ModelCacheUnknown) string     { return s.Phase() }
 
 // Visit must dispatch to the correct VisitX method for every concrete type.
 func TestVisit_CustomVisitorStruct_DispatchesCorrectly(t *testing.T) {
@@ -40,7 +40,7 @@ func TestVisit_CustomVisitorStruct_DispatchesCorrectly(t *testing.T) {
 	visitor := phaseCollector{}
 
 	cases := []struct {
-		state    ModelCacheState
+		state     ModelCacheState
 		wantPhase string
 	}{
 		{ModelCachePending{resource: mc}, PhasePending},
