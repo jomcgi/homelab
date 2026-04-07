@@ -57,8 +57,8 @@
       "dompurify": ">=3.3.2"
     },
     "patchedDependencies": {
-      "@sveltejs/kit": "patches/@sveltejs__kit.patch",
-      "rollup": "patches/rollup.patch"
+      "@sveltejs/kit": "bazel/patches/@sveltejs__kit.patch",
+      "rollup": "bazel/patches/rollup.patch"
     }
   }
 }

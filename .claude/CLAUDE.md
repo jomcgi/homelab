@@ -15,7 +15,7 @@ homelab/
 │   │   ├── chart/         # Helm chart (if custom)
 │   │   └── deploy/        # ArgoCD Application, values, kustomization
 │   └── home-cluster/      # Auto-generated ArgoCD root kustomization
-├── bazel/               # All Bazel build infrastructure (rules, tools, images, semgrep)
+├── bazel/               # All Bazel build infrastructure (rules, tools, images, semgrep, patches)
 ├── docs/               # Design docs, ADRs, and plans — ls to discover available docs
 │   └── decisions/       # Architecture Decision Records — ls decisions/<category>/
 ├── MODULE.bazel         # Bazel dependency management (bzlmod, not WORKSPACE)
