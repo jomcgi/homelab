@@ -5,16 +5,22 @@ import tailwind from "@astrojs/tailwind";
 
 // https://astro.build/config
 export default defineConfig({
-  integrations: [react(), tailwind()],
-  vite: {
-    plugins: [
-      {
-        name: "force-es2022-target",
-        configResolved(config) {
-          config.build.target = "es2022";
+  integrations: [
+    react(),
+    tailwind(),
+    {
+      name: "force-es2022",
+      hooks: {
+        "astro:build:setup": ({ vite }) => {
+          vite.build = { ...vite.build, target: "es2022" };
         },
       },
-    ],
+    },
+  ],
+  vite: {
+    build: {
+      target: "es2022",
+    },
     server: {
       host: true,
       hmr: {
