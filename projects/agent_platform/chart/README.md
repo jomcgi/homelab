@@ -13,6 +13,8 @@ ArgoCD Application.
 - [Architecture](#architecture)
 - [Components](#components)
 - [MCP Servers](#mcp-servers)
+- [Agent Catalog](#agent-catalog)
+- [Persistent Agents](#persistent-agents)
 - [Network Policy](#network-policy)
 - [CRDs](#crds)
 - [Secrets](#secrets)
@@ -29,8 +31,11 @@ The agent platform runs [Goose](https://github.com/block/goose) AI agents in
 ephemeral Kubernetes pods (sandboxes). Each agent job is submitted via a REST
 API, queued in NATS JetStream, and executed in an isolated pod provisioned by
 the agent-sandbox controller. Agents connect to a suite of MCP servers to
-interact with cluster infrastructure (ArgoCD, SigNoz, Kubernetes, BuildBuddy,
-etc.).
+interact with cluster infrastructure (ArgoCD, SigNoz, Kubernetes, etc.).
+
+The orchestrator also serves an agent catalog — a configurable list of agent
+recipes (ci-debug, research, code-fix, etc.) that clients can browse and submit
+as jobs.
 
 ```
 Client → agent-orchestrator REST API
@@ -38,7 +43,7 @@ Client → agent-orchestrator REST API
              → agent-sandbox controller (creates Sandbox pod)
                → Goose agent pod
                  → Context Forge MCP gateway
-                   → MCP servers (signoz, kubernetes, argocd, buildbuddy, …)
+                   → MCP servers (signoz, kubernetes, argocd, …)
 ```
 
 ---
@@ -77,8 +82,8 @@ Client → agent-orchestrator REST API
 │                                          ▼                      │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │  MCP servers                                             │   │
-│  │  signoz-mcp · buildbuddy-mcp · kubernetes-mcp            │   │
-│  │  argocd-mcp · todo-mcp · agent-orchestrator-mcp          │   │
+│  │  signoz-mcp · kubernetes-mcp · argocd-mcp                 │   │
+│  │  agent-orchestrator-mcp                                   │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
          │ MCP gateway proxy
@@ -91,13 +96,13 @@ Client → agent-orchestrator REST API
 
 ## Components
 
-| Subchart                     | Description                                                     | Enabled |
-| ---------------------------- | --------------------------------------------------------------- | ------- |
-| `agent-platform-mcp-servers` | MCP server deployments with optional Context Forge registration | ✅      |
-| `agent-orchestrator`         | REST API + NATS-backed queue for Goose agent jobs               | ✅      |
-| `goose-sandboxes`            | SandboxTemplate + WarmPool for ephemeral Goose agent pods       | ✅      |
-| `agent-sandbox`              | SandboxTemplate CRDs (`sandboxes.agents.x-k8s.io`) + controller | ✅      |
-| `nats`                       | NATS JetStream (upstream chart)                                 | ✅      |
+| Subchart                     | Description                                                       | Enabled |
+| ---------------------------- | ----------------------------------------------------------------- | ------- |
+| `agent-platform-mcp-servers` | MCP server deployments with optional Context Forge registration   | ✅      |
+| `agent-orchestrator`         | REST API + NATS-backed queue for Goose agent jobs + agent catalog | ✅      |
+| `goose-sandboxes`            | SandboxTemplate + WarmPool + persistent agent Deployments         | ✅      |
+| `agent-sandbox`              | SandboxTemplate CRDs (`sandboxes.agents.x-k8s.io`) + controller   | ✅      |
+| `nats`                       | NATS JetStream (upstream chart)                                   | ✅      |
 
 > **Not in this chart:** Context Forge and MCP OAuth Proxy are deployed
 > separately in the `mcp` namespace. See `projects/mcp/` for their ArgoCD
@@ -115,8 +120,8 @@ Job.
 ### Servers deployed in homelab
 
 See `deploy/values.yaml` for the full list of servers with their images, ports,
-and configuration. Currently deployed: `signoz-mcp`, `buildbuddy-mcp`,
-`kubernetes-mcp`, `argocd-mcp`, `todo-mcp`, `agent-orchestrator-mcp`.
+and configuration. Currently deployed: `signoz-mcp`, `kubernetes-mcp`,
+`argocd-mcp`, `agent-orchestrator-mcp`.
 
 ### Adding a new MCP server
 
@@ -156,6 +161,57 @@ agent-platform-mcp-servers:
         enabled: true
         transport: STREAMABLEHTTP
 ```
+
+---
+
+## Agent Catalog
+
+The `agent-orchestrator` subchart serves an agent catalog via its REST API.
+Each agent entry defines an ID, display metadata (label, icon, colors), a
+category, and a path to a Goose recipe YAML baked into the sandbox image.
+
+Configure agents in `deploy/values.yaml` under `agent-orchestrator.agentsConfig.agents`:
+
+```yaml
+agent-orchestrator:
+  agentsConfig:
+    agents:
+      - id: ci-debug
+        label: CI Debug
+        icon: "🔬"
+        bg: "#dbeafe"
+        fg: "#1e40af"
+        desc: Analyse CI/build failures using BuildBuddy logs
+        category: analyse
+        recipePath: projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml
+```
+
+Categories: `analyse`, `action`, `validate`.
+
+---
+
+## Persistent Agents
+
+The `goose-sandboxes` subchart can deploy long-running agent Deployments
+alongside the ephemeral sandbox infrastructure. Each entry in `goose-sandboxes.agents`
+creates a Deployment and ConfigMap with the agent's prompt.
+
+```yaml
+goose-sandboxes:
+  agents:
+    my-agent:
+      enabled: true
+      prompt: "Watch for X and do Y"
+      pollInterval: 300 # seconds between runs (default: 300)
+      resources: # optional — falls back to sandboxTemplate.resources
+        requests:
+          cpu: "1"
+          memory: 2Gi
+```
+
+Persistent agents reuse the same container image and git-clone init container as
+sandbox pods. They run in a `goose run --text "$AGENT_PROMPT"` loop, sleeping
+`pollInterval` seconds between iterations.
 
 ---
 
@@ -227,7 +283,6 @@ No secrets are hardcoded — never add plaintext credentials to `values.yaml` or
 | ----------------------- | ------------------------------------------ | ---------------------------------------- |
 | `claude-auth`           | Claude API token for Goose agents          | `litellm-claude-auth`                    |
 | `agent-secrets`         | Agent-level secrets (GitHub tokens, etc.)  | `agent-secrets`                          |
-| `goose-mcp-tokens`      | MCP bearer tokens for Goose                | `goose-mcp-tokens`                       |
 | `context-forge-gateway` | Context Forge admin credentials            | `context-forge`                          |
 | Per-server secrets      | Injected as `envFrom` into MCP server pods | Defined per server in `servers[].secret` |
 
@@ -280,7 +335,7 @@ helm template agent-platform projects/agent_platform/chart/ \
 
 ## Image Strategy
 
-**Custom images** (orchestrator, buildbuddy-mcp, todo-mcp, goose-agent, etc.)
+**Custom images** (orchestrator, agent-orchestrator-mcp, goose-agent, etc.)
 are built via Bazel + apko (no Dockerfiles) and pinned using Bazel's
 `helm_chart(images={})` map. This produces a `values-generated.yaml` baked into
 the chart `.tgz` at build time. Images are dual-arch (linux/amd64 + linux/arm64).
