@@ -12,12 +12,8 @@ export default defineConfig({
     },
     esbuild: {
       target: "esnext",
-    },
-    environments: {
-      client: {
-        build: {
-          target: "esnext",
-        },
+      supported: {
+        destructuring: true,
       },
     },
     server: {
