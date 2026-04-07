@@ -1379,8 +1379,6 @@ class TestLifespan:
     @pytest.mark.asyncio
     async def test_missing_nats_url_env_var_default_is_localhost(self):
         """When NATS_URL env var is absent the module falls back to nats://localhost:4222."""
-        import os
-
         # Verify the fallback value that the module uses at import time.
         with patch.dict(
             "os.environ",

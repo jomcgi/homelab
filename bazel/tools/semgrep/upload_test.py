@@ -10,6 +10,7 @@ invocations occur during tests.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -386,8 +387,6 @@ class TestMainLoggingWarning:
 
     def test_warning_logged_when_results_file_unreadable(self, monkeypatch, caplog):
         """logging.warning must be called when the results file cannot be opened."""
-        import logging
-
         monkeypatch.setenv("SEMGREP_APP_TOKEN", "tok")
         monkeypatch.setenv("SEMGREP_REPO", "org/repo")
         with patch.object(sys, "argv", ["upload.py", "/nonexistent/file.json", "0"]):
@@ -397,8 +396,6 @@ class TestMainLoggingWarning:
 
     def test_warning_logged_when_upload_fails(self, monkeypatch, caplog):
         """logging.warning must be called when the HTTP upload raises an exception."""
-        import logging
-
         monkeypatch.setenv("SEMGREP_APP_TOKEN", "tok")
         monkeypatch.setenv("SEMGREP_REPO", "org/repo")
         monkeypatch.setenv("GITHUB_SHA", "abc")

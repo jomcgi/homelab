@@ -13,6 +13,7 @@ Environment:
 
 import json
 import logging
+import os
 import subprocess
 import sys
 import uuid
@@ -37,8 +38,6 @@ def _git(cmd: str) -> str:
 
 def _detect_repo() -> str:
     """Detect repository name from env or git remote."""
-    import os
-
     repo = os.environ.get("SEMGREP_REPO")
     if repo:
         return repo
@@ -61,8 +60,6 @@ def _detect_repo() -> str:
 
 def _detect_commit() -> str:
     """Detect git commit from env or git."""
-    import os
-
     return (
         os.environ.get("GITHUB_SHA")
         or os.environ.get("GIT_COMMIT")
@@ -73,8 +70,6 @@ def _detect_commit() -> str:
 
 def _detect_branch() -> str:
     """Detect git branch from env or git."""
-    import os
-
     return (
         os.environ.get("GITHUB_REF_NAME")
         or os.environ.get("GIT_BRANCH")
@@ -90,14 +85,10 @@ def _detect_semgrep_version() -> str:
     semgrep-core binary's -version output. Falls back to a static version if
     the env var is not set (e.g., when invoked outside the test runner).
     """
-    import os
-
     return os.environ.get("SEMGREP_ENGINE_VERSION", "1.153.1")
 
 
 def main() -> None:
-    import os
-
     token = os.environ.get("SEMGREP_APP_TOKEN")
     if not token:
         return

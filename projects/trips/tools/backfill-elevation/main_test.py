@@ -7,6 +7,7 @@ Supplements backfill_elevation_test.py by covering:
 """
 
 import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -183,8 +184,6 @@ class TestPublishPointAdditional:
 
     @pytest.mark.asyncio
     async def test_source_field_preserved_in_payload(self):
-        import json
-
         mock_js = AsyncMock()
         point = TripPoint(
             id="p1",
@@ -203,8 +202,6 @@ class TestPublishPointAdditional:
 
     @pytest.mark.asyncio
     async def test_image_field_preserved_when_set(self):
-        import json
-
         mock_js = AsyncMock()
         point = TripPoint(
             id="p1",
