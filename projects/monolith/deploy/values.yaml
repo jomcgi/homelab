@@ -60,6 +60,13 @@ cfIngress:
         namespace: envoy-gateway-system
       team: jomcgi
 
+knowledge:
+  enabled: true
+  headlessSync:
+    vaultName: "jomcgi"
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/obsidian"
+
 dashboards:
   cnpg-overview:
     enabled: true

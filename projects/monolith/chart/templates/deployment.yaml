@@ -87,10 +87,56 @@ spec:
               port: api
             initialDelaySeconds: 3
             periodSeconds: 5
+          {{- if .Values.knowledge.enabled }}
+          volumeMounts:
+            - name: vault
+              mountPath: {{ .Values.knowledge.vault.mountPath }}
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+        {{- if .Values.knowledge.enabled }}
+        - name: headless-sync
+          image: "{{ .Values.knowledge.headlessSync.image.repository }}:{{ .Values.knowledge.headlessSync.image.tag }}"
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              npm config set prefix "$HOME/.npm-global"
+              export PATH="$HOME/.npm-global/bin:$PATH"
+              npm install -g obsidian-headless
+              ob login --email "$OBSIDIAN_EMAIL" --password "$OBSIDIAN_PASSWORD"
+              ob sync-setup --vault "$VAULT_NAME" --path {{ .Values.knowledge.vault.mountPath }} --password "$OBSIDIAN_PASSWORD"
+              cd {{ .Values.knowledge.vault.mountPath }}
+              exec ob sync --continuous
+          env:
+            - name: HOME
+              value: /home/vault
+            - name: VAULT_NAME
+              value: {{ .Values.knowledge.headlessSync.vaultName | quote }}
+            - name: OBSIDIAN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monolith.fullname" . }}-knowledge
+                  key: email
+            - name: OBSIDIAN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monolith.fullname" . }}-knowledge
+                  key: password
+          volumeMounts:
+            - name: vault
+              mountPath: {{ .Values.knowledge.vault.mountPath }}
+            - name: vault-home
+              mountPath: /home/vault
+          resources:
+            {{- toYaml .Values.knowledge.resources.headlessSync | nindent 12 }}
+        {{- end }}
         - name: frontend
           image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
@@ -117,3 +163,11 @@ spec:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+      {{- if .Values.knowledge.enabled }}
+      volumes:
+        - name: vault
+          emptyDir:
+            sizeLimit: {{ .Values.knowledge.vault.sizeLimit }}
+        - name: vault-home
+          emptyDir: {}
+      {{- end }}
