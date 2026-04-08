@@ -16,8 +16,8 @@
 set -euo pipefail
 
 if [[ $# -lt 3 ]]; then
-    echo "Usage: $0 <helm-binary> <chart-yaml> <entrypoint-sh>"
-    exit 1
+	echo "Usage: $0 <helm-binary> <chart-yaml> <entrypoint-sh>"
+	exit 1
 fi
 
 HELM="$1"
@@ -29,13 +29,13 @@ PASSED=0
 FAILED=0
 
 pass() {
-    echo "PASSED: $*"
-    PASSED=$((PASSED + 1))
+	echo "PASSED: $*"
+	PASSED=$((PASSED + 1))
 }
 
 fail() {
-    echo "FAILED: $*"
-    FAILED=$((FAILED + 1))
+	echo "FAILED: $*"
+	FAILED=$((FAILED + 1))
 }
 
 # ---------------------------------------------------------------------------
@@ -44,24 +44,24 @@ fail() {
 echo "--- Test 1: obsidian container absent when knowledge.enabled=false ---"
 RENDERED_DEFAULT=$("$HELM" template monolith "$CHART_DIR")
 if echo "$RENDERED_DEFAULT" | grep -q "name: obsidian"; then
-    fail "obsidian container should NOT be present when knowledge.enabled=false"
+	fail "obsidian container should NOT be present when knowledge.enabled=false"
 else
-    pass "obsidian container absent when knowledge.enabled=false (default)"
+	pass "obsidian container absent when knowledge.enabled=false (default)"
 fi
 
 # Render with knowledge enabled for remaining tests
 RENDERED=$("$HELM" template monolith "$CHART_DIR" \
-    --set knowledge.enabled=true \
-    --set knowledge.headlessSync.vaultName=test-vault)
+	--set knowledge.enabled=true \
+	--set knowledge.headlessSync.vaultName=test-vault)
 
 # ---------------------------------------------------------------------------
 # Test 2: obsidian container is present when knowledge.enabled=true
 # ---------------------------------------------------------------------------
 echo "--- Test 2: obsidian container present when knowledge.enabled=true ---"
 if echo "$RENDERED" | grep -q "name: obsidian"; then
-    pass "obsidian container present when knowledge.enabled=true"
+	pass "obsidian container present when knowledge.enabled=true"
 else
-    fail "obsidian container NOT found when knowledge.enabled=true"
+	fail "obsidian container NOT found when knowledge.enabled=true"
 fi
 
 # ---------------------------------------------------------------------------
@@ -72,9 +72,9 @@ echo "--- Test 3: obsidian readiness probe type is exec ---"
 # Verify by checking exec appears after the obsidian container definition.
 # We grep the section between 'name: obsidian' and the next container or volume block.
 if echo "$RENDERED" | grep -A 30 "name: obsidian" | grep -q "exec:"; then
-    pass "obsidian readiness probe uses exec type"
+	pass "obsidian readiness probe uses exec type"
 else
-    fail "obsidian readiness probe exec type NOT found"
+	fail "obsidian readiness probe exec type NOT found"
 fi
 
 # ---------------------------------------------------------------------------
@@ -85,21 +85,21 @@ OBSIDIAN_SECTION=$(echo "$RENDERED" | grep -A 40 "name: obsidian")
 
 # Check for each element of the command (helm may render as flow or block sequence)
 if echo "$OBSIDIAN_SECTION" | grep -qE '"test"|^[[:space:]]+- test$'; then
-    pass "probe command includes 'test'"
+	pass "probe command includes 'test'"
 else
-    fail "probe command 'test' NOT found in obsidian container section"
+	fail "probe command 'test' NOT found in obsidian container section"
 fi
 
 if echo "$OBSIDIAN_SECTION" | grep -qE '"-f"|^[[:space:]]+-[[:space:]]+-f$|^[[:space:]]+"?-f"?$'; then
-    pass "probe command includes '-f' flag"
+	pass "probe command includes '-f' flag"
 else
-    fail "probe command '-f' flag NOT found in obsidian container section"
+	fail "probe command '-f' flag NOT found in obsidian container section"
 fi
 
 if echo "$OBSIDIAN_SECTION" | grep -q "/tmp/ready"; then
-    pass "probe command references /tmp/ready sentinel"
+	pass "probe command references /tmp/ready sentinel"
 else
-    fail "probe command /tmp/ready sentinel NOT found in obsidian container section"
+	fail "probe command /tmp/ready sentinel NOT found in obsidian container section"
 fi
 
 # ---------------------------------------------------------------------------
@@ -107,9 +107,9 @@ fi
 # ---------------------------------------------------------------------------
 echo "--- Test 5: obsidian readiness probe initialDelaySeconds=5 ---"
 if echo "$OBSIDIAN_SECTION" | grep -q "initialDelaySeconds: 5"; then
-    pass "obsidian readiness probe initialDelaySeconds: 5"
+	pass "obsidian readiness probe initialDelaySeconds: 5"
 else
-    fail "obsidian readiness probe initialDelaySeconds: 5 NOT found"
+	fail "obsidian readiness probe initialDelaySeconds: 5 NOT found"
 fi
 
 # ---------------------------------------------------------------------------
@@ -117,9 +117,9 @@ fi
 # ---------------------------------------------------------------------------
 echo "--- Test 6: obsidian readiness probe periodSeconds=10 ---"
 if echo "$OBSIDIAN_SECTION" | grep -q "periodSeconds: 10"; then
-    pass "obsidian readiness probe periodSeconds: 10"
+	pass "obsidian readiness probe periodSeconds: 10"
 else
-    fail "obsidian readiness probe periodSeconds: 10 NOT found"
+	fail "obsidian readiness probe periodSeconds: 10 NOT found"
 fi
 
 # ---------------------------------------------------------------------------
@@ -127,9 +127,9 @@ fi
 # ---------------------------------------------------------------------------
 echo "--- Test 7: /tmp/ready sentinel path consistent with entrypoint.sh ---"
 if grep -q "/tmp/ready" "$ENTRYPOINT"; then
-    pass "entrypoint.sh references /tmp/ready sentinel (consistent with deployment.yaml)"
+	pass "entrypoint.sh references /tmp/ready sentinel (consistent with deployment.yaml)"
 else
-    fail "entrypoint.sh does NOT reference /tmp/ready — sentinel path mismatch!"
+	fail "entrypoint.sh does NOT reference /tmp/ready — sentinel path mismatch!"
 fi
 
 # ---------------------------------------------------------------------------
@@ -138,6 +138,6 @@ fi
 echo ""
 echo "Results: $PASSED passed, $FAILED failed"
 if [[ $FAILED -eq 0 ]]; then
-    echo "All tests passed."
+	echo "All tests passed."
 fi
 exit "$FAILED"
