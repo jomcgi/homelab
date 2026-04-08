@@ -37,10 +37,12 @@ go_test(
     srcs = [
         "cleanup_test.go",
         "job_builder_test.go",
+        "job_result_gaps_test.go",
         "job_result_test.go",
         "modelcache_controller_test.go",
         "modelcache_coverage_test.go",
         "modelcache_ungate_coverage_test.go",
+        "pod_mapper_gaps_test.go",
         "pod_ungater_test.go",
         "resolver_test.go",
     ],
