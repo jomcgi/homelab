@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from chat.embedding import (
+from shared.embedding import (
     EMBED_BATCH_READ_TIMEOUT,
     EMBED_CONNECT_TIMEOUT,
     EmbeddingClient,
@@ -57,8 +57,10 @@ class TestConnectTimeoutRetry:
         client = EmbeddingClient(base_url="http://fake:8080")
 
         with (
-            patch("chat.embedding.httpx.AsyncClient") as mock_cls,
-            patch("chat.embedding.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch("shared.embedding.httpx.AsyncClient") as mock_cls,
+            patch(
+                "shared.embedding.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep,
         ):
             mock_http = _make_mock_http_client(
                 side_effect=[
@@ -79,8 +81,10 @@ class TestConnectTimeoutRetry:
         client = EmbeddingClient(base_url="http://fake:8080")
 
         with (
-            patch("chat.embedding.httpx.AsyncClient") as mock_cls,
-            patch("chat.embedding.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch("shared.embedding.httpx.AsyncClient") as mock_cls,
+            patch(
+                "shared.embedding.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep,
         ):
             mock_http = _make_mock_http_client(
                 side_effect=[
@@ -102,9 +106,9 @@ class TestConnectTimeoutRetry:
         client = EmbeddingClient(base_url="http://fake:8080")
 
         with (
-            patch("chat.embedding.httpx.AsyncClient") as mock_cls,
-            patch("chat.embedding.asyncio.sleep", new_callable=AsyncMock),
-            patch("chat.embedding.EMBED_RETRY_TIMEOUT", 5.0),
+            patch("shared.embedding.httpx.AsyncClient") as mock_cls,
+            patch("shared.embedding.asyncio.sleep", new_callable=AsyncMock),
+            patch("shared.embedding.EMBED_RETRY_TIMEOUT", 5.0),
         ):
             mock_http = _make_mock_http_client(
                 side_effect=httpx.ConnectTimeout("never connects"),
@@ -130,10 +134,12 @@ class TestRetryMaxDelayCap:
         side_effects = [httpx.ConnectError("down")] * 5 + [_ok_response()]
 
         with (
-            patch("chat.embedding.httpx.AsyncClient") as mock_cls,
-            patch("chat.embedding.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch("shared.embedding.httpx.AsyncClient") as mock_cls,
+            patch(
+                "shared.embedding.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep,
             # Raise total deadline high so we don't terminate early
-            patch("chat.embedding.EMBED_RETRY_TIMEOUT", 1000.0),
+            patch("shared.embedding.EMBED_RETRY_TIMEOUT", 1000.0),
         ):
             mock_http = _make_mock_http_client(side_effect=side_effects)
             mock_cls.return_value = mock_http
@@ -161,9 +167,11 @@ class TestRetryMaxDelayCap:
         side_effects = [httpx.ConnectError("down")] * 6 + [_ok_response()]
 
         with (
-            patch("chat.embedding.httpx.AsyncClient") as mock_cls,
-            patch("chat.embedding.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-            patch("chat.embedding.EMBED_RETRY_TIMEOUT", 1000.0),
+            patch("shared.embedding.httpx.AsyncClient") as mock_cls,
+            patch(
+                "shared.embedding.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep,
+            patch("shared.embedding.EMBED_RETRY_TIMEOUT", 1000.0),
         ):
             mock_http = _make_mock_http_client(side_effect=side_effects)
             mock_cls.return_value = mock_http
@@ -193,7 +201,7 @@ class TestEmbedTimeoutConfiguration:
             "data": [{"index": 0, "embedding": [0.0] * 1024}]
         }
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_http = AsyncMock()
             mock_http.__aenter__ = AsyncMock(return_value=mock_http)
             mock_http.__aexit__ = AsyncMock(return_value=False)
@@ -223,7 +231,7 @@ class TestEmbedTimeoutConfiguration:
             "data": [{"index": 0, "embedding": [0.0] * 1024}]
         }
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_http = AsyncMock()
             mock_http.__aenter__ = AsyncMock(return_value=mock_http)
             mock_http.__aexit__ = AsyncMock(return_value=False)
@@ -251,7 +259,7 @@ class TestEmbedTimeoutConfiguration:
             "data": [{"index": 0, "embedding": [0.0] * 1024}]
         }
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_http = AsyncMock()
             mock_http.__aenter__ = AsyncMock(return_value=mock_http)
             mock_http.__aexit__ = AsyncMock(return_value=False)

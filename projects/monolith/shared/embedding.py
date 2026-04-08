@@ -33,8 +33,14 @@ def _is_retryable(exc: Exception) -> bool:
 
 
 class EmbeddingClient:
-    def __init__(self, base_url: str | None = None):
+    def __init__(
+        self,
+        *,
+        base_url: str | None = None,
+        model: str = "voyage-4-nano",
+    ):
         self.base_url = base_url or EMBEDDING_URL
+        self.model = model
 
     async def embed(self, text: str) -> list[float]:
         """Embed a single text string, returning a 1024-dim vector."""
@@ -56,7 +62,7 @@ class EmbeddingClient:
                 async with httpx.AsyncClient(timeout=timeout) as client:
                     resp = await client.post(
                         f"{self.base_url}/v1/embeddings",
-                        json={"input": texts, "model": "voyage-4-nano"},
+                        json={"input": texts, "model": self.model},
                     )
                     resp.raise_for_status()
                     try:

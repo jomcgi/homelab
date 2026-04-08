@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from chat.embedding import EmbeddingClient
+from shared.embedding import EmbeddingClient
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ class TestEmbedMalformedJson:
         """embed() propagates JSONDecodeError when the response body is not valid JSON."""
         fake_response = _make_json_error_response()
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -55,7 +55,7 @@ class TestEmbedMalformedJson:
         """JSONDecodeError is a subclass of ValueError -- ensure it's not silently swallowed."""
         fake_response = _make_json_error_response()
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -77,7 +77,7 @@ class TestEmbedMissingDataKey:
         """embed() raises ValueError when the JSON body has no 'data' key."""
         fake_response = _make_ok_response({"error": "model not loaded"})
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -92,7 +92,7 @@ class TestEmbedMissingDataKey:
         """embed() raises ValueError when 'data[0]' exists but has no 'embedding' key."""
         fake_response = _make_ok_response({"data": [{"index": 0}]})  # no 'embedding'
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -114,7 +114,7 @@ class TestEmbedEmptyDataArray:
         """embed() raises IndexError when 'data' is an empty list (embed_batch returns [])."""
         fake_response = _make_ok_response({"data": []})
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)

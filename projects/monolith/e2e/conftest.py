@@ -423,7 +423,7 @@ def deterministic_embedding(text: str) -> list[float]:
 @pytest.fixture()
 def embed_client():
     """Mock EmbeddingClient with deterministic embeddings."""
-    from chat.embedding import EmbeddingClient
+    from shared.embedding import EmbeddingClient
 
     mock = MagicMock(spec=EmbeddingClient)
     mock.embed = AsyncMock(side_effect=deterministic_embedding)

@@ -282,7 +282,7 @@ class TestLockSweepLoopNoExpiredLocks:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger"),
         ):
             try:
@@ -335,7 +335,7 @@ class TestLockSweepLoopNoExpiredLocks:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger"),
         ):
             try:
@@ -390,7 +390,7 @@ class TestLockSweepLoopNoExpiredLocks:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger"),
         ):
             try:
@@ -446,7 +446,7 @@ class TestLockSweepLoopNoExpiredLocks:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger") as mock_logger,
         ):
             try:
@@ -511,7 +511,7 @@ class TestLockSweepLoopWithExpiredLocks:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger"),
         ):
             try:
@@ -570,7 +570,7 @@ class TestLockSweepLoopWithExpiredLocks:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger") as mock_logger,
         ):
             try:
@@ -629,7 +629,7 @@ class TestLockSweepLoopWithExpiredLocks:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger") as mock_logger,
         ):
             try:
@@ -690,7 +690,7 @@ class TestLockSweepLoopExceptionHandling:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger") as mock_logger,
         ):
             try:
@@ -749,7 +749,7 @@ class TestLockSweepLoopExceptionHandling:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger"),
         ):
             try:
@@ -803,7 +803,7 @@ class TestLockSweepLoopExceptionHandling:
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session_obj),
             patch("chat.store.MessageStore", return_value=mock_store),
-            patch("chat.embedding.EmbeddingClient", return_value=MagicMock()),
+            patch("shared.embedding.EmbeddingClient", return_value=MagicMock()),
             patch("app.main.logger"),
         ):
             try:

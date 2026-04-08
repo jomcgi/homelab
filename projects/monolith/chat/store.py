@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from chat.embedding import EmbeddingClient
+from shared.embedding import EmbeddingClient
 from chat.models import (
     Attachment,
     Blob,

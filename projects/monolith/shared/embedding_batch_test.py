@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from chat.embedding import EmbeddingClient
+from shared.embedding import EmbeddingClient
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ class TestEmbedBatch:
             ]
         )
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_http = _mock_client_with_response(fake_response)
             mock_cls.return_value = mock_http
 
@@ -59,7 +59,7 @@ class TestEmbedBatch:
             ]
         )
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_http = _mock_client_with_response(fake_response)
             mock_cls.return_value = mock_http
 
@@ -71,6 +71,28 @@ class TestEmbedBatch:
         assert payload["model"] == "voyage-4-nano"
 
     @pytest.mark.asyncio
+    async def test_model_arg_overrides_default_in_request_body(self):
+        """Constructor's `model` kwarg appears in the POST body instead of the default."""
+        custom_client = EmbeddingClient(
+            base_url="http://fake:8080",
+            model="custom-model-v9",
+        )
+        fake_response = _make_response(
+            [
+                {"index": 0, "embedding": [0.0] * 1024},
+            ]
+        )
+
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
+            mock_http = _mock_client_with_response(fake_response)
+            mock_cls.return_value = mock_http
+
+            await custom_client.embed_batch(["hi"])
+
+        payload = mock_http.post.call_args[1]["json"]
+        assert payload["model"] == "custom-model-v9"
+
+    @pytest.mark.asyncio
     async def test_sorts_by_index(self, client):
         """embed_batch() returns vectors sorted by the API response index field."""
         fake_response = _make_response(
@@ -80,7 +102,7 @@ class TestEmbedBatch:
             ]
         )
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_http = _mock_client_with_response(fake_response)
             mock_cls.return_value = mock_http
 

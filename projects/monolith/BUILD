@@ -278,8 +278,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_embedding_test",
-    srcs = ["chat/embedding_test.py"],
+    name = "shared_embedding_test",
+    srcs = ["shared/embedding_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -290,8 +290,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_embedding_retry_test",
-    srcs = ["chat/embedding_retry_test.py"],
+    name = "shared_embedding_retry_test",
+    srcs = ["shared/embedding_retry_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -302,8 +302,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_embedding_batch_test",
-    srcs = ["chat/embedding_batch_test.py"],
+    name = "shared_embedding_batch_test",
+    srcs = ["shared/embedding_batch_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -401,8 +401,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_embedding_coverage_test",
-    srcs = ["chat/embedding_coverage_test.py"],
+    name = "shared_embedding_coverage_test",
+    srcs = ["shared/embedding_coverage_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -521,8 +521,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_embedding_extra_test",
-    srcs = ["chat/embedding_extra_test.py"],
+    name = "shared_embedding_extra_test",
+    srcs = ["shared/embedding_extra_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -1153,8 +1153,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_embedding_null_test",
-    srcs = ["chat/embedding_null_test.py"],
+    name = "shared_embedding_null_test",
+    srcs = ["shared/embedding_null_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -1214,8 +1214,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_embedding_retryable_test",
-    srcs = ["chat/embedding_retryable_test.py"],
+    name = "shared_embedding_retryable_test",
+    srcs = ["shared/embedding_retryable_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -1275,8 +1275,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_embedding_connect_timeout_test",
-    srcs = ["chat/embedding_connect_timeout_test.py"],
+    name = "shared_embedding_connect_timeout_test",
+    srcs = ["shared/embedding_connect_timeout_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
