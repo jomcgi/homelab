@@ -3,6 +3,7 @@
   "private": true,
   "dependencies": {
     "@anthropic-ai/claude-code": "^2.1.71",
+    "obsidian-headless": "^0.0.8",
     "express": "^4.22.1",
     "http-proxy-middleware": "^3.0.5",
     "react": "^18.3.1",

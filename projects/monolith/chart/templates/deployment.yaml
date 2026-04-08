@@ -102,21 +102,9 @@ spec:
           image: "{{ .Values.knowledge.headlessSync.image.repository }}:{{ .Values.knowledge.headlessSync.image.tag }}"
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          command:
-            - sh
-            - -c
-            - |
-              set -e
-              npm config set prefix "$HOME/.npm-global"
-              export PATH="$HOME/.npm-global/bin:$PATH"
-              npm install -g obsidian-headless
-              ob login --email "$OBSIDIAN_EMAIL" --password "$OBSIDIAN_PASSWORD"
-              ob sync-setup --vault "$VAULT_NAME" --path {{ .Values.knowledge.vault.mountPath }} --password "$OBSIDIAN_PASSWORD"
-              cd {{ .Values.knowledge.vault.mountPath }}
-              exec ob sync --continuous
           env:
-            - name: HOME
-              value: /home/vault
+            - name: VAULT_PATH
+              value: {{ .Values.knowledge.vault.mountPath }}
             - name: VAULT_NAME
               value: {{ .Values.knowledge.headlessSync.vaultName | quote }}
             - name: OBSIDIAN_EMAIL
@@ -132,8 +120,6 @@ spec:
           volumeMounts:
             - name: vault
               mountPath: {{ .Values.knowledge.vault.mountPath }}
-            - name: vault-home
-              mountPath: /home/vault
           resources:
             {{- toYaml .Values.knowledge.resources.headlessSync | nindent 12 }}
         {{- end }}
@@ -168,6 +154,4 @@ spec:
         - name: vault
           emptyDir:
             sizeLimit: {{ .Values.knowledge.vault.sizeLimit }}
-        - name: vault-home
-          emptyDir: {}
       {{- end }}

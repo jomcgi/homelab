@@ -53,6 +53,7 @@ multirun(
         "//projects/hikes/update_forecast:update_image.push",
         "//projects/monolith/chart:chart.push",
         "//projects/monolith/frontend:image.push",
+        "//projects/monolith/headless-sync-image:image.push",
         "//projects/monolith:image.push",
         "//projects/obsidian_vault/chart:chart.push",
         "//projects/obsidian_vault/image:image.push",
