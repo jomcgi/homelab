@@ -43,16 +43,16 @@ CREATE INDEX notes_updated_at  ON knowledge.notes (updated_at DESC);
 -- One row per chunk. Re-chunked + re-embedded whenever the parent's content_hash changes.
 CREATE TABLE knowledge.chunks (
     id              BIGSERIAL PRIMARY KEY,
-    note_id         BIGINT      NOT NULL REFERENCES knowledge.notes(id) ON DELETE CASCADE,
+    note_fk         BIGINT      NOT NULL REFERENCES knowledge.notes(id) ON DELETE CASCADE,
     chunk_index     INTEGER     NOT NULL,
     section_header  TEXT        NOT NULL DEFAULT '',
     chunk_text      TEXT        NOT NULL,
     embedding       vector(1024) NOT NULL,
-    UNIQUE (note_id, chunk_index)
+    UNIQUE (note_fk, chunk_index)
 );
 
 CREATE INDEX chunks_embedding_hnsw ON knowledge.chunks USING hnsw (embedding vector_cosine_ops);
-CREATE INDEX chunks_note_id        ON knowledge.chunks (note_id);
+CREATE INDEX chunks_note_fk        ON knowledge.chunks (note_fk);
 
 -- Edge table for graph queries. Targets are stable note ids (strings), not FKs,
 -- because edges may dangle (point at non-existent or not-yet-ingested notes).
@@ -65,7 +65,7 @@ CREATE INDEX chunks_note_id        ON knowledge.chunks (note_id);
 -- Adding a new edge_type is a code change, not a schema migration.
 CREATE TABLE knowledge.note_links (
     id            BIGSERIAL PRIMARY KEY,
-    src_note_id   BIGINT NOT NULL REFERENCES knowledge.notes(id) ON DELETE CASCADE,
+    src_note_fk   BIGINT NOT NULL REFERENCES knowledge.notes(id) ON DELETE CASCADE,
     target_id     TEXT   NOT NULL,             -- target note_id (frontmatter id) or raw wikilink target
     target_title  TEXT,                        -- display text from [[Foo|display]] when present
     kind          TEXT   NOT NULL CHECK (kind IN ('edge', 'link')),
@@ -77,7 +77,7 @@ CREATE TABLE knowledge.note_links (
                     )) OR
                     (kind = 'link' AND edge_type IS NULL)
                   ),
-    UNIQUE (src_note_id, target_id, kind, edge_type)
+    UNIQUE (src_note_fk, target_id, kind, edge_type)
 );
 
 CREATE INDEX note_links_target    ON knowledge.note_links (target_id);

@@ -46,9 +46,9 @@ class KnowledgeStore:
                 select(Note.id).where(Note.path == path)
             ).scalar_one_or_none()
             if existing is not None:
-                self.session.execute(delete(Chunk).where(Chunk.note_id == existing))
+                self.session.execute(delete(Chunk).where(Chunk.note_fk == existing))
                 self.session.execute(
-                    delete(NoteLink).where(NoteLink.src_note_id == existing)
+                    delete(NoteLink).where(NoteLink.src_note_fk == existing)
                 )
                 self.session.execute(delete(Note).where(Note.id == existing))
                 self.session.flush()
@@ -74,7 +74,7 @@ class KnowledgeStore:
             for chunk, vector in zip(chunks, vectors, strict=True):
                 self.session.add(
                     Chunk(
-                        note_id=note.id,
+                        note_fk=note.id,
                         chunk_index=chunk["index"],
                         section_header=chunk["section_header"],
                         chunk_text=chunk["text"],
@@ -86,7 +86,7 @@ class KnowledgeStore:
             for link in links:
                 self.session.add(
                     NoteLink(
-                        src_note_id=note.id,
+                        src_note_fk=note.id,
                         target_id=link.target,
                         target_title=link.display,
                         kind="link",
@@ -99,7 +99,7 @@ class KnowledgeStore:
                 for target in targets:
                     self.session.add(
                         NoteLink(
-                            src_note_id=note.id,
+                            src_note_fk=note.id,
                             target_id=target,
                             target_title=None,
                             kind="edge",
@@ -117,7 +117,7 @@ class KnowledgeStore:
         if existing is None:
             logger.info("knowledge: delete_note called for absent path %s", path)
             return
-        self.session.execute(delete(Chunk).where(Chunk.note_id == existing))
-        self.session.execute(delete(NoteLink).where(NoteLink.src_note_id == existing))
+        self.session.execute(delete(Chunk).where(Chunk.note_fk == existing))
+        self.session.execute(delete(NoteLink).where(NoteLink.src_note_fk == existing))
         self.session.execute(delete(Note).where(Note.id == existing))
         self.session.commit()
