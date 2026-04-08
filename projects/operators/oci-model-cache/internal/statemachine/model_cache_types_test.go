@@ -37,8 +37,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// newMC returns a minimal *v1alpha1.ModelCache for state construction.
-func newMC() *v1alpha1.ModelCache {
+// newMCForTypes returns a minimal *v1alpha1.ModelCache for types test state construction.
+func newMCForTypes() *v1alpha1.ModelCache {
 	return &v1alpha1.ModelCache{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-mc",
@@ -183,7 +183,7 @@ var _ = Describe("ErrorInfo Validate", func() {
 var _ = Describe("ModelCachePending", func() {
 	var mc *v1alpha1.ModelCache
 
-	BeforeEach(func() { mc = newMC() })
+	BeforeEach(func() { mc = newMCForTypes() })
 
 	It("Phase returns Pending", func() {
 		Expect(ModelCachePending{resource: mc}.Phase()).To(Equal(PhasePending))
@@ -209,7 +209,7 @@ var _ = Describe("ModelCachePending", func() {
 var _ = Describe("ModelCacheResolving", func() {
 	var mc *v1alpha1.ModelCache
 
-	BeforeEach(func() { mc = newMC() })
+	BeforeEach(func() { mc = newMCForTypes() })
 
 	It("Phase returns Resolving", func() {
 		s := ModelCacheResolving{resource: mc, ResolveResult: validRR()}
@@ -244,7 +244,7 @@ var _ = Describe("ModelCacheResolving", func() {
 var _ = Describe("ModelCacheSyncing", func() {
 	var mc *v1alpha1.ModelCache
 
-	BeforeEach(func() { mc = newMC() })
+	BeforeEach(func() { mc = newMCForTypes() })
 
 	It("Phase returns Syncing", func() {
 		s := ModelCacheSyncing{
@@ -310,7 +310,7 @@ var _ = Describe("ModelCacheSyncing", func() {
 var _ = Describe("ModelCacheReady Validate", func() {
 	var mc *v1alpha1.ModelCache
 
-	BeforeEach(func() { mc = newMC() })
+	BeforeEach(func() { mc = newMCForTypes() })
 
 	It("Phase returns Ready", func() {
 		s := ModelCacheReady{resource: mc, ResolveResult: validRR()}
@@ -372,7 +372,7 @@ var _ = Describe("ModelCacheReady Validate", func() {
 var _ = Describe("ModelCacheFailed", func() {
 	var mc *v1alpha1.ModelCache
 
-	BeforeEach(func() { mc = newMC() })
+	BeforeEach(func() { mc = newMCForTypes() })
 
 	It("Phase returns Failed", func() {
 		s := ModelCacheFailed{
@@ -416,7 +416,7 @@ var _ = Describe("ModelCacheFailed", func() {
 var _ = Describe("ModelCacheUnknown", func() {
 	var mc *v1alpha1.ModelCache
 
-	BeforeEach(func() { mc = newMC() })
+	BeforeEach(func() { mc = newMCForTypes() })
 
 	It("Phase returns Unknown", func() {
 		s := ModelCacheUnknown{resource: mc, ObservedPhase: "x"}
@@ -452,7 +452,7 @@ var _ = Describe("ModelCacheUnknown", func() {
 
 var _ = Describe("ModelCache state RequeueAfter values", func() {
 	var mc *v1alpha1.ModelCache
-	BeforeEach(func() { mc = newMC() })
+	BeforeEach(func() { mc = newMCForTypes() })
 
 	DescribeTable("RequeueAfter returns the expected duration for each state",
 		func(state ModelCacheState, expected time.Duration) {
