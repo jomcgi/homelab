@@ -2,6 +2,7 @@
 # gazelle:exclude app
 # gazelle:exclude e2e
 # gazelle:exclude home
+# gazelle:exclude knowledge
 # gazelle:exclude notes
 # gazelle:exclude scripts
 # gazelle:exclude shared
@@ -73,6 +74,7 @@ py_library(
         "@pip//pydantic",
         "@pip//pydantic_ai_slim",
         "@pip//pyyaml",
+        "@pip//sqlalchemy",
         "@pip//sqlmodel",
         "@pip//tzdata",
         "@pip//uvicorn",
