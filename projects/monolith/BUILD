@@ -148,6 +148,20 @@ py_test(
 )
 
 py_test(
+    name = "shared_service_extra_test",
+    srcs = ["shared/service_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//icalendar",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
     name = "shared_router_test",
     srcs = ["shared/router_test.py"],
     imports = ["."],
@@ -533,6 +547,18 @@ py_test(
 )
 
 py_test(
+    name = "chat_changelog_fetch_test",
+    srcs = ["chat/changelog_fetch_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "chat_summarizer_test",
     srcs = ["chat/summarizer_test.py"],
     imports = ["."],
@@ -885,6 +911,18 @@ py_test(
 py_test(
     name = "chat_startup_test",
     srcs = ["chat/startup_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "chat_summarizer_startup_test",
+    srcs = ["chat/summarizer_startup_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -1540,6 +1578,18 @@ py_test(
 py_test(
     name = "shared_scheduler_loop_test",
     srcs = ["shared/scheduler_loop_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "shared_scheduler_tick_missing_job_test",
+    srcs = ["shared/scheduler_tick_missing_job_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
