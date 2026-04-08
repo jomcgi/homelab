@@ -53,8 +53,8 @@ func TestPodToModelCacheRequests_UnrelatedAnnotationsOnly(t *testing.T) {
 			Name:      "test-pod",
 			Namespace: "default",
 			Annotations: map[string]string{
-				"some.other/annotation":          "value",
-				"linkerd.io/inject":              "disabled",
+				"some.other/annotation":                            "value",
+				"linkerd.io/inject":                                "disabled",
 				"kubectl.kubernetes.io/last-applied-configuration": "{}",
 			},
 		},
