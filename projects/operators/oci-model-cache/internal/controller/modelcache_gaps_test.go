@@ -89,7 +89,7 @@ func TestSetupWithManager_SchemeIncomplete_ReturnsError(t *testing.T) {
 	// Specifically: scheme.ObjectKinds(&v1alpha1.ModelCache{}) returns an error
 	// when ModelCache is not registered — this is the error path SetupWithManager
 	// would return when For(&v1alpha1.ModelCache{}) is called with such a scheme.
-	_, err := incompleteScheme.ObjectKinds(&v1alpha1.ModelCache{})
+	_, _, err := incompleteScheme.ObjectKinds(&v1alpha1.ModelCache{})
 	require.Error(t, err,
 		"ObjectKinds must fail for ModelCache when v1alpha1 is not in the scheme — "+
 			"this is the error SetupWithManager would propagate from ctrl.Builder.For()")
