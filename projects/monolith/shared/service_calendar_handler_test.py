@@ -101,17 +101,22 @@ class TestCalendarPollHandler:
 
 
 class TestOnStartup:
+    # on_startup() does a local import: `from shared.scheduler import register_job`
+    # so register_job is looked up in shared.scheduler at call time.
+    # We must patch shared.scheduler.register_job (where the name is bound),
+    # not shared.service.register_job (which does not exist at module level).
+
     def test_calls_register_job_once(self):
         """on_startup() calls register_job() exactly once."""
         mock_session = MagicMock()
-        with patch("shared.service.register_job") as mock_register:
+        with patch("shared.scheduler.register_job") as mock_register:
             on_startup(mock_session)
         mock_register.assert_called_once()
 
     def test_passes_session_to_register_job(self):
         """on_startup() forwards its session argument as the first positional arg."""
         mock_session = MagicMock()
-        with patch("shared.service.register_job") as mock_register:
+        with patch("shared.scheduler.register_job") as mock_register:
             on_startup(mock_session)
         positional_args, _ = mock_register.call_args
         assert positional_args[0] is mock_session
@@ -119,7 +124,7 @@ class TestOnStartup:
     def test_job_name_is_shared_calendar_poll(self):
         """The registered job name is 'shared.calendar_poll'."""
         mock_session = MagicMock()
-        with patch("shared.service.register_job") as mock_register:
+        with patch("shared.scheduler.register_job") as mock_register:
             on_startup(mock_session)
         _, kwargs = mock_register.call_args
         assert kwargs["name"] == "shared.calendar_poll"
@@ -127,7 +132,7 @@ class TestOnStartup:
     def test_interval_secs_is_900(self):
         """Calendar poll runs every 900 seconds (15 minutes)."""
         mock_session = MagicMock()
-        with patch("shared.service.register_job") as mock_register:
+        with patch("shared.scheduler.register_job") as mock_register:
             on_startup(mock_session)
         _, kwargs = mock_register.call_args
         assert kwargs["interval_secs"] == 900
@@ -135,7 +140,7 @@ class TestOnStartup:
     def test_ttl_secs_is_120(self):
         """Calendar poll job TTL is 120 seconds."""
         mock_session = MagicMock()
-        with patch("shared.service.register_job") as mock_register:
+        with patch("shared.scheduler.register_job") as mock_register:
             on_startup(mock_session)
         _, kwargs = mock_register.call_args
         assert kwargs["ttl_secs"] == 120
@@ -143,7 +148,7 @@ class TestOnStartup:
     def test_handler_is_calendar_poll_handler(self):
         """The registered handler is calendar_poll_handler."""
         mock_session = MagicMock()
-        with patch("shared.service.register_job") as mock_register:
+        with patch("shared.scheduler.register_job") as mock_register:
             on_startup(mock_session)
         _, kwargs = mock_register.call_args
         assert kwargs["handler"] is calendar_poll_handler
