@@ -319,7 +319,7 @@ var _ = Describe("CloudflareAccessPolicy Controller Coverage", func() {
 				Spec: tunnelsv1.CloudflareAccessPolicySpec{
 					Application: tunnelsv1.ApplicationConfig{
 						Name: "Test App",
-						CORSHeaders: &tunnelsv1.CORSConfig{
+						CORSHeaders: &tunnelsv1.CORSHeaders{
 							AllowAllOrigins:  true,
 							AllowedOrigins:   []string{"https://example.com"},
 							AllowedMethods:   []string{"GET", "POST"},
