@@ -31,6 +31,7 @@ py_venv_binary(
             "app/**/*.py",
             "chat/**/*.py",
             "home/**/*.py",
+            "knowledge/**/*.py",
             "notes/**/*.py",
             "shared/**/*.py",
         ],
@@ -51,6 +52,7 @@ py_library(
             "app/**/*.py",
             "chat/**/*.py",
             "home/**/*.py",
+            "knowledge/**/*.py",
             "notes/**/*.py",
             "shared/**/*.py",
         ],
@@ -70,6 +72,7 @@ py_library(
         "@pip//psycopg_binary",
         "@pip//pydantic",
         "@pip//pydantic_ai_slim",
+        "@pip//pyyaml",
         "@pip//sqlmodel",
         "@pip//tzdata",
         "@pip//uvicorn",
@@ -1672,6 +1675,17 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "knowledge_frontmatter_test",
+    srcs = ["knowledge/frontmatter_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pyyaml",
     ],
 )
 
