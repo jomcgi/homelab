@@ -84,7 +84,7 @@ class TestReconciler:
         assert note.note_id == "hello-world"
 
     @pytest.mark.asyncio
-    async def test_readonly_vault_uses_ephemeral_id(
+    async def test_readonly_vault_with_missing_id_skips_file(
         self, reconciler, session, tmp_path, monkeypatch
     ):
         _write(tmp_path, "a.md", "---\ntitle: Read Only\n---\nBody.")
@@ -98,10 +98,12 @@ class TestReconciler:
             return original_write(self, *a, **kw)
 
         monkeypatch.setattr(Path, "write_text", deny)
-        await reconciler.run()
-        note = session.scalars(select(Note)).first()
-        assert note.note_id.startswith("read-only-")
-        assert len(note.note_id) > len("read-only-")  # hash suffix appended
+        # The read-only error is classified as a partial failure: the
+        # outer run() loop catches it, continues, and re-raises at the
+        # end. The file must NOT have been ingested.
+        with pytest.raises(Exception):
+            await reconciler.run()
+        assert list(session.scalars(select(Note))) == []
 
     @pytest.mark.asyncio
     async def test_edges_block_persists_typed_links(
