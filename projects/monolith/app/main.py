@@ -59,9 +59,11 @@ async def lifespan(app: FastAPI):
     # Register all scheduled jobs
     with Session(get_engine()) as session:
         from home.service import on_startup as home_startup
+        from knowledge.service import on_startup as knowledge_startup
         from shared.service import on_startup as shared_startup
 
         home_startup(session)
+        knowledge_startup(session)
         shared_startup(session)
 
     # Start Discord bot + chat jobs if configured
