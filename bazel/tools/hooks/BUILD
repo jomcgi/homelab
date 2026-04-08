@@ -117,3 +117,9 @@ sh_test(
     srcs = ["check-hardcoded-llm-model_test.sh"],
     data = [":check-hardcoded-llm-model.sh"],
 )
+
+sh_test(
+    name = "check_crd_phase_enum_test",
+    srcs = ["check-crd-phase-enum_test.sh"],
+    data = [":check-crd-phase-enum.sh"],
+)
