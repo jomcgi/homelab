@@ -119,7 +119,7 @@ spec:
                   key: password
           readinessProbe:
             exec:
-              command: ["test", "-d", "{{ .Values.knowledge.vault.mountPath }}/.obsidian"]
+              command: ["test", "-f", "/tmp/ready"]
             initialDelaySeconds: 5
             periodSeconds: 10
           volumeMounts:
