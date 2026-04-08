@@ -40,6 +40,7 @@ go_test(
         "job_result_test.go",
         "modelcache_controller_test.go",
         "modelcache_coverage_test.go",
+        "modelcache_ungate_coverage_test.go",
         "pod_ungater_test.go",
         "resolver_test.go",
     ],
