@@ -374,3 +374,99 @@ func TestEnsureModelCache_AlreadyExists_ModelNotReady_Gates(t *testing.T) {
 	assert.True(t, hasPatchPath(resp, "/spec/schedulingGates"),
 		"pod should be gated when re-fetched model is not Ready")
 }
+
+// --- Test 3: Handle with non-HF Image volume ---
+
+// TestHandle_NonHFImageVolume_AllowedWithNoPatches verifies that when a pod has
+// an Image volume whose reference is NOT an hf.co URL, the webhook skips it and
+// returns Allowed without any mutations.
+//
+// This covers the `if !ok { continue }` branch in Handle() where
+// hfref.Parse returns ok=false for non-hf.co image references.
+func TestHandle_NonHFImageVolume_AllowedWithNoPatches(t *testing.T) {
+	s := newScheme()
+	k8sClient := fake.NewClientBuilder().WithScheme(s).Build()
+
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("HF API should not be called for non-HF volumes")
+	}))
+	defer hfSrv.Close()
+
+	mutator := &PodMutator{
+		Client:   k8sClient,
+		Decoder:  admission.NewDecoder(s),
+		Registry: "ghcr.io/test",
+		HFClient: hf.NewClient(hf.WithBaseURL(hfSrv.URL)),
+	}
+
+	// Pod with an Image volume pointing to a non-HF OCI reference.
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "default"},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "main", Image: "busybox"}},
+			Volumes: []corev1.Volume{
+				{
+					Name: "non-hf-model",
+					VolumeSource: corev1.VolumeSource{
+						Image: &corev1.ImageVolumeSource{
+							Reference: "ghcr.io/some-org/some-model:latest",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	resp := mutator.Handle(context.Background(), makeAdmissionRequestCoverage(t, pod))
+
+	require.True(t, resp.Allowed, "admission should be allowed for non-HF volumes")
+	assert.Empty(t, resp.Patches, "non-HF image volume should produce no patches")
+	assert.Contains(t, resp.Result.Message, "no hf.co volumes",
+		"response message should indicate no HF volumes were found")
+}
+
+// --- Test 4: Handle with ensureModelCache returning a non-NotFound error ---
+
+// TestHandle_EnsureModelCache_GetError_ContinuesBestEffort verifies that when
+// ensureModelCache's Get call fails with a non-NotFound error (e.g. server error),
+// the webhook logs the error, skips that volume, and still admits the pod.
+//
+// This covers the `if err != nil { log.Error; continue }` branch in Handle().
+func TestHandle_EnsureModelCache_GetError_ContinuesBestEffort(t *testing.T) {
+	s := newScheme()
+
+	getErr := apierrors.NewBadRequest("server not available")
+
+	intercepted := fake.NewClientBuilder().
+		WithScheme(s).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				if _, ok := obj.(*v1alpha1.ModelCache); ok {
+					// Return a server error (not NotFound) to exercise the error path.
+					return getErr
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("HF API should not be called when Get fails")
+	}))
+	defer hfSrv.Close()
+
+	mutator := &PodMutator{
+		Client:   intercepted,
+		Decoder:  admission.NewDecoder(s),
+		Registry: "ghcr.io/test",
+		HFClient: hf.NewClient(hf.WithBaseURL(hfSrv.URL)),
+	}
+
+	pod := podWithHFVolume("Org/Model")
+	resp := mutator.Handle(context.Background(), makeAdmissionRequestCoverage(t, pod))
+
+	// The webhook should still admit the pod — ensureModelCache errors are not fatal.
+	require.True(t, resp.Allowed, "admission must be allowed even when ensureModelCache fails")
+	// Since the volume was skipped (no successful mutation), no patches should be added.
+	assert.Empty(t, resp.Patches, "no patches when volume processing is skipped due to error")
+}
