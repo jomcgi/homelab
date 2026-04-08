@@ -229,6 +229,11 @@
           },
           {
             "type": "command",
+            "command": "bazel/tools/hooks/check-crd-phase-enum.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "bazel/tools/hooks/check-npm-apko-transitive-deps.sh",
             "timeout": 5
           }
