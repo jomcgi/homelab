@@ -133,9 +133,7 @@ class TestRunSchedulerLoopIterations:
 
         with (
             patch("shared.scheduler._tick", side_effect=tick_side_effect),
-            patch(
-                "shared.scheduler.asyncio.sleep", side_effect=sleep_side_effect
-            ),
+            patch("shared.scheduler.asyncio.sleep", side_effect=sleep_side_effect),
         ):
             with pytest.raises(KeyboardInterrupt):
                 await run_scheduler_loop(poll_interval=0)
@@ -164,9 +162,7 @@ class TestRunSchedulerLoopIterations:
 
         with (
             patch("shared.scheduler._tick", side_effect=tick_side_effect),
-            patch(
-                "shared.scheduler.asyncio.sleep", side_effect=sleep_side_effect
-            ),
+            patch("shared.scheduler.asyncio.sleep", side_effect=sleep_side_effect),
         ):
             with pytest.raises(KeyboardInterrupt):
                 await run_scheduler_loop(poll_interval=0)
@@ -194,9 +190,7 @@ class TestRunSchedulerLoopIterations:
 
         with (
             patch("shared.scheduler._tick", side_effect=tick_side_effect),
-            patch(
-                "shared.scheduler.asyncio.sleep", side_effect=sleep_side_effect
-            ),
+            patch("shared.scheduler.asyncio.sleep", side_effect=sleep_side_effect),
         ):
             with pytest.raises(KeyboardInterrupt):
                 await run_scheduler_loop(poll_interval=15)

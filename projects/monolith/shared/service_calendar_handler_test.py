@@ -63,9 +63,7 @@ class TestCalendarPollHandler:
     async def test_return_value_is_always_none_regardless_of_poll_result(self):
         """Return value is None even if poll_calendar() returns a non-None value."""
         mock_session = MagicMock()
-        with patch(
-            "shared.service.poll_calendar", new_callable=AsyncMock
-        ) as mock_poll:
+        with patch("shared.service.poll_calendar", new_callable=AsyncMock) as mock_poll:
             mock_poll.return_value = "unexpected"
             result = await calendar_poll_handler(mock_session)
         assert result is None
