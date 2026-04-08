@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from sqlmodel import Session, delete, select
@@ -10,6 +11,8 @@ from knowledge.frontmatter import ParsedFrontmatter
 from knowledge.links import Link
 from knowledge.models import Chunk, Note, NoteLink
 from shared.chunker import Chunk as ChunkPayload
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeStore:
@@ -112,6 +115,7 @@ class KnowledgeStore:
             select(Note.id).where(Note.path == path)
         ).scalar_one_or_none()
         if existing is None:
+            logger.info("knowledge: delete_note called for absent path %s", path)
             return
         self.session.execute(delete(Chunk).where(Chunk.note_id == existing))
         self.session.execute(delete(NoteLink).where(NoteLink.src_note_id == existing))
