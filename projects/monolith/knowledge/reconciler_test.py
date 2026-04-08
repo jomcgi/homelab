@@ -8,7 +8,21 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
 from knowledge.models import Chunk, Note, NoteLink
-from knowledge.reconciler import Reconciler
+from knowledge.reconciler import Reconciler, ReconcileStats
+
+
+def _stats(
+    *, upserted=0, deleted=0, unchanged=0, failed=0, skipped_locked=0
+) -> ReconcileStats:
+    return ReconcileStats(
+        upserted=upserted,
+        deleted=deleted,
+        unchanged=unchanged,
+        failed=failed,
+        skipped_locked=skipped_locked,
+    )
+
+
 from knowledge.store import KnowledgeStore
 
 
@@ -66,13 +80,13 @@ class TestReconciler:
     @pytest.mark.asyncio
     async def test_empty_vault(self, reconciler):
         result = await reconciler.run()
-        assert result == (0, 0, 0)
+        assert result == _stats()
 
     @pytest.mark.asyncio
     async def test_adds_one_file_with_id(self, reconciler, session, tmp_path):
         _write(tmp_path, "a.md", "---\nid: a-id\ntitle: A\n---\nBody.")
         result = await reconciler.run()
-        assert result == (1, 0, 0)
+        assert result == _stats(upserted=1)
         notes = list(session.scalars(select(Note)))
         assert len(notes) == 1
         assert notes[0].title == "A"
@@ -129,7 +143,7 @@ class TestReconciler:
         await reconciler.run()
         embed_client.embed_batch.reset_mock()
         result = await reconciler.run()
-        assert result == (0, 0, 1)
+        assert result == _stats(unchanged=1)
         embed_client.embed_batch.assert_not_called()
 
     @pytest.mark.asyncio
@@ -138,7 +152,7 @@ class TestReconciler:
         await reconciler.run()
         _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\nv2.")
         result = await reconciler.run()
-        assert result == (1, 0, 0)
+        assert result == _stats(upserted=1)
 
     @pytest.mark.asyncio
     async def test_edited_frontmatter_only_re_embeds(
@@ -148,7 +162,7 @@ class TestReconciler:
         await reconciler.run()
         _write(tmp_path, "a.md", "---\nid: a\ntitle: A\ntype: paper\n---\nBody.")
         result = await reconciler.run()
-        assert result == (1, 0, 0)
+        assert result == _stats(upserted=1)
         note = session.scalars(select(Note)).first()
         assert note.type == "paper"
 
@@ -158,7 +172,7 @@ class TestReconciler:
         await reconciler.run()
         (tmp_path / "_processed" / "a.md").unlink()
         result = await reconciler.run()
-        assert result == (0, 1, 0)
+        assert result == _stats(deleted=1)
         assert list(session.scalars(select(Note))) == []
         assert list(session.scalars(select(Chunk))) == []
 
@@ -176,7 +190,7 @@ class TestReconciler:
         # defaults.
         _write(tmp_path, "a.md", "---\ntitle: [unterminated\n---\nBody.")
         result = await reconciler.run()
-        assert result == (0, 0, 0)
+        assert result == _stats(failed=1)
         preserved = session.scalars(select(Note)).first()
         assert preserved.title == "Good"
         assert preserved.note_id == "a"
@@ -187,7 +201,7 @@ class TestReconciler:
     ):
         _write(tmp_path, "a.md", "---\ntitle: [unterminated\n---\nBody.")
         result = await reconciler.run()
-        assert result == (0, 0, 0)
+        assert result == _stats(failed=1)
         assert list(session.scalars(select(Note))) == []
 
     @pytest.mark.asyncio
@@ -265,5 +279,5 @@ class TestReconciler:
 
         reconciler._read_text = vanish  # type: ignore[attr-defined]
         result = await reconciler.run()
-        assert result[0] == 0
+        assert result.upserted == 0
         reconciler._read_text = original  # type: ignore[attr-defined]

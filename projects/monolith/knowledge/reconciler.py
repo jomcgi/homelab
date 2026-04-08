@@ -6,6 +6,7 @@ import hashlib
 import logging
 import re
 import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
@@ -19,6 +20,23 @@ from shared.chunker import chunk_markdown
 logger = logging.getLogger("monolith.knowledge.reconciler")
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+
+@dataclass(frozen=True)
+class ReconcileStats:
+    """Per-cycle outcome counts.
+
+    `skipped_locked` tracks files where pg_try_advisory_xact_lock
+    returned false (another reconciler is processing). This is always
+    zero in the SQLite unit-test fixture because the advisory-lock
+    branch is guarded by `session.bind.dialect.name == "postgresql"`.
+    """
+
+    upserted: int
+    deleted: int
+    unchanged: int
+    failed: int
+    skipped_locked: int
 
 
 class ReadOnlyVaultError(Exception):
@@ -47,8 +65,8 @@ class Reconciler:
         self.vault_root = Path(vault_root)
         self.processed_root = self.vault_root / "_processed"
 
-    async def run(self) -> tuple[int, int, int]:
-        """Returns (upserted, deleted, unchanged)."""
+    async def run(self) -> ReconcileStats:
+        """Reconcile the vault. Returns a ReconcileStats breakdown."""
         indexed = self.store.get_indexed()
         on_disk = self._walk(previous_indexed=indexed)
 
@@ -56,7 +74,15 @@ class Reconciler:
             path for path, h in on_disk.items() if indexed.get(path) != h
         )
         to_delete = sorted(path for path in indexed if path not in on_disk)
-        unchanged = len(on_disk) - len(to_upsert)
+        # Count files with a matching hash explicitly rather than deriving
+        # from (on_disk - to_upsert) — the derived formula miscounts failed
+        # files as "unchanged".
+        unchanged = sum(1 for path, h in on_disk.items() if indexed.get(path) == h)
+
+        upserted = 0
+        deleted = 0
+        failed = 0
+        skipped_locked = 0
 
         first_error: BaseException | None = None
         for path in to_delete:
@@ -65,6 +91,7 @@ class Reconciler:
                 self.store.delete_note(path)
             except Exception as exc:  # noqa: BLE001 — partial-failure isolation
                 logger.exception("knowledge: failed to delete %s, continuing", path)
+                failed += 1
                 if first_error is None:
                     first_error = exc
                 try:
@@ -72,8 +99,8 @@ class Reconciler:
                 except Exception:  # noqa: BLE001
                     logger.exception("knowledge: rollback after delete failure failed")
                 continue
+            deleted += 1
 
-        upserted = 0
         for path in to_upsert:
             try:
                 ingested = await self._ingest_one(path, on_disk[path])
@@ -89,6 +116,7 @@ class Reconciler:
                     path,
                     exc,
                 )
+                failed += 1
                 try:
                     self.store.session.rollback()
                 except Exception:  # noqa: BLE001
@@ -98,6 +126,7 @@ class Reconciler:
                 continue
             except Exception as exc:  # noqa: BLE001 — partial-failure isolation
                 logger.exception("knowledge: failed to ingest %s, continuing", path)
+                failed += 1
                 if first_error is None:
                     first_error = exc
                 # Roll back any uncommitted state from the failed ingest so
@@ -109,16 +138,29 @@ class Reconciler:
                 continue
             if ingested:
                 upserted += 1
+            else:
+                # _ingest_one returns False for the advisory-lock-busy
+                # branch (postgres only). Unreachable in sqlite tests.
+                skipped_locked += 1
 
+        stats = ReconcileStats(
+            upserted=upserted,
+            deleted=deleted,
+            unchanged=unchanged,
+            failed=failed,
+            skipped_locked=skipped_locked,
+        )
         logger.info(
-            "knowledge: reconciled upserted=%d deleted=%d unchanged=%d",
-            upserted,
-            len(to_delete),
-            unchanged,
+            "knowledge: reconciled upserted=%d deleted=%d unchanged=%d failed=%d skipped_locked=%d",
+            stats.upserted,
+            stats.deleted,
+            stats.unchanged,
+            stats.failed,
+            stats.skipped_locked,
         )
         if first_error is not None:
             raise first_error
-        return upserted, len(to_delete), unchanged
+        return stats
 
     def _walk(self, *, previous_indexed: dict[str, str]) -> dict[str, str]:
         if not self.processed_root.exists():
@@ -171,10 +213,7 @@ class Reconciler:
                 return False
 
         abs_path = self.vault_root / rel_path
-        try:
-            raw = self._read_text(abs_path)
-        except UnicodeDecodeError:
-            return False
+        raw = self._read_text(abs_path)
 
         meta, body = frontmatter.parse(raw)
         title = meta.title or Path(rel_path).stem
