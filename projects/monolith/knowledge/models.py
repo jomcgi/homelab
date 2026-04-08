@@ -2,7 +2,7 @@
 
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pgvector.sqlalchemy import Vector
 from pydantic import field_validator
@@ -10,6 +10,18 @@ from sqlalchemy import JSON, Column, String
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
+
+# Mirror of the CHECK constraint in
+# chart/migrations/20260408000000_knowledge_schema.sql - keep in sync.
+EdgeType = Literal[
+    "refines",
+    "generalizes",
+    "related",
+    "contradicts",
+    "derives_from",
+    "supersedes",
+]
+LinkKind = Literal["link", "edge"]
 
 # Postgres uses native TEXT[] for tags/aliases; SQLite falls back to JSON
 # so the in-memory test fixture can create the tables.
@@ -66,5 +78,26 @@ class NoteLink(SQLModel, table=True):
     src_note_id: int = Field(foreign_key="knowledge.notes.id")
     target_id: str  # target note_id (frontmatter id) or raw wikilink target
     target_title: str | None = None
-    kind: str  # 'edge' | 'link'
-    edge_type: str | None = None  # set when kind='edge', NULL when kind='link'
+    # LinkKind / EdgeType are Literals for static-analysis + the
+    # __init__ validator below. At the SQL level they're plain TEXT,
+    # matching the migration's CHECK constraint.
+    kind: LinkKind = Field(sa_column=Column(String, nullable=False))
+    edge_type: EdgeType | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+
+    def __init__(self, **data: Any) -> None:
+        # SQLModel table models skip pydantic validators in __init__, so
+        # enforce the discriminated-union invariant manually. This
+        # catches typos with a Python stack trace pointing at the call
+        # site instead of waiting for the Postgres CHECK violation.
+        kind = data.get("kind")
+        edge_type = data.get("edge_type")
+        if kind == "link" and edge_type is not None:
+            raise ValueError(
+                f"NoteLink.kind='link' requires edge_type=None, "
+                f"got edge_type={edge_type!r}"
+            )
+        if kind == "edge" and edge_type is None:
+            raise ValueError("NoteLink.kind='edge' requires a non-None edge_type")
+        super().__init__(**data)

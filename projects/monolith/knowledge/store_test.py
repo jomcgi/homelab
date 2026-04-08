@@ -195,6 +195,26 @@ class TestUpsertAtomicity:
         assert notes[0].content_hash == "h1"
 
 
+class TestNoteLinkValidation:
+    def test_notelink_rejects_link_with_edge_type(self):
+        with pytest.raises(ValueError, match="kind='link' requires edge_type=None"):
+            NoteLink(
+                src_note_id=1,
+                target_id="B",
+                kind="link",
+                edge_type="refines",
+            )
+
+    def test_notelink_rejects_edge_without_edge_type(self):
+        with pytest.raises(ValueError, match="kind='edge' requires"):
+            NoteLink(
+                src_note_id=1,
+                target_id="B",
+                kind="edge",
+                edge_type=None,
+            )
+
+
 class TestDeleteNote:
     def test_cascade_removes_chunks_and_links(self, store, session):
         _upsert(
