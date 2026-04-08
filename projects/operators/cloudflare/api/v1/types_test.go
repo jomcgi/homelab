@@ -1552,6 +1552,149 @@ func TestCloudflareAccessPolicyListDeepCopy(t *testing.T) {
 	}
 }
 
+// TestCloudflareAccessPolicyListJSONRoundTrip verifies that CloudflareAccessPolicyList
+// serializes and deserializes correctly for the empty, single-item, and multi-item
+// cases. This is the list-level companion to TestCloudflareAccessPolicyJSONRoundTrip.
+func TestCloudflareAccessPolicyListJSONRoundTrip(t *testing.T) {
+	productionNS := gatewayv1.Namespace("production")
+	tests := []struct {
+		name string
+		list CloudflareAccessPolicyList
+	}{
+		{
+			name: "empty list",
+			list: CloudflareAccessPolicyList{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "tunnels.cloudflare.io/v1",
+					Kind:       "CloudflareAccessPolicyList",
+				},
+				Items: []CloudflareAccessPolicy{},
+			},
+		},
+		{
+			name: "single-item list",
+			list: CloudflareAccessPolicyList{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "tunnels.cloudflare.io/v1",
+					Kind:       "CloudflareAccessPolicyList",
+				},
+				Items: []CloudflareAccessPolicy{
+					{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "tunnels.cloudflare.io/v1",
+							Kind:       "CloudflareAccessPolicy",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "policy-one",
+							Namespace: "default",
+						},
+						Spec: CloudflareAccessPolicySpec{
+							TargetRef: PolicyTargetReference{
+								Group: "gateway.networking.k8s.io",
+								Kind:  "HTTPRoute",
+								Name:  "my-route",
+							},
+							Policies: []AccessPolicy{
+								{
+									Decision: "allow",
+									Rules:    []AccessPolicyRule{{Emails: []string{"user@example.com"}}},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multi-item list with status populated",
+			list: CloudflareAccessPolicyList{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "tunnels.cloudflare.io/v1",
+					Kind:       "CloudflareAccessPolicyList",
+				},
+				Items: []CloudflareAccessPolicy{
+					{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "tunnels.cloudflare.io/v1",
+							Kind:       "CloudflareAccessPolicy",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "policy-alpha",
+							Namespace: "default",
+						},
+						Spec: CloudflareAccessPolicySpec{
+							TargetRef: PolicyTargetReference{
+								Group: "gateway.networking.k8s.io",
+								Kind:  "HTTPRoute",
+								Name:  "route-alpha",
+							},
+							Policies: []AccessPolicy{{Decision: "allow", Rules: []AccessPolicyRule{{Emails: []string{"a@example.com"}}}}},
+						},
+						Status: CloudflareAccessPolicyStatus{
+							ApplicationID: "app-alpha-id",
+						},
+					},
+					{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "tunnels.cloudflare.io/v1",
+							Kind:       "CloudflareAccessPolicy",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "policy-beta",
+							Namespace: "production",
+						},
+						Spec: CloudflareAccessPolicySpec{
+							TargetRef: PolicyTargetReference{
+								Group:     "gateway.networking.k8s.io",
+								Kind:      "Gateway",
+								Name:      "main-gw",
+								Namespace: &productionNS,
+							},
+							Application: ApplicationConfig{
+								Name:            "Beta App",
+								SessionDuration: "8h",
+							},
+							Policies: []AccessPolicy{
+								{
+									Name:     "beta-allow",
+									Decision: "allow",
+									Rules:    []AccessPolicyRule{{EmailDomains: []string{"company.com"}}},
+								},
+								{
+									Name:     "beta-deny",
+									Decision: "deny",
+									Rules:    []AccessPolicyRule{{Countries: []string{"XX"}}},
+								},
+							},
+						},
+						Status: CloudflareAccessPolicyStatus{
+							ApplicationID: "app-beta-id",
+							PolicyIDs:     []string{"pol-beta-1", "pol-beta-2"},
+							TargetDomain:  "beta.example.com",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.list)
+			if err != nil {
+				t.Fatalf("Marshal() error = %v", err)
+			}
+			var got CloudflareAccessPolicyList
+			if err := json.Unmarshal(data, &got); err != nil {
+				t.Fatalf("Unmarshal() error = %v", err)
+			}
+			if !reflect.DeepEqual(tt.list, got) {
+				t.Errorf("round-trip mismatch:\n  want: %+v\n  got:  %+v", tt.list, got)
+			}
+		})
+	}
+}
+
 func TestCloudflareTunnelSpecDeepCopy(t *testing.T) {
 	orig := &CloudflareTunnelSpec{
 		AccountID: "acct-1",
