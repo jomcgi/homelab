@@ -30,12 +30,16 @@ async def reconcile_handler(session: Session) -> datetime | None:
         embed_client=EmbeddingClient(),
         vault_root=vault_root,
     )
-    upserted, deleted, unchanged = await reconciler.run()
+    stats = await reconciler.run()
     logger.info(
-        "knowledge.reconcile: upserted=%d deleted=%d unchanged=%d",
-        upserted,
-        deleted,
-        unchanged,
+        "knowledge.reconcile complete",
+        extra={
+            "upserted": stats.upserted,
+            "deleted": stats.deleted,
+            "unchanged": stats.unchanged,
+            "failed": stats.failed,
+            "skipped_locked": stats.skipped_locked,
+        },
     )
     return None
 
