@@ -84,7 +84,7 @@ chat:
   searxngUrl: "http://monolith-searxng:8080"
   changelog:
     enabled: true
-    channelId: "1375032589093703680"
+    channelId: "1491186550472708117"
     githubRepo: "jomcgi/homelab"
   onepassword:
     itemPath: "vaults/k8s-homelab/items/discord-bot"
