@@ -27,7 +27,9 @@ class TestOnStartupWithNullLlmCall:
         fake_llm = AsyncMock()
 
         with (
-            patch("chat.summarizer.build_llm_caller", return_value=fake_llm) as mock_build,
+            patch(
+                "chat.summarizer.build_llm_caller", return_value=fake_llm
+            ) as mock_build,
             patch("shared.scheduler.register_job"),
         ):
             summarizer.on_startup(session)  # no llm_call kwarg
