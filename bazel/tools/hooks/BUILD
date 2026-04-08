@@ -123,3 +123,9 @@ sh_test(
     srcs = ["check-crd-phase-enum_test.sh"],
     data = [":check-crd-phase-enum.sh"],
 )
+
+sh_test(
+    name = "check_npm_apko_transitive_deps_test",
+    srcs = ["check-npm-apko-transitive-deps_test.sh"],
+    data = [":check-npm-apko-transitive-deps.sh"],
+)
