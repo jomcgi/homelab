@@ -40,6 +40,7 @@ go_test(
         "model_cache_statemachine_test.go",
         "model_cache_status_test.go",
         "model_cache_transitions_test.go",
+        "model_cache_types_test.go",
         "model_cache_visit_test.go",
         "statemachine_test.go",
     ],
