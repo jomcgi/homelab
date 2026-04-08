@@ -39,8 +39,8 @@ class Reconciler:
 
     async def run(self) -> tuple[int, int, int]:
         """Returns (upserted, deleted, unchanged)."""
-        on_disk = self._walk()
         indexed = self.store.get_indexed()
+        on_disk = self._walk(previous_indexed=indexed)
 
         to_upsert = sorted(
             path for path, h in on_disk.items() if indexed.get(path) != h
@@ -94,16 +94,27 @@ class Reconciler:
             raise first_error
         return upserted, len(to_delete), unchanged
 
-    def _walk(self) -> dict[str, str]:
+    def _walk(self, *, previous_indexed: dict[str, str]) -> dict[str, str]:
         if not self.processed_root.exists():
             return {}
         out: dict[str, str] = {}
         for p in self.processed_root.rglob("*.md"):
+            rel = p.relative_to(self.vault_root).as_posix()
             try:
                 data = p.read_bytes()
-            except (FileNotFoundError, PermissionError):
+            except FileNotFoundError:
+                # Genuine race with unlink — let the delete loop handle it
+                # on the next cycle (or this cycle, if get_indexed still
+                # lists it).
                 continue
-            rel = p.relative_to(self.vault_root).as_posix()
+            except (PermissionError, OSError):
+                # Transient read error: carry forward the previous hash so
+                # the file stays in the snapshot under its old hash and is
+                # neither marked for delete nor for re-ingestion.
+                logger.warning("knowledge: skipping unreadable file %s", rel)
+                if rel in previous_indexed:
+                    out[rel] = previous_indexed[rel]
+                continue
             out[rel] = hashlib.sha256(data).hexdigest()
         return out
 
