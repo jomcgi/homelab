@@ -39,9 +39,15 @@ importers:
       "@anthropic-ai/claude-code":
         specifier: ^2.1.71
         version: 2.1.71
+      bindings:
+        specifier: ^1.5.0
+        version: 1.5.0
       express:
         specifier: ^4.22.1
         version: 4.22.1
+      file-uri-to-path:
+        specifier: ^1.0.0
+        version: 1.0.0
       http-proxy-middleware:
         specifier: ^3.0.5
         version: 3.0.5
