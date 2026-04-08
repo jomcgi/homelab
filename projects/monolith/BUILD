@@ -1690,6 +1690,16 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_links_test",
+    srcs = ["knowledge/links_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "chat_bot_thinking_extra_test",
     srcs = ["chat/bot_thinking_extra_test.py"],
     imports = ["."],
