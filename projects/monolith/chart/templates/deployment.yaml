@@ -117,6 +117,11 @@ spec:
                 secretKeyRef:
                   name: {{ include "monolith.fullname" . }}-knowledge
                   key: password
+          readinessProbe:
+            exec:
+              command: ["test", "-d", "{{ .Values.knowledge.vault.mountPath }}/.obsidian"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
           volumeMounts:
             - name: vault
               mountPath: {{ .Values.knowledge.vault.mountPath }}
