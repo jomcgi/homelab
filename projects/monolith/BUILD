@@ -1640,6 +1640,52 @@ py_test(
     ],
 )
 
+py_test(
+    name = "shared_service_calendar_handler_test",
+    srcs = ["shared/service_calendar_handler_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//icalendar",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
+    name = "shared_scheduler_loop_extra_test",
+    srcs = ["shared/scheduler_loop_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "chat_bot_thinking_extra_test",
+    srcs = ["chat/bot_thinking_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "scripts_red_dashboard_gaps_test",
+    srcs = ["scripts/generate_red_dashboard_gaps_test.py"],
+    data = ["scripts/generate-red-dashboard.py"],
+    imports = ["."],
+    deps = [
+        "@pip//pytest",
+    ],
+)
+
 sh_binary(
     name = "generate-routes",
     srcs = ["generate-routes.sh"],
