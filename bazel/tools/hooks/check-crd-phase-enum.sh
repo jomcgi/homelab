@@ -49,8 +49,8 @@ fi
 
 # Extract phase constant string values from *_phases.go files.
 # Matches lines like:   PhaseFoo = "Bar"
-mapfile -t PHASE_VALUES < <(grep -hE '^\s+Phase[A-Za-z]+ = "[^"]+"' "${PHASES_FILES[@]}" 2>/dev/null \
-	| sed 's/.*"\([^"]*\)".*/\1/' | sort -u)
+mapfile -t PHASE_VALUES < <(grep -hE '^\s+Phase[A-Za-z]+ = "[^"]+"' "${PHASES_FILES[@]}" 2>/dev/null |
+	sed 's/.*"\([^"]*\)".*/\1/' | sort -u)
 
 if [[ ${#PHASE_VALUES[@]} -eq 0 ]]; then
 	exit 0
@@ -69,7 +69,7 @@ if [[ -z "$ENUM_ANNOTATION" ]]; then
 fi
 
 # Split enum values by semicolon
-IFS=';' read -ra ENUM_VALUES <<< "$ENUM_ANNOTATION"
+IFS=';' read -ra ENUM_VALUES <<<"$ENUM_ANNOTATION"
 
 # Check each phase constant value against the enum
 MISSING=()
