@@ -60,7 +60,7 @@ type ModelCacheStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// Phase is the current state machine phase
-	// +kubebuilder:validation:Enum=Pending;Resolving;Syncing;Ready;Failed
+	// +kubebuilder:validation:Enum=Pending;Resolving;Syncing;Ready;Failed;Unknown
 	Phase string `json:"phase,omitempty"`
 
 	// ResolvedRef is the full OCI reference (e.g. "ghcr.io/jomcgi/models/llama-3.2:rev-abc123")

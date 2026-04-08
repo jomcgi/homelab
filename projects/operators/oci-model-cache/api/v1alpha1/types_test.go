@@ -325,7 +325,11 @@ func TestModelCacheStatusOmitemptyFields(t *testing.T) {
 // TestModelCacheStatusPhaseValues verifies the known phase values are valid
 // strings that match the kubebuilder enum.
 func TestModelCacheStatusPhaseValues(t *testing.T) {
-	knownPhases := []string{"Pending", "Resolving", "Syncing", "Ready", "Failed"}
+	// "Unknown" must be in this list — it is written by the statemachine when
+	// a resource has an unrecognised stored phase. Omitting it from the
+	// +kubebuilder:validation:Enum annotation causes the Kubernetes API server
+	// to reject SSA status patches, so this test acts as a regression guard.
+	knownPhases := []string{"Pending", "Resolving", "Syncing", "Ready", "Failed", "Unknown"}
 
 	for _, phase := range knownPhases {
 		t.Run(phase, func(t *testing.T) {
