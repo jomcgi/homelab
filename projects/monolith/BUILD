@@ -1714,6 +1714,18 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_reconciler_test",
+    srcs = ["knowledge/reconciler_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "chat_bot_thinking_extra_test",
     srcs = ["chat/bot_thinking_extra_test.py"],
     imports = ["."],
