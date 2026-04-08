@@ -48,12 +48,22 @@ class Reconciler:
         to_delete = sorted(path for path in indexed if path not in on_disk)
         unchanged = len(on_disk) - len(to_upsert)
 
+        first_error: BaseException | None = None
         for path in to_delete:
             logger.info("knowledge: deleting %s", path)
-            self.store.delete_note(path)
+            try:
+                self.store.delete_note(path)
+            except Exception as exc:  # noqa: BLE001 — partial-failure isolation
+                logger.exception("knowledge: failed to delete %s, continuing", path)
+                if first_error is None:
+                    first_error = exc
+                try:
+                    self.store.session.rollback()
+                except Exception:  # noqa: BLE001
+                    logger.exception("knowledge: rollback after delete failure failed")
+                continue
 
         upserted = 0
-        first_error: BaseException | None = None
         for path in to_upsert:
             try:
                 ingested = await self._ingest_one(path, on_disk[path])
