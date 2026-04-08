@@ -30,6 +30,7 @@ go_test(
         "coverage_gaps_test.go",
         "dns_test.go",
         "mock_api_test.go",
+        "rate_limiter_coverage_test.go",
         "routes_test.go",
         "tunnel_crud_test.go",
     ],
