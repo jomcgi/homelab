@@ -17,7 +17,7 @@ class FrontmatterError(Exception):
     """Raised when a file has a frontmatter block that fails to parse."""
 
 
-_FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
+_FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n?", re.DOTALL)
 
 _PROMOTED_KEYS = {
     "id",
