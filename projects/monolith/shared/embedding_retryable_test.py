@@ -1,4 +1,4 @@
-"""Unit tests for _is_retryable() in chat.embedding.
+"""Unit tests for _is_retryable() in shared.embedding.
 
 _is_retryable() classifies exceptions as transient (worth retrying) or
 permanent (fail fast). This covers all six boundary conditions:
@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 
-from chat.embedding import _is_retryable
+from shared.embedding import _is_retryable
 
 
 class TestIsRetryableEmbedding:

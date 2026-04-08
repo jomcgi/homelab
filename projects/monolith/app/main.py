@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI):
     if discord_token and bot:
 
         async def _lock_sweep_loop():
-            from chat.embedding import EmbeddingClient
+            from shared.embedding import EmbeddingClient
             from chat.store import MessageStore
 
             embed_client = EmbeddingClient()

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from chat.embedding import EmbeddingClient
+from shared.embedding import EmbeddingClient
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ class TestEmbeddingClient:
             "data": [{"index": 0, "embedding": [0.1] * 1024}]
         }
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_client_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -43,7 +43,7 @@ class TestEmbeddingClient:
             "data": [{"index": 0, "embedding": [0.0] * 1024}],
         }
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_client_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)

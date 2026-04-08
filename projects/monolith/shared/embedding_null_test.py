@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from chat.embedding import EmbeddingClient
+from shared.embedding import EmbeddingClient
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ class TestEmbedNullResponse:
             {"data": [{"index": 0, "embedding": None}]}
         )
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
             result = await client.embed("some text")
 
@@ -57,7 +57,7 @@ class TestEmbedNullResponse:
         """
         mock_client = _mock_client_returning({"data": []})
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
             with pytest.raises(IndexError):
                 await client.embed("some text")
@@ -69,7 +69,7 @@ class TestEmbedNullResponse:
             {"data": [{"index": 0, "model": "voyage-4-nano"}]}
         )
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
             with pytest.raises(ValueError, match="unexpected embedding response shape"):
                 await client.embed("some text")
@@ -79,7 +79,7 @@ class TestEmbedNullResponse:
         """embed() raises ValueError when the top-level 'data' key is absent."""
         mock_client = _mock_client_returning({"object": "list"})
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
             with pytest.raises(ValueError, match="unexpected embedding response shape"):
                 await client.embed("some text")
@@ -91,7 +91,7 @@ class TestEmbedNullResponse:
             {"data": [{"index": 0, "embedding": [0.5] * 1024}]}
         )
 
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
             result = await client.embed("hello")
 

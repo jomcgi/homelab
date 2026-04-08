@@ -9,7 +9,7 @@ from pydantic_ai import Agent, ModelSettings, RunContext, ToolDefinition
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from chat.embedding import EmbeddingClient
+from shared.embedding import EmbeddingClient
 from chat.models import Attachment, Blob, Message
 from chat.store import MessageStore
 from chat.web_search import search_web

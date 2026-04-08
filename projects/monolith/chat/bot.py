@@ -11,7 +11,7 @@ from pydantic_ai import BinaryContent
 from pydantic_ai.messages import ModelResponse, ThinkingPart
 
 from chat.agent import create_agent, format_context_messages
-from chat.embedding import EmbeddingClient
+from shared.embedding import EmbeddingClient
 from chat.store import MessageStore
 from chat.vision import VisionClient
 from chat.web_search import search_web

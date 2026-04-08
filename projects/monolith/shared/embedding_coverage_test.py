@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from chat.embedding import EmbeddingClient
+from shared.embedding import EmbeddingClient
 
 
 @pytest.fixture
@@ -26,9 +26,9 @@ class TestEmbeddingClientErrors:
         )
 
         with (
-            patch("chat.embedding.httpx.AsyncClient") as mock_cls,
-            patch("chat.embedding.asyncio.sleep", new_callable=AsyncMock),
-            patch("chat.embedding.EMBED_RETRY_TIMEOUT", 0),
+            patch("shared.embedding.httpx.AsyncClient") as mock_cls,
+            patch("shared.embedding.asyncio.sleep", new_callable=AsyncMock),
+            patch("shared.embedding.EMBED_RETRY_TIMEOUT", 0),
         ):
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -42,7 +42,7 @@ class TestEmbeddingClientErrors:
     @pytest.mark.asyncio
     async def test_raises_on_connection_timeout(self, client):
         """embed() propagates non-retryable TimeoutException immediately."""
-        with patch("chat.embedding.httpx.AsyncClient") as mock_cls:
+        with patch("shared.embedding.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -56,9 +56,9 @@ class TestEmbeddingClientErrors:
     async def test_raises_on_connect_error(self, client):
         """embed() raises after retrying on connection errors."""
         with (
-            patch("chat.embedding.httpx.AsyncClient") as mock_cls,
-            patch("chat.embedding.asyncio.sleep", new_callable=AsyncMock),
-            patch("chat.embedding.EMBED_RETRY_TIMEOUT", 0),
+            patch("shared.embedding.httpx.AsyncClient") as mock_cls,
+            patch("shared.embedding.asyncio.sleep", new_callable=AsyncMock),
+            patch("shared.embedding.EMBED_RETRY_TIMEOUT", 0),
         ):
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -78,6 +78,6 @@ class TestEmbeddingClientBaseUrl:
 
     def test_falls_back_to_env_var(self):
         """EmbeddingClient uses the EMBEDDING_URL module constant when no base_url given."""
-        with patch("chat.embedding.EMBEDDING_URL", "http://env-embed:9999"):
+        with patch("shared.embedding.EMBEDDING_URL", "http://env-embed:9999"):
             c = EmbeddingClient()
         assert c.base_url == "http://env-embed:9999"
