@@ -2,7 +2,9 @@
 
 import json
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, NewType
+
+NoteId = NewType("NoteId", str)
 
 from pgvector.sqlalchemy import Vector
 from pydantic import field_validator
@@ -36,7 +38,9 @@ class Note(SQLModel, table=True):
     __table_args__ = {"schema": "knowledge", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
-    note_id: str = Field(unique=True)  # stable graph identity, frontmatter `id:`
+    note_id: NoteId = Field(
+        sa_column=Column(String, nullable=False, unique=True)
+    )  # stable graph identity, frontmatter `id:`
     path: str = Field(unique=True)
     title: str
     content_hash: str
@@ -56,7 +60,7 @@ class Chunk(SQLModel, table=True):
     __table_args__ = {"schema": "knowledge", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
-    note_id: int = Field(foreign_key="knowledge.notes.id")
+    note_fk: int = Field(foreign_key="knowledge.notes.id")
     chunk_index: int
     section_header: str = ""
     chunk_text: str
@@ -75,7 +79,7 @@ class NoteLink(SQLModel, table=True):
     __table_args__ = {"schema": "knowledge", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
-    src_note_id: int = Field(foreign_key="knowledge.notes.id")
+    src_note_fk: int = Field(foreign_key="knowledge.notes.id")
     target_id: str  # target note_id (frontmatter id) or raw wikilink target
     target_title: str | None = None
     # LinkKind / EdgeType are Literals for static-analysis + the

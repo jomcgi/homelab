@@ -1,4 +1,4 @@
-h1:ALSxoy2G9wflHxhP7T3UJ6HL5pFKkqn6tI+BZRvjjHc=
+h1:8k4z+v1LMA7rE6ZjfJ8Lp6y3fhMfDAKyyWGaEdKmCqc=
 20260330000000_initial_schema.sql h1:J2futpSW0nJAIRR7nR7ssT7LwXIYrvRI+PkHb5Y4tLI=
 20260403000000_chat_schema.sql h1:pERUFC0vzM95etRuzp43XzkCV7lBCzrrtY5Mk7aF3CA=
 20260404000000_chat_attachments.sql h1:tv+Fdbr1rQC5nzUxfaBC0O6fu2OMGgLWf+YNg1WQXi4=
@@ -8,4 +8,4 @@ h1:ALSxoy2G9wflHxhP7T3UJ6HL5pFKkqn6tI+BZRvjjHc=
 20260405100000_channel_summaries.sql h1:FKrgLWQc36GHovLCNjVx2B8LJZyYhX0/fNqYfQJlv7w=
 20260405200000_message_locks.sql h1:gCeDEd22NoSpyyv1lN6YxMbfniPQnfgl2NB/mWqeBPE=
 20260407000000_scheduled_jobs.sql h1:yJWdqtl20F4KfdMQEvV61hkpPV2pphXnWtwqHMn33ds=
-20260408000000_knowledge_schema.sql h1:9UXH/TJYBBYoF5NIhNZx+XBJzbYH/vfVylf8h5nTFgY=
+20260408000000_knowledge_schema.sql h1:FQwkeboWSNNX+VofzkKOuPkfaiH+wAunGlF0W5d0mUA=
