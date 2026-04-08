@@ -12,6 +12,11 @@ import yaml
 
 logger = logging.getLogger("monolith.knowledge.frontmatter")
 
+
+class FrontmatterError(Exception):
+    """Raised when a file has a frontmatter block that fails to parse."""
+
+
 _FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 
 _PROMOTED_KEYS = {
@@ -56,7 +61,14 @@ class ParsedFrontmatter:
 
 
 def parse(raw: str) -> tuple[ParsedFrontmatter, str]:
-    """Return (metadata, body). Errors degrade gracefully — never raise."""
+    """Return (metadata, body).
+
+    A file without any frontmatter block is a valid empty-metadata file and
+    returns an empty ``ParsedFrontmatter`` with the full raw body. A file
+    with a frontmatter block that fails to parse (invalid YAML, or YAML that
+    is not a mapping) raises ``FrontmatterError`` — callers must skip such
+    files rather than overwrite the existing row with empty defaults.
+    """
     match = _FRONTMATTER_RE.match(raw)
     if not match:
         return ParsedFrontmatter(), raw
@@ -65,11 +77,9 @@ def parse(raw: str) -> tuple[ParsedFrontmatter, str]:
     try:
         data = yaml.safe_load(block) or {}
     except yaml.YAMLError as exc:
-        logger.warning("frontmatter yaml error: %s", exc)
-        return ParsedFrontmatter(), raw
+        raise FrontmatterError(f"failed to parse frontmatter: {exc}") from exc
     if not isinstance(data, dict):
-        logger.warning("frontmatter is not a mapping: %r", type(data).__name__)
-        return ParsedFrontmatter(), raw
+        raise FrontmatterError(f"frontmatter is not a mapping: {type(data).__name__}")
     return _build(data), body
 
 

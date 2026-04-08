@@ -12,6 +12,7 @@ from typing import Protocol
 from sqlalchemy import text
 
 from knowledge import frontmatter, links
+from knowledge.frontmatter import FrontmatterError
 from knowledge.store import KnowledgeStore
 from shared.chunker import chunk_markdown
 
@@ -69,6 +70,22 @@ class Reconciler:
                 ingested = await self._ingest_one(path, on_disk[path])
             except FileNotFoundError:
                 logger.warning("knowledge: file vanished mid-cycle: %s", path)
+                continue
+            except FrontmatterError as exc:
+                # A broken frontmatter block must NOT overwrite the
+                # existing row with empty defaults — skip the file and
+                # leave the prior index entry intact.
+                logger.warning(
+                    "knowledge: skipping note with invalid frontmatter %s: %s",
+                    path,
+                    exc,
+                )
+                try:
+                    self.store.session.rollback()
+                except Exception:  # noqa: BLE001
+                    logger.exception(
+                        "knowledge: rollback after frontmatter error failed"
+                    )
                 continue
             except Exception as exc:  # noqa: BLE001 — partial-failure isolation
                 logger.exception("knowledge: failed to ingest %s, continuing", path)

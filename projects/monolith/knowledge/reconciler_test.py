@@ -160,15 +160,32 @@ class TestReconciler:
         assert list(session.scalars(select(Chunk))) == []
 
     @pytest.mark.asyncio
-    async def test_broken_frontmatter_still_ingests(
+    async def test_broken_frontmatter_is_skipped_without_overwrite(
+        self, reconciler, tmp_path, session
+    ):
+        # First, ingest a valid version of the file.
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: Good\n---\nBody.")
+        await reconciler.run()
+        assert session.scalars(select(Note)).first().title == "Good"
+
+        # Then corrupt the frontmatter. The reconciler must skip the file
+        # and leave the existing row intact — never overwrite with empty
+        # defaults.
+        _write(tmp_path, "a.md", "---\ntitle: [unterminated\n---\nBody.")
+        result = await reconciler.run()
+        assert result == (0, 0, 0)
+        preserved = session.scalars(select(Note)).first()
+        assert preserved.title == "Good"
+        assert preserved.note_id == "a"
+
+    @pytest.mark.asyncio
+    async def test_broken_frontmatter_on_new_file_is_skipped(
         self, reconciler, tmp_path, session
     ):
         _write(tmp_path, "a.md", "---\ntitle: [unterminated\n---\nBody.")
         result = await reconciler.run()
-        assert result == (1, 0, 0)
-        note = session.scalars(select(Note)).first()
-        assert note.title == "a"
-        assert note.note_id == "a"
+        assert result == (0, 0, 0)
+        assert list(session.scalars(select(Note))) == []
 
     @pytest.mark.asyncio
     async def test_partial_failure_persists_other_notes(
