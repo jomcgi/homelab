@@ -23,6 +23,22 @@ sh_test(
     },
 )
 
+sh_test(
+    name = "obsidian_readiness_probe_test",
+    srcs = ["obsidian_readiness_probe_test.sh"],
+    args = [
+        "$(rootpath @multitool//tools/helm)",
+        "$(rootpath :Chart.yaml)",
+        "$(rootpath //projects/monolith/obsidian-image:entrypoint.sh)",
+    ],
+    data = [
+        ":Chart.yaml",
+        ":values.yaml",
+        "//projects/monolith/obsidian-image:entrypoint.sh",
+        "@multitool//tools/helm",
+    ] + glob(["templates/**"]),
+)
+
 helm_chart(
     name = "chart",
     images = {
