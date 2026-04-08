@@ -76,8 +76,3 @@ CREATE TABLE knowledge.note_links (
 CREATE INDEX note_links_target    ON knowledge.note_links (target_id);
 CREATE INDEX note_links_kind      ON knowledge.note_links (kind);
 CREATE INDEX note_links_edge_type ON knowledge.note_links (edge_type) WHERE edge_type IS NOT NULL;
-
--- Register the reconcile job in the existing scheduler.
-INSERT INTO scheduler.scheduled_jobs (name, interval_secs, next_run_at, ttl_secs)
-VALUES ('knowledge.reconcile', 300, NOW(), 600)
-ON CONFLICT (name) DO NOTHING;
