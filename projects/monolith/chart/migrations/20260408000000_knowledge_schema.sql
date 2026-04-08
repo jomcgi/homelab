@@ -1,3 +1,9 @@
+-- knowledge schema: ingested Obsidian markdown notes from /vault/_processed.
+--
+-- notes       — one row per .md file (path + frontmatter promoted to columns)
+-- chunks      — section-aware chunks of each note's body, with 1024-dim embeddings
+-- note_links  — typed (frontmatter `edges:`) and untyped ([[wikilink]]) graph edges
+
 -- Vector dim 1024 = voyage-4-nano (matches chat.messages.embedding).
 -- pgvector extension is already created cluster-wide via cnpg-cluster.yaml.
 
@@ -63,6 +69,7 @@ CREATE TABLE knowledge.note_links (
     target_id     TEXT   NOT NULL,             -- target note_id (frontmatter id) or raw wikilink target
     target_title  TEXT,                        -- display text from [[Foo|display]] when present
     kind          TEXT   NOT NULL CHECK (kind IN ('edge', 'link')),
+    -- Mirror of frontmatter.py::_KNOWN_EDGE_TYPES — keep in sync.
     edge_type     TEXT   CHECK (
                     (kind = 'edge' AND edge_type IN (
                       'refines', 'generalizes', 'related',

@@ -23,9 +23,18 @@ EMBED_BATCH_READ_TIMEOUT = 60.0
 
 def _is_retryable(exc: Exception) -> bool:
     """Return True for transient errors worth retrying."""
-    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
-        return True
-    if isinstance(exc, httpx.ReadTimeout):
+    if isinstance(
+        exc,
+        (
+            httpx.ConnectError,
+            httpx.ConnectTimeout,
+            httpx.ReadTimeout,
+            httpx.WriteError,
+            httpx.RemoteProtocolError,
+            httpx.PoolTimeout,
+            httpx.NetworkError,
+        ),
+    ):
         return True
     if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code >= 500:
         return True

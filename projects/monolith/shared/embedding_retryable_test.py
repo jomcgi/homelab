@@ -90,6 +90,26 @@ class TestIsRetryableEmbedding:
         )
         assert _is_retryable(exc) is False
 
+    def test_write_error_is_retryable(self):
+        """WriteError (socket write failure mid-request) is retryable."""
+        exc = httpx.WriteError("write failed")
+        assert _is_retryable(exc) is True
+
+    def test_remote_protocol_error_is_retryable(self):
+        """RemoteProtocolError (server closed conn early) is retryable."""
+        exc = httpx.RemoteProtocolError("server disconnected")
+        assert _is_retryable(exc) is True
+
+    def test_pool_timeout_is_retryable(self):
+        """PoolTimeout (no free conn in pool) is retryable."""
+        exc = httpx.PoolTimeout("no conns")
+        assert _is_retryable(exc) is True
+
+    def test_network_error_is_retryable(self):
+        """NetworkError (generic network failure) is retryable."""
+        exc = httpx.NetworkError("boom")
+        assert _is_retryable(exc) is True
+
     def test_boundary_500_is_retryable(self):
         """HTTPStatusError with exactly 500 (5xx lower boundary) is retryable."""
         resp = MagicMock()

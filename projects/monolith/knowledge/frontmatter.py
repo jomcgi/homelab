@@ -32,7 +32,7 @@ _PROMOTED_KEYS = {
     "updated",
 }
 
-# Edge types must match the CHECK constraint in the schema migration.
+# Mirror of the CHECK constraint in chart/migrations/20260408000000_knowledge_schema.sql:67-70 — keep in sync.
 _KNOWN_EDGE_TYPES = frozenset(
     {
         "refines",
