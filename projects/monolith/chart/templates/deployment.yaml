@@ -98,7 +98,7 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
         {{- if .Values.knowledge.enabled }}
-        - name: headless-sync
+        - name: obsidian
           image: "{{ .Values.knowledge.headlessSync.image.repository }}:{{ .Values.knowledge.headlessSync.image.tag }}"
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
