@@ -56,7 +56,7 @@ knowledge:
   enabled: false
   headlessSync:
     image:
-      repository: ghcr.io/jomcgi/homelab/projects/monolith/headless-sync-image
+      repository: ghcr.io/jomcgi/homelab/projects/monolith/obsidian-image
       tag: latest
     vaultName: ""
   vault:

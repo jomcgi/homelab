@@ -324,10 +324,10 @@ apko.translate_lock(
     lock = "//projects/monolith/frontend:apko.lock.json",
 )
 apko.translate_lock(
-    name = "headless_sync_lock",
-    lock = "//projects/monolith/headless-sync-image:apko.lock.json",
+    name = "obsidian_image_lock",
+    lock = "//projects/monolith/obsidian-image:apko.lock.json",
 )
-use_repo(apko, "goose_agent_lock", "grimoire_frontend_lock", "headless_sync_lock", "monolith_frontend_lock", "obsidian_vault_lock", "ships_frontend_lock")
+use_repo(apko, "goose_agent_lock", "grimoire_frontend_lock", "monolith_frontend_lock", "obsidian_image_lock", "obsidian_vault_lock", "ships_frontend_lock")
 
 # Download multiarch archives (binaries from zip files)
 multiarch_http_archive = use_repo_rule("//bazel/tools/http:multiarch_http_archive.bzl", "multiarch_http_archive")

@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "config": {
-    "name": "./projects/monolith/headless-sync-image/apko.yaml",
+    "name": "./projects/monolith/obsidian-image/apko.yaml",
     "checksum": "sha256-Uo81OOuFV2E2DMODUarpFewO0k16UYNLXiotBRyE7cg="
   },
   "contents": {
