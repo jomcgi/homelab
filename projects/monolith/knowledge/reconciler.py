@@ -21,6 +21,15 @@ logger = logging.getLogger("monolith.knowledge.reconciler")
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 
+class ReadOnlyVaultError(Exception):
+    """Raised when the vault is read-only and a file lacks a frontmatter id.
+
+    We refuse to ingest with an ephemeral id because the id would not be
+    stable across restarts — graph edges pointing at the ephemeral id
+    would silently break.
+    """
+
+
 class _Embedder(Protocol):
     async def embed_batch(self, texts: list[str]) -> list[list[float]]: ...
 
@@ -173,14 +182,11 @@ class Reconciler:
             try:
                 raw, content_hash = self._write_back_id(abs_path, raw, note_id)
                 meta, body = frontmatter.parse(raw)
-            except PermissionError:
-                logger.warning(
-                    "knowledge: vault is read-only, using ephemeral id for %s",
-                    rel_path,
-                )
-                # Disambiguate against other read-only files with the same
-                # slug by appending a content-hash suffix.
-                note_id = f"{note_id}-{content_hash[:8]}"
+            except PermissionError as exc:
+                raise ReadOnlyVaultError(
+                    f"vault is read-only and {rel_path} has no frontmatter id;"
+                    " refusing to ingest with ephemeral id"
+                ) from exc
 
         chunks = chunk_markdown(body)
         if not chunks:
