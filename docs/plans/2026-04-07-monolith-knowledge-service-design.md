@@ -84,7 +84,8 @@ CREATE SCHEMA IF NOT EXISTS knowledge;
 -- One row per .md file under /vault/_processed.
 CREATE TABLE knowledge.notes (
     id            BIGSERIAL PRIMARY KEY,
-    path          TEXT NOT NULL UNIQUE,        -- relative to /vault, e.g. "_processed/papers/attention.md"
+    note_id       TEXT NOT NULL UNIQUE,        -- stable graph identity from frontmatter `id:` (auto-backfilled if missing)
+    path          TEXT NOT NULL UNIQUE,        -- current file location, relative to /vault
     title         TEXT NOT NULL,               -- frontmatter.title or filename stem
     content_hash  TEXT NOT NULL,               -- sha256 of full file bytes (drives reconciliation)
 
@@ -94,7 +95,6 @@ CREATE TABLE knowledge.notes (
     source        TEXT,                        -- e.g. web-ui | discord | manual | clipper
     tags          TEXT[]      NOT NULL DEFAULT '{}',
     aliases       TEXT[]      NOT NULL DEFAULT '{}',
-    up_ref        TEXT,                        -- raw `up:` value from frontmatter
     created_at    TIMESTAMPTZ,                 -- frontmatter.created or NULL
     updated_at    TIMESTAMPTZ,                 -- frontmatter.updated or NULL
     extra         JSONB       NOT NULL DEFAULT '{}'::jsonb,  -- everything else from frontmatter
@@ -103,6 +103,7 @@ CREATE TABLE knowledge.notes (
     indexed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX notes_note_id     ON knowledge.notes (note_id);
 CREATE INDEX notes_tags_gin    ON knowledge.notes USING gin (tags);
 CREATE INDEX notes_aliases_gin ON knowledge.notes USING gin (aliases);
 CREATE INDEX notes_extra_gin   ON knowledge.notes USING gin (extra);
@@ -125,19 +126,34 @@ CREATE TABLE knowledge.chunks (
 CREATE INDEX chunks_embedding_hnsw ON knowledge.chunks USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX chunks_note_id        ON knowledge.chunks (note_id);
 
--- Edge table for graph queries. Targets are paths (strings), not FKs,
--- because wikilinks may dangle (point at non-existent or not-yet-ingested notes).
+-- Edge table for graph queries. Targets are stable note ids (strings), not FKs,
+-- because edges may dangle (point at non-existent or not-yet-ingested notes).
+--
+-- Two-level taxonomy:
+--   kind='edge' → declared semantic relationship from frontmatter `edges:` block;
+--                 edge_type names the relationship.
+--   kind='link' → untyped body wikilink ([[Foo]]); edge_type is NULL.
+--
+-- Adding a new edge_type is a code change, not a schema migration.
 CREATE TABLE knowledge.note_links (
     id            BIGSERIAL PRIMARY KEY,
     src_note_id   BIGINT NOT NULL REFERENCES knowledge.notes(id) ON DELETE CASCADE,
-    target_path   TEXT   NOT NULL,             -- best-effort target (or raw wikilink target if unresolvable)
-    target_title  TEXT,                        -- raw display text inside [[…|display]] if present
-    kind          TEXT   NOT NULL CHECK (kind IN ('up', 'link')),
-    UNIQUE (src_note_id, target_path, kind)
+    target_id     TEXT   NOT NULL,             -- target note_id or raw wikilink target
+    target_title  TEXT,                        -- display text from [[Foo|display]] when present
+    kind          TEXT   NOT NULL CHECK (kind IN ('edge', 'link')),
+    edge_type     TEXT   CHECK (
+                    (kind = 'edge' AND edge_type IN (
+                      'refines', 'generalizes', 'related',
+                      'contradicts', 'derives_from', 'supersedes'
+                    )) OR
+                    (kind = 'link' AND edge_type IS NULL)
+                  ),
+    UNIQUE (src_note_id, target_id, kind, edge_type)
 );
 
-CREATE INDEX note_links_target ON knowledge.note_links (target_path);
-CREATE INDEX note_links_kind   ON knowledge.note_links (kind);
+CREATE INDEX note_links_target    ON knowledge.note_links (target_id);
+CREATE INDEX note_links_kind      ON knowledge.note_links (kind);
+CREATE INDEX note_links_edge_type ON knowledge.note_links (edge_type) WHERE edge_type IS NOT NULL;
 
 -- Register the reconcile job in the existing scheduler.
 INSERT INTO scheduler.scheduled_jobs (name, interval_secs, next_run_at, ttl_secs)
@@ -147,9 +163,12 @@ ON CONFLICT (name) DO NOTHING;
 
 ### Schema rationale
 
-- `path` is the natural key, but a `BIGSERIAL id` gives `chunks` and
-  `note_links` cheap stable joins. Renames look like delete-old + insert-new
-  (new id), so chunks rebuild and links re-extract.
+- **`note_id` is the stable graph identity, `path` is mutable display.** Edges
+  reference `note_id`, so file moves and renames don't break the graph. The
+  frontmatter `id:` field is the authoritative source; if a file arrives
+  without one, the reconciler auto-backfills (see "ID assignment" below).
+- `BIGSERIAL id` gives `chunks` and `note_links` cheap stable joins on the
+  hot path; user-facing identity is `note_id`.
 - `content_hash` is the only thing the reconciler diffs against. No mtime, no
   length, no "smart" check. Hash matches → skip; hash differs → delete cascade
   - re-insert.
@@ -158,12 +177,66 @@ ON CONFLICT (name) DO NOTHING;
 - Vector dim 1024 matches `chat.messages.embedding` so we use the same model
   and the same `<=>` cosine operator everywhere. Switching models is a future
   migration that touches both schemas symmetrically.
-- `note_links.target_path` is a string, not an FK, because wikilinks dangle
-  routinely. A future audit reconciler can flag dangling targets.
-- `note_links.kind` discriminator means graph walks are one-table — `WHERE kind
-= 'up'` walks the parent chain, no `kind` filter walks the full link graph.
+- `note_links.target_id` is a string, not an FK, because edges dangle
+  routinely (target not yet ingested, or pointing at an external concept).
+  A future audit reconciler can flag dangling targets.
+- **Two-level link taxonomy** (`kind` × `edge_type`) means: `kind='edge'`
+  filters to declared semantic relationships, `kind='link'` filters to body
+  wikilinks. Adding a new edge type (`refutes`, `cites`, etc.) is a one-line
+  CHECK constraint widening, not a table redesign.
+- `note_links_edge_type` is a partial index (`WHERE edge_type IS NOT NULL`),
+  so it only stores rows where the column is meaningful — saves space and
+  speeds up the most common edge-traversal queries.
 - All in one migration file: the schema is one logical unit and Atlas applies
   it transactionally.
+
+### ID assignment policy
+
+The frontmatter `id:` field is the canonical stable identity for a note.
+Reconciler behavior:
+
+1. **`id:` present** → use it verbatim. Never regenerate. Once set, it's
+   permanent.
+2. **`id:` missing** → auto-backfill. Generate `slugify(title or filename
+stem)`, append a short content-hash suffix on collision. Write the new
+   `id:` back to the markdown file's frontmatter, then ingest.
+3. **Concurrency**: backfills are gated by a Postgres advisory lock keyed on
+   `hashtext(path)` so two replicas can't race on the same file. The
+   scheduler's `SELECT … FOR UPDATE SKIP LOCKED` already prevents two
+   replicas from running the same job, but advisory locks are belt-and-braces
+   against producer/consumer races (gardener writing the file at the same
+   moment the reconciler reads it).
+4. **Vault mount**: the `/vault` mount must be `readWrite` for backfill to
+   work. (As of design time the mount is `readOnly`; the flip is in flight on
+   a separate PR.) On `PermissionError` (read-only filesystem), the
+   reconciler logs a warning and **skips that file's ingestion this cycle**
+   — same lenient policy as broken YAML, never blocks other files.
+
+### Edges contract
+
+The frontmatter `edges:` block is a mapping of edge type → list of target
+ids:
+
+```yaml
+edges:
+  refines: [embedding-model-memory-requirements]
+  generalizes: []
+  related: [gemma4-vram-footprint, node4-gpu-allocation]
+  contradicts: []
+  derives_from: [voyage-ai-model-card]
+  supersedes: []
+```
+
+Each non-empty list produces N rows in `note_links` with `kind='edge'` and
+`edge_type=<key>`. Empty lists are skipped silently. Unknown keys (typos,
+made-up edge types not in the CHECK constraint) are logged as warnings and
+**dropped** — the audit reconciler will surface them later.
+
+The legacy `up:` field is removed in favor of `refines:`. The semantics are:
+`up: [[Parent]]` means "parent is broader than me" = "I refine parent" =
+`refines: [parent]`. A one-shot vault migration script (out of scope for
+this PR) rewrites existing `up:` keys before the reconciler runs against
+them in production.
 
 ### Example filtered query
 
@@ -192,9 +265,10 @@ projects/monolith/
     ├── __init__.py
     ├── frontmatter.py    ← parse + strip YAML frontmatter, return (ParsedFrontmatter, body)
     ├── links.py          ← extract [[wikilinks]] from body, dedupe
+    ├── models.py         ← SQLModel definitions for notes / chunks / note_links
     ├── store.py          ← pgvector DAL: get_indexed, upsert_note, delete_note, search
-    ├── reconciler.py     ← walk /vault/_processed → diff → embed deltas → write
-    ├── job.py            ← scheduler hookup; calls reconciler.run()
+    ├── reconciler.py     ← walk /vault/_processed → diff → backfill ids → embed → write
+    ├── service.py        ← scheduler hookup; registers handler at lifespan startup
     └── *_test.py
 ```
 
@@ -238,14 +312,16 @@ Doesn't try to "resolve" wikilink targets — stores them verbatim.
 class KnowledgeStore:
     def __init__(self, session: Session): ...
     def get_indexed(self) -> dict[str, str]: ...      # {path: content_hash}
-    def upsert_note(self, *, path, content_hash, metadata, chunks, links) -> None: ...
+    def upsert_note(self, *, note_id, path, content_hash, title, metadata, chunks, vectors, links, edges) -> None: ...
     def delete_note(self, path: str) -> None: ...
     def search(self, *, query_vector, limit, tags=None, type_=None, status_not=None) -> list[SearchHit]: ...
 ```
 
 `upsert_note` strategy: DELETE existing row by path (cascade drops chunks +
-links), INSERT fresh row, INSERT chunks, INSERT links — single transaction.
-This avoids partial-update weirdness when chunk count changes.
+note_links), INSERT fresh row, INSERT chunks, INSERT note_links — single
+transaction. `links` are body wikilinks (`kind='link'`); `edges` is the
+typed edge map (`kind='edge'`). This avoids partial-update weirdness when
+chunk count changes.
 
 **`knowledge/reconciler.py`** — orchestrates one cycle. See data flow below.
 
@@ -309,18 +385,21 @@ re-attempts whatever didn't make it in. No retry queue, no dead-letter table.
 
 ## Frontmatter contract
 
-| Key               | Column type     | Index          | Notes                                                                       |
-| ----------------- | --------------- | -------------- | --------------------------------------------------------------------------- |
-| `title`           | `TEXT NOT NULL` | —              | Defaults to filename stem if missing                                        |
-| `created`         | `TIMESTAMPTZ`   | btree          | ISO date or datetime                                                        |
-| `updated`         | `TIMESTAMPTZ`   | btree          | ISO date or datetime                                                        |
-| `tags`            | `TEXT[]`        | GIN            | Accepts YAML list or comma/space string                                     |
-| `aliases`         | `TEXT[]`        | GIN            | Same                                                                        |
-| `type`            | `TEXT`          | btree          | e.g. `note`, `daily`, `project`, `paper`, `fleeting`                        |
-| `status`          | `TEXT`          | btree          | e.g. `draft`, `active`, `archived`, `published`                             |
-| `source`          | `TEXT`          | btree          | e.g. `web-ui`, `discord`, `manual`, `clipper`                               |
-| `up`              | `TEXT`          | —              | Stored on `notes.up_ref` AND emitted as a `note_links` row with `kind='up'` |
-| (everything else) | `JSONB`         | GIN on `extra` | Filter via `WHERE extra @> '{…}'`                                           |
+| Key               | Column / table                   | Index          | Notes                                                                                                                          |
+| ----------------- | -------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `id`              | `notes.note_id` (TEXT)           | unique + btree | Stable graph identity; auto-backfilled by reconciler if missing (see "ID assignment")                                          |
+| `title`           | `notes.title` (TEXT NOT NULL)    | —              | Defaults to filename stem if missing                                                                                           |
+| `created`         | `notes.created_at` (TIMESTAMPTZ) | btree          | ISO date or datetime                                                                                                           |
+| `updated`         | `notes.updated_at` (TIMESTAMPTZ) | btree          | ISO date or datetime                                                                                                           |
+| `tags`            | `notes.tags` (TEXT[])            | GIN            | Accepts YAML list or comma/space string                                                                                        |
+| `aliases`         | `notes.aliases` (TEXT[])         | GIN            | Same                                                                                                                           |
+| `type`            | `notes.type` (TEXT)              | btree          | e.g. `note`, `daily`, `project`, `paper`, `fleeting`                                                                           |
+| `status`          | `notes.status` (TEXT)            | btree          | e.g. `draft`, `active`, `archived`, `published`                                                                                |
+| `source`          | `notes.source` (TEXT)            | btree          | e.g. `web-ui`, `discord`, `manual`, `clipper`                                                                                  |
+| `edges`           | `note_links` rows                | btree          | Mapping `{edge_type: [target_id, …]}`; each target → row with `kind='edge'`, `edge_type=<key>`. Unknown keys logged + dropped. |
+| (everything else) | `notes.extra` (JSONB)            | GIN            | Filter via `WHERE extra @> '{…}'`                                                                                              |
+
+The legacy `up:` key is gone; see "Edges contract" above for the migration.
 
 ### Lenient parse policy
 

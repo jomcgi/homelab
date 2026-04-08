@@ -371,10 +371,51 @@ class TestParse:
         assert meta == ParsedFrontmatter()
         assert body == raw
 
-    def test_up_ref_captured(self):
+    def test_id_captured_verbatim(self):
+        raw = "---\nid: attention-is-all-you-need\n---\nx"
+        meta, _ = parse(raw)
+        assert meta.note_id == "attention-is-all-you-need"
+
+    def test_id_missing_returns_none(self):
+        raw = "---\ntitle: T\n---\nx"
+        meta, _ = parse(raw)
+        assert meta.note_id is None
+
+    def test_edges_block_parsed(self):
+        raw = (
+            "---\n"
+            "edges:\n"
+            "  refines: [parent-note]\n"
+            "  related: [a, b]\n"
+            "  contradicts: []\n"
+            "---\n"
+            "x"
+        )
+        meta, _ = parse(raw)
+        assert meta.edges == {
+            "refines": ["parent-note"],
+            "related": ["a", "b"],
+            # Empty lists are dropped at the parser level.
+        }
+
+    def test_edges_unknown_key_dropped_with_warning(self, caplog):
+        raw = "---\nedges:\n  refutes: [x]\n  refines: [y]\n---\nz"
+        meta, _ = parse(raw)
+        assert meta.edges == {"refines": ["y"]}
+        assert any("unknown edge type" in r.message for r in caplog.records)
+
+    def test_edges_block_missing_returns_empty_dict(self):
+        raw = "---\ntitle: T\n---\nx"
+        meta, _ = parse(raw)
+        assert meta.edges == {}
+
+    def test_up_key_is_no_longer_recognized(self):
+        # `up:` was removed in favor of `edges.refines`. A one-shot vault
+        # migration script (out of scope) rewrites legacy `up:` keys.
+        # Until then, the parser ignores `up:` and lets it land in `extra`.
         raw = "---\nup: '[[Index]]'\n---\nx"
         meta, _ = parse(raw)
-        assert meta.up_ref == "[[Index]]"
+        assert meta.extra == {"up": "[[Index]]"}
 ```
 
 **Step 2: Run tests, expect failure**
@@ -405,20 +446,27 @@ logger = logging.getLogger("monolith.knowledge.frontmatter")
 _FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 
 _PROMOTED_KEYS = {
-    "title", "type", "status", "source",
-    "tags", "aliases", "up", "created", "updated",
+    "id", "title", "type", "status", "source",
+    "tags", "aliases", "edges", "created", "updated",
 }
+
+# Edge types must match the CHECK constraint in the schema migration.
+_KNOWN_EDGE_TYPES = frozenset({
+    "refines", "generalizes", "related",
+    "contradicts", "derives_from", "supersedes",
+})
 
 
 @dataclass
 class ParsedFrontmatter:
+    note_id: str | None = None
     title: str | None = None
     type: str | None = None
     status: str | None = None
     source: str | None = None
     tags: list[str] = field(default_factory=list)
     aliases: list[str] = field(default_factory=list)
-    up_ref: str | None = None
+    edges: dict[str, list[str]] = field(default_factory=dict)
     created: datetime | None = None
     updated: datetime | None = None
     extra: dict[str, Any] = field(default_factory=dict)
@@ -444,17 +492,36 @@ def parse(raw: str) -> tuple[ParsedFrontmatter, str]:
 
 def _build(data: dict[str, Any]) -> ParsedFrontmatter:
     meta = ParsedFrontmatter()
+    meta.note_id = _str_or_none(data.get("id"))
     meta.title = _str_or_none(data.get("title"))
     meta.type = _str_or_none(data.get("type"))
     meta.status = _str_or_none(data.get("status"))
     meta.source = _str_or_none(data.get("source"))
     meta.tags = _string_list(data.get("tags"))
     meta.aliases = _string_list(data.get("aliases"))
-    meta.up_ref = _str_or_none(data.get("up"))
+    meta.edges = _edges(data.get("edges"))
     meta.created = _to_datetime(data.get("created"))
     meta.updated = _to_datetime(data.get("updated"))
     meta.extra = {k: v for k, v in data.items() if k not in _PROMOTED_KEYS}
     return meta
+
+
+def _edges(v: Any) -> dict[str, list[str]]:
+    if v is None:
+        return {}
+    if not isinstance(v, dict):
+        logger.warning("frontmatter edges is not a mapping: %r", type(v).__name__)
+        return {}
+    out: dict[str, list[str]] = {}
+    for key, raw in v.items():
+        key = str(key)
+        if key not in _KNOWN_EDGE_TYPES:
+            logger.warning("unknown edge type %r in frontmatter, dropping", key)
+            continue
+        targets = _string_list(raw)
+        if targets:
+            out[key] = targets
+    return out
 
 
 def _str_or_none(v: Any) -> str | None:
@@ -647,6 +714,7 @@ class Note(SQLModel, table=True):
     __table_args__ = {"schema": "knowledge"}
 
     id: int | None = Field(default=None, primary_key=True)
+    note_id: str = Field(unique=True)  # stable graph identity, frontmatter `id:`
     path: str = Field(unique=True)
     title: str
     content_hash: str
@@ -655,7 +723,6 @@ class Note(SQLModel, table=True):
     source: str | None = None
     tags: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
     aliases: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
-    up_ref: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     extra: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
@@ -687,9 +754,10 @@ class NoteLink(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     src_note_id: int = Field(foreign_key="knowledge.notes.id")
-    target_path: str
+    target_id: str  # target note_id (frontmatter id) or raw wikilink target
     target_title: str | None = None
-    kind: str  # 'up' | 'link'
+    kind: str  # 'edge' | 'link'
+    edge_type: str | None = None  # set when kind='edge', NULL when kind='link'
 ```
 
 **Step 2: Write failing store tests**
@@ -749,94 +817,103 @@ def _vecs(n):
     return [[float(i)] * 1024 for i in range(n)]
 
 
+def _upsert(store, *, note_id="a-id", path="a.md", content_hash="h1",
+            title="A", metadata=None, n_chunks=1, links=None):
+    metadata = metadata or _meta(title=title)
+    store.upsert_note(
+        note_id=note_id,
+        path=path,
+        content_hash=content_hash,
+        title=title,
+        metadata=metadata,
+        chunks=_chunks(n_chunks),
+        vectors=_vecs(n_chunks),
+        links=links or [],
+    )
+
+
 class TestGetIndexed:
     def test_empty(self, store):
         assert store.get_indexed() == {}
 
     def test_returns_path_to_hash_map(self, store):
-        store.upsert_note(
-            path="a.md",
-            content_hash="h1",
-            title="A",
-            metadata=_meta(title="A"),
-            chunks=_chunks(1),
-            vectors=_vecs(1),
-            links=[],
-        )
+        _upsert(store, path="a.md", content_hash="h1")
         assert store.get_indexed() == {"a.md": "h1"}
 
 
 class TestUpsertNote:
     def test_inserts_note_chunks_and_links(self, store, session):
-        store.upsert_note(
-            path="a.md",
-            content_hash="h1",
-            title="A",
+        _upsert(
+            store,
             metadata=_meta(title="A", tags=["ml"]),
-            chunks=_chunks(3),
-            vectors=_vecs(3),
+            n_chunks=3,
             links=[Link(target="B", display=None)],
         )
         notes = list(session.scalars(select(Note)))
         assert len(notes) == 1
+        assert notes[0].note_id == "a-id"
         assert notes[0].tags == ["ml"]
         chunks = list(session.scalars(select(Chunk)))
         assert len(chunks) == 3
         assert {c.chunk_index for c in chunks} == {0, 1, 2}
         links = list(session.scalars(select(NoteLink)))
         assert len(links) == 1
-        assert links[0].target_path == "B"
+        assert links[0].target_id == "B"
         assert links[0].kind == "link"
+        assert links[0].edge_type is None
 
     def test_re_upsert_replaces_chunk_count(self, store, session):
-        store.upsert_note(
-            path="a.md",
-            content_hash="h1",
-            title="A",
-            metadata=_meta(title="A"),
-            chunks=_chunks(5),
-            vectors=_vecs(5),
-            links=[],
-        )
-        store.upsert_note(
-            path="a.md",
-            content_hash="h2",
-            title="A",
-            metadata=_meta(title="A"),
-            chunks=_chunks(2),
-            vectors=_vecs(2),
-            links=[],
-        )
+        _upsert(store, content_hash="h1", n_chunks=5)
+        _upsert(store, content_hash="h2", n_chunks=2)
         chunks = list(session.scalars(select(Chunk)))
         assert len(chunks) == 2
         notes = list(session.scalars(select(Note)))
         assert len(notes) == 1
         assert notes[0].content_hash == "h2"
 
-    def test_up_ref_emits_link_with_kind_up(self, store, session):
-        store.upsert_note(
-            path="a.md",
-            content_hash="h1",
-            title="A",
-            metadata=_meta(title="A", up_ref="[[Parent]]"),
-            chunks=_chunks(1),
-            vectors=_vecs(1),
-            links=[],
+    def test_edges_emit_typed_link_rows(self, store, session):
+        _upsert(
+            store,
+            metadata=_meta(
+                title="A",
+                edges={
+                    "refines": ["parent"],
+                    "related": ["sib1", "sib2"],
+                },
+            ),
         )
-        links = list(session.scalars(select(NoteLink)))
-        kinds = {l.kind for l in links}
-        assert "up" in kinds
+        rows = list(session.scalars(select(NoteLink).order_by(NoteLink.id)))
+        kinds = {r.kind for r in rows}
+        assert kinds == {"edge"}
+        edge_pairs = {(r.edge_type, r.target_id) for r in rows}
+        assert edge_pairs == {
+            ("refines", "parent"),
+            ("related", "sib1"),
+            ("related", "sib2"),
+        }
+
+    def test_edges_and_body_links_coexist(self, store, session):
+        _upsert(
+            store,
+            metadata=_meta(title="A", edges={"refines": ["p"]}),
+            links=[Link(target="B", display="the b")],
+        )
+        rows = list(session.scalars(select(NoteLink)))
+        by_kind: dict[str, list[NoteLink]] = {"edge": [], "link": []}
+        for r in rows:
+            by_kind[r.kind].append(r)
+        assert len(by_kind["edge"]) == 1
+        assert by_kind["edge"][0].edge_type == "refines"
+        assert len(by_kind["link"]) == 1
+        assert by_kind["link"][0].edge_type is None
+        assert by_kind["link"][0].target_title == "the b"
 
 
 class TestDeleteNote:
     def test_cascade_removes_chunks_and_links(self, store, session):
-        store.upsert_note(
-            path="a.md",
-            content_hash="h1",
-            title="A",
-            metadata=_meta(title="A"),
-            chunks=_chunks(2),
-            vectors=_vecs(2),
+        _upsert(
+            store,
+            n_chunks=2,
             links=[Link(target="B", display=None)],
         )
         store.delete_note("a.md")
@@ -883,6 +960,7 @@ class KnowledgeStore:
     def upsert_note(
         self,
         *,
+        note_id: str,
         path: str,
         content_hash: str,
         title: str,
@@ -896,6 +974,7 @@ class KnowledgeStore:
         self.session.flush()
 
         note = Note(
+            note_id=note_id,
             path=path,
             title=title,
             content_hash=content_hash,
@@ -904,7 +983,6 @@ class KnowledgeStore:
             source=metadata.source,
             tags=metadata.tags,
             aliases=metadata.aliases,
-            up_ref=metadata.up_ref,
             created_at=metadata.created,
             updated_at=metadata.updated,
             extra=metadata.extra,
@@ -924,24 +1002,30 @@ class KnowledgeStore:
                 )
             )
 
+        # Untyped body wikilinks → kind='link'.
         for link in links:
             self.session.add(
                 NoteLink(
                     src_note_id=note.id,
-                    target_path=link.target,
+                    target_id=link.target,
                     target_title=link.display,
                     kind="link",
+                    edge_type=None,
                 )
             )
-        if metadata.up_ref:
-            self.session.add(
-                NoteLink(
-                    src_note_id=note.id,
-                    target_path=metadata.up_ref,
-                    target_title=None,
-                    kind="up",
+
+        # Typed frontmatter edges → kind='edge', edge_type=<key>.
+        for edge_type, targets in metadata.edges.items():
+            for target in targets:
+                self.session.add(
+                    NoteLink(
+                        src_note_id=note.id,
+                        target_id=target,
+                        target_title=None,
+                        kind="edge",
+                        edge_type=edge_type,
+                    )
                 )
-            )
 
         self.session.commit()
 
@@ -981,14 +1065,19 @@ git commit -m "feat(knowledge): add models and store"
 The tests use a `tmp_path` vault and a fake `EmbeddingClient` that returns deterministic vectors and tracks call count. Cases (one test per case, names below):
 
 - `test_empty_vault`
-- `test_adds_one_file`
+- `test_adds_one_file_with_id`
+- `test_missing_id_is_backfilled_to_file` (read-write vault)
+- `test_missing_id_with_readonly_vault_uses_ephemeral_id` (monkeypatched `write_text` raising `PermissionError`)
+- `test_edges_block_persists_typed_links`
 - `test_no_changes_skips_embedding`
 - `test_edited_body_re_embeds`
 - `test_edited_frontmatter_only_re_embeds`
 - `test_deletes_removed_file`
-- `test_broken_frontmatter_still_ingests`
+- `test_broken_frontmatter_still_ingests` (auto-backfills id from filename stem)
 - `test_partial_failure_persists_other_notes`
 - `test_file_disappears_mid_cycle`
+
+Note: the advisory-lock branch (`pg_try_advisory_xact_lock`) is Postgres-only. The reconciler guards the call with `session.bind.dialect.name == "postgresql"`, so the SQLite test fixture skips it cleanly. Verifying the lock semantics is out of scope for unit tests — covered by the scheduler's existing distributed-lock tests.
 
 Sketch (full versions in implementation):
 
@@ -1058,17 +1147,68 @@ class TestReconciler:
         assert result == (0, 0, 0)
 
     @pytest.mark.asyncio
-    async def test_adds_one_file(self, reconciler, session, tmp_path):
-        _write(tmp_path, "a.md", "---\ntitle: A\n---\nBody.")
+    async def test_adds_one_file_with_id(self, reconciler, session, tmp_path):
+        _write(tmp_path, "a.md", "---\nid: a-id\ntitle: A\n---\nBody.")
         result = await reconciler.run()
         assert result == (1, 0, 0)
         notes = list(session.scalars(select(Note)))
         assert len(notes) == 1
         assert notes[0].title == "A"
+        assert notes[0].note_id == "a-id"
+
+    @pytest.mark.asyncio
+    async def test_missing_id_is_backfilled_to_file(
+        self, reconciler, session, tmp_path
+    ):
+        _write(tmp_path, "a.md", "---\ntitle: Hello World\n---\nBody.")
+        await reconciler.run()
+        # File now has id: hello-world written back.
+        new_raw = (tmp_path / "_processed" / "a.md").read_text()
+        assert "id: hello-world" in new_raw
+        note = session.scalars(select(Note)).first()
+        assert note.note_id == "hello-world"
+
+    @pytest.mark.asyncio
+    async def test_readonly_vault_uses_ephemeral_id(
+        self, reconciler, session, tmp_path, monkeypatch
+    ):
+        _write(tmp_path, "a.md", "---\ntitle: Read Only\n---\nBody.")
+        target = tmp_path / "_processed" / "a.md"
+
+        original_write = Path.write_text
+
+        def deny(self, *a, **kw):
+            if self == target:
+                raise PermissionError("read-only fs")
+            return original_write(self, *a, **kw)
+
+        monkeypatch.setattr(Path, "write_text", deny)
+        await reconciler.run()
+        note = session.scalars(select(Note)).first()
+        assert note.note_id.startswith("read-only-")
+        assert len(note.note_id) > len("read-only-")  # hash suffix appended
+
+    @pytest.mark.asyncio
+    async def test_edges_block_persists_typed_links(
+        self, reconciler, session, tmp_path
+    ):
+        from knowledge.models import NoteLink
+        _write(
+            tmp_path,
+            "a.md",
+            "---\nid: a\ntitle: A\nedges:\n  refines: [parent]\n  related: [b, c]\n---\nBody.",
+        )
+        await reconciler.run()
+        rows = list(session.scalars(select(NoteLink)))
+        assert {(r.kind, r.edge_type, r.target_id) for r in rows} == {
+            ("edge", "refines", "parent"),
+            ("edge", "related", "b"),
+            ("edge", "related", "c"),
+        }
 
     @pytest.mark.asyncio
     async def test_no_changes_skips_embedding(self, reconciler, embed_client, tmp_path):
-        _write(tmp_path, "a.md", "---\ntitle: A\n---\nBody.")
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\nBody.")
         await reconciler.run()
         embed_client.embed_batch.reset_mock()
         result = await reconciler.run()
@@ -1077,17 +1217,17 @@ class TestReconciler:
 
     @pytest.mark.asyncio
     async def test_edited_body_re_embeds(self, reconciler, tmp_path):
-        _write(tmp_path, "a.md", "---\ntitle: A\n---\nv1.")
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\nv1.")
         await reconciler.run()
-        _write(tmp_path, "a.md", "---\ntitle: A\n---\nv2.")
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\nv2.")
         result = await reconciler.run()
         assert result == (1, 0, 0)
 
     @pytest.mark.asyncio
     async def test_edited_frontmatter_only_re_embeds(self, reconciler, tmp_path, session):
-        _write(tmp_path, "a.md", "---\ntitle: A\n---\nBody.")
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\nBody.")
         await reconciler.run()
-        _write(tmp_path, "a.md", "---\ntitle: A\ntype: paper\n---\nBody.")
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\ntype: paper\n---\nBody.")
         result = await reconciler.run()
         assert result == (1, 0, 0)
         note = session.scalars(select(Note)).first()
@@ -1095,7 +1235,7 @@ class TestReconciler:
 
     @pytest.mark.asyncio
     async def test_deletes_removed_file(self, reconciler, tmp_path, session):
-        _write(tmp_path, "a.md", "---\ntitle: A\n---\nBody.")
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\nBody.")
         await reconciler.run()
         (tmp_path / "_processed" / "a.md").unlink()
         result = await reconciler.run()
@@ -1109,16 +1249,17 @@ class TestReconciler:
         result = await reconciler.run()
         assert result == (1, 0, 0)
         note = session.scalars(select(Note)).first()
-        # Title falls back to filename stem.
+        # Title falls back to filename stem; id is backfilled from the stem.
         assert note.title == "a"
+        assert note.note_id == "a"
 
     @pytest.mark.asyncio
     async def test_partial_failure_persists_other_notes(
         self, reconciler, embed_client, tmp_path, session
     ):
-        _write(tmp_path, "a.md", "---\ntitle: A\n---\nBody A.")
-        _write(tmp_path, "b.md", "---\ntitle: B\n---\nBody B.")
-        _write(tmp_path, "c.md", "---\ntitle: C\n---\nBody C.")
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\nBody A.")
+        _write(tmp_path, "b.md", "---\nid: b\ntitle: B\n---\nBody B.")
+        _write(tmp_path, "c.md", "---\nid: c\ntitle: C\n---\nBody C.")
 
         call = {"n": 0}
 
@@ -1137,7 +1278,7 @@ class TestReconciler:
 
     @pytest.mark.asyncio
     async def test_file_disappears_mid_cycle(self, reconciler, tmp_path):
-        _write(tmp_path, "ghost.md", "---\ntitle: G\n---\nx.")
+        _write(tmp_path, "ghost.md", "---\nid: g\ntitle: G\n---\nx.")
         original = reconciler._read_text  # type: ignore[attr-defined]
 
         def vanish(path):
@@ -1167,14 +1308,20 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
+import unicodedata
 from pathlib import Path
 from typing import Protocol
+
+from sqlalchemy import text
 
 from knowledge import frontmatter, links
 from knowledge.store import KnowledgeStore
 from shared.chunker import chunk_markdown
 
 logger = logging.getLogger("monolith.knowledge.reconciler")
+
+_SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 
 class _Embedder(Protocol):
@@ -1212,11 +1359,12 @@ class Reconciler:
         upserted = 0
         for path in to_upsert:
             try:
-                await self._ingest_one(path, on_disk[path])
+                ingested = await self._ingest_one(path, on_disk[path])
             except FileNotFoundError:
                 logger.warning("knowledge: file vanished mid-cycle: %s", path)
                 continue
-            upserted += 1
+            if ingested:
+                upserted += 1
 
         logger.info(
             "knowledge: reconciled upserted=%d deleted=%d unchanged=%d",
@@ -1244,15 +1392,48 @@ class Reconciler:
             logger.warning("knowledge: invalid utf-8, skipping: %s", abs_path)
             raise
 
-    async def _ingest_one(self, rel_path: str, content_hash: str) -> None:
+    async def _ingest_one(self, rel_path: str, content_hash: str) -> bool:
+        # Per-file advisory lock prevents producer/consumer races (gardener
+        # writing the same file mid-cycle, or two replicas if locking ever
+        # weakens). Lock is auto-released at txn end. Postgres-only — the
+        # SQLite test fixture skips this branch.
+        session = self.store.session
+        if session.bind.dialect.name == "postgresql":
+            locked = session.execute(
+                text("SELECT pg_try_advisory_xact_lock(hashtext(:p))"),
+                {"p": rel_path},
+            ).scalar()
+            if not locked:
+                logger.info(
+                    "knowledge: advisory lock busy, deferring %s", rel_path
+                )
+                return False
+
         abs_path = self.vault_root / rel_path
         try:
             raw = self._read_text(abs_path)
         except UnicodeDecodeError:
-            return
+            return False
 
         meta, body = frontmatter.parse(raw)
         title = meta.title or Path(rel_path).stem
+
+        # Auto-backfill missing note_id. Mandatory: every row must have one.
+        note_id = meta.note_id
+        if not note_id:
+            note_id = _slugify(title)
+            try:
+                raw, content_hash = self._write_back_id(abs_path, raw, note_id)
+                meta, body = frontmatter.parse(raw)
+            except PermissionError:
+                logger.warning(
+                    "knowledge: vault is read-only, using ephemeral id for %s",
+                    rel_path,
+                )
+                # Disambiguate against other read-only files with the same
+                # slug by appending a content-hash suffix.
+                note_id = f"{note_id}-{content_hash[:8]}"
+
         chunks = chunk_markdown(body)
         if not chunks:
             chunks = [{"index": 0, "section_header": "", "text": body or title}]
@@ -1260,6 +1441,7 @@ class Reconciler:
         wikilinks = links.extract(body)
 
         self.store.upsert_note(
+            note_id=note_id,
             path=rel_path,
             content_hash=content_hash,
             title=title,
@@ -1268,6 +1450,27 @@ class Reconciler:
             vectors=vectors,
             links=wikilinks,
         )
+        return True
+
+    def _write_back_id(
+        self, abs_path: Path, raw: str, note_id: str
+    ) -> tuple[str, str]:
+        """Inject `id: <note_id>` into the file's frontmatter; return new
+        (raw, content_hash). Raises PermissionError on read-only mounts."""
+        if raw.startswith("---\n"):
+            new_raw = f"---\nid: {note_id}\n" + raw[len("---\n"):]
+        else:
+            new_raw = f"---\nid: {note_id}\n---\n{raw}"
+        abs_path.write_text(new_raw, encoding="utf-8")
+        new_hash = hashlib.sha256(new_raw.encode("utf-8")).hexdigest()
+        return new_raw, new_hash
+
+
+def _slugify(text_in: str) -> str:
+    normalized = unicodedata.normalize("NFKD", text_in)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = _SLUG_RE.sub("-", ascii_only.lower()).strip("-")
+    return slug or "note"
 ```
 
 **Step 4: Run tests, expect pass**
