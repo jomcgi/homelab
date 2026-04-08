@@ -214,6 +214,26 @@ class TestReconciler:
         assert len(titles) == 2
 
     @pytest.mark.asyncio
+    async def test_body_wikilinks_persist_as_link_kind_rows(
+        self, reconciler, session, tmp_path
+    ):
+        _write(
+            tmp_path,
+            "a.md",
+            "---\nid: a\ntitle: A\n---\n# Title\n\nbody with [[Foo]] and [[Bar|the bar]]\n",
+        )
+        await reconciler.run()
+        rows = list(session.scalars(select(NoteLink)))
+        assert len(rows) == 2
+        by_target = {r.target_id: r for r in rows}
+        assert set(by_target) == {"Foo", "Bar"}
+        for r in rows:
+            assert r.kind == "link"
+            assert r.edge_type is None
+        assert by_target["Foo"].target_title is None
+        assert by_target["Bar"].target_title == "the bar"
+
+    @pytest.mark.asyncio
     async def test_crlf_file_can_be_ingested_and_id_backfilled(
         self, reconciler, session, tmp_path
     ):
