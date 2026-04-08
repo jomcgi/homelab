@@ -27,6 +27,7 @@ go_test(
     srcs = [
         "access_test.go",
         "client_test.go",
+        "coverage_gaps_test.go",
         "dns_test.go",
         "mock_api_test.go",
         "routes_test.go",
