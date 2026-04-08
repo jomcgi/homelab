@@ -56,6 +56,12 @@ def _write(tmp_path: Path, rel: str, content: str) -> None:
     p.write_text(content)
 
 
+def _write_bytes(tmp_path: Path, rel: str, content: bytes) -> None:
+    p = tmp_path / "_processed" / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(content)
+
+
 class TestReconciler:
     @pytest.mark.asyncio
     async def test_empty_vault(self, reconciler):
@@ -85,19 +91,14 @@ class TestReconciler:
 
     @pytest.mark.asyncio
     async def test_readonly_vault_with_missing_id_skips_file(
-        self, reconciler, session, tmp_path, monkeypatch
+        self, reconciler, session, tmp_path
     ):
         _write(tmp_path, "a.md", "---\ntitle: Read Only\n---\nBody.")
-        target = tmp_path / "_processed" / "a.md"
 
-        original_write = Path.write_text
+        def deny(abs_path, raw, note_id):
+            raise PermissionError("read-only fs")
 
-        def deny(self, *a, **kw):
-            if self == target:
-                raise PermissionError("read-only fs")
-            return original_write(self, *a, **kw)
-
-        monkeypatch.setattr(Path, "write_text", deny)
+        reconciler._write_back_id = deny  # type: ignore[method-assign]
         # The read-only error is classified as a partial failure: the
         # outer run() loop catches it, continues, and re-raises at the
         # end. The file must NOT have been ingested.
@@ -211,6 +212,28 @@ class TestReconciler:
         titles = sorted(n.title for n in session.scalars(select(Note)))
         assert "B" not in titles
         assert len(titles) == 2
+
+    @pytest.mark.asyncio
+    async def test_crlf_file_can_be_ingested_and_id_backfilled(
+        self, reconciler, session, tmp_path
+    ):
+        # Windows-authored notes use CRLF line endings. The file should
+        # ingest successfully, and when we backfill a missing id the
+        # rewritten file should preserve CRLF.
+        _write_bytes(
+            tmp_path,
+            "crlf.md",
+            b"---\r\ntitle: CRLF Backfill\r\n---\r\nBody.\r\n",
+        )
+        await reconciler.run()
+        note = session.scalars(select(Note)).first()
+        assert note is not None
+        assert note.title == "CRLF Backfill"
+        assert note.note_id == "crlf-backfill"
+        raw = (tmp_path / "_processed" / "crlf.md").read_bytes()
+        assert b"\r\nid: crlf-backfill\r\n" in raw
+        # Sanity: no stray LF-only lines introduced.
+        assert b"\r\nid: crlf-backfill\n" not in raw
 
     @pytest.mark.asyncio
     async def test_file_disappears_mid_cycle(self, reconciler, tmp_path):

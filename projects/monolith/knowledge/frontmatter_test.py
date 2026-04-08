@@ -117,6 +117,13 @@ class TestParse:
         meta, _ = parse(raw)
         assert meta.edges == {}
 
+    def test_crlf_frontmatter_parses_correctly(self):
+        raw = "---\r\ntitle: CRLF Note\r\ntags: [a, b]\r\n---\r\nBody with CRLF.\r\n"
+        meta, body = parse(raw)
+        assert meta.title == "CRLF Note"
+        assert meta.tags == ["a", "b"]
+        assert body == "Body with CRLF.\r\n"
+
     def test_up_key_is_no_longer_recognized(self):
         # `up:` was removed in favor of `edges.refines`. A one-shot vault
         # migration script (out of scope) rewrites legacy `up:` keys.

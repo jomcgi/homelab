@@ -146,7 +146,11 @@ class Reconciler:
 
     def _read_text(self, abs_path: Path) -> str:
         try:
-            return abs_path.read_text(encoding="utf-8")
+            # newline="" disables universal-newlines translation so we
+            # can observe (and preserve) the file's original line endings
+            # when backfilling the frontmatter id.
+            with open(abs_path, encoding="utf-8", newline="") as f:
+                return f.read()
         except UnicodeDecodeError:
             logger.warning("knowledge: invalid utf-8, skipping: %s", abs_path)
             raise
@@ -209,14 +213,23 @@ class Reconciler:
     def _write_back_id(self, abs_path: Path, raw: str, note_id: str) -> tuple[str, str]:
         """Inject ``id: <note_id>`` into the file's frontmatter.
 
-        Returns the new ``(raw, content_hash)``. Raises ``PermissionError``
-        on read-only mounts.
+        Preserves the file's existing line ending (LF or CRLF) so Git
+        diffs stay clean on Windows-authored notes. Returns the new
+        ``(raw, content_hash)``. Raises ``PermissionError`` on read-only
+        mounts.
         """
-        if raw.startswith("---\n"):
-            new_raw = f"---\nid: {note_id}\n" + raw[len("---\n") :]
+        if raw.startswith("---\r\n"):
+            eol = "\r\n"
+            new_raw = f"---{eol}id: {note_id}{eol}" + raw[len("---\r\n") :]
+        elif raw.startswith("---\n"):
+            eol = "\n"
+            new_raw = f"---{eol}id: {note_id}{eol}" + raw[len("---\n") :]
         else:
+            # No existing frontmatter — default to LF.
             new_raw = f"---\nid: {note_id}\n---\n{raw}"
-        abs_path.write_text(new_raw, encoding="utf-8")
+        # newline="" preserves whatever EOLs are already in new_raw.
+        with open(abs_path, "w", encoding="utf-8", newline="") as f:
+            f.write(new_raw)
         new_hash = hashlib.sha256(new_raw.encode("utf-8")).hexdigest()
         return new_raw, new_hash
 
