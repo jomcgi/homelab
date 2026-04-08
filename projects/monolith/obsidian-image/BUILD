@@ -3,6 +3,10 @@
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
+# Export entrypoint.sh so it can be referenced by Helm chart tests that verify
+# the /tmp/ready sentinel path is consistent with the readiness probe in deployment.yaml.
+exports_files(["entrypoint.sh"])
+
 # Package obsidian-headless CLI with all transitive JavaScript dependencies.
 # pnpm hoist=false means transitive deps (bindings, file-uri-to-path) are not
 # siblings of obsidian-headless — they must be listed explicitly.
