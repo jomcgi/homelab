@@ -21,7 +21,7 @@ _JSONB = JSONB().with_variant(JSON(), "sqlite")
 
 class Note(SQLModel, table=True):
     __tablename__ = "notes"
-    __table_args__ = {"schema": "knowledge"}
+    __table_args__ = {"schema": "knowledge", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     note_id: str = Field(unique=True)  # stable graph identity, frontmatter `id:`
@@ -41,7 +41,7 @@ class Note(SQLModel, table=True):
 
 class Chunk(SQLModel, table=True):
     __tablename__ = "chunks"
-    __table_args__ = {"schema": "knowledge"}
+    __table_args__ = {"schema": "knowledge", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     note_id: int = Field(foreign_key="knowledge.notes.id")
@@ -60,7 +60,7 @@ class Chunk(SQLModel, table=True):
 
 class NoteLink(SQLModel, table=True):
     __tablename__ = "note_links"
-    __table_args__ = {"schema": "knowledge"}
+    __table_args__ = {"schema": "knowledge", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     src_note_id: int = Field(foreign_key="knowledge.notes.id")
