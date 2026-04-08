@@ -2,7 +2,9 @@
 
 from datetime import datetime, timezone
 
-from knowledge.frontmatter import ParsedFrontmatter, parse
+import pytest
+
+from knowledge.frontmatter import FrontmatterError, ParsedFrontmatter, parse
 
 
 class TestParse:
@@ -43,11 +45,15 @@ class TestParse:
         meta, _ = parse(raw)
         assert meta.aliases == ["Foo", "Bar"]
 
-    def test_invalid_yaml_returns_empty_metadata_and_full_body(self):
+    def test_invalid_yaml_raises_frontmatter_error(self):
         raw = "---\ntitle: [unterminated\n---\nBody text."
-        meta, body = parse(raw)
-        assert meta == ParsedFrontmatter()
-        assert body == raw  # full original content, no body stripping
+        with pytest.raises(FrontmatterError):
+            parse(raw)
+
+    def test_non_mapping_yaml_raises_frontmatter_error(self):
+        raw = "---\n- just\n- a\n- list\n---\nBody text."
+        with pytest.raises(FrontmatterError):
+            parse(raw)
 
     def test_invalid_date_yields_none(self):
         raw = "---\ncreated: not-a-date\n---\nx"
