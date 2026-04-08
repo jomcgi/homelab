@@ -1700,6 +1700,20 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_store_test",
+    srcs = ["knowledge/store_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pydantic",
+        "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "chat_bot_thinking_extra_test",
     srcs = ["chat/bot_thinking_extra_test.py"],
     imports = ["."],
