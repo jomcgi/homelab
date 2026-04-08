@@ -165,6 +165,30 @@ func TestSSAPatch_Pending_ReturnsApplyPatch(t *testing.T) {
 	require.NotNil(t, patch)
 }
 
+// TestSSAPatch_Syncing_ReturnsApplyPatch tests the Syncing path in
+// applyStateToStatus which sets SyncJobName in addition to all ResolveResult
+// fields. This is the only state-specific path not covered by the other
+// SSAPatch tests.
+func TestSSAPatch_Syncing_ReturnsApplyPatch(t *testing.T) {
+	mc := makeStatusMC("")
+	s := ModelCacheSyncing{
+		resource: mc,
+		ResolveResult: ResolveResult{
+			ResolvedRef:      "ghcr.io/jomcgi/models/llama:main",
+			ResolvedRevision: "main",
+			Format:           "safetensors",
+			FileCount:        4,
+			TotalSize:        2048,
+		},
+		SyncJob: SyncJob{SyncJobName: "sync-job-xyz"},
+	}
+
+	patch, err := SSAPatch(s)
+
+	require.NoError(t, err)
+	require.NotNil(t, patch)
+}
+
 func TestSSAPatch_Resolving_ReturnsApplyPatch(t *testing.T) {
 	mc := makeStatusMC("")
 	s := ModelCacheResolving{

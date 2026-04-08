@@ -92,3 +92,97 @@ func TestParseResultJSONInvalid(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parsing termination message")
 }
+
+// TestParseTerminationMessage_RunningPod verifies that when a pod's container
+// is Running (not yet Terminated), parseTerminationMessage returns an error.
+// This covers the inner loop body where cs.State.Terminated == nil, causing the
+// function to fall through and return "no termination message found".
+func TestParseTerminationMessage_RunningPod(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mc-sync-running",
+			Namespace: "default",
+		},
+	}
+
+	// Pod exists with a Running container but no Terminated state.
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mc-sync-running-abc12",
+			Namespace: "default",
+			Labels:    map[string]string{"job-name": "mc-sync-running"},
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name: "hf2oci",
+					State: corev1.ContainerState{
+						Running: &corev1.ContainerStateRunning{},
+					},
+				},
+			},
+		},
+	}
+
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(pod).Build()
+
+	_, err := parseTerminationMessage(context.Background(), c, job)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no termination message found")
+}
+
+// TestParseTerminationMessage_TerminatedEmptyMessage verifies that a container
+// that has terminated but left an empty termination message is skipped, causing
+// parseTerminationMessage to return "no termination message found".
+// This covers the `cs.State.Terminated.Message != ""` guard in the inner loop.
+func TestParseTerminationMessage_TerminatedEmptyMessage(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mc-sync-empty-msg",
+			Namespace: "default",
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mc-sync-empty-msg-abc12",
+			Namespace: "default",
+			Labels:    map[string]string{"job-name": "mc-sync-empty-msg"},
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name: "hf2oci",
+					State: corev1.ContainerState{
+						Terminated: &corev1.ContainerStateTerminated{
+							ExitCode: 0,
+							Message:  "", // empty — hf2oci did not write a result
+						},
+					},
+				},
+			},
+		},
+	}
+
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(pod).Build()
+
+	_, err := parseTerminationMessage(context.Background(), c, job)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no termination message found")
+}
+
+// TestParseResultJSON_CachedIsAlwaysFalse verifies that parseResultJSON always
+// sets Cached=false regardless of any JSON content. The hf2oci termination
+// message format does not include a "cached" field; cache hits are detected
+// by the resolver before a job is created.
+func TestParseResultJSON_CachedIsAlwaysFalse(t *testing.T) {
+	result, err := parseResultJSON(`{"ref":"ghcr.io/r/m:t","digest":"sha256:abc","revision":"main","format":"safetensors","fileCount":5,"totalSize":1024}`)
+	require.NoError(t, err)
+	assert.False(t, result.Cached, "parseResultJSON should always produce Cached=false")
+}
