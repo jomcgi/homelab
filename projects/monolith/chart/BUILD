@@ -28,6 +28,7 @@ helm_chart(
     images = {
         "backend.image": "//projects/monolith:image.info",
         "frontend.image": "//projects/monolith/frontend:image.info",
+        "knowledge.headlessSync.image": "//projects/monolith/headless-sync-image:image.info",
     },
     lint = False,
     publish = True,

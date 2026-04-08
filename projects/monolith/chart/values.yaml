@@ -56,8 +56,8 @@ knowledge:
   enabled: false
   headlessSync:
     image:
-      repository: node
-      tag: "22-alpine"
+      repository: ghcr.io/jomcgi/homelab/projects/monolith/headless-sync-image
+      tag: latest
     vaultName: ""
   vault:
     mountPath: /vault
