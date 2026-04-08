@@ -38,7 +38,7 @@ import (
 //   - Full sequential lifecycle sanity check
 
 var _ = Describe("RetryBackoff cap boundary", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	// base=5s, multiplier=2.0, max=300s
 	// cap first reached at RetryCount=6: 5 * 2^6 = 320s > 300s
@@ -118,7 +118,7 @@ var _ = Describe("RetryBackoff concurrent mutex safety", func() {
 })
 
 var _ = Describe("FuncVisitor nil handler zero-value return", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	// When a specific handler is nil AND Default is nil, the zero value for T is returned.
 	DescribeTable("nil handler with no Default returns zero value",
@@ -153,7 +153,7 @@ var _ = Describe("FuncVisitor nil handler zero-value return", func() {
 })
 
 var _ = Describe("FuncVisitor handler precedence over Default", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("specific handler takes precedence over Default", func() {
 		state := CloudflareTunnelPending{resource: resource}
@@ -187,7 +187,7 @@ var _ = Describe("FuncVisitor handler precedence over Default", func() {
 })
 
 var _ = Describe("StartDeletion field propagation", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("Pending.StartDeletion does not propagate a TunnelID (Pending has none)", func() {
 		pending := CloudflareTunnelPending{resource: resource}
@@ -207,7 +207,7 @@ var _ = Describe("StartDeletion field propagation", func() {
 })
 
 var _ = Describe("DeletingTunnel.DeletionComplete", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("DeletionComplete transitions to Deleted and preserves resource pointer", func() {
 		dt := CloudflareTunnelDeletingTunnel{
@@ -256,7 +256,7 @@ var _ = Describe("SecretInfo Validate error message", func() {
 })
 
 var _ = Describe("CloudflareTunnelFailed Validate error message ordering", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("returns lastState error when both LastState and ErrorMessage are empty", func() {
 		failed := CloudflareTunnelFailed{resource: resource}
@@ -286,7 +286,7 @@ var _ = Describe("CloudflareTunnelFailed Validate error message ordering", func(
 })
 
 var _ = Describe("CloudflareTunnelUnknown Validate error message", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("returns exact error message when ObservedPhase is empty", func() {
 		unknown := CloudflareTunnelUnknown{resource: resource}
@@ -302,7 +302,7 @@ var _ = Describe("CloudflareTunnelUnknown Validate error message", func() {
 })
 
 var _ = Describe("CloudflareTunnelFailed.IsRetryable always true", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	DescribeTable("IsRetryable returns true regardless of RetryCount",
 		func(count int) {
@@ -322,7 +322,7 @@ var _ = Describe("CloudflareTunnelFailed.IsRetryable always true", func() {
 })
 
 var _ = Describe("IngressConfigured Active field propagation", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("IngressConfigured with Active=false produces Ready with Active=false", func() {
 		ci := CloudflareTunnelConfiguringIngress{
@@ -349,7 +349,7 @@ var _ = Describe("IngressConfigured Active field propagation", func() {
 })
 
 var _ = Describe("ReconfigureIngress preserves both TunnelIdentity and SecretInfo", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("ReconfigureIngress carries TunnelID and SecretName forward", func() {
 		ready := CloudflareTunnelReady{
@@ -367,7 +367,7 @@ var _ = Describe("ReconfigureIngress preserves both TunnelIdentity and SecretInf
 })
 
 var _ = Describe("CloudflareTunnelConfiguringIngress Validate error ordering", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("returns TunnelID error first when both TunnelID and SecretName are missing", func() {
 		ci := CloudflareTunnelConfiguringIngress{resource: resource}
@@ -397,7 +397,7 @@ var _ = Describe("CloudflareTunnelConfiguringIngress Validate error ordering", f
 })
 
 var _ = Describe("CloudflareTunnelReady Validate error ordering", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("returns TunnelID error first when both fields missing", func() {
 		ready := CloudflareTunnelReady{resource: resource}
@@ -418,7 +418,7 @@ var _ = Describe("CloudflareTunnelReady Validate error ordering", func() {
 })
 
 var _ = Describe("CloudflareTunnelDeletingTunnel Validate", func() {
-	var resource = newTunnel("")
+	resource := newTunnel("")
 
 	It("fails validation when TunnelID is empty", func() {
 		dt := CloudflareTunnelDeletingTunnel{resource: resource}
