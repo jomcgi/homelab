@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 import pytest
+from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
@@ -150,6 +151,48 @@ class TestUpsertNote:
         assert len(by_kind["link"]) == 1
         assert by_kind["link"][0].edge_type is None
         assert by_kind["link"][0].target_title == "the b"
+
+
+class TestUpsertAtomicity:
+    def test_upsert_replace_is_atomic_on_mid_insert_failure(self, store, session):
+        _upsert(
+            store,
+            path="a.md",
+            content_hash="h1",
+            title="Original",
+            metadata=_meta(title="Original"),
+            n_chunks=1,
+        )
+
+        boom = {"fired": False}
+
+        def _raise_once(_mapper, _connection, _target):
+            if boom["fired"]:
+                return
+            boom["fired"] = True
+            raise RuntimeError("simulated mid-insert failure")
+
+        event.listen(Chunk, "after_insert", _raise_once)
+        try:
+            with pytest.raises(RuntimeError, match="simulated mid-insert failure"):
+                _upsert(
+                    store,
+                    path="a.md",
+                    content_hash="h2",
+                    title="Replaced",
+                    metadata=_meta(title="Replaced"),
+                    n_chunks=2,
+                )
+            # Rollback any outer-transaction state left behind by the
+            # failed upsert so we can query the preserved row.
+            session.rollback()
+        finally:
+            event.remove(Chunk, "after_insert", _raise_once)
+
+        notes = list(session.scalars(select(Note)))
+        assert len(notes) == 1
+        assert notes[0].title == "Original"
+        assert notes[0].content_hash == "h1"
 
 
 class TestDeleteNote:
