@@ -188,6 +188,113 @@ func TestUnknown_RetryBackoff_Is30Seconds(t *testing.T) {
 	}
 }
 
+// --- ResolveResult.Validate() error ordering when all fields absent ---
+
+// TestResolveResult_Validate_AllFieldsAbsent_FirstErrorIsResolvedRef verifies
+// that when ALL required fields are absent simultaneously, Validate() returns
+// the "resolvedRef is required" error first — not resolvedRevision or format.
+// This documents the "first error wins" contract so it cannot silently change.
+func TestResolveResult_Validate_AllFieldsAbsent_FirstErrorIsResolvedRef(t *testing.T) {
+	rr := ResolveResult{} // all zero values
+	err := rr.Validate()
+	if err == nil {
+		t.Fatal("expected a validation error for an empty ResolveResult, got nil")
+	}
+	if !containsSubstring(err.Error(), "resolvedRef") {
+		t.Errorf("expected error to mention %q first, got: %v", "resolvedRef", err)
+	}
+}
+
+// TestResolveResult_Validate_Ordering verifies the documented field-check order:
+// resolvedRef → resolvedRevision → format (first missing field is reported).
+func TestResolveResult_Validate_Ordering(t *testing.T) {
+	cases := []struct {
+		name          string
+		r             ResolveResult
+		wantSubstring string
+	}{
+		{
+			// resolvedRef absent → must be reported even when other fields are also absent
+			name:          "only resolvedRef missing reports resolvedRef",
+			r:             ResolveResult{ResolvedRevision: "main", Format: "gguf"},
+			wantSubstring: "resolvedRef",
+		},
+		{
+			// resolvedRevision absent → resolvedRef is present so we advance to next check
+			name:          "only resolvedRevision missing reports resolvedRevision",
+			r:             ResolveResult{ResolvedRef: "ghcr.io/jomcgi/models/llama:main", Format: "gguf"},
+			wantSubstring: "resolvedRevision",
+		},
+		{
+			// format absent → both resolvedRef and resolvedRevision present
+			name:          "only format missing reports format",
+			r:             ResolveResult{ResolvedRef: "ghcr.io/jomcgi/models/llama:main", ResolvedRevision: "main"},
+			wantSubstring: "format",
+		},
+		{
+			// all absent → first check (resolvedRef) wins
+			name:          "all fields absent reports resolvedRef first",
+			r:             ResolveResult{},
+			wantSubstring: "resolvedRef",
+		},
+		{
+			// resolvedRef + resolvedRevision absent → resolvedRef is checked first
+			name:          "resolvedRef and resolvedRevision absent reports resolvedRef",
+			r:             ResolveResult{Format: "gguf"},
+			wantSubstring: "resolvedRef",
+		},
+		{
+			// resolvedRevision + format absent → resolvedRevision is second check
+			name:          "resolvedRevision and format absent reports resolvedRevision",
+			r:             ResolveResult{ResolvedRef: "ghcr.io/jomcgi/models/llama:main"},
+			wantSubstring: "resolvedRevision",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.r.Validate()
+			if err == nil {
+				t.Fatal("expected a validation error, got nil")
+			}
+			if !containsSubstring(err.Error(), tc.wantSubstring) {
+				t.Errorf("expected error to mention %q, got: %v", tc.wantSubstring, err)
+			}
+		})
+	}
+}
+
+// TestResolveResult_Validate_FullyPopulated verifies that a complete
+// ResolveResult passes validation (the happy path).
+func TestResolveResult_Validate_FullyPopulated(t *testing.T) {
+	rr := ResolveResult{
+		ResolvedRef:      "ghcr.io/jomcgi/models/llama:main",
+		Digest:           "sha256:abc123", // Digest is not validated by ResolveResult.Validate()
+		ResolvedRevision: "rev-main",
+		Format:           "safetensors",
+		FileCount:        7,
+		TotalSize:        1_073_741_824,
+	}
+	if err := rr.Validate(); err != nil {
+		t.Errorf("Validate() failed on fully-populated ResolveResult: %v", err)
+	}
+}
+
+// TestResolveResult_Validate_DigestNotRequired verifies that Digest is NOT
+// checked by ResolveResult.Validate() — per the doc comment, Digest is only
+// required by ModelCacheReady.Validate(), not by the shared struct.
+func TestResolveResult_Validate_DigestNotRequired(t *testing.T) {
+	rr := ResolveResult{
+		ResolvedRef:      "ghcr.io/jomcgi/models/llama:main",
+		ResolvedRevision: "main",
+		Format:           "gguf",
+		// Digest intentionally empty
+	}
+	if err := rr.Validate(); err != nil {
+		t.Errorf("Validate() should NOT check Digest, but got: %v", err)
+	}
+}
+
 // --- helpers ---
 
 // containsSubstring reports whether s contains substr (avoids importing strings).
