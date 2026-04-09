@@ -244,8 +244,8 @@ async def test_save_messages_failure_propagates(
         side_effect=RuntimeError("db write failure")
     )
     mock_store_cls.return_value = mock_store_instance
-    mock_session.return_value.__enter__ = MagicMock()
-    mock_session.return_value.__exit__ = MagicMock()
+    mock_session.return_value.__enter__ = MagicMock(return_value=MagicMock())
+    mock_session.return_value.__exit__ = MagicMock(return_value=False)  # must not suppress exceptions
 
     msg = _make_discord_message(1, "hello")
     channel = _make_channel("general", "ch1", [msg])
