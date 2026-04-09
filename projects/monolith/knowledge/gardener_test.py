@@ -8,7 +8,6 @@ import pytest
 
 from knowledge.gardener import (
     Gardener,
-    GardenStats,
     _slugify,
     _split_frontmatter,
 )
@@ -335,3 +334,72 @@ class TestIngestOneClaude:
 
         proc_mock.kill.assert_called_once()
         proc_mock.wait.assert_awaited_once()
+
+
+class TestSlugify:
+    def test_ascii_text(self):
+        assert _slugify("Hello World") == "hello-world"
+
+    def test_unicode_nfkd_strips_accents(self):
+        assert _slugify("Héllo") == "hello"
+
+    def test_empty_string_returns_note(self):
+        assert _slugify("") == "note"
+
+    def test_multiple_special_chars_collapse_to_single_hyphen(self):
+        assert _slugify("Hello!! World") == "hello-world"
+
+
+class TestSplitFrontmatter:
+    def test_valid_frontmatter_splits_correctly(self):
+        raw = "---\ntitle: Test\n---\nBody"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {"title": "Test"}
+        assert body == "Body"
+
+    def test_no_frontmatter_returns_empty_dict_and_raw(self):
+        raw = "No frontmatter"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {}
+        assert body == raw
+
+    def test_unclosed_frontmatter_returns_empty_dict_and_raw(self):
+        raw = "---\ntitle: Test\n"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {}
+        assert body == raw
+
+    def test_non_dict_yaml_returns_empty_dict_and_raw(self):
+        raw = "---\n- item1\n- item2\n---\nBody"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {}
+        assert body == raw
+
+    def test_invalid_yaml_returns_empty_dict_and_raw(self):
+        raw = "---\n: invalid: yaml:\n---\nBody"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {}
+        assert body == raw
+
+
+class TestRunFailurePath:
+    @pytest.mark.asyncio
+    async def test_continues_after_mid_run_failure(self, tmp_path):
+        """run() continues processing files even when one raises an exception."""
+        for name in ("after.md", "before.md", "middle.md"):
+            _write(tmp_path, name, f"---\ntitle: {name}\n---\nBody.")
+
+        gardener = Gardener(vault_root=tmp_path)
+        calls: list[Path] = []
+
+        async def fake_ingest(path: Path) -> None:
+            calls.append(path)
+            if path.name == "middle.md":
+                raise RuntimeError("simulated ingest failure")
+
+        gardener._ingest_one = fake_ingest  # type: ignore[method-assign]
+        stats = await gardener.run()
+
+        assert len(calls) == 3
+        assert stats.ingested == 2
+        assert stats.failed == 1
