@@ -31,7 +31,12 @@ class TestMessageLock:
     def test_column_names(self):
         """MessageLock has exactly the expected columns."""
         columns = {c.name for c in MessageLock.__table__.columns}
-        assert columns == {"discord_message_id", "channel_id", "claimed_at", "completed"}
+        assert columns == {
+            "discord_message_id",
+            "channel_id",
+            "claimed_at",
+            "completed",
+        }
 
     def test_discord_message_id_is_primary_key(self):
         """discord_message_id is the primary key column."""
@@ -45,7 +50,9 @@ class TestMessageLock:
 
     def test_completed_can_be_set_true(self):
         """MessageLock.completed can be set to True."""
-        lock = MessageLock(discord_message_id="msg-2", channel_id="ch-2", completed=True)
+        lock = MessageLock(
+            discord_message_id="msg-2", channel_id="ch-2", completed=True
+        )
         assert lock.completed is True
 
     def test_claimed_at_default_is_utc(self):
@@ -60,9 +67,7 @@ class TestMessageLock:
         from datetime import datetime
 
         dt = datetime(2024, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
-        lock = MessageLock(
-            discord_message_id="msg-4", channel_id="ch-4", claimed_at=dt
-        )
+        lock = MessageLock(discord_message_id="msg-4", channel_id="ch-4", claimed_at=dt)
         assert lock.claimed_at == dt
 
     def test_construction_with_all_fields(self):
