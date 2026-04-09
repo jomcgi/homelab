@@ -215,7 +215,7 @@ class TestSoftDelete:
 class TestIngestOneClaude:
     @pytest.mark.asyncio
     async def test_spawns_claude_with_correct_flags(self, tmp_path):
-        """_ingest_one spawns claude with --dangerouslySkipPermissions and cwd=vault_root."""
+        """_ingest_one spawns claude with --dangerously-skip-permissions and cwd=vault_root."""
         vault = tmp_path / "vault"
         vault.mkdir()
         note = vault / "test.md"
@@ -295,6 +295,55 @@ class TestIngestOneClaude:
             await Gardener(vault_root=vault)._ingest_one(note)
 
         assert note.exists()
+
+    @pytest.mark.asyncio
+    async def test_stdout_included_in_no_notes_warning(self, tmp_path, caplog):
+        """When claude exits 0 but creates no notes, stdout is included in warning log."""
+        import logging
+
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "test.md"
+        note.write_text("# Hello\ncontent")
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+        proc_mock.communicate = AsyncMock(
+            return_value=(b"I refused to create files.", b"")
+        )
+
+        with caplog.at_level(logging.WARNING, logger="monolith.knowledge.gardener"):
+            with patch("asyncio.create_subprocess_exec", return_value=proc_mock):
+                await Gardener(vault_root=vault)._ingest_one(note)
+
+        assert note.exists()
+        assert "I refused to create files." in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_stdout_truncated_at_500_chars_in_no_notes_warning(
+        self, tmp_path, caplog
+    ):
+        """stdout is truncated to 500 chars in the no-notes warning to avoid huge logs."""
+        import logging
+
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "test.md"
+        note.write_text("# Hello\ncontent")
+
+        long_stdout = b"x" * 600  # Exceeds the 500-char cap
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+        proc_mock.communicate = AsyncMock(return_value=(long_stdout, b""))
+
+        with caplog.at_level(logging.WARNING, logger="monolith.knowledge.gardener"):
+            with patch("asyncio.create_subprocess_exec", return_value=proc_mock):
+                await Gardener(vault_root=vault)._ingest_one(note)
+
+        # The full 600-char string must NOT appear; only the first 500 chars are logged
+        assert "x" * 501 not in caplog.text
+        assert "x" * 500 in caplog.text
 
     @pytest.mark.asyncio
     async def test_raises_on_nonzero_exit(self, tmp_path):
