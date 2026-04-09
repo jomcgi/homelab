@@ -158,8 +158,8 @@ class TestGardenHandler:
     @pytest.mark.asyncio
     async def test_skips_when_api_key_unset(self, monkeypatch):
         """garden_handler returns None and constructs neither an Anthropic
-        client nor a Gardener when ANTHROPIC_API_KEY is unset."""
-        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        client nor a Gardener when ANTHROPIC_AUTH_TOKEN is unset."""
+        monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
         session = MagicMock()
         with (
             patch("anthropic.Anthropic") as mock_anthropic,
@@ -173,8 +173,8 @@ class TestGardenHandler:
     @pytest.mark.asyncio
     async def test_runs_gardener_when_api_key_set(self, monkeypatch, tmp_path):
         """garden_handler constructs Gardener with the expected wiring and
-        awaits run() when ANTHROPIC_API_KEY is present."""
-        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+        awaits run() when ANTHROPIC_AUTH_TOKEN is present."""
+        monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-test")
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
         session = MagicMock()
         gardener_instance = MagicMock()
@@ -191,7 +191,7 @@ class TestGardenHandler:
         ):
             result = await garden_handler(session)
         assert result is None
-        mock_anthropic.assert_called_once_with(api_key="sk-test")
+        mock_anthropic.assert_called_once_with(auth_token="sk-test")
         mock_store.assert_called_once_with(session=session)
         mock_embed.assert_called_once_with()
         mock_gardener.assert_called_once()
@@ -209,7 +209,7 @@ class TestGardenHandler:
     ):
         """When every ingest attempt failed, the completion log is promoted
         to ERROR so log-level alerting surfaces the outage."""
-        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+        monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-test")
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
         session = MagicMock()
         gardener_instance = MagicMock()
@@ -231,7 +231,7 @@ class TestGardenHandler:
     @pytest.mark.asyncio
     async def test_honors_max_files_env_override(self, monkeypatch, tmp_path):
         """GARDENER_MAX_FILES_PER_RUN env var overrides the default cap."""
-        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+        monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-test")
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
         monkeypatch.setenv("GARDENER_MAX_FILES_PER_RUN", "25")
         session = MagicMock()

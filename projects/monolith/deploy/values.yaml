@@ -92,4 +92,4 @@ chat:
 gardener:
   enabled: true
   onepassword:
-    itemPath: "vaults/k8s-homelab/items/anthropic"
+    itemPath: "vaults/k8s-homelab/items/litellm-claude-auth"
