@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import os
+import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
 import yaml
 
@@ -19,6 +23,127 @@ logger = logging.getLogger("monolith.knowledge.gardener")
 
 _EXCLUDED_DIRS = {"_processed", "_deleted_with_ttl", ".obsidian", ".trash"}
 _TTL_HOURS = 24
+
+_SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+# Model to use for the gardener. Override via GARDENER_MODEL env var.
+_DEFAULT_MODEL = "claude-sonnet-4-5"
+
+_SYSTEM_PROMPT = """\
+You are a knowledge gardener. Your job is to decompose a raw note into atomic knowledge artifacts.
+
+For each raw note, you should:
+1. First, search for related existing notes using search_notes.
+2. Read any closely related notes using get_note to understand existing coverage.
+3. Decompose the raw note into one or more typed notes using create_note:
+   - atom: a distilled concept or principle
+   - fact: a specific, verifiable claim
+   - active: a temporal or actionable item (journal entry, TODO, reminder)
+4. Set appropriate edges on new notes (especially derives_from to link to related existing notes).
+5. Optionally use patch_edges to add edges from existing notes back to the new ones.
+
+Each created note should be atomic — covering exactly one concept, fact, or action. Prefer multiple small notes over one large note. Use clear, descriptive titles.\
+"""
+
+_TOOLS = [
+    {
+        "name": "search_notes",
+        "description": "Search existing notes by semantic similarity. Use this to find related existing notes before creating new ones, so you can set appropriate edges.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural language query to search for similar notes.",
+                }
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_note",
+        "description": "Read the full content of an existing note by its note_id.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "note_id": {
+                    "type": "string",
+                    "description": "The note_id (frontmatter id) of the note to read.",
+                }
+            },
+            "required": ["note_id"],
+        },
+    },
+    {
+        "name": "create_note",
+        "description": "Create a new typed knowledge note. Each note should be atomic — one concept, one fact, or one actionable item.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": ["atom", "fact", "active"],
+                    "description": "atom = distilled concept/principle, fact = specific verifiable claim, active = temporal/actionable item (journal, TODO).",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Concise title for the note.",
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Relevant tags for categorization.",
+                },
+                "edges": {
+                    "type": "object",
+                    "description": "Typed edges to other notes. Keys are edge types (refines, generalizes, related, contradicts, derives_from, supersedes), values are arrays of note_ids.",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+                "body": {
+                    "type": "string",
+                    "description": "The markdown body content of the note.",
+                },
+            },
+            "required": ["type", "title", "body"],
+        },
+    },
+    {
+        "name": "patch_edges",
+        "description": "Add edges to an existing note's frontmatter. Use this to link existing notes to the new notes you create.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "note_id": {
+                    "type": "string",
+                    "description": "The note_id of the existing note to patch.",
+                },
+                "edges": {
+                    "type": "object",
+                    "description": "Edges to add. Keys are edge types, values are arrays of note_ids.",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["note_id", "edges"],
+        },
+    },
+]
+
+
+def _slugify(text_in: str) -> str:
+    normalized = unicodedata.normalize("NFKD", text_in)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = _SLUG_RE.sub("-", ascii_only.lower()).strip("-")
+    return slug or "note"
+
+
+class _Embedder(Protocol):
+    async def embed(self, text: str) -> list[float]: ...
 
 
 @dataclass(frozen=True)
@@ -64,7 +189,7 @@ class Gardener:
         vault_root: Path,
         anthropic_client: object | None,
         store: KnowledgeStore | None,
-        embed_client: object | None,
+        embed_client: _Embedder | None,
     ) -> None:
         self.vault_root = Path(vault_root)
         self.anthropic_client = anthropic_client
@@ -118,8 +243,185 @@ class Gardener:
         return sorted(raw)
 
     async def _ingest_one(self, path: Path) -> None:
-        """Decompose a single raw note via Sonnet. Implemented in Task 4."""
-        raise NotImplementedError("LLM ingest not yet implemented")
+        """Decompose a single raw note via Sonnet tool-use loop."""
+        if self.anthropic_client is None:
+            raise RuntimeError("gardener: anthropic_client is not configured")
+
+        raw = path.read_text(encoding="utf-8")
+        meta, body = frontmatter.parse(raw)
+        title = meta.title or path.stem
+
+        model = os.environ.get("GARDENER_MODEL", _DEFAULT_MODEL)
+        messages: list[dict] = [
+            {
+                "role": "user",
+                "content": f"Decompose this note:\n\nTitle: {title}\n\n{body}",
+            }
+        ]
+
+        # Tool-use loop — bounded to avoid runaway loops.
+        max_turns = 20
+        for _ in range(max_turns):
+            response = self.anthropic_client.messages.create(
+                model=model,
+                max_tokens=4096,
+                system=_SYSTEM_PROMPT,
+                tools=_TOOLS,
+                messages=messages,
+            )
+
+            if response.stop_reason != "tool_use":
+                break
+
+            tool_results = []
+            for block in response.content:
+                if getattr(block, "type", None) != "tool_use":
+                    continue
+                result = await self._handle_tool(block.name, block.input)
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": result,
+                    }
+                )
+
+            messages.append({"role": "assistant", "content": response.content})
+            messages.append({"role": "user", "content": tool_results})
+        else:
+            logger.warning(
+                "gardener: tool-use loop hit max_turns=%d for %s", max_turns, path
+            )
+
+        # Soft-delete the original regardless of how the loop exited —
+        # the TTL window gives us recovery time if Sonnet's decomposition
+        # was incomplete.
+        self._soft_delete(path)
+
+    async def _handle_tool(self, name: str, input_data: dict) -> str:
+        """Dispatch a tool call and return the result as a string."""
+        try:
+            if name == "search_notes":
+                return await self._handle_search_notes(input_data)
+            if name == "get_note":
+                return self._handle_get_note(input_data)
+            if name == "create_note":
+                return self._handle_create_note(input_data)
+            if name == "patch_edges":
+                return self._handle_patch_edges(input_data)
+        except Exception as exc:
+            logger.exception("gardener: tool %s failed", name)
+            return json.dumps({"error": f"{name} failed: {exc}"})
+        return json.dumps({"error": f"unknown tool: {name}"})
+
+    async def _handle_search_notes(self, input_data: dict) -> str:
+        if self.embed_client is None or self.store is None:
+            return json.dumps({"error": "search unavailable: no store or embed client"})
+        query = input_data["query"]
+        embedding = await self.embed_client.embed(query)
+        results = self.store.search_notes(query_embedding=embedding, limit=5)
+        return json.dumps(results)
+
+    def _handle_get_note(self, input_data: dict) -> str:
+        if self.store is None:
+            return json.dumps({"error": "store unavailable"})
+        from sqlmodel import select
+
+        from knowledge.models import Note
+
+        note_id = input_data["note_id"]
+        note = self.store.session.execute(
+            select(Note).where(Note.note_id == note_id)
+        ).scalar_one_or_none()
+        if not note:
+            return json.dumps({"error": f"note {note_id} not found"})
+        path = self.vault_root / note.path
+        if not path.exists():
+            return json.dumps({"error": f"file not found for {note_id}"})
+        return path.read_text(encoding="utf-8")
+
+    def _handle_create_note(self, input_data: dict) -> str:
+        note_type = input_data["type"]
+        title = input_data["title"]
+        tags = input_data.get("tags", [])
+        edges = input_data.get("edges", {})
+        body = input_data["body"]
+
+        note_id = _slugify(title)
+
+        fm: dict[str, Any] = {"id": note_id, "title": title, "type": note_type}
+        if tags:
+            fm["tags"] = tags
+        if edges:
+            fm["edges"] = edges
+
+        fm_str = yaml.safe_dump(
+            fm, default_flow_style=False, allow_unicode=True, sort_keys=False
+        ).rstrip()
+        content = f"---\n{fm_str}\n---\n{body}\n"
+
+        self.processed_root.mkdir(parents=True, exist_ok=True)
+        dest = self.processed_root / f"{note_id}.md"
+        counter = 1
+        while dest.exists():
+            dest = self.processed_root / f"{note_id}-{counter}.md"
+            counter += 1
+        dest.write_text(content, encoding="utf-8")
+        logger.info("gardener: created %s (%s)", dest.name, note_type)
+        return json.dumps({"created": dest.name, "note_id": note_id})
+
+    def _handle_patch_edges(self, input_data: dict) -> str:
+        if self.store is None:
+            return json.dumps({"error": "store unavailable"})
+        from sqlmodel import select
+
+        from knowledge.models import Note
+
+        note_id = input_data["note_id"]
+        new_edges = input_data["edges"]
+
+        note = self.store.session.execute(
+            select(Note).where(Note.note_id == note_id)
+        ).scalar_one_or_none()
+        if not note:
+            return json.dumps({"error": f"note {note_id} not found"})
+        path = self.vault_root / note.path
+        if not path.exists():
+            return json.dumps({"error": f"file not found for {note_id}"})
+
+        raw = path.read_text(encoding="utf-8")
+        meta, body = frontmatter.parse(raw)
+        for edge_type, targets in new_edges.items():
+            existing = meta.edges.get(edge_type, [])
+            merged = list(dict.fromkeys(existing + targets))  # dedupe, preserve order
+            meta.edges[edge_type] = merged
+
+        fm: dict[str, Any] = {}
+        if meta.note_id:
+            fm["id"] = meta.note_id
+        if meta.title:
+            fm["title"] = meta.title
+        if meta.type:
+            fm["type"] = meta.type
+        if meta.status:
+            fm["status"] = meta.status
+        if meta.source:
+            fm["source"] = meta.source
+        if meta.tags:
+            fm["tags"] = meta.tags
+        if meta.aliases:
+            fm["aliases"] = meta.aliases
+        if meta.edges:
+            fm["edges"] = meta.edges
+        if meta.extra:
+            fm.update(meta.extra)
+
+        fm_str = yaml.safe_dump(
+            fm, default_flow_style=False, allow_unicode=True, sort_keys=False
+        ).rstrip()
+        new_raw = f"---\n{fm_str}\n---\n{body}"
+        path.write_text(new_raw, encoding="utf-8")
+        return json.dumps({"patched": note_id, "edges": meta.edges})
 
     def _soft_delete(self, source: Path) -> None:
         """Move a raw file to _deleted_with_ttl/ with a TTL in frontmatter."""
