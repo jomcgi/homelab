@@ -102,6 +102,7 @@ class TestHealthEndpoint:
         data = json.loads(wfile.getvalue())
         # Should parse without error
         from datetime import datetime
+
         datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
 
 
@@ -207,7 +208,9 @@ class TestBestLocationsEndpoint:
     def test_returns_200_when_file_exists(self, tmp_path: Path):
         out_dir = tmp_path / "output"
         out_dir.mkdir()
-        (out_dir / "best_locations.json").write_text(json.dumps([self._best_location()]))
+        (out_dir / "best_locations.json").write_text(
+            json.dumps([self._best_location()])
+        )
 
         with patch("projects.stargazer.backend.api.DATA_DIR", tmp_path):
             handler, _ = make_handler("/api/best")
@@ -218,7 +221,9 @@ class TestBestLocationsEndpoint:
     def test_response_has_required_fields(self, tmp_path: Path):
         out_dir = tmp_path / "output"
         out_dir.mkdir()
-        (out_dir / "best_locations.json").write_text(json.dumps([self._best_location()]))
+        (out_dir / "best_locations.json").write_text(
+            json.dumps([self._best_location()])
+        )
 
         with patch("projects.stargazer.backend.api.DATA_DIR", tmp_path):
             handler, wfile = make_handler("/api/best")
@@ -226,9 +231,21 @@ class TestBestLocationsEndpoint:
 
         resp = json.loads(wfile.getvalue())
         loc = resp[0]
-        for field in ("id", "name", "lat", "lon", "altitude_m", "lp_zone",
-                       "score", "cloud_cover", "humidity", "wind_speed",
-                       "next_clear", "moon_phase", "best_hours"):
+        for field in (
+            "id",
+            "name",
+            "lat",
+            "lon",
+            "altitude_m",
+            "lp_zone",
+            "score",
+            "cloud_cover",
+            "humidity",
+            "wind_speed",
+            "next_clear",
+            "moon_phase",
+            "best_hours",
+        ):
             assert field in loc, f"Missing field: {field}"
 
     def test_coordinates_are_flattened(self, tmp_path: Path):
@@ -248,7 +265,9 @@ class TestBestLocationsEndpoint:
     def test_cache_headers_present(self, tmp_path: Path):
         out_dir = tmp_path / "output"
         out_dir.mkdir()
-        (out_dir / "best_locations.json").write_text(json.dumps([self._best_location()]))
+        (out_dir / "best_locations.json").write_text(
+            json.dumps([self._best_location()])
+        )
 
         with patch("projects.stargazer.backend.api.DATA_DIR", tmp_path):
             handler, _ = make_handler("/api/best")
@@ -367,8 +386,18 @@ class TestSendEmptyResponse:
         handler, wfile = make_handler("/api/best")
         handler.send_empty_response()
         item = json.loads(wfile.getvalue())[0]
-        for field in ("id", "name", "lat", "lon", "altitude_m", "lp_zone",
-                       "score", "cloud_cover", "humidity", "wind_speed"):
+        for field in (
+            "id",
+            "name",
+            "lat",
+            "lon",
+            "altitude_m",
+            "lp_zone",
+            "score",
+            "cloud_cover",
+            "humidity",
+            "wind_speed",
+        ):
             assert field in item
 
 

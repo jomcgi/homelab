@@ -317,4 +317,7 @@ class TestDownloadIntegration:
         dem = await download_dem(settings)
 
         for result in (lp, cb, osm, dem):
-            assert result.parent == settings.raw_dir or result == settings.raw_dir / "srtm_tiles"
+            assert (
+                result.parent == settings.raw_dir
+                or result == settings.raw_dir / "srtm_tiles"
+            )

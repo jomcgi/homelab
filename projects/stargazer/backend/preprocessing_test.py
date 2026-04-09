@@ -196,7 +196,9 @@ class TestGeoreferenceRaster:
 
 def _make_colorbar(path: Path, mode: str = "RGB") -> None:
     """Create a minimal valid colorbar image with 9 distinct gray bands."""
-    img = Image.new(mode, (30, 180), color=(0, 0, 0, 255) if mode == "RGBA" else (0, 0, 0))
+    img = Image.new(
+        mode, (30, 180), color=(0, 0, 0, 255) if mode == "RGBA" else (0, 0, 0)
+    )
     for i in range(9):
         gray = i * 25
         rgba = (gray, gray, gray, 255) if mode == "RGBA" else (gray, gray, gray)
@@ -314,10 +316,11 @@ class TestExtractRoads:
         settings = make_settings(tmp_path)
         (settings.raw_dir / "scotland-latest.osm.pbf").touch()
 
-        with patch("osmium.BackReferenceWriter") as mock_writer, \
-             patch("osmium.FileProcessor", return_value=[]), \
-             patch("subprocess.run") as mock_run:
-
+        with (
+            patch("osmium.BackReferenceWriter") as mock_writer,
+            patch("osmium.FileProcessor", return_value=[]),
+            patch("subprocess.run") as mock_run,
+        ):
             mock_writer_inst = MagicMock()
             mock_writer.return_value = mock_writer_inst
             mock_writer_inst.__enter__ = MagicMock()
@@ -333,10 +336,11 @@ class TestExtractRoads:
         settings = make_settings(tmp_path)
         (settings.raw_dir / "scotland-latest.osm.pbf").touch()
 
-        with patch("osmium.BackReferenceWriter") as mock_writer, \
-             patch("osmium.FileProcessor", return_value=[]), \
-             patch("subprocess.run") as mock_run:
-
+        with (
+            patch("osmium.BackReferenceWriter") as mock_writer,
+            patch("osmium.FileProcessor", return_value=[]),
+            patch("subprocess.run") as mock_run,
+        ):
             mock_writer_inst = MagicMock()
             mock_writer.return_value = mock_writer_inst
             mock_writer_inst.__enter__ = MagicMock()
@@ -352,10 +356,11 @@ class TestExtractRoads:
         settings = make_settings(tmp_path)
         (settings.raw_dir / "scotland-latest.osm.pbf").touch()
 
-        with patch("osmium.BackReferenceWriter") as mock_writer, \
-             patch("osmium.FileProcessor", return_value=[]), \
-             patch("subprocess.run") as mock_run:
-
+        with (
+            patch("osmium.BackReferenceWriter") as mock_writer,
+            patch("osmium.FileProcessor", return_value=[]),
+            patch("subprocess.run") as mock_run,
+        ):
             mock_writer_inst = MagicMock()
             mock_writer.return_value = mock_writer_inst
             mock_writer_inst.__enter__ = MagicMock()
@@ -384,10 +389,11 @@ class TestExtractRoads:
 
         fake_way = FakeWay()
 
-        with patch("osmium.BackReferenceWriter") as mock_writer, \
-             patch("osmium.FileProcessor", return_value=[fake_way]), \
-             patch("subprocess.run") as mock_run:
-
+        with (
+            patch("osmium.BackReferenceWriter") as mock_writer,
+            patch("osmium.FileProcessor", return_value=[fake_way]),
+            patch("subprocess.run") as mock_run,
+        ):
             mock_writer_inst = MagicMock()
             mock_writer.return_value = mock_writer_inst
             mock_writer_inst.__enter__ = MagicMock()
@@ -414,10 +420,11 @@ class TestExtractRoads:
 
         footpath = FootpathWay()
 
-        with patch("osmium.BackReferenceWriter") as mock_writer, \
-             patch("osmium.FileProcessor", return_value=[footpath]), \
-             patch("subprocess.run") as mock_run:
-
+        with (
+            patch("osmium.BackReferenceWriter") as mock_writer,
+            patch("osmium.FileProcessor", return_value=[footpath]),
+            patch("subprocess.run") as mock_run,
+        ):
             mock_writer_inst = MagicMock()
             mock_writer.return_value = mock_writer_inst
             mock_writer_inst.__enter__ = MagicMock()

@@ -1,6 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 py_venv_binary(
@@ -202,4 +202,46 @@ py_test(
         "@pip//pytest",
         "@pip//shapely",
     ],
+)
+
+semgrep_test(
+    name = "acquisition_test_semgrep_test",
+    srcs = ["acquisition_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "api_test_semgrep_test",
+    srcs = ["api_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "config_test_semgrep_test",
+    srcs = ["config_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "preprocessing_test_semgrep_test",
+    srcs = ["preprocessing_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "scoring_test_semgrep_test",
+    srcs = ["scoring_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "spatial_test_semgrep_test",
+    srcs = ["spatial_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "weather_test_semgrep_test",
+    srcs = ["weather_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )
