@@ -1641,6 +1641,17 @@ py_test(
 )
 
 py_test(
+    name = "shared_scheduler_transitions_test",
+    srcs = ["shared/scheduler_transitions_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "shared_startup_test",
     srcs = ["shared/startup_test.py"],
     imports = ["."],

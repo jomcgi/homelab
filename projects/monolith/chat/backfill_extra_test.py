@@ -325,3 +325,107 @@ async def test_multiple_guilds_multiple_channels(
 
     # Each channel has 1 message (< BATCH_SIZE) → 1 flush per channel = 3 total
     assert mock_store_instance.save_messages.call_count == 3
+
+
+# ---------------------------------------------------------------------------
+# BATCH_SIZE boundary conditions
+# ---------------------------------------------------------------------------
+
+
+def _make_store_mock():
+    instance = MagicMock()
+    instance.save_messages = AsyncMock(return_value=SaveResult(stored=1, skipped=0))
+    return instance
+
+
+@pytest.mark.asyncio
+@patch("chat.backfill.get_engine")
+@patch("chat.backfill.Session")
+@patch("chat.backfill.MessageStore")
+@patch("chat.backfill.download_image_attachments", new_callable=AsyncMock)
+async def test_empty_channel_no_flush_called(
+    mock_download, mock_store_cls, mock_session, mock_engine
+):
+    """A channel with zero messages never calls save_messages (batch stays empty)."""
+    mock_download.return_value = []
+    mock_store_instance = _make_store_mock()
+    mock_store_cls.return_value = mock_store_instance
+    mock_session.return_value.__enter__ = MagicMock()
+    mock_session.return_value.__exit__ = MagicMock()
+
+    channel = _make_channel("empty", "ch0", [])  # no messages
+    guild = _make_guild([channel])
+    bot = _make_bot([guild])
+
+    await run_backfill(bot)
+
+    mock_store_instance.save_messages.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("chat.backfill.get_engine")
+@patch("chat.backfill.Session")
+@patch("chat.backfill.MessageStore")
+@patch("chat.backfill.download_image_attachments", new_callable=AsyncMock)
+async def test_exactly_batch_size_messages_one_flush(
+    mock_download, mock_store_cls, mock_session, mock_engine
+):
+    """Exactly BATCH_SIZE messages triggers one mid-loop flush; no trailing flush.
+
+    With len(batch) >= BATCH_SIZE flushing inside the loop and the trailing
+    ``if batch`` check after, exactly 50 messages should cause exactly 1 call
+    to save_messages (the loop-interior flush) and not a second one.
+    """
+    from chat.backfill import BATCH_SIZE
+
+    mock_download.return_value = []
+    mock_store_instance = _make_store_mock()
+    mock_store_cls.return_value = mock_store_instance
+    mock_session.return_value.__enter__ = MagicMock()
+    mock_session.return_value.__exit__ = MagicMock()
+
+    messages = [_make_discord_message(i, f"msg {i}") for i in range(BATCH_SIZE)]
+    channel = _make_channel("full", "ch1", messages)
+    guild = _make_guild([channel])
+    bot = _make_bot([guild])
+
+    await run_backfill(bot)
+
+    assert mock_store_instance.save_messages.call_count == 1
+    batch_sent = mock_store_instance.save_messages.call_args[0][0]
+    assert len(batch_sent) == BATCH_SIZE
+
+
+@pytest.mark.asyncio
+@patch("chat.backfill.get_engine")
+@patch("chat.backfill.Session")
+@patch("chat.backfill.MessageStore")
+@patch("chat.backfill.download_image_attachments", new_callable=AsyncMock)
+async def test_one_over_batch_size_triggers_two_flushes(
+    mock_download, mock_store_cls, mock_session, mock_engine
+):
+    """BATCH_SIZE + 1 messages produces two flush calls: one batch of 50, one of 1.
+
+    The interior loop flush handles the first BATCH_SIZE messages; the
+    trailing ``if batch`` clause flushes the remaining 1 message.
+    """
+    from chat.backfill import BATCH_SIZE
+
+    mock_download.return_value = []
+    mock_store_instance = _make_store_mock()
+    mock_store_cls.return_value = mock_store_instance
+    mock_session.return_value.__enter__ = MagicMock()
+    mock_session.return_value.__exit__ = MagicMock()
+
+    messages = [_make_discord_message(i, f"msg {i}") for i in range(BATCH_SIZE + 1)]
+    channel = _make_channel("overflow", "ch2", messages)
+    guild = _make_guild([channel])
+    bot = _make_bot([guild])
+
+    await run_backfill(bot)
+
+    assert mock_store_instance.save_messages.call_count == 2
+    first_batch = mock_store_instance.save_messages.call_args_list[0][0][0]
+    second_batch = mock_store_instance.save_messages.call_args_list[1][0][0]
+    assert len(first_batch) == BATCH_SIZE
+    assert len(second_batch) == 1

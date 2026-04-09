@@ -180,3 +180,65 @@ class TestToDatetimeExtra:
     def test_none_returns_none(self):
         """None input returns None (no datetime)."""
         assert _to_datetime(None) is None
+
+    def test_z_suffix_datetime_string_parsed_as_utc(self):
+        """ISO string with 'Z' suffix (UTC alias) is parsed as a UTC-aware datetime.
+
+        Python 3.11+ supports 'Z' in fromisoformat(); this test guards against
+        regressions if the parser is ever changed or backported.
+        """
+        result = _to_datetime("2023-06-01T12:00:00Z")
+        assert result is not None
+        assert result.tzinfo is not None
+        # The 'Z' suffix means UTC
+        assert result.utcoffset().total_seconds() == 0
+        assert result.year == 2023
+        assert result.month == 6
+        assert result.day == 1
+        assert result.hour == 12
+
+    def test_non_utc_offset_string_preserves_offset(self):
+        """ISO string with +05:30 offset is parsed as a timezone-aware datetime
+        with the original offset preserved (not converted to UTC).
+        """
+        result = _to_datetime("2023-06-01T12:00:00+05:30")
+        assert result is not None
+        assert result.tzinfo is not None
+        # Offset is +05:30 = 5*3600 + 30*60 = 19800 seconds
+        assert result.utcoffset().total_seconds() == 19800
+        assert result.year == 2023
+        assert result.hour == 12  # hour is unchanged — not converted to UTC
+
+    def test_z_suffix_via_parse(self):
+        """YAML frontmatter with 'Z' suffix datetime is parsed to UTC-aware datetime."""
+        raw = "---\ncreated: '2023-06-01T12:00:00Z'\n---\nbody"
+        meta, _ = parse(raw)
+        assert meta.created is not None
+        assert meta.created.tzinfo is not None
+        assert meta.created.utcoffset().total_seconds() == 0
+
+    def test_non_leap_year_feb_29_returns_none(self, caplog):
+        """Feb 29 on a non-leap year ('2023-02-29') is an invalid date → returns None."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            result = _to_datetime("2023-02-29T00:00:00")
+
+        assert result is None
+        assert any("invalid date" in r.message for r in caplog.records)
+
+    def test_leap_year_feb_29_is_valid(self):
+        """Feb 29 on a leap year ('2024-02-29') is a valid date and is parsed."""
+        result = _to_datetime("2024-02-29T00:00:00")
+        assert result is not None
+        assert result.month == 2
+        assert result.day == 29
+        assert result.year == 2024
+
+    def test_negative_utc_offset_string_preserved(self):
+        """ISO string with negative offset (-08:00) preserves that offset."""
+        result = _to_datetime("2023-11-15T08:00:00-08:00")
+        assert result is not None
+        assert result.tzinfo is not None
+        # -08:00 = -28800 seconds
+        assert result.utcoffset().total_seconds() == -28800

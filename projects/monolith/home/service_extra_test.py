@@ -198,3 +198,57 @@ class TestArchiveAndResetExtra:
         archive = session.exec(select(Archive)).first()
         assert "Monday" in archive.content
         assert "April 6" in archive.content
+
+
+# ---------------------------------------------------------------------------
+# archive_and_reset — session.commit() failure
+# ---------------------------------------------------------------------------
+
+
+class TestArchiveAndResetCommitFailure:
+    def test_commit_failure_propagates(self):
+        """If session.commit() raises during archive_and_reset, the exception
+        propagates to the caller — the function must not swallow DB errors.
+
+        This matters because archive_and_reset is called inside
+        daily_reset_handler which is managed by the scheduler. A silent failure
+        would leave the board in a blank/partially-reset state with no retry.
+        """
+        from unittest.mock import MagicMock, patch
+        from sqlalchemy.exc import OperationalError
+
+        mock_session = MagicMock()
+        mock_session.exec.return_value.first.return_value = None  # no weekly task
+        mock_session.exec.return_value.all.return_value = []  # no daily tasks
+
+        mock_session.commit.side_effect = OperationalError(
+            "could not connect to server", None, None
+        )
+
+        with pytest.raises(OperationalError):
+            archive_and_reset(mock_session, weekly_reset=False)
+
+    def test_commit_failure_does_not_corrupt_silent(self):
+        """A commit failure during archive_and_reset raises rather than
+        returning None or silently succeeding — callers cannot distinguish
+        partial success from a silent no-op without the exception.
+        """
+        from unittest.mock import MagicMock
+        from sqlalchemy.exc import OperationalError
+
+        mock_session = MagicMock()
+        mock_session.exec.return_value.first.return_value = None
+        mock_session.exec.return_value.all.return_value = []
+        mock_session.commit.side_effect = OperationalError(
+            "disk full", None, None
+        )
+
+        result = None
+        raised = False
+        try:
+            result = archive_and_reset(mock_session, weekly_reset=True)
+        except OperationalError:
+            raised = True
+
+        assert raised, "Expected OperationalError to propagate, but it was swallowed"
+        assert result is None  # no return value was produced
