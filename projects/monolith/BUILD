@@ -1828,6 +1828,16 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_gardener_test",
+    srcs = ["knowledge/gardener_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "knowledge_reconciler_coverage_test",
     srcs = ["knowledge/reconciler_coverage_test.py"],
     imports = ["."],
