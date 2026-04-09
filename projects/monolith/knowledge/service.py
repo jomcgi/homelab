@@ -34,21 +34,37 @@ async def garden_handler(session: Session) -> datetime | None:
     from knowledge.gardener import Gardener
 
     vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
+    # Env-overridable cap so operators can throttle without a chart change.
+    try:
+        max_files = int(os.environ.get("GARDENER_MAX_FILES_PER_RUN", "10"))
+    except ValueError:
+        logger.warning(
+            "knowledge.garden: GARDENER_MAX_FILES_PER_RUN is not an integer, "
+            "falling back to default",
+        )
+        max_files = 10
     gardener = Gardener(
         vault_root=vault_root,
         anthropic_client=anthropic.Anthropic(api_key=api_key),
         store=KnowledgeStore(session=session),
         embed_client=EmbeddingClient(),
+        max_files_per_run=max_files,
     )
     stats = await gardener.run()
-    logger.info(
-        "knowledge.garden complete",
-        extra={
-            "ingested": stats.ingested,
-            "failed": stats.failed,
-            "ttl_cleaned": stats.ttl_cleaned,
-        },
-    )
+    extra = {
+        "ingested": stats.ingested,
+        "failed": stats.failed,
+        "ttl_cleaned": stats.ttl_cleaned,
+    }
+    # When every ingest attempt failed (e.g. Anthropic API outage, auth error,
+    # or the whole batch hit malformed content), promote the summary log to
+    # ERROR so log-level-based alerting surfaces the outage even though the
+    # handler itself returns cleanly (we don't want to poison the scheduler's
+    # last_status for recoverable data errors).
+    if stats.ingested == 0 and stats.failed > 0:
+        logger.error("knowledge.garden complete (all failed)", extra=extra)
+    else:
+        logger.info("knowledge.garden complete", extra=extra)
     return None
 
 
