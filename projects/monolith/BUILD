@@ -95,6 +95,7 @@ py3_image(
         "SSL_CERT_FILE": "/projects/monolith/main.runfiles/_main/projects/monolith/.main/lib/python3.13/site-packages/certifi/cacert.pem",
     },
     main = "app/main.py",
+    multiarch_tars = ["@claude_code//:tar"],
     repository = "ghcr.io/jomcgi/homelab/projects/monolith/backend",
 )
 
