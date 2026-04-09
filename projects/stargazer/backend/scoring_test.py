@@ -220,22 +220,34 @@ class TestCalculateAstronomyScore:
 
     def test_full_cloud_cover_penalises_heavily(self):
         """100% cloud cover should reduce score significantly (cloud = 50% weight)."""
-        clear_score = calculate_astronomy_score(self._make_weather(cloud_area_fraction=0.0))
-        cloudy_score = calculate_astronomy_score(self._make_weather(cloud_area_fraction=100.0))
+        clear_score = calculate_astronomy_score(
+            self._make_weather(cloud_area_fraction=0.0)
+        )
+        cloudy_score = calculate_astronomy_score(
+            self._make_weather(cloud_area_fraction=100.0)
+        )
         assert clear_score - cloudy_score >= 40.0
 
     def test_cloud_below_20_scores_100_cloud_component(self):
         """Cloud fraction < 20 is the perfect band — verify it produces higher score
         than cloud fraction of exactly 20."""
-        score_10 = calculate_astronomy_score(self._make_weather(cloud_area_fraction=10.0))
-        score_20 = calculate_astronomy_score(self._make_weather(cloud_area_fraction=20.0))
+        score_10 = calculate_astronomy_score(
+            self._make_weather(cloud_area_fraction=10.0)
+        )
+        score_20 = calculate_astronomy_score(
+            self._make_weather(cloud_area_fraction=20.0)
+        )
         # Both may be capped at 100 due to other components, but 10 should be >= 20
         assert score_10 >= score_20
 
     def test_cloud_between_20_and_50_linear_penalty(self):
         """Cloud fraction in [20, 50) should linearly degrade the cloud component."""
-        score_25 = calculate_astronomy_score(self._make_weather(cloud_area_fraction=25.0))
-        score_45 = calculate_astronomy_score(self._make_weather(cloud_area_fraction=45.0))
+        score_25 = calculate_astronomy_score(
+            self._make_weather(cloud_area_fraction=25.0)
+        )
+        score_45 = calculate_astronomy_score(
+            self._make_weather(cloud_area_fraction=45.0)
+        )
         assert score_25 > score_45
 
     def test_humidity_below_70_no_penalty(self):
@@ -247,14 +259,22 @@ class TestCalculateAstronomyScore:
 
     def test_high_humidity_penalises_score(self):
         """Humidity >= 85 should penalise the score."""
-        score_low_hum = calculate_astronomy_score(self._make_weather(relative_humidity=50.0))
-        score_high_hum = calculate_astronomy_score(self._make_weather(relative_humidity=95.0))
+        score_low_hum = calculate_astronomy_score(
+            self._make_weather(relative_humidity=50.0)
+        )
+        score_high_hum = calculate_astronomy_score(
+            self._make_weather(relative_humidity=95.0)
+        )
         assert score_low_hum > score_high_hum
 
     def test_fog_below_5_no_penalty(self):
         """Fog < 5% should not penalise fog component."""
-        score_no_fog = calculate_astronomy_score(self._make_weather(fog_area_fraction=0.0))
-        score_low_fog = calculate_astronomy_score(self._make_weather(fog_area_fraction=4.9))
+        score_no_fog = calculate_astronomy_score(
+            self._make_weather(fog_area_fraction=0.0)
+        )
+        score_low_fog = calculate_astronomy_score(
+            self._make_weather(fog_area_fraction=4.9)
+        )
         assert score_no_fog == pytest.approx(score_low_fog, abs=0.1)
 
     def test_heavy_fog_penalises_score(self):
@@ -268,8 +288,12 @@ class TestCalculateAstronomyScore:
             "dew_point_temperature": 7.0,
             "air_pressure_at_sea_level": 1013.0,
         }
-        no_fog_score = calculate_astronomy_score(self._make_weather(fog_area_fraction=0.0, **base))
-        heavy_fog_score = calculate_astronomy_score(self._make_weather(fog_area_fraction=50.0, **base))
+        no_fog_score = calculate_astronomy_score(
+            self._make_weather(fog_area_fraction=0.0, **base)
+        )
+        heavy_fog_score = calculate_astronomy_score(
+            self._make_weather(fog_area_fraction=50.0, **base)
+        )
         assert no_fog_score > heavy_fog_score
 
     def test_calm_wind_better_than_strong_wind(self):
@@ -282,8 +306,12 @@ class TestCalculateAstronomyScore:
             "dew_point_temperature": 7.0,
             "air_pressure_at_sea_level": 1013.0,
         }
-        calm_score = calculate_astronomy_score(self._make_weather(wind_speed=2.0, **base))
-        strong_score = calculate_astronomy_score(self._make_weather(wind_speed=20.0, **base))
+        calm_score = calculate_astronomy_score(
+            self._make_weather(wind_speed=2.0, **base)
+        )
+        strong_score = calculate_astronomy_score(
+            self._make_weather(wind_speed=20.0, **base)
+        )
         assert calm_score > strong_score
 
     def test_wind_between_5_and_10_linear_penalty(self):
@@ -302,15 +330,27 @@ class TestCalculateAstronomyScore:
 
     def test_good_dew_spread_scores_higher(self):
         """Dew spread > 5°C should yield maximum dew component."""
-        good_spread = self._make_weather(air_temperature=15.0, dew_point_temperature=5.0)  # 10°C spread
-        poor_spread = self._make_weather(air_temperature=10.0, dew_point_temperature=9.5)  # 0.5°C spread
-        assert calculate_astronomy_score(good_spread) > calculate_astronomy_score(poor_spread)
+        good_spread = self._make_weather(
+            air_temperature=15.0, dew_point_temperature=5.0
+        )  # 10°C spread
+        poor_spread = self._make_weather(
+            air_temperature=10.0, dew_point_temperature=9.5
+        )  # 0.5°C spread
+        assert calculate_astronomy_score(good_spread) > calculate_astronomy_score(
+            poor_spread
+        )
 
     def test_negative_dew_spread_penalised(self):
         """Temperature below dew point (impossible but handled) — dew_spread < 0."""
-        neg_spread = self._make_weather(air_temperature=5.0, dew_point_temperature=8.0)  # -3°C
-        pos_spread = self._make_weather(air_temperature=15.0, dew_point_temperature=5.0)  # +10°C
-        assert calculate_astronomy_score(pos_spread) > calculate_astronomy_score(neg_spread)
+        neg_spread = self._make_weather(
+            air_temperature=5.0, dew_point_temperature=8.0
+        )  # -3°C
+        pos_spread = self._make_weather(
+            air_temperature=15.0, dew_point_temperature=5.0
+        )  # +10°C
+        assert calculate_astronomy_score(pos_spread) > calculate_astronomy_score(
+            neg_spread
+        )
 
     def test_high_pressure_gives_bonus(self):
         """Pressure > 1015 hPa should add a bonus of up to 10 points."""

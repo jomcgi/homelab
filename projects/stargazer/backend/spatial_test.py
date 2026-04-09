@@ -37,15 +37,15 @@ def _write_json(path: Path, data) -> None:
     path.write_text(json.dumps(data))
 
 
-def _make_polygon(
-    west: float, south: float, east: float, north: float
-) -> Polygon:
+def _make_polygon(west: float, south: float, east: float, north: float) -> Polygon:
     return Polygon(
         [(west, south), (east, south), (east, north), (west, north), (west, south)]
     )
 
 
-def _write_gdf(path: Path, polygon: Polygon, extra_cols: dict | None = None, crs: str = WGS84_CRS) -> None:
+def _write_gdf(
+    path: Path, polygon: Polygon, extra_cols: dict | None = None, crs: str = WGS84_CRS
+) -> None:
     data = {"geometry": [polygon]}
     if extra_cols:
         data.update(extra_cols)
@@ -99,11 +99,15 @@ class TestExtractDarkRegions:
 
         sample_geom = {
             "type": "Polygon",
-            "coordinates": [[[-4.5, 55.0], [-4.4, 55.0], [-4.4, 55.1], [-4.5, 55.1], [-4.5, 55.0]]],
+            "coordinates": [
+                [[-4.5, 55.0], [-4.4, 55.0], [-4.4, 55.1], [-4.5, 55.1], [-4.5, 55.0]]
+            ],
         }
 
-        with patch("rasterio.open", return_value=mock_raster), \
-             patch("projects.stargazer.backend.spatial.features.shapes") as mock_shapes:
+        with (
+            patch("rasterio.open", return_value=mock_raster),
+            patch("projects.stargazer.backend.spatial.features.shapes") as mock_shapes,
+        ):
             mock_shapes.return_value = [(sample_geom, 1)]
             result = extract_dark_regions(settings)
 
@@ -127,15 +131,21 @@ class TestExtractDarkRegions:
 
         dark_geom = {
             "type": "Polygon",
-            "coordinates": [[[-4.5, 55.0], [-4.4, 55.0], [-4.4, 55.1], [-4.5, 55.1], [-4.5, 55.0]]],
+            "coordinates": [
+                [[-4.5, 55.0], [-4.4, 55.0], [-4.4, 55.1], [-4.5, 55.1], [-4.5, 55.0]]
+            ],
         }
         bg_geom = {
             "type": "Polygon",
-            "coordinates": [[[-5.0, 56.0], [-4.9, 56.0], [-4.9, 56.1], [-5.0, 56.1], [-5.0, 56.0]]],
+            "coordinates": [
+                [[-5.0, 56.0], [-4.9, 56.0], [-4.9, 56.1], [-5.0, 56.1], [-5.0, 56.0]]
+            ],
         }
 
-        with patch("rasterio.open", return_value=mock_raster), \
-             patch("projects.stargazer.backend.spatial.features.shapes") as mock_shapes:
+        with (
+            patch("rasterio.open", return_value=mock_raster),
+            patch("projects.stargazer.backend.spatial.features.shapes") as mock_shapes,
+        ):
             # value==1 → dark, value==0 → background (excluded)
             mock_shapes.return_value = [(dark_geom, 1), (bg_geom, 0)]
             result = extract_dark_regions(settings)
@@ -246,7 +256,9 @@ class TestIntersectDarkAccessible:
         settings = make_settings(tmp_path)
 
         dark = _make_polygon(-5.0, 54.5, -4.0, 55.5)
-        _write_gdf(settings.processed_dir / "dark_regions.geojson", dark, {"dark": [True]})
+        _write_gdf(
+            settings.processed_dir / "dark_regions.geojson", dark, {"dark": [True]}
+        )
 
         buffer = _make_polygon(-4.8, 54.8, -4.2, 55.2)
         _write_gdf(settings.processed_dir / "road_buffer.geojson", buffer)
@@ -260,7 +272,9 @@ class TestIntersectDarkAccessible:
         settings = make_settings(tmp_path)
 
         dark = _make_polygon(-8.0, 58.0, -7.0, 59.0)
-        _write_gdf(settings.processed_dir / "dark_regions.geojson", dark, {"dark": [True]})
+        _write_gdf(
+            settings.processed_dir / "dark_regions.geojson", dark, {"dark": [True]}
+        )
 
         buffer = _make_polygon(-3.0, 54.0, -2.0, 55.0)
         _write_gdf(settings.processed_dir / "road_buffer.geojson", buffer)
@@ -274,7 +288,9 @@ class TestIntersectDarkAccessible:
         settings = make_settings(tmp_path)
 
         dark = _make_polygon(-5.0, 54.5, -4.0, 55.5)
-        _write_gdf(settings.processed_dir / "dark_regions.geojson", dark, {"dark": [True]})
+        _write_gdf(
+            settings.processed_dir / "dark_regions.geojson", dark, {"dark": [True]}
+        )
         buf = _make_polygon(-5.0, 54.5, -4.0, 55.5)
         _write_gdf(settings.processed_dir / "road_buffer.geojson", buf)
 
@@ -397,7 +413,9 @@ class TestEnrichPoints:
         gdf = gpd.read_file(result)
         assert "altitude_m" in gdf.columns
 
-    def test_altitude_defaults_to_zero_without_dem(self, tmp_path: Path, sample_color_palette: list):
+    def test_altitude_defaults_to_zero_without_dem(
+        self, tmp_path: Path, sample_color_palette: list
+    ):
         """When no DEM file exists, altitude_m should default to 0."""
         settings = make_settings(tmp_path)
         self._setup_inputs(settings, sample_color_palette)
@@ -429,7 +447,9 @@ class TestEnrichPoints:
         assert "lp_zone" in gdf.columns
         assert gdf.iloc[0]["lp_zone"] == "1a"
 
-    def test_unknown_color_maps_to_unknown_zone(self, tmp_path: Path, sample_color_palette: list):
+    def test_unknown_color_maps_to_unknown_zone(
+        self, tmp_path: Path, sample_color_palette: list
+    ):
         settings = make_settings(tmp_path)
         self._setup_inputs(settings, sample_color_palette)
 
@@ -444,7 +464,9 @@ class TestEnrichPoints:
         gdf = gpd.read_file(result)
         assert gdf.iloc[0]["lp_zone"] == "unknown"
 
-    def test_color_within_tolerance_matches_zone(self, tmp_path: Path, sample_color_palette: list):
+    def test_color_within_tolerance_matches_zone(
+        self, tmp_path: Path, sample_color_palette: list
+    ):
         settings = make_settings(tmp_path)
         settings.color_tolerance = 20
         self._setup_inputs(settings, sample_color_palette)
@@ -461,7 +483,9 @@ class TestEnrichPoints:
         gdf = gpd.read_file(result)
         assert gdf.iloc[0]["lp_zone"] == "1a"
 
-    def test_color_outside_tolerance_is_unknown(self, tmp_path: Path, sample_color_palette: list):
+    def test_color_outside_tolerance_is_unknown(
+        self, tmp_path: Path, sample_color_palette: list
+    ):
         settings = make_settings(tmp_path)
         settings.color_tolerance = 5  # strict tolerance
         self._setup_inputs(settings, sample_color_palette)

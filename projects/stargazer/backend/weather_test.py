@@ -117,7 +117,11 @@ class TestFetchForecast:
 
         await fetch_forecast(55.0, -4.5, 100, client, settings)
 
-        url = client.get.call_args.args[0] if client.get.call_args.args else client.get.call_args.kwargs.get("url")
+        url = (
+            client.get.call_args.args[0]
+            if client.get.call_args.args
+            else client.get.call_args.kwargs.get("url")
+        )
         assert "api.met.no" in url
 
     @pytest.mark.asyncio
@@ -458,7 +462,14 @@ class TestOutputBestLocations:
         result = output_best_locations(settings)
         loc = json.loads(result.read_text())[0]
 
-        for key in ("id", "coordinates", "altitude_m", "lp_zone", "best_hours", "best_score"):
+        for key in (
+            "id",
+            "coordinates",
+            "altitude_m",
+            "lp_zone",
+            "best_hours",
+            "best_score",
+        ):
             assert key in loc
 
     def test_best_score_reflects_first_qualifying_hour(self, tmp_path: Path):
@@ -501,9 +512,9 @@ class TestOutputBestLocations:
                     "altitude_m": 100,
                     "lp_zone": "1a",
                     "scored_hours": [
-                        {"time": "T1", "score": 95.0},   # qualifies
-                        {"time": "T2", "score": 70.0},   # does NOT qualify
-                        {"time": "T3", "score": 82.0},   # qualifies
+                        {"time": "T1", "score": 95.0},  # qualifies
+                        {"time": "T2", "score": 70.0},  # does NOT qualify
+                        {"time": "T3", "score": 82.0},  # qualifies
                     ],
                 }
             },
