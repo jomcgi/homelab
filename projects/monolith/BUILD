@@ -283,6 +283,18 @@ py_test(
 )
 
 py_test(
+    name = "chat_models_coverage_test",
+    srcs = ["chat/models_coverage_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "shared_embedding_test",
     srcs = ["shared/embedding_test.py"],
     imports = ["."],
@@ -1691,6 +1703,16 @@ py_test(
 )
 
 py_test(
+    name = "shared_chunker_gaps_test",
+    srcs = ["shared/chunker_gaps_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "knowledge_frontmatter_test",
     srcs = ["knowledge/frontmatter_test.py"],
     imports = ["."],
@@ -1704,6 +1726,16 @@ py_test(
 py_test(
     name = "knowledge_links_test",
     srcs = ["knowledge/links_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "knowledge_links_coverage_test",
+    srcs = ["knowledge/links_coverage_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -1728,6 +1760,18 @@ py_test(
 py_test(
     name = "knowledge_reconciler_test",
     srcs = ["knowledge/reconciler_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "knowledge_reconciler_coverage_test",
+    srcs = ["knowledge/reconciler_coverage_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
