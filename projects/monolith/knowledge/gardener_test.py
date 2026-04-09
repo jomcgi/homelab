@@ -243,7 +243,7 @@ class TestIngestOneClaude:
         kwargs = mock_exec.call_args[1]
         assert args[0] == "claude"
         assert "--print" in args
-        assert "--dangerouslySkipPermissions" in args
+        assert "--dangerously-skip-permissions" in args
         assert "--allowedTools" in args
         allowed_idx = list(args).index("--allowedTools")
         allowed_tools = args[allowed_idx + 1]

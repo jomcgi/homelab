@@ -186,7 +186,7 @@ class Gardener:
         proc = await asyncio.create_subprocess_exec(
             self.claude_bin,
             "--print",
-            "--dangerouslySkipPermissions",
+            "--dangerously-skip-permissions",
             "--allowedTools",
             "Bash,Read,Write,Edit",
             "-p",
