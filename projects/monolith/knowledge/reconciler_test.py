@@ -1,7 +1,7 @@
 """Tests for the vault reconciler."""
 
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -288,3 +288,101 @@ class TestReconciler:
         result = await reconciler.run()
         assert result.upserted == 0
         reconciler._read_text = original  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_walk_permission_error_preserves_previous_hash(
+        self, reconciler, tmp_path, session
+    ):
+        """A PermissionError while reading a file in _walk carries forward its
+        previous hash so the file is neither deleted nor re-ingested.
+
+        This mirrors test_file_disappears_mid_cycle but targets the _walk phase
+        rather than the ingest phase. A transient permission problem on a mounted
+        vault (e.g. NFS hiccup) must not cause a stale deletion of the note row.
+        """
+        _write(tmp_path, "locked.md", "---\nid: locked\ntitle: Locked\n---\nBody.")
+        await reconciler.run()
+        assert session.scalars(select(Note)).first() is not None
+
+        target = tmp_path / "_processed" / "locked.md"
+        original_read_bytes = Path.read_bytes
+
+        def raise_perm(p: Path) -> bytes:
+            if p == target:
+                raise PermissionError(f"Permission denied: {p}")
+            return original_read_bytes(p)
+
+        with patch.object(Path, "read_bytes", raise_perm):
+            result = await reconciler.run()
+
+        # Previous hash is carried forward → counted as unchanged, NOT deleted.
+        assert result == _stats(unchanged=1)
+        # Database row must still exist — a transient read error must not
+        # trigger cascade deletion of the knowledge graph node.
+        assert session.scalars(select(Note)).first() is not None
+
+    @pytest.mark.asyncio
+    async def test_delete_loop_partial_failure_continues(
+        self, reconciler, tmp_path, session
+    ):
+        """When deleting multiple removed notes and one raises, the rest are
+        still deleted and the run returns normally with accurate stats.
+
+        The delete loop uses partial-failure isolation: each failure is logged,
+        counted in stats.failed, and the loop continues to the next path.
+        """
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\nBody A.")
+        _write(tmp_path, "b.md", "---\nid: b\ntitle: B\n---\nBody B.")
+        await reconciler.run()
+        # Remove both files so both paths appear in to_delete.
+        (tmp_path / "_processed" / "a.md").unlink()
+        (tmp_path / "_processed" / "b.md").unlink()
+
+        original_delete = reconciler.store.delete_note
+        calls: list[str] = []
+
+        def failing_delete(path: str) -> None:
+            calls.append(path)
+            if path.endswith("a.md"):
+                raise RuntimeError("delete boom for a.md")
+            return original_delete(path)
+
+        reconciler.store.delete_note = failing_delete  # type: ignore[method-assign]
+        result = await reconciler.run()
+        reconciler.store.delete_note = original_delete  # type: ignore[method-assign]
+
+        # Both paths were attempted; one delete succeeded, one failed.
+        assert result == _stats(deleted=1, failed=1)
+        assert len(calls) == 2
+        # "a" row survives (delete raised); "b" row is gone.
+        note_ids = {n.note_id for n in session.scalars(select(Note))}
+        assert "a" in note_ids
+        assert "b" not in note_ids
+
+    @pytest.mark.asyncio
+    async def test_readonly_vault_mixed_files_full_cycle(
+        self, reconciler, session, tmp_path
+    ):
+        """On a read-only vault a reconcile with mixed files (some with IDs,
+        some without) processes all readable files and skips only the ones that
+        need a backfill — without aborting the entire run.
+
+        Files that already carry a frontmatter `id:` need no write-back and
+        must be ingested normally. Files that lack an ID would require a
+        write-back; on a read-only mount that OSError is caught and counted
+        as a per-file failure while the loop continues.
+        """
+        _write(tmp_path, "has-id.md", "---\nid: has-id\ntitle: Has ID\n---\nBody.")
+        _write(tmp_path, "no-id.md", "---\ntitle: No ID\n---\nBody.")
+
+        def deny(abs_path: Path, raw: str, note_id: str) -> tuple[str, str]:
+            raise OSError(30, "Read-only file system")
+
+        reconciler._write_back_id = deny  # type: ignore[method-assign]
+        result = await reconciler.run()
+
+        # File with ID ingested; file without ID (needs backfill on r/o vault) skipped.
+        assert result == _stats(upserted=1, failed=1)
+        notes = list(session.scalars(select(Note)))
+        assert len(notes) == 1
+        assert notes[0].note_id == "has-id"
