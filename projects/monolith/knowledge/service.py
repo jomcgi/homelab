@@ -24,9 +24,9 @@ _TTL_SECS = 600
 
 async def garden_handler(session: Session) -> datetime | None:
     """Scheduler handler: run the knowledge vault gardener."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        logger.warning("knowledge.garden: ANTHROPIC_API_KEY not set, skipping")
+    auth_token = os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+    if not auth_token:
+        logger.warning("knowledge.garden: ANTHROPIC_AUTH_TOKEN not set, skipping")
         return None
 
     import anthropic
@@ -45,7 +45,7 @@ async def garden_handler(session: Session) -> datetime | None:
         max_files = 10
     gardener = Gardener(
         vault_root=vault_root,
-        anthropic_client=anthropic.Anthropic(api_key=api_key),
+        anthropic_client=anthropic.Anthropic(auth_token=auth_token),
         store=KnowledgeStore(session=session),
         embed_client=EmbeddingClient(),
         max_files_per_run=max_files,

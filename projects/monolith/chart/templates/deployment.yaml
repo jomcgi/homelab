@@ -76,11 +76,11 @@ spec:
             {{- end }}
             {{- end }}
             {{- if .Values.gardener.enabled }}
-            - name: ANTHROPIC_API_KEY
+            - name: ANTHROPIC_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ include "monolith.fullname" . }}-gardener
-                  key: ANTHROPIC_API_KEY
+                  key: CLAUDE_AUTH_TOKEN
             {{- end }}
           livenessProbe:
             httpGet:
