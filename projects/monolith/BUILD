@@ -1834,6 +1834,7 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//pytest",
+        "@pip//pytest_asyncio",
     ],
 )
 

@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -188,3 +189,176 @@ class TestSoftDelete:
         assert old_ttl not in content
         assert "ttl:" in content
         assert content.count("ttl:") == 1
+
+
+def _make_mock_anthropic(tool_use_responses):
+    """Create a mock anthropic client that returns canned tool-use responses.
+
+    tool_use_responses is a list of responses. The gardener loop calls the API
+    repeatedly until it gets a response with stop_reason='end_turn'.
+    """
+    client = MagicMock()
+    call_idx = {"n": 0}
+
+    def create(**kwargs):
+        idx = call_idx["n"]
+        call_idx["n"] += 1
+        if idx < len(tool_use_responses):
+            return tool_use_responses[idx]
+        # Final response — no more tool use
+        resp = MagicMock()
+        resp.stop_reason = "end_turn"
+        resp.content = []
+        return resp
+
+    client.messages.create = create
+    return client
+
+
+class TestIngestOne:
+    @pytest.mark.asyncio
+    async def test_creates_note_files_from_tool_calls(self, tmp_path):
+        """Sonnet tool-use creates typed notes in _processed/."""
+        _write(
+            tmp_path,
+            "inbox/raw.md",
+            "---\ntitle: Kubernetes Networking\n---\nCNI plugins handle pod networking.",
+        )
+
+        tool_block = MagicMock()
+        tool_block.type = "tool_use"
+        tool_block.id = "call_1"
+        tool_block.name = "create_note"
+        tool_block.input = {
+            "type": "atom",
+            "title": "CNI plugins handle pod networking",
+            "tags": ["kubernetes", "networking"],
+            "edges": {},
+            "body": "In Kubernetes, Container Network Interface (CNI) plugins are responsible for pod-to-pod networking.",
+        }
+        resp = MagicMock()
+        resp.stop_reason = "tool_use"
+        resp.content = [tool_block]
+
+        mock_client = _make_mock_anthropic([resp])
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=mock_client,
+            store=None,
+            embed_client=None,
+        )
+        await gardener._ingest_one(tmp_path / "inbox" / "raw.md")
+
+        created = list((tmp_path / "_processed").rglob("*.md"))
+        assert len(created) == 1
+        content = created[0].read_text()
+        assert "type: atom" in content
+        assert "CNI plugins handle pod networking" in content
+
+    @pytest.mark.asyncio
+    async def test_soft_deletes_raw_file_after_ingest(self, tmp_path):
+        """After successful ingest, raw file moves to _deleted_with_ttl/."""
+        _write(tmp_path, "inbox/raw.md", "---\ntitle: Test\n---\nBody.")
+
+        resp = MagicMock()
+        resp.stop_reason = "end_turn"
+        resp.content = []
+
+        mock_client = _make_mock_anthropic([resp])
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=mock_client,
+            store=None,
+            embed_client=None,
+        )
+        await gardener._ingest_one(tmp_path / "inbox" / "raw.md")
+
+        assert not (tmp_path / "inbox" / "raw.md").exists()
+        deleted = list((tmp_path / "_deleted_with_ttl").rglob("*.md"))
+        assert len(deleted) == 1
+        content = deleted[0].read_text()
+        assert "ttl:" in content
+
+    @pytest.mark.asyncio
+    async def test_handles_missing_anthropic_client(self, tmp_path):
+        """Running the ingest without a configured client raises."""
+        _write(tmp_path, "inbox/raw.md", "---\ntitle: T\n---\nBody.")
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        with pytest.raises(RuntimeError, match="anthropic_client"):
+            await gardener._ingest_one(tmp_path / "inbox" / "raw.md")
+
+
+class TestSearchNotesTool:
+    @pytest.mark.asyncio
+    async def test_search_tool_returns_results(self, tmp_path):
+        """The search_notes tool handler queries the store and returns results."""
+        mock_store = MagicMock()
+        mock_store.search_notes.return_value = [
+            {
+                "note_id": "a",
+                "title": "Existing Note",
+                "path": "_processed/a.md",
+                "score": 0.92,
+            }
+        ]
+        mock_embed = AsyncMock()
+        mock_embed.embed.return_value = [0.1] * 1024
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=mock_store,
+            embed_client=mock_embed,
+        )
+        result = await gardener._handle_search_notes({"query": "some query"})
+        assert "Existing Note" in result
+        mock_embed.embed.assert_called_once_with("some query")
+
+    @pytest.mark.asyncio
+    async def test_search_tool_returns_error_when_unavailable(self, tmp_path):
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        result = await gardener._handle_search_notes({"query": "x"})
+        assert "error" in result
+        assert "unavailable" in result
+
+
+class TestCreateNoteTool:
+    def test_creates_file_with_frontmatter(self, tmp_path):
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        result = gardener._handle_create_note(
+            {
+                "type": "atom",
+                "title": "Pod Networking",
+                "tags": ["k8s"],
+                "edges": {"related": ["abc123"]},
+                "body": "CNI plugins handle it.",
+            }
+        )
+        assert "created" in result
+        files = list((tmp_path / "_processed").rglob("*.md"))
+        assert len(files) == 1
+        content = files[0].read_text()
+        assert "type: atom" in content
+        assert "title: Pod Networking" in content
+        assert "id: pod-networking" in content
+        assert "CNI plugins handle it." in content
+
+    def test_collision_appends_counter(self, tmp_path):
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        gardener._handle_create_note({"type": "atom", "title": "Same", "body": "first"})
+        gardener._handle_create_note(
+            {"type": "atom", "title": "Same", "body": "second"}
+        )
+        files = sorted((tmp_path / "_processed").rglob("*.md"))
+        assert len(files) == 2
+        assert files[0].name == "same-1.md"
+        assert files[1].name == "same.md"
