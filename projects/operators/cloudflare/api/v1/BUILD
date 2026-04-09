@@ -28,6 +28,7 @@ go_library(
 go_test(
     name = "api_test",
     srcs = [
+        "cloudflaretunnel_webhook_extra_test.go",
         "cloudflaretunnel_webhook_test.go",
         "conditions_test.go",
         "types_test.go",
