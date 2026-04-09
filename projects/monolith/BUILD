@@ -62,7 +62,6 @@ py_library(
     ),
     visibility = ["//:__subpackages__"],
     deps = [
-        "@pip//anthropic",
         "@pip//discord_py",
         "@pip//fastapi",
         "@pip//httpx",
