@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import unicodedata
@@ -165,8 +166,6 @@ class Gardener:
 
     async def _ingest_one(self, path: Path) -> None:
         """Decompose a single raw note by spawning a claude Code subprocess."""
-        import asyncio
-
         raw = path.read_text(encoding="utf-8")
         meta, body = frontmatter.parse(raw)
         title = meta.title or path.stem
@@ -193,9 +192,16 @@ class Gardener:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        _, stderr = await asyncio.wait_for(
-            proc.communicate(), timeout=_CLAUDE_TIMEOUT_SECS
-        )
+        try:
+            _, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=_CLAUDE_TIMEOUT_SECS
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise RuntimeError(
+                f"claude timed out after {_CLAUDE_TIMEOUT_SECS}s for {path}"
+            )
 
         if proc.returncode != 0:
             raise RuntimeError(

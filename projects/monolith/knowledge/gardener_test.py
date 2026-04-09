@@ -310,3 +310,26 @@ class TestIngestOneClaude:
         with patch("asyncio.create_subprocess_exec", return_value=proc_mock):
             with pytest.raises(RuntimeError, match="claude exited 1"):
                 await Gardener(vault_root=vault)._ingest_one(note)
+
+    @pytest.mark.asyncio
+    async def test_raises_on_timeout(self, tmp_path):
+        """RuntimeError is raised and subprocess killed when wait_for times out."""
+        import asyncio as _asyncio
+
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "test.md"
+        note.write_text("# Hello\ncontent")
+
+        proc_mock = MagicMock()
+        proc_mock.returncode = None
+        proc_mock.kill = MagicMock()
+        proc_mock.wait = AsyncMock()
+
+        with patch("asyncio.create_subprocess_exec", return_value=proc_mock):
+            with patch("asyncio.wait_for", side_effect=_asyncio.TimeoutError):
+                with pytest.raises(RuntimeError, match="timed out"):
+                    await Gardener(vault_root=vault)._ingest_one(note)
+
+        proc_mock.kill.assert_called_once()
+        proc_mock.wait.assert_awaited_once()
