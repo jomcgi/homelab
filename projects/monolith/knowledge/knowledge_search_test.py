@@ -27,9 +27,7 @@ _SCRIPT_PATH = Path(__file__).parent / "tools" / "knowledge-search"
 
 def _load_main():
     """Import knowledge-search as a module and return its ``main`` coroutine."""
-    spec = importlib.util.spec_from_file_location(
-        "knowledge_search", str(_SCRIPT_PATH)
-    )
+    spec = importlib.util.spec_from_file_location("knowledge_search", str(_SCRIPT_PATH))
     mod = importlib.util.module_from_spec(spec)
     # Patch asyncio.run so the top-level call is a no-op during import.
     with patch.object(asyncio, "run"):
@@ -45,7 +43,9 @@ main = _load_main()
 # ---------------------------------------------------------------------------
 
 
-def _make_db_mocks(search_results: list[dict]) -> tuple[MagicMock, MagicMock, MagicMock]:
+def _make_db_mocks(
+    search_results: list[dict],
+) -> tuple[MagicMock, MagicMock, MagicMock]:
     """Return (mock_sqlmodel, mock_shared_embedding, mock_knowledge_store) set up
     so that search_notes() returns *search_results*."""
     mock_embed_instance = AsyncMock()
@@ -115,9 +115,7 @@ class TestDatabaseUrlGuard:
         assert "DATABASE_URL" in err
 
     @pytest.mark.asyncio
-    async def test_missing_env_prints_empty_array_to_stdout(
-        self, capsys, monkeypatch
-    ):
+    async def test_missing_env_prints_empty_array_to_stdout(self, capsys, monkeypatch):
         """When DATABASE_URL is absent stdout is ``[]``."""
         monkeypatch.setattr(sys, "argv", ["knowledge-search", "hello"])
         monkeypatch.delenv("DATABASE_URL", raising=False)
@@ -358,9 +356,7 @@ class TestNanScoreFiltering:
 
 class TestErrorHandling:
     @pytest.mark.asyncio
-    async def test_exception_during_embed_prints_empty_array(
-        self, capsys, monkeypatch
-    ):
+    async def test_exception_during_embed_prints_empty_array(self, capsys, monkeypatch):
         """An exception inside the try block results in ``[]`` on stdout."""
         monkeypatch.setattr(sys, "argv", ["knowledge-search", "fail"])
         monkeypatch.setenv("DATABASE_URL", "postgresql://localhost/test")
@@ -429,7 +425,9 @@ class TestErrorHandling:
         mock_embed_class = MagicMock(return_value=mock_embed_instance)
 
         mock_store_instance = MagicMock()
-        mock_store_instance.search_notes.side_effect = RuntimeError("db connection lost")
+        mock_store_instance.search_notes.side_effect = RuntimeError(
+            "db connection lost"
+        )
         mock_store_class = MagicMock(return_value=mock_store_instance)
 
         mock_emb = MagicMock()
