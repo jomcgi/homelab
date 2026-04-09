@@ -89,9 +89,15 @@ spec:
             periodSeconds: 5
           {{- if .Values.knowledge.enabled }}
           volumeMounts:
+            # Writable: the backend reconciler injects generated
+            # `id:` frontmatter into notes that lack one so future
+            # reconcile cycles have stable graph identity. The
+            # obsidian headless-sync sidecar observes those writes
+            # and propagates them through Obsidian's cloud sync,
+            # so the backend + sidecar are coordinated writers
+            # rather than racing writers.
             - name: vault
               mountPath: {{ .Values.knowledge.vault.mountPath }}
-              readOnly: true
           {{- end }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}

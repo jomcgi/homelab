@@ -110,14 +110,18 @@ class TestReconciler:
         _write(tmp_path, "a.md", "---\ntitle: Read Only\n---\nBody.")
 
         def deny(abs_path, raw, note_id):
-            raise PermissionError("read-only fs")
+            # Linux EROFS raises plain OSError(errno=30), not
+            # PermissionError. The ingest path must catch the broader
+            # OSError type; a previous bug caught only PermissionError
+            # and let EROFS tank the whole reconcile cycle.
+            raise OSError(30, "Read-only file system")
 
         reconciler._write_back_id = deny  # type: ignore[method-assign]
         # The read-only error is classified as a partial failure: the
-        # outer run() loop catches it, continues, and re-raises at the
-        # end. The file must NOT have been ingested.
-        with pytest.raises(Exception):
-            await reconciler.run()
+        # outer run() loop catches it, increments stats.failed, and
+        # returns normally. A single bad file must not abort the job.
+        result = await reconciler.run()
+        assert result == _stats(failed=1)
         assert list(session.scalars(select(Note))) == []
 
     @pytest.mark.asyncio
@@ -221,8 +225,11 @@ class TestReconciler:
             return [[0.1] * 1024 for _ in texts]
 
         embed_client.embed_batch.side_effect = flaky
-        with pytest.raises(RuntimeError):
-            await reconciler.run()
+        # A single ingest failure must NOT abort the entire reconcile:
+        # the error is logged, counted in stats.failed, and the loop
+        # continues to the next file.
+        result = await reconciler.run()
+        assert result == _stats(upserted=2, failed=1)
         titles = sorted(n.title for n in session.scalars(select(Note)))
         assert "B" not in titles
         assert len(titles) == 2

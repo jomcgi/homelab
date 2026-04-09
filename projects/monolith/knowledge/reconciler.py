@@ -84,16 +84,13 @@ class Reconciler:
         failed = 0
         skipped_locked = 0
 
-        first_error: BaseException | None = None
         for path in to_delete:
             logger.info("knowledge: deleting %s", path)
             try:
                 self.store.delete_note(path)
-            except Exception as exc:  # noqa: BLE001 — partial-failure isolation
+            except Exception:  # noqa: BLE001 — partial-failure isolation
                 logger.exception("knowledge: failed to delete %s, continuing", path)
                 failed += 1
-                if first_error is None:
-                    first_error = exc
                 try:
                     self.store.session.rollback()
                 except Exception:  # noqa: BLE001
@@ -124,11 +121,9 @@ class Reconciler:
                         "knowledge: rollback after frontmatter error failed"
                     )
                 continue
-            except Exception as exc:  # noqa: BLE001 — partial-failure isolation
+            except Exception:  # noqa: BLE001 — partial-failure isolation
                 logger.exception("knowledge: failed to ingest %s, continuing", path)
                 failed += 1
-                if first_error is None:
-                    first_error = exc
                 # Roll back any uncommitted state from the failed ingest so
                 # the next file starts with a clean session.
                 try:
@@ -158,8 +153,10 @@ class Reconciler:
             stats.failed,
             stats.skipped_locked,
         )
-        if first_error is not None:
-            raise first_error
+        # Per-file errors are isolated: they increment stats.failed and
+        # are logged with a traceback. We deliberately do NOT re-raise
+        # here — a single bad file must not tank an entire reconcile
+        # cycle. Alerting should key off the `failed` structured field.
         return stats
 
     def _walk(self, *, previous_indexed: dict[str, str]) -> dict[str, str]:
@@ -225,7 +222,10 @@ class Reconciler:
             try:
                 raw, content_hash = self._write_back_id(abs_path, raw, note_id)
                 meta, body = frontmatter.parse(raw)
-            except PermissionError as exc:
+            except OSError as exc:
+                # Catches both PermissionError (EACCES/EPERM) and
+                # OSError(EROFS) from read-only mounts — the latter is
+                # not a PermissionError subclass despite the name.
                 raise ReadOnlyVaultError(
                     f"vault is read-only and {rel_path} has no frontmatter id;"
                     " refusing to ingest with ephemeral id"
@@ -254,8 +254,9 @@ class Reconciler:
 
         Preserves the file's existing line ending (LF or CRLF) so Git
         diffs stay clean on Windows-authored notes. Returns the new
-        ``(raw, content_hash)``. Raises ``PermissionError`` on read-only
-        mounts.
+        ``(raw, content_hash)``. Raises ``OSError`` on read-only mounts
+        (EROFS is plain ``OSError``, not ``PermissionError``, so the
+        caller must catch the broader type).
         """
         if raw.startswith("---\r\n"):
             eol = "\r\n"
