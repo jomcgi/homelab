@@ -90,3 +90,101 @@ class TestTtlCleanup:
         )
         cleaned = gardener._cleanup_ttl()
         assert cleaned == 0
+
+    def test_treats_naive_expired_datetime_as_utc(self, tmp_path):
+        # Naive ISO datetime in the past (no tz suffix)
+        expired_naive = (
+            (datetime.now(timezone.utc) - timedelta(hours=1))
+            .replace(tzinfo=None)
+            .isoformat()
+        )
+        _write(
+            tmp_path,
+            "_deleted_with_ttl/naive.md",
+            f'---\nttl: "{expired_naive}"\n---\nBody.',
+        )
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        cleaned = gardener._cleanup_ttl()
+        assert cleaned == 1
+        assert not (tmp_path / "_deleted_with_ttl" / "naive.md").exists()
+
+    def test_skips_corrupt_ttl_but_cleans_expired_sibling(self, tmp_path):
+        expired = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        _write(
+            tmp_path,
+            "_deleted_with_ttl/valid.md",
+            f'---\nttl: "{expired}"\n---\nValid.',
+        )
+        _write(
+            tmp_path,
+            "_deleted_with_ttl/corrupt.md",
+            "---\nttl: not-a-datetime\n---\nCorrupt.",
+        )
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        cleaned = gardener._cleanup_ttl()
+        assert cleaned == 1
+        assert not (tmp_path / "_deleted_with_ttl" / "valid.md").exists()
+        assert (tmp_path / "_deleted_with_ttl" / "corrupt.md").exists()
+
+
+class TestSoftDelete:
+    def test_moves_file_with_existing_frontmatter_and_injects_ttl(self, tmp_path):
+        _write(
+            tmp_path,
+            "inbox/note.md",
+            "---\ntitle: Hello\ntags: [a, b]\n---\nBody text.\n",
+        )
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        source = tmp_path / "inbox" / "note.md"
+        gardener._soft_delete(source)
+
+        assert not source.exists()
+        dest = tmp_path / "_deleted_with_ttl" / "inbox" / "note.md"
+        assert dest.exists()
+        content = dest.read_text()
+        assert "ttl:" in content
+        assert "title: Hello" in content
+        # Body preserved
+        assert "Body text." in content
+
+    def test_adds_frontmatter_to_file_without_any(self, tmp_path):
+        _write(tmp_path, "inbox/plain.md", "Just body, no frontmatter.\n")
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        source = tmp_path / "inbox" / "plain.md"
+        gardener._soft_delete(source)
+
+        dest = tmp_path / "_deleted_with_ttl" / "inbox" / "plain.md"
+        assert dest.exists()
+        content = dest.read_text()
+        assert content.startswith("---\n")
+        assert "ttl:" in content
+        assert "Just body, no frontmatter." in content
+
+    def test_overwrites_existing_ttl(self, tmp_path):
+        """If the file already has a ttl (e.g. already soft-deleted), new ttl wins."""
+        old_ttl = "2020-01-01T00:00:00+00:00"
+        _write(
+            tmp_path,
+            "inbox/retry.md",
+            f'---\nttl: "{old_ttl}"\ntitle: X\n---\nBody.\n',
+        )
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        source = tmp_path / "inbox" / "retry.md"
+        gardener._soft_delete(source)
+
+        dest = tmp_path / "_deleted_with_ttl" / "inbox" / "retry.md"
+        content = dest.read_text()
+        # Old ttl must not be present
+        assert old_ttl not in content
+        assert "ttl:" in content
+        assert content.count("ttl:") == 1

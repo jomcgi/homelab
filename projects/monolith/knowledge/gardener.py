@@ -6,7 +6,9 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
+
+import yaml
 
 from knowledge import frontmatter
 
@@ -26,8 +28,33 @@ class GardenStats:
     ttl_cleaned: int
 
 
-class _Embedder(Protocol):
-    async def embed_batch(self, texts: list[str]) -> list[list[float]]: ...
+def _split_frontmatter(raw: str) -> tuple[dict, str]:
+    """Return (meta_dict, body) split from a markdown file's frontmatter.
+
+    Returns ({}, raw) if no frontmatter block is present.
+    """
+    if not raw.startswith("---"):
+        return {}, raw
+    # Find the closing --- on its own line
+    lines = raw.splitlines(keepends=True)
+    if not lines or not lines[0].rstrip("\r\n") == "---":
+        return {}, raw
+    end_idx = None
+    for i in range(1, len(lines)):
+        if lines[i].rstrip("\r\n") == "---":
+            end_idx = i
+            break
+    if end_idx is None:
+        return {}, raw
+    block = "".join(lines[1:end_idx])
+    body = "".join(lines[end_idx + 1 :])
+    try:
+        meta = yaml.safe_load(block) or {}
+    except yaml.YAMLError:
+        return {}, raw
+    if not isinstance(meta, dict):
+        return {}, raw
+    return meta, body
 
 
 class Gardener:
@@ -36,8 +63,8 @@ class Gardener:
         *,
         vault_root: Path,
         anthropic_client: object | None,
-        store: "KnowledgeStore | None",
-        embed_client: _Embedder | None,
+        store: KnowledgeStore | None,
+        embed_client: object | None,
     ) -> None:
         self.vault_root = Path(vault_root)
         self.anthropic_client = anthropic_client
@@ -71,13 +98,23 @@ class Gardener:
     def _discover_raw_files(self) -> list[Path]:
         """Find .md files in the vault root that are not in excluded directories."""
         raw: list[Path] = []
-        for p in self.vault_root.rglob("*.md"):
-            rel = p.relative_to(self.vault_root)
-            parts = rel.parts
-            # Skip excluded directories and dotfiles/dotdirs
-            if any(part in _EXCLUDED_DIRS or part.startswith(".") for part in parts):
+        if not self.vault_root.exists():
+            return raw
+        for entry in self.vault_root.iterdir():
+            if entry.name.startswith("."):
                 continue
-            raw.append(p)
+            if entry.name in _EXCLUDED_DIRS:
+                continue
+            if entry.is_file():
+                if entry.suffix == ".md":
+                    raw.append(entry)
+                continue
+            if entry.is_dir():
+                for p in entry.rglob("*.md"):
+                    rel = p.relative_to(self.vault_root)
+                    if any(part.startswith(".") for part in rel.parts):
+                        continue
+                    raw.append(p)
         return sorted(raw)
 
     async def _ingest_one(self, path: Path) -> None:
@@ -92,15 +129,14 @@ class Gardener:
 
         raw = source.read_text(encoding="utf-8")
         ttl_dt = datetime.now(timezone.utc) + timedelta(hours=_TTL_HOURS)
+        ttl_iso = ttl_dt.isoformat()
 
-        meta_match = frontmatter._FRONTMATTER_RE.match(raw)
-        if meta_match:
-            # Inject ttl into existing frontmatter
-            block = meta_match.group(1)
-            body = raw[meta_match.end() :]
-            new_raw = f'---\nttl: "{ttl_dt.isoformat()}"\n{block}\n---\n{body}'
-        else:
-            new_raw = f'---\nttl: "{ttl_dt.isoformat()}"\n---\n{raw}'
+        meta_dict, body = _split_frontmatter(raw)
+        meta_dict["ttl"] = ttl_iso  # Overwrites any existing ttl
+
+        new_raw = (
+            f"---\n{yaml.safe_dump(meta_dict, sort_keys=False).rstrip()}\n---\n{body}"
+        )
 
         dest.write_text(new_raw, encoding="utf-8")
         source.unlink()
@@ -124,6 +160,11 @@ class Gardener:
                 if now >= ttl_dt:
                     p.unlink()
                     cleaned += 1
-            except Exception:
-                logger.exception("gardener: failed to check TTL for %s", p)
+            except (
+                ValueError,
+                OSError,
+                yaml.YAMLError,
+                frontmatter.FrontmatterError,
+            ) as exc:
+                logger.warning("gardener: failed to check TTL for %s: %s", p, exc)
         return cleaned
