@@ -26,7 +26,11 @@ class OkModelWithExtendExisting(SQLModel, table=True):
 
 # ok: has extend_existing=True along with other keys
 class OkModelWithAllKeys(SQLModel, table=True):
-    __table_args__ = {"schema": "myapp", "comment": "user records", "extend_existing": True}
+    __table_args__ = {
+        "schema": "myapp",
+        "comment": "user records",
+        "extend_existing": True,
+    }
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
 
