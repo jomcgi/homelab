@@ -30,6 +30,7 @@ go_test(
     name = "statemachine_test",
     srcs = [
         "cloudflare_tunnel_calculator_status_transitions_visit_test.go",
+        "cloudflare_tunnel_calculator_test.go",
         "cloudflare_tunnel_comprehensive_test.go",
         "cloudflare_tunnel_coverage_gaps_test.go",
         "cloudflare_tunnel_coverage_test.go",
@@ -38,8 +39,13 @@ go_test(
         "cloudflare_tunnel_gaps_test.go",
         "cloudflare_tunnel_metrics_test.go",
         "cloudflare_tunnel_observability_test.go",
+        "cloudflare_tunnel_phases_test.go",
         "cloudflare_tunnel_source_coverage_test.go",
         "cloudflare_tunnel_statemachine_test.go",
+        "cloudflare_tunnel_status_test.go",
+        "cloudflare_tunnel_transitions_test.go",
+        "cloudflare_tunnel_types_test.go",
+        "cloudflare_tunnel_visit_test.go",
     ],
     embed = [":statemachine"],
     deps = [
