@@ -163,6 +163,16 @@ async def download_image_attachments(
     return results
 
 
+def _has_embeddable_content(message: discord.Message) -> bool:
+    """Return True if the message has text or image attachments that produce a description."""
+    if message.content.strip():
+        return True
+    return any(
+        a.content_type and a.content_type.startswith("image/")
+        for a in message.attachments
+    )
+
+
 class ChatBot(discord.Client):
     def __init__(self):
         intents = discord.Intents.default()
@@ -201,6 +211,15 @@ class ChatBot(discord.Client):
         msg_id = str(message.id)
         channel_id = str(message.channel.id)
         attachments: list[dict] = []
+
+        if not _has_embeddable_content(message):
+            logger.debug(
+                "Message %s has no embeddable content, marking completed", msg_id
+            )
+            with Session(get_engine()) as session:
+                store = MessageStore(session=session, embed_client=self.embed_client)
+                store.mark_completed(msg_id)
+            return
 
         try:
             with Session(get_engine()) as session:
