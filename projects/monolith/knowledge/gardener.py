@@ -135,6 +135,15 @@ _TOOLS = [
 ]
 
 
+def _is_error_result(result: str) -> bool:
+    """Return True if a tool_result JSON string represents an error."""
+    try:
+        parsed = json.loads(result)
+    except (ValueError, TypeError):
+        return False
+    return isinstance(parsed, dict) and "error" in parsed
+
+
 def _slugify(text_in: str) -> str:
     normalized = unicodedata.normalize("NFKD", text_in)
     ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
@@ -260,6 +269,7 @@ class Gardener:
         ]
 
         # Tool-use loop — bounded to avoid runaway loops.
+        created_any = False
         max_turns = 20
         for _ in range(max_turns):
             response = self.anthropic_client.messages.create(
@@ -278,6 +288,8 @@ class Gardener:
                 if getattr(block, "type", None) != "tool_use":
                     continue
                 result = await self._handle_tool(block.name, block.input)
+                if block.name == "create_note" and not _is_error_result(result):
+                    created_any = True
                 tool_results.append(
                     {
                         "type": "tool_result",
@@ -289,13 +301,23 @@ class Gardener:
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": tool_results})
         else:
-            logger.warning(
-                "gardener: tool-use loop hit max_turns=%d for %s", max_turns, path
+            # Loop exhausted without a non-tool_use stop_reason. Raise so
+            # run() marks the file as failed and leaves the raw file in
+            # place for the next cycle.
+            raise RuntimeError(
+                f"gardener: tool-use loop exhausted max_turns={max_turns} for {path}"
             )
 
-        # Soft-delete the original regardless of how the loop exited —
-        # the TTL window gives us recovery time if Sonnet's decomposition
-        # was incomplete.
+        if not created_any:
+            # Sonnet returned end_turn without creating any notes (e.g. a
+            # refusal or plain-text apology). Don't soft-delete — leave the
+            # raw file for the user to inspect or for the next cycle.
+            logger.warning(
+                "gardener: Sonnet produced no notes for %s; leaving raw file in place",
+                path,
+            )
+            return
+
         self._soft_delete(path)
 
     async def _handle_tool(self, name: str, input_data: dict) -> str:
@@ -380,6 +402,17 @@ class Gardener:
         note_id = input_data["note_id"]
         new_edges = input_data["edges"]
 
+        unknown_types = [k for k in new_edges if k not in frontmatter._KNOWN_EDGE_TYPES]
+        if unknown_types:
+            return json.dumps(
+                {
+                    "error": (
+                        f"unknown edge types: {unknown_types}. "
+                        f"Known types: {sorted(frontmatter._KNOWN_EDGE_TYPES)}"
+                    ),
+                }
+            )
+
         note = self.store.session.execute(
             select(Note).where(Note.note_id == note_id)
         ).scalar_one_or_none()
@@ -413,6 +446,10 @@ class Gardener:
             fm["aliases"] = meta.aliases
         if meta.edges:
             fm["edges"] = meta.edges
+        if meta.created:
+            fm["created"] = meta.created.isoformat()
+        if meta.updated:
+            fm["updated"] = meta.updated.isoformat()
         if meta.extra:
             fm.update(meta.extra)
 

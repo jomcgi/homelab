@@ -257,13 +257,18 @@ class TestIngestOne:
         assert "CNI plugins handle pod networking" in content
 
     @pytest.mark.asyncio
-    async def test_soft_deletes_raw_file_after_ingest(self, tmp_path):
-        """After successful ingest, raw file moves to _deleted_with_ttl/."""
+    async def test_soft_deletes_raw_file_after_successful_ingest(self, tmp_path):
+        """After successful ingest (at least one create_note), raw file moves to _deleted_with_ttl/."""
         _write(tmp_path, "inbox/raw.md", "---\ntitle: Test\n---\nBody.")
 
+        create_block = MagicMock()
+        create_block.type = "tool_use"
+        create_block.id = "c1"
+        create_block.name = "create_note"
+        create_block.input = {"type": "atom", "title": "Test", "body": "Body."}
         resp = MagicMock()
-        resp.stop_reason = "end_turn"
-        resp.content = []
+        resp.stop_reason = "tool_use"
+        resp.content = [create_block]
 
         mock_client = _make_mock_anthropic([resp])
         gardener = Gardener(
@@ -279,6 +284,112 @@ class TestIngestOne:
         assert len(deleted) == 1
         content = deleted[0].read_text()
         assert "ttl:" in content
+
+    @pytest.mark.asyncio
+    async def test_does_not_soft_delete_when_no_notes_created(self, tmp_path):
+        """If Sonnet returns end_turn without calling create_note, keep the raw file."""
+        _write(tmp_path, "inbox/raw.md", "---\ntitle: Test\n---\nBody.")
+
+        resp = MagicMock()
+        resp.stop_reason = "end_turn"
+        resp.content = []
+
+        mock_client = _make_mock_anthropic([resp])
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=mock_client,
+            store=None,
+            embed_client=None,
+        )
+        await gardener._ingest_one(tmp_path / "inbox" / "raw.md")
+
+        assert (tmp_path / "inbox" / "raw.md").exists()  # still there
+        assert not (tmp_path / "_deleted_with_ttl").exists() or not list(
+            (tmp_path / "_deleted_with_ttl").rglob("*.md")
+        )
+
+    @pytest.mark.asyncio
+    async def test_raises_on_max_turns_exhaustion(self, tmp_path):
+        """If the tool-use loop runs forever, raise and leave the raw file in place."""
+        _write(tmp_path, "inbox/raw.md", "---\ntitle: Test\n---\nBody.")
+
+        # A mock that ALWAYS returns tool_use — infinite loop until max_turns.
+        loop_block = MagicMock()
+        loop_block.type = "tool_use"
+        loop_block.id = "call_loop"
+        loop_block.name = "search_notes"
+        loop_block.input = {"query": "anything"}
+        loop_resp = MagicMock()
+        loop_resp.stop_reason = "tool_use"
+        loop_resp.content = [loop_block]
+
+        client = MagicMock()
+        client.messages.create = MagicMock(return_value=loop_resp)
+
+        mock_store = MagicMock()
+        mock_store.search_notes.return_value = []
+        mock_embed = AsyncMock()
+        mock_embed.embed.return_value = [0.0] * 1024
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=client,
+            store=mock_store,
+            embed_client=mock_embed,
+        )
+        with pytest.raises(RuntimeError, match="max_turns"):
+            await gardener._ingest_one(tmp_path / "inbox" / "raw.md")
+
+        # Raw file survives
+        assert (tmp_path / "inbox" / "raw.md").exists()
+
+    @pytest.mark.asyncio
+    async def test_multi_turn_loop_accumulates_messages(self, tmp_path):
+        """Verify messages append correctly across multiple tool-use turns."""
+        _write(tmp_path, "inbox/raw.md", "---\ntitle: Test\n---\nBody content.")
+
+        # Turn 1: search_notes
+        search_block = MagicMock()
+        search_block.type = "tool_use"
+        search_block.id = "c1"
+        search_block.name = "search_notes"
+        search_block.input = {"query": "test"}
+        turn1 = MagicMock()
+        turn1.stop_reason = "tool_use"
+        turn1.content = [search_block]
+
+        # Turn 2: create_note
+        create_block = MagicMock()
+        create_block.type = "tool_use"
+        create_block.id = "c2"
+        create_block.name = "create_note"
+        create_block.input = {
+            "type": "fact",
+            "title": "Body content",
+            "body": "Body content.",
+        }
+        turn2 = MagicMock()
+        turn2.stop_reason = "tool_use"
+        turn2.content = [create_block]
+
+        mock_client = _make_mock_anthropic([turn1, turn2])
+
+        mock_store = MagicMock()
+        mock_store.search_notes.return_value = []
+        mock_embed = AsyncMock()
+        mock_embed.embed.return_value = [0.0] * 1024
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=mock_client,
+            store=mock_store,
+            embed_client=mock_embed,
+        )
+        await gardener._ingest_one(tmp_path / "inbox" / "raw.md")
+
+        # Note was created, raw was soft-deleted
+        assert len(list((tmp_path / "_processed").rglob("*.md"))) == 1
+        assert not (tmp_path / "inbox" / "raw.md").exists()
 
     @pytest.mark.asyncio
     async def test_handles_missing_anthropic_client(self, tmp_path):
@@ -362,3 +473,117 @@ class TestCreateNoteTool:
         assert len(files) == 2
         assert files[0].name == "same-1.md"
         assert files[1].name == "same.md"
+
+
+class TestPatchEdgesTool:
+    def test_preserves_created_and_updated_timestamps(self, tmp_path):
+        """Regression test: patch_edges must not drop created/updated frontmatter."""
+        note_path = tmp_path / "_processed" / "target.md"
+        note_path.parent.mkdir(parents=True)
+        note_path.write_text(
+            "---\n"
+            "id: target\n"
+            "title: Target Note\n"
+            "type: atom\n"
+            "created: 2026-01-01T00:00:00+00:00\n"
+            "updated: 2026-02-01T00:00:00+00:00\n"
+            "---\n"
+            "Original body.\n"
+        )
+
+        # Mock the store lookup
+        mock_note = MagicMock()
+        mock_note.note_id = "target"
+        mock_note.path = "_processed/target.md"
+        mock_store = MagicMock()
+        mock_store.session.execute.return_value.scalar_one_or_none.return_value = (
+            mock_note
+        )
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=mock_store,
+            embed_client=None,
+        )
+        result = gardener._handle_patch_edges(
+            {
+                "note_id": "target",
+                "edges": {"related": ["other-note"]},
+            }
+        )
+        assert "patched" in result
+
+        updated_content = note_path.read_text()
+        assert (
+            "created: '2026-01-01T00:00:00+00:00'" in updated_content
+            or "created: 2026-01-01T00:00:00+00:00" in updated_content
+        )
+        assert "updated:" in updated_content
+        assert "related:" in updated_content
+        assert "other-note" in updated_content
+
+    def test_rejects_unknown_edge_types(self, tmp_path):
+        """patch_edges should return an error for unknown edge type names."""
+        mock_store = MagicMock()
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=mock_store,
+            embed_client=None,
+        )
+        result = gardener._handle_patch_edges(
+            {
+                "note_id": "target",
+                "edges": {"nonsense_edge_type": ["x"]},
+            }
+        )
+        assert "error" in result
+        assert "unknown edge types" in result
+        # Store should not even have been queried
+        mock_store.session.execute.assert_not_called()
+
+    def test_merges_edges_with_existing(self, tmp_path):
+        """patch_edges dedupes and preserves order when merging edges."""
+        note_path = tmp_path / "_processed" / "target.md"
+        note_path.parent.mkdir(parents=True)
+        note_path.write_text(
+            "---\n"
+            "id: target\n"
+            "title: Target\n"
+            "type: atom\n"
+            "edges:\n"
+            "  related:\n"
+            "    - existing-a\n"
+            "    - existing-b\n"
+            "---\n"
+            "Body.\n"
+        )
+        mock_note = MagicMock()
+        mock_note.note_id = "target"
+        mock_note.path = "_processed/target.md"
+        mock_store = MagicMock()
+        mock_store.session.execute.return_value.scalar_one_or_none.return_value = (
+            mock_note
+        )
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=mock_store,
+            embed_client=None,
+        )
+        gardener._handle_patch_edges(
+            {
+                "note_id": "target",
+                "edges": {"related": ["existing-b", "new-c"]},  # b is dup, c is new
+            }
+        )
+
+        updated = note_path.read_text()
+        # Expect order: existing-a, existing-b, new-c (dedupe preserves order)
+        assert "existing-a" in updated
+        assert "existing-b" in updated
+        assert "new-c" in updated
+        # Count occurrences of existing-b to ensure no dupe
+        assert updated.count("existing-b") == 1
