@@ -5,9 +5,12 @@ Prints JSON array of matching notes to stdout.
 """
 import asyncio
 import json
+import logging
 import math
 import os
 import sys
+
+logger = logging.getLogger("knowledge.search")
 
 
 async def main() -> None:
@@ -25,14 +28,18 @@ async def main() -> None:
     from sqlmodel import Session, create_engine
 
     engine = create_engine(db_url)
-    embed_client = EmbeddingClient()
-    embedding = await embed_client.embed(query)
-    with Session(engine) as session:
-        results = KnowledgeStore(session=session).search_notes(
-            query_embedding=embedding, limit=5
-        )
-    safe_results = [r for r in results if isinstance(r.get("score"), (int, float)) and math.isfinite(r["score"])]
-    print(json.dumps(safe_results))
+    try:
+        embed_client = EmbeddingClient()
+        embedding = await embed_client.embed(query)
+        with Session(engine) as session:
+            results = KnowledgeStore(session=session).search_notes(
+                query_embedding=embedding, limit=5
+            )
+        safe_results = [r for r in results if isinstance(r.get("score"), (int, float)) and math.isfinite(r["score"])]
+        print(json.dumps(safe_results))
+    except Exception:
+        logger.exception("knowledge-search: error during search")
+        print("[]")
 
 
 asyncio.run(main())

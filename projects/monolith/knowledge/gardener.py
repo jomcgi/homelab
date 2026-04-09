@@ -21,7 +21,7 @@ _TTL_HOURS = 24
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
-_CLAUDE_PROMPT = """\
+_CLAUDE_PROMPT_HEADER = """\
 You are a knowledge gardener. Decompose the raw note below into atomic knowledge artifacts.
 
 Steps:
@@ -44,7 +44,6 @@ edges:
 
 Title: {title}
 
-{body}
 """
 
 _CLAUDE_TIMEOUT_SECS = 300
@@ -170,10 +169,12 @@ class Gardener:
         meta, body = frontmatter.parse(raw)
         title = meta.title or path.stem
 
-        prompt = _CLAUDE_PROMPT.format(
-            processed_root=self.processed_root,
-            title=title,
-            body=body,
+        prompt = (
+            _CLAUDE_PROMPT_HEADER.format(
+                processed_root=self.processed_root,
+                title=title,
+            )
+            + body
         )
 
         before = (
