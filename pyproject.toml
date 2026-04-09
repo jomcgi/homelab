@@ -78,6 +78,8 @@ dependencies = [
     "pydantic-ai-slim[openai]>=0.2",
     "pgvector>=0.3",
     "psycopg[binary]>=3.1",
+    # Knowledge gardener — Claude Sonnet tool-use loop
+    "anthropic>=0.92",
     "icalendar~=6.0",
     "tzdata",
 ]
