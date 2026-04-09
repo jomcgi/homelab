@@ -8,7 +8,7 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load", "oc
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel/tools/oci:providers.bzl", "oci_image_info")
 
-def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", tars = [], bash_symlink = True, repository = None, visibility = ["//bazel/images:__pkg__"], multi_platform = True):
+def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", tars = [], multiarch_tars = [], bash_symlink = True, repository = None, visibility = ["//bazel/images:__pkg__"], multi_platform = True):
     """Create a multi-platform Python 3 image from a Python binary.
 
     Args:
@@ -23,6 +23,9 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
         workdir: The working directory to set in the image.
         base: The base image to use for the image.
         tars: Additional tar layers to include in the image (e.g., extra binaries or config).
+        multiarch_tars: Optional list of multiarch tar base names. For each base name, py3_image
+                       will use {base}_amd64 and {base}_arm64 targets.
+                       Example: ["@claude_code//:tar"] uses @claude_code//:tar_amd64 and @claude_code//:tar_arm64
         bash_symlink: Create /bin/bash -> /usr/bin/bash symlink layer. Set to False for bases
                      where /bin is a symlink to /usr/bin (e.g., Wolfi apko images), as the
                      layer would shadow the /bin symlink and break /bin/* resolution.
@@ -68,6 +71,12 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
         )
         extra_tars.append(name + "_srcs")
 
+    extra_tars_amd64 = list(extra_tars)
+    extra_tars_arm64 = list(extra_tars)
+    for tar_base in multiarch_tars:
+        extra_tars_amd64.append(tar_base + "_amd64")
+        extra_tars_arm64.append(tar_base + "_arm64")
+
     if multi_platform:
         # Build AMD64 image
         oci_image(
@@ -78,7 +87,7 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
                 binary = binary,
                 root = root,
                 layer_groups = layer_groups,
-            ) + extra_tars,
+            ) + extra_tars_amd64,
             entrypoint = [binary_path],
             env = env,
             workdir = workdir or workspace_root,
@@ -98,7 +107,7 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
                 binary = binary,
                 root = root,
                 layer_groups = layer_groups,
-            ) + extra_tars,
+            ) + extra_tars_arm64,
             entrypoint = [binary_path],
             env = env,
             workdir = workdir or workspace_root,
