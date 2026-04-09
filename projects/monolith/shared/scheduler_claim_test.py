@@ -135,9 +135,7 @@ class TestClaimNextJobSQL:
         _claim_next_job(mock_session)
 
         params = mock_session.execute.call_args.args[1]
-        assert "now" in params, (
-            f"Expected 'now' in params dict, got: {params!r}"
-        )
+        assert "now" in params, f"Expected 'now' in params dict, got: {params!r}"
 
     def test_now_param_is_timezone_aware(self):
         """The 'now' bind parameter is a timezone-aware datetime."""
@@ -174,9 +172,7 @@ class TestClaimNextJobSQL:
 
         sql_arg = mock_session.execute.call_args.args[0]
         sql_text = str(sql_arg)
-        assert "LIMIT 1" in sql_text, (
-            f"Expected 'LIMIT 1' in SQL, got: {sql_text!r}"
-        )
+        assert "LIMIT 1" in sql_text, f"Expected 'LIMIT 1' in SQL, got: {sql_text!r}"
 
     def test_sql_handles_stale_lock_expiry_via_ttl(self):
         """The SQL releases stale locks using the ttl_secs column."""
