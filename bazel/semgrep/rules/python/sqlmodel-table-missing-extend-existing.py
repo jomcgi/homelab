@@ -17,14 +17,14 @@ class BadModelWithExtraKeys(SQLModel, table=True):
     name: str
 
 
-# ok: has extend_existing=True
+# ok: sqlmodel-table-missing-extend-existing
 class OkModelWithExtendExisting(SQLModel, table=True):
     __table_args__ = {"schema": "myapp", "extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
 
 
-# ok: has extend_existing=True along with other keys
+# ok: sqlmodel-table-missing-extend-existing
 class OkModelWithAllKeys(SQLModel, table=True):
     __table_args__ = {
         "schema": "myapp",
@@ -35,14 +35,14 @@ class OkModelWithAllKeys(SQLModel, table=True):
     name: str
 
 
-# ok: no schema key — extend_existing not required
+# ok: sqlmodel-table-missing-extend-existing
 class OkModelNoSchema(SQLModel, table=True):
     __table_args__ = {"comment": "simple table"}
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
 
 
-# ok: no __table_args__ at all
+# ok: sqlmodel-table-missing-extend-existing
 class OkModelNoTableArgs(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
