@@ -7,6 +7,7 @@
 # gazelle:exclude scripts
 # gazelle:exclude shared
 # gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,tainted-fastapi-http-request-httpx
+load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
@@ -82,6 +83,14 @@ py_library(
     ],
 )
 
+tar(
+    name = "knowledge_tools_tar",
+    srcs = ["knowledge/tools/knowledge-search"],
+    mtree = [
+        "./usr/local/bin/knowledge-search type=file content=$(execpath knowledge/tools/knowledge-search) mode=0755 uid=0 gid=0",
+    ],
+)
+
 py3_image(
     name = "image",
     binary = "//projects/monolith:main",
@@ -97,6 +106,7 @@ py3_image(
     main = "app/main.py",
     multiarch_tars = ["@claude_code//:tar"],
     repository = "ghcr.io/jomcgi/homelab/projects/monolith/backend",
+    tars = [":knowledge_tools_tar"],
 )
 
 py_test(
