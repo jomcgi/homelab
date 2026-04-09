@@ -4,7 +4,25 @@ import pytest
 from pydantic import ValidationError
 from sqlmodel import SQLModel
 
-from chat.models import Attachment, Blob, Message
+from chat.models import Attachment, Blob, ChannelSummary, Message, MessageLock, UserChannelSummary
+
+
+def _get_table_args_dict(model_class: type) -> dict:
+    """Return the kwargs dict from __table_args__, handling both dict and tuple forms.
+
+    SQLModel table classes declare __table_args__ as either a plain dict
+    (simple case) or a tuple ending with a dict (when constraints are also
+    present, e.g. UserChannelSummary).  This helper normalises both forms so
+    tests can inspect keyword options without branching per model.
+    """
+    args = model_class.__table_args__
+    if isinstance(args, dict):
+        return args
+    # Tuple form: the last dict element holds the keyword arguments.
+    for item in reversed(args):
+        if isinstance(item, dict):
+            return item
+    return {}
 
 
 class TestMessageModel:
@@ -179,3 +197,51 @@ class TestBlobModel:
             content_type="image/gif",
         )
         assert blob.description == ""
+
+
+# ---------------------------------------------------------------------------
+# extend_existing — prevent MetaData conflicts on repeated imports
+# ---------------------------------------------------------------------------
+
+
+class TestExtendExisting:
+    """All chat SQLModel tables must declare extend_existing=True.
+
+    SQLAlchemy raises an error when a table is registered with the same
+    MetaData more than once (e.g. during test collection or module reload)
+    unless extend_existing=True is set in __table_args__.  These tests pin
+    that property so it cannot be silently removed.
+    """
+
+    @pytest.mark.parametrize(
+        "model_class",
+        [Message, Blob, Attachment, UserChannelSummary, MessageLock, ChannelSummary],
+        ids=["Message", "Blob", "Attachment", "UserChannelSummary", "MessageLock", "ChannelSummary"],
+    )
+    def test_extend_existing_is_true(self, model_class):
+        """__table_args__ must contain extend_existing=True for every chat model."""
+        kwargs = _get_table_args_dict(model_class)
+        assert kwargs.get("extend_existing") is True, (
+            f"{model_class.__name__}.__table_args__ is missing 'extend_existing': True"
+        )
+
+    @pytest.mark.parametrize(
+        "model_class",
+        [Message, Blob, Attachment, UserChannelSummary, MessageLock, ChannelSummary],
+        ids=["Message", "Blob", "Attachment", "UserChannelSummary", "MessageLock", "ChannelSummary"],
+    )
+    def test_schema_is_chat(self, model_class):
+        """__table_args__ must still declare schema='chat' for every chat model."""
+        kwargs = _get_table_args_dict(model_class)
+        assert kwargs.get("schema") == "chat", (
+            f"{model_class.__name__}.__table_args__ is missing 'schema': 'chat'"
+        )
+
+    def test_user_channel_summary_table_args_is_tuple(self):
+        """UserChannelSummary uses a tuple form of __table_args__ (holds a constraint)."""
+        assert isinstance(UserChannelSummary.__table_args__, tuple)
+
+    def test_user_channel_summary_extend_existing_in_kwargs_dict(self):
+        """extend_existing is in the kwargs dict at the end of the UserChannelSummary tuple."""
+        kwargs = _get_table_args_dict(UserChannelSummary)
+        assert kwargs.get("extend_existing") is True

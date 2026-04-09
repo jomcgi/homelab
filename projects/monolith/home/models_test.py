@@ -198,3 +198,46 @@ class TestSQLiteSchemaCompatibility:
 
         assert len(session.exec(select(Task)).all()) == 1
         assert len(session.exec(select(Archive)).all()) == 1
+
+
+# ---------------------------------------------------------------------------
+# extend_existing — prevent MetaData conflicts on repeated imports
+# ---------------------------------------------------------------------------
+
+
+class TestExtendExisting:
+    """All home SQLModel tables must declare extend_existing=True.
+
+    SQLAlchemy raises an error when a table is registered with the same
+    MetaData more than once (e.g. during test collection or module reload)
+    unless extend_existing=True is set in __table_args__.  These tests pin
+    that property so it cannot be silently removed.
+    """
+
+    @pytest.mark.parametrize(
+        "model_class",
+        [Task, Archive],
+        ids=["Task", "Archive"],
+    )
+    def test_extend_existing_is_true(self, model_class):
+        """__table_args__ must contain extend_existing=True for every home model."""
+        args = model_class.__table_args__
+        assert isinstance(args, dict), (
+            f"{model_class.__name__}.__table_args__ must be a dict, got {type(args)}"
+        )
+        assert args.get("extend_existing") is True, (
+            f"{model_class.__name__}.__table_args__ is missing 'extend_existing': True"
+        )
+
+    @pytest.mark.parametrize(
+        "model_class",
+        [Task, Archive],
+        ids=["Task", "Archive"],
+    )
+    def test_schema_is_home(self, model_class):
+        """__table_args__ must still declare schema='home' for every home model."""
+        args = model_class.__table_args__
+        assert isinstance(args, dict)
+        assert args.get("schema") == "home", (
+            f"{model_class.__name__}.__table_args__ is missing 'schema': 'home'"
+        )
