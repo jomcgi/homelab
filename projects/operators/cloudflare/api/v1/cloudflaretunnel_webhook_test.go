@@ -199,6 +199,27 @@ func TestCloudflareTunnelValidateCreate(t *testing.T) {
 			wantErr: true,
 			errMsg:  "only one catch-all rule",
 		},
+		{
+			name: "single rule with both invalid hostname and missing service accumulates both errors",
+			tunnel: &CloudflareTunnel{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-tunnel",
+					Namespace: "default",
+				},
+				Spec: CloudflareTunnelSpec{
+					AccountID: "test-account-123",
+					Ingress: []TunnelIngress{
+						{
+							Hostname: "invalid_hostname!@#",
+							Service:  "",
+						},
+					},
+				},
+			},
+			wantErr: true,
+			// Both errors must appear in the same validation response.
+			errMsg: "must be a valid hostname",
+		},
 	}
 
 	for _, tt := range tests {
@@ -383,6 +404,41 @@ func TestValidateServiceURL(t *testing.T) {
 				t.Errorf("validateServiceURL(%q) error = %v, wantErr %v", tt.service, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+// TestValidateIngressRuleMultiErrorAccumulation verifies that when a single
+// ingress rule has both an invalid hostname and a missing service, both
+// errors are accumulated and returned together rather than short-circuiting
+// after the first failure.
+func TestValidateIngressRuleMultiErrorAccumulation(t *testing.T) {
+	tunnel := &CloudflareTunnel{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-tunnel",
+			Namespace: "default",
+		},
+		Spec: CloudflareTunnelSpec{
+			AccountID: "test-account-123",
+			Ingress: []TunnelIngress{
+				{
+					Hostname: "invalid_hostname!@#",
+					Service:  "",
+				},
+			},
+		},
+	}
+
+	_, err := tunnel.ValidateCreate(context.Background(), tunnel)
+	if err == nil {
+		t.Fatal("ValidateCreate() expected an error for rule with invalid hostname and missing service, got nil")
+	}
+
+	errStr := err.Error()
+	if !contains(errStr, "must be a valid hostname") {
+		t.Errorf("ValidateCreate() error = %q, expected to contain hostname error 'must be a valid hostname'", errStr)
+	}
+	if !contains(errStr, "service is required") {
+		t.Errorf("ValidateCreate() error = %q, expected to contain service error 'service is required'", errStr)
 	}
 }
 
