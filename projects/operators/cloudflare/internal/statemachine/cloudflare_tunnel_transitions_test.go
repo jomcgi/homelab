@@ -229,8 +229,6 @@ var _ = Describe("Transitions — happy path", func() {
 			Expect(next.Resource()).To(BeIdenticalTo(s.Resource()))
 		})
 	})
-
-	_ = r // avoid unused variable error
 })
 
 var _ = Describe("Transitions — guard conditions and helpers", func() {
