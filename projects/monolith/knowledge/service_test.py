@@ -1,42 +1,44 @@
-"""Unit tests for knowledge.service — on_startup and reconcile_handler."""
+"""Tests for knowledge service startup registration and handlers."""
 
+import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from knowledge import service
+from knowledge.gardener import GardenStats
 from knowledge.reconciler import ReconcileStats
+from knowledge.service import garden_handler, on_startup
 
 
 class TestOnStartup:
-    """on_startup registers the knowledge.reconcile job with the scheduler."""
-
-    def test_registers_job_with_correct_args(self):
-        """on_startup calls register_job with name, interval_secs, ttl_secs, and handler."""
+    def test_registers_garden_and_reconcile_jobs(self):
+        """on_startup registers both knowledge.garden and knowledge.reconcile."""
         session = MagicMock()
-
         with patch("shared.scheduler.register_job") as mock_register:
-            service.on_startup(session)
+            on_startup(session)
+        names = [call.kwargs["name"] for call in mock_register.call_args_list]
+        assert "knowledge.garden" in names
+        assert "knowledge.reconcile" in names
 
-        mock_register.assert_called_once_with(
-            session,
-            name="knowledge.reconcile",
-            interval_secs=300,
-            handler=service.reconcile_handler,
-            ttl_secs=600,
-        )
+    def test_garden_registered_before_reconcile(self):
+        """Documentary convention: knowledge.garden is registered first.
 
-    def test_passes_session_as_first_positional_arg(self):
-        """The session object is forwarded as the first argument to register_job."""
+        The scheduler claims one job per tick and polls every 30s, so
+        registration order has no runtime effect — the two jobs always
+        run in separate ticks. This test encodes the team convention of
+        listing producers before consumers in on_startup so that reading
+        the code top-to-bottom follows the data flow.
+        """
         session = MagicMock()
-
-        with patch("shared.scheduler.register_job") as mock_register:
-            service.on_startup(session)
-
-        call_args = mock_register.call_args
-        # First positional arg must be the session
-        assert call_args.args[0] is session
+        order: list[str] = []
+        with patch(
+            "shared.scheduler.register_job",
+            side_effect=lambda *a, **kw: order.append(kw["name"]),
+        ):
+            on_startup(session)
+        assert order.index("knowledge.garden") < order.index("knowledge.reconcile")
 
 
 class TestReconcileHandler:
@@ -150,3 +152,100 @@ class TestReconcileHandler:
             await service.reconcile_handler(session)
 
         MockStore.assert_called_once_with(session=session)
+
+
+class TestGardenHandler:
+    @pytest.mark.asyncio
+    async def test_skips_when_api_key_unset(self, monkeypatch):
+        """garden_handler returns None and constructs neither an Anthropic
+        client nor a Gardener when ANTHROPIC_API_KEY is unset."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        session = MagicMock()
+        with (
+            patch("anthropic.Anthropic") as mock_anthropic,
+            patch("knowledge.gardener.Gardener") as mock_gardener,
+        ):
+            result = await garden_handler(session)
+        assert result is None
+        mock_anthropic.assert_not_called()
+        mock_gardener.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_runs_gardener_when_api_key_set(self, monkeypatch, tmp_path):
+        """garden_handler constructs Gardener with the expected wiring and
+        awaits run() when ANTHROPIC_API_KEY is present."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        session = MagicMock()
+        gardener_instance = MagicMock()
+        gardener_instance.run = AsyncMock(
+            return_value=GardenStats(ingested=2, failed=0, ttl_cleaned=1)
+        )
+        with (
+            patch("anthropic.Anthropic") as mock_anthropic,
+            patch(
+                "knowledge.gardener.Gardener", return_value=gardener_instance
+            ) as mock_gardener,
+            patch("knowledge.service.KnowledgeStore") as mock_store,
+            patch("knowledge.service.EmbeddingClient") as mock_embed,
+        ):
+            result = await garden_handler(session)
+        assert result is None
+        mock_anthropic.assert_called_once_with(api_key="sk-test")
+        mock_store.assert_called_once_with(session=session)
+        mock_embed.assert_called_once_with()
+        mock_gardener.assert_called_once()
+        kwargs = mock_gardener.call_args.kwargs
+        assert kwargs["vault_root"] == tmp_path
+        assert kwargs["anthropic_client"] is mock_anthropic.return_value
+        assert kwargs["store"] is mock_store.return_value
+        assert kwargs["embed_client"] is mock_embed.return_value
+        assert kwargs["max_files_per_run"] == 10
+        gardener_instance.run.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_logs_error_when_all_ingests_failed(
+        self, monkeypatch, tmp_path, caplog
+    ):
+        """When every ingest attempt failed, the completion log is promoted
+        to ERROR so log-level alerting surfaces the outage."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        session = MagicMock()
+        gardener_instance = MagicMock()
+        gardener_instance.run = AsyncMock(
+            return_value=GardenStats(ingested=0, failed=3, ttl_cleaned=0)
+        )
+        with (
+            patch("anthropic.Anthropic"),
+            patch("knowledge.gardener.Gardener", return_value=gardener_instance),
+            patch("knowledge.service.KnowledgeStore"),
+            patch("knowledge.service.EmbeddingClient"),
+            caplog.at_level(logging.ERROR, logger="knowledge.service"),
+        ):
+            await garden_handler(session)
+        error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
+        assert len(error_records) == 1
+        assert "all failed" in error_records[0].message
+
+    @pytest.mark.asyncio
+    async def test_honors_max_files_env_override(self, monkeypatch, tmp_path):
+        """GARDENER_MAX_FILES_PER_RUN env var overrides the default cap."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        monkeypatch.setenv("GARDENER_MAX_FILES_PER_RUN", "25")
+        session = MagicMock()
+        gardener_instance = MagicMock()
+        gardener_instance.run = AsyncMock(
+            return_value=GardenStats(ingested=0, failed=0, ttl_cleaned=0)
+        )
+        with (
+            patch("anthropic.Anthropic"),
+            patch(
+                "knowledge.gardener.Gardener", return_value=gardener_instance
+            ) as mock_gardener,
+            patch("knowledge.service.KnowledgeStore"),
+            patch("knowledge.service.EmbeddingClient"),
+        ):
+            await garden_handler(session)
+        assert mock_gardener.call_args.kwargs["max_files_per_run"] == 25
