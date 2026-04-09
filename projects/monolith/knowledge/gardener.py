@@ -191,6 +191,9 @@ def _split_frontmatter(raw: str) -> tuple[dict, str]:
     return meta, body
 
 
+_DEFAULT_MAX_FILES_PER_RUN = 10
+
+
 class Gardener:
     def __init__(
         self,
@@ -199,17 +202,30 @@ class Gardener:
         anthropic_client: object | None,
         store: KnowledgeStore | None,
         embed_client: _Embedder | None,
+        max_files_per_run: int = _DEFAULT_MAX_FILES_PER_RUN,
     ) -> None:
         self.vault_root = Path(vault_root)
         self.anthropic_client = anthropic_client
         self.store = store
         self.embed_client = embed_client
+        # Cap the number of raw files processed per cycle. Each file triggers
+        # a bounded tool-use loop against the Anthropic API (up to max_turns
+        # calls), so an uncapped cycle over a large vault could burn through
+        # API credit in a single tick. A value <= 0 disables the cap.
+        self.max_files_per_run = max_files_per_run
         self.processed_root = self.vault_root / "_processed"
         self.deleted_root = self.vault_root / "_deleted_with_ttl"
 
     async def run(self) -> GardenStats:
         """Run one gardening cycle: ingest raw files, then TTL cleanup."""
         raw_files = self._discover_raw_files()
+        if self.max_files_per_run > 0 and len(raw_files) > self.max_files_per_run:
+            logger.info(
+                "gardener: discovered %d raw files, capping this run at %d",
+                len(raw_files),
+                self.max_files_per_run,
+            )
+            raw_files = raw_files[: self.max_files_per_run]
         ingested = 0
         failed = 0
         for path in raw_files:

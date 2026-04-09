@@ -51,6 +51,59 @@ class TestDiscoverRawFiles:
         assert len(raw) == 1
 
 
+class TestMaxFilesPerRun:
+    @pytest.mark.asyncio
+    async def test_cap_limits_ingest_to_max_files(self, tmp_path):
+        """run() processes at most max_files_per_run raw files per cycle,
+        leaving the remainder for a future tick."""
+        for i in range(5):
+            _write(tmp_path, f"inbox/note-{i}.md", f"---\ntitle: N{i}\n---\nBody {i}.")
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=None,
+            embed_client=None,
+            max_files_per_run=2,
+        )
+        calls: list[Path] = []
+
+        async def fake_ingest(path: Path) -> None:
+            calls.append(path)
+
+        gardener._ingest_one = fake_ingest  # type: ignore[method-assign]
+        stats = await gardener.run()
+        assert len(calls) == 2
+        assert stats.ingested == 2
+        assert stats.failed == 0
+        # The remaining 3 files must still be on disk waiting for the next tick.
+        remaining = sorted(
+            p.name for p in (tmp_path / "inbox").glob("*.md") if p.is_file()
+        )
+        assert len(remaining) == 5  # fake ingest doesn't soft-delete
+
+    @pytest.mark.asyncio
+    async def test_cap_disabled_when_zero_or_negative(self, tmp_path):
+        """max_files_per_run <= 0 disables the cap."""
+        for i in range(3):
+            _write(tmp_path, f"inbox/note-{i}.md", f"---\ntitle: N{i}\n---\nBody.")
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=None,
+            embed_client=None,
+            max_files_per_run=0,
+        )
+        calls: list[Path] = []
+
+        async def fake_ingest(path: Path) -> None:
+            calls.append(path)
+
+        gardener._ingest_one = fake_ingest  # type: ignore[method-assign]
+        stats = await gardener.run()
+        assert len(calls) == 3
+        assert stats.ingested == 3
+
+
 class TestTtlCleanup:
     def test_deletes_expired_files(self, tmp_path):
         expired = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
