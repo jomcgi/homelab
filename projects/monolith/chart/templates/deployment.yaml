@@ -75,6 +75,13 @@ spec:
               value: {{ .Values.chat.changelog.githubRepo | quote }}
             {{- end }}
             {{- end }}
+            {{- if .Values.gardener.enabled }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monolith.fullname" . }}-gardener
+                  key: ANTHROPIC_API_KEY
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

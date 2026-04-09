@@ -88,3 +88,8 @@ chat:
     githubRepo: "jomcgi/homelab"
   onepassword:
     itemPath: "vaults/k8s-homelab/items/discord-bot"
+
+gardener:
+  enabled: true
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/anthropic"
