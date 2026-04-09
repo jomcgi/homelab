@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Semantic search for the knowledge gardener.
+Usage: knowledge-search <query>
+Prints JSON array of matching notes to stdout.
+"""
+import asyncio
+import json
+import os
+import sys
+
+
+async def main() -> None:
+    query = " ".join(sys.argv[1:]).strip()
+    if not query:
+        print("[]")
+        return
+    from shared.embedding import EmbeddingClient
+    from knowledge.store import KnowledgeStore
+    from sqlmodel import Session, create_engine
+
+    engine = create_engine(os.environ["DATABASE_URL"])
+    embed_client = EmbeddingClient()
+    embedding = await embed_client.embed(query)
+    with Session(engine) as session:
+        results = KnowledgeStore(session=session).search_notes(
+            query_embedding=embedding, limit=5
+        )
+    print(json.dumps(results))
+
+
+asyncio.run(main())
