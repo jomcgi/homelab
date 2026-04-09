@@ -196,7 +196,7 @@ class Gardener:
             cwd=self.vault_root,
         )
         try:
-            _, stderr = await asyncio.wait_for(
+            stdout, stderr = await asyncio.wait_for(
                 proc.communicate(), timeout=_CLAUDE_TIMEOUT_SECS
             )
         except asyncio.TimeoutError:
@@ -219,8 +219,10 @@ class Gardener:
         )
         if not (after - before):
             logger.warning(
-                "gardener: claude produced no notes for %s; leaving raw file in place",
+                "gardener: claude produced no notes for %s; leaving raw file in place\n"
+                "  stdout: %s",
                 path,
+                stdout.decode(errors="replace")[:500],
             )
             return
 
