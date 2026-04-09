@@ -1,5 +1,7 @@
 """Tests for the knowledge gardener."""
 
+import logging
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -298,10 +300,61 @@ class TestIngestOneClaude:
         assert note.exists()
 
     @pytest.mark.asyncio
+    async def test_passes_home_tmp_in_env(self, tmp_path):
+        """_ingest_one passes env kwarg with HOME=/tmp and inherits os.environ keys."""
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "test.md"
+        note.write_text("# Hello\nsome content")
+        processed = vault / "_processed"
+        processed.mkdir()
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+
+        async def fake_communicate():
+            (processed / "hello.md").write_text(
+                "---\nid: hello\ntitle: Hello\ntype: atom\n---\nbody"
+            )
+            return b"", b""
+
+        proc_mock.communicate = fake_communicate
+
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=proc_mock
+        ) as mock_exec:
+            await Gardener(vault_root=vault)._ingest_one(note)
+
+        kwargs = mock_exec.call_args[1]
+        env = kwargs.get("env")
+        assert env is not None, "env kwarg must be passed to create_subprocess_exec"
+        assert env.get("HOME") == "/tmp"
+        # os.environ keys must be inherited (spot-check PATH which is always set)
+        assert "PATH" in env
+        assert env.get("PATH") == os.environ.get("PATH")
+
+    @pytest.mark.asyncio
+    async def test_logs_stdout_when_no_notes_created(self, tmp_path, caplog):
+        """When claude exits 0 but creates no notes, the warning log includes stdout content."""
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "test.md"
+        note.write_text("# Hello\ncontent")
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+        proc_mock.communicate = AsyncMock(return_value=(b"some debug output", b""))
+
+        with caplog.at_level(logging.WARNING, logger="monolith.knowledge.gardener"):
+            with patch("asyncio.create_subprocess_exec", return_value=proc_mock):
+                await Gardener(vault_root=vault)._ingest_one(note)
+
+        assert note.exists()
+        assert "some debug output" in caplog.text
+
+    @pytest.mark.asyncio
     async def test_stdout_included_in_no_notes_warning(self, tmp_path, caplog):
         """When claude exits 0 but creates no notes, stdout is included in warning log."""
-        import logging
-
         vault = tmp_path / "vault"
         vault.mkdir()
         note = vault / "test.md"
@@ -325,8 +378,6 @@ class TestIngestOneClaude:
         self, tmp_path, caplog
     ):
         """stdout is truncated to 500 chars in the no-notes warning to avoid huge logs."""
-        import logging
-
         vault = tmp_path / "vault"
         vault.mkdir()
         note = vault / "test.md"
