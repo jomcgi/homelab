@@ -216,7 +216,7 @@ class TestSoftDelete:
 class TestIngestOneClaude:
     @pytest.mark.asyncio
     async def test_spawns_claude_with_correct_flags(self, tmp_path):
-        """_ingest_one spawns: claude --print --allowedTools Bash,Read,Write,Edit -p <prompt>."""
+        """_ingest_one spawns claude with --dangerouslySkipPermissions and cwd=vault_root."""
         vault = tmp_path / "vault"
         vault.mkdir()
         note = vault / "test.md"
@@ -241,13 +241,16 @@ class TestIngestOneClaude:
             await Gardener(vault_root=vault)._ingest_one(note)
 
         args = mock_exec.call_args[0]
+        kwargs = mock_exec.call_args[1]
         assert args[0] == "claude"
         assert "--print" in args
+        assert "--dangerouslySkipPermissions" in args
         assert "--allowedTools" in args
         allowed_idx = list(args).index("--allowedTools")
         allowed_tools = args[allowed_idx + 1]
         assert "Bash" in allowed_tools
         assert "Write" in allowed_tools
+        assert kwargs.get("cwd") == vault
 
     @pytest.mark.asyncio
     async def test_soft_deletes_after_notes_created(self, tmp_path):
