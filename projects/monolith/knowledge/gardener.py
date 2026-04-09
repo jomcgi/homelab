@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -194,6 +195,10 @@ class Gardener:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=self.vault_root,
+            # HOME=/ in the container (non-root uid 65532) is not writable, so
+            # claude cannot create ~/.claude/ and exits silently with code 0.
+            # Override HOME to /tmp which is always writable.
+            env={**os.environ, "HOME": "/tmp"},
         )
         try:
             stdout, stderr = await asyncio.wait_for(

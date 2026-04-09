@@ -250,6 +250,7 @@ class TestIngestOneClaude:
         assert "Bash" in allowed_tools
         assert "Write" in allowed_tools
         assert kwargs.get("cwd") == vault
+        assert kwargs.get("env", {}).get("HOME") == "/tmp"
 
     @pytest.mark.asyncio
     async def test_soft_deletes_after_notes_created(self, tmp_path):
