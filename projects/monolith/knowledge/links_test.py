@@ -46,9 +46,7 @@ class TestExtract:
         Obsidian's [[Note^block-id]] syntax points at a specific block inside a
         note. Like heading links, only the note name is relevant for graph edges.
         """
-        assert extract("See [[note^block-id]].") == [
-            Link(target="note", display=None)
-        ]
+        assert extract("See [[note^block-id]].") == [Link(target="note", display=None)]
 
     def test_multiple_wikilinks_on_same_line(self):
         """All wikilinks on the same line are extracted left-to-right."""
