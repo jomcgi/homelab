@@ -2,6 +2,7 @@
 
 import json
 import os
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -101,8 +102,6 @@ class TestHealthEndpoint:
         handler.send_health_check()
         data = json.loads(wfile.getvalue())
         # Should parse without error
-        from datetime import datetime
-
         datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
 
 
