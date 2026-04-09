@@ -8,7 +8,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
 from knowledge.models import Chunk, Note, NoteLink
-from knowledge.reconciler import Reconciler, ReconcileStats
+from knowledge.reconciler import Reconciler, ReconcileStats, _slugify
 
 
 def _stats(
@@ -386,3 +386,112 @@ class TestReconciler:
         notes = list(session.scalars(select(Note)))
         assert len(notes) == 1
         assert notes[0].note_id == "has-id"
+
+
+# ---------------------------------------------------------------------------
+# _slugify — direct unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestSlugify:
+    """Direct tests for the module-level _slugify helper."""
+
+    def test_simple_lowercase(self):
+        """Lowercase ASCII words are joined with hyphens."""
+        assert _slugify("hello world") == "hello-world"
+
+    def test_uppercase_is_lowercased(self):
+        """Uppercase letters are folded to lowercase."""
+        assert _slugify("Hello World") == "hello-world"
+
+    def test_unicode_normalized_to_ascii(self):
+        """Accented characters are transliterated; the accent is dropped."""
+        assert _slugify("Café") == "cafe"
+        assert _slugify("naïve") == "naive"
+
+    def test_all_non_ascii_returns_note(self):
+        """If the text produces an empty slug after stripping non-ASCII, 'note' is returned."""
+        # CJK characters produce no ASCII output; the sentinel 'note' is returned.
+        assert _slugify("日本語") == "note"
+
+    def test_empty_string_returns_note(self):
+        """Empty input returns the 'note' sentinel."""
+        assert _slugify("") == "note"
+
+    def test_leading_trailing_separators_stripped(self):
+        """Leading and trailing hyphens produced by non-alnum chars are stripped."""
+        assert _slugify("---foo---") == "foo"
+
+    def test_punctuation_collapsed_to_single_hyphen(self):
+        """Multiple consecutive non-alnum characters collapse into a single hyphen."""
+        assert _slugify("foo: bar, baz!") == "foo-bar-baz"
+
+    def test_numbers_preserved(self):
+        """Digits are treated as alphanumeric and preserved in the slug."""
+        assert _slugify("Note 42") == "note-42"
+
+    def test_already_slug_like(self):
+        """Input that is already slug-like passes through unchanged."""
+        assert _slugify("already-slug") == "already-slug"
+
+
+# ---------------------------------------------------------------------------
+# _write_back_id — no-frontmatter branch
+# ---------------------------------------------------------------------------
+
+
+class TestWriteBackIdNoFrontmatter:
+    """Tests for the branch of _write_back_id where the file has no frontmatter."""
+
+    def test_no_frontmatter_wraps_in_new_block(self, reconciler, tmp_path):
+        """Plain body with no frontmatter gets a new frontmatter block prepended."""
+        target = tmp_path / "plain.md"
+        raw = "Just some plain content without any frontmatter.\n"
+        target.write_text(raw, encoding="utf-8")
+
+        new_raw, new_hash = reconciler._write_back_id(target, raw, "plain-note")
+
+        assert new_raw.startswith("---\nid: plain-note\n---\n")
+        assert "Just some plain content" in new_raw
+        assert target.read_text(encoding="utf-8") == new_raw
+
+    def test_no_frontmatter_uses_lf_line_endings(self, reconciler, tmp_path):
+        """When there is no existing frontmatter the injected block uses LF, not CRLF."""
+        target = tmp_path / "nofm.md"
+        raw = "Body.\n"
+        target.write_text(raw, encoding="utf-8")
+
+        new_raw, _ = reconciler._write_back_id(target, raw, "my-note")
+
+        assert "\r\n" not in new_raw
+
+    def test_no_frontmatter_hash_matches_written_content(self, reconciler, tmp_path):
+        """The returned content_hash equals sha256 of the new file content."""
+        import hashlib
+
+        target = tmp_path / "hash_check.md"
+        raw = "Some body text.\n"
+        target.write_text(raw, encoding="utf-8")
+
+        new_raw, new_hash = reconciler._write_back_id(target, raw, "hash-check")
+
+        expected = hashlib.sha256(new_raw.encode("utf-8")).hexdigest()
+        assert new_hash == expected
+
+    @pytest.mark.asyncio
+    async def test_no_frontmatter_file_ingested_end_to_end(
+        self, reconciler, session, tmp_path
+    ):
+        """A file with no frontmatter at all is auto-backfilled and ingested."""
+        _write(tmp_path, "bare.md", "# Bare Note\n\nJust a body, no frontmatter.\n")
+        result = await reconciler.run()
+
+        assert result == _stats(upserted=1)
+        note = session.scalars(select(Note)).first()
+        assert note is not None
+        # Slug is derived from the filename stem ("bare") when there is no title
+        # in frontmatter — the _ingest_one path falls back to Path(rel_path).stem.
+        assert note.note_id == "bare"
+        # Confirm the backfilled id was written to disk.
+        written = (tmp_path / "_processed" / "bare.md").read_text()
+        assert "id: bare" in written
