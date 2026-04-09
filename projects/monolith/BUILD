@@ -1681,6 +1681,16 @@ py_test(
 )
 
 py_test(
+    name = "shared_chunker_extra_test",
+    srcs = ["shared/chunker_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "knowledge_frontmatter_test",
     srcs = ["knowledge/frontmatter_test.py"],
     imports = ["."],
