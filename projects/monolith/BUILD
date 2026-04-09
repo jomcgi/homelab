@@ -283,6 +283,19 @@ py_test(
 )
 
 py_test(
+    name = "chat_models_db_constraints_test",
+    srcs = ["chat/models_db_constraints_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "chat_models_coverage_test",
     srcs = ["chat/models_coverage_test.py"],
     imports = ["."],
@@ -1734,6 +1747,16 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_links_extra_test",
+    srcs = ["knowledge/links_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "knowledge_links_coverage_test",
     srcs = ["knowledge/links_coverage_test.py"],
     imports = ["."],
@@ -1772,6 +1795,18 @@ py_test(
 py_test(
     name = "knowledge_reconciler_coverage_test",
     srcs = ["knowledge/reconciler_coverage_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "knowledge_reconciler_extra_test",
+    srcs = ["knowledge/reconciler_extra_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
