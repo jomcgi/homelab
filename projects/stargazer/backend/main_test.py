@@ -56,7 +56,9 @@ class TestGetTracer:
         """_get_tracer() should return the cached tracer on subsequent calls."""
         mock_tracer = MagicMock(name="tracer")
 
-        with patch("opentelemetry.trace.get_tracer", return_value=mock_tracer) as mock_get:
+        with patch(
+            "opentelemetry.trace.get_tracer", return_value=mock_tracer
+        ) as mock_get:
             first = _get_tracer()
             second = _get_tracer()
 
@@ -118,11 +120,15 @@ class TestTraceSpan:
         """When OTEL_ENABLED=true, trace_span should yield the active span."""
         mock_span = MagicMock(name="expected_span")
         mock_tracer = MagicMock(name="tracer")
-        mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_tracer.start_as_current_span.return_value.__enter__.return_value = (
+            mock_span
+        )
         mock_tracer.start_as_current_span.return_value.__exit__.return_value = False
 
         with patch.dict(os.environ, {"OTEL_ENABLED": "true"}):
-            with patch("projects.stargazer.backend.main._get_tracer", return_value=mock_tracer):
+            with patch(
+                "projects.stargazer.backend.main._get_tracer", return_value=mock_tracer
+            ):
                 with trace_span("test.span") as span:
                     result = span
 
@@ -132,11 +138,15 @@ class TestTraceSpan:
         """OTEL_ENABLED=TRUE should enable tracing."""
         mock_span = MagicMock(name="expected_span")
         mock_tracer = MagicMock(name="tracer")
-        mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_tracer.start_as_current_span.return_value.__enter__.return_value = (
+            mock_span
+        )
         mock_tracer.start_as_current_span.return_value.__exit__.return_value = False
 
         with patch.dict(os.environ, {"OTEL_ENABLED": "TRUE"}):
-            with patch("projects.stargazer.backend.main._get_tracer", return_value=mock_tracer):
+            with patch(
+                "projects.stargazer.backend.main._get_tracer", return_value=mock_tracer
+            ):
                 with trace_span("test.span") as span:
                     result = span
 
@@ -145,12 +155,16 @@ class TestTraceSpan:
     def test_default_otel_enabled_is_true(self):
         """Without OTEL_ENABLED env var, tracing defaults to enabled."""
         mock_tracer = MagicMock(name="tracer")
-        mock_tracer.start_as_current_span.return_value.__enter__.return_value = MagicMock()
+        mock_tracer.start_as_current_span.return_value.__enter__.return_value = (
+            MagicMock()
+        )
         mock_tracer.start_as_current_span.return_value.__exit__.return_value = False
 
         env_without_otel = {k: v for k, v in os.environ.items() if k != "OTEL_ENABLED"}
         with patch.dict(os.environ, env_without_otel, clear=True):
-            with patch("projects.stargazer.backend.main._get_tracer", return_value=mock_tracer):
+            with patch(
+                "projects.stargazer.backend.main._get_tracer", return_value=mock_tracer
+            ):
                 with trace_span("test.span") as span:
                     result = span
 
@@ -159,11 +173,15 @@ class TestTraceSpan:
     def test_span_name_passed_to_tracer(self):
         """The name argument should be forwarded to start_as_current_span."""
         mock_tracer = MagicMock(name="tracer")
-        mock_tracer.start_as_current_span.return_value.__enter__.return_value = MagicMock()
+        mock_tracer.start_as_current_span.return_value.__enter__.return_value = (
+            MagicMock()
+        )
         mock_tracer.start_as_current_span.return_value.__exit__.return_value = False
 
         with patch.dict(os.environ, {"OTEL_ENABLED": "true"}):
-            with patch("projects.stargazer.backend.main._get_tracer", return_value=mock_tracer):
+            with patch(
+                "projects.stargazer.backend.main._get_tracer", return_value=mock_tracer
+            ):
                 with trace_span("my.pipeline.phase"):
                     pass
 
@@ -216,11 +234,16 @@ class TestSetupTelemetry:
 
         mock_logger.warning.assert_called()
         warning_msg = mock_logger.warning.call_args[0][0]
-        assert "not available" in warning_msg.lower() or "opentelemetry" in warning_msg.lower()
+        assert (
+            "not available" in warning_msg.lower()
+            or "opentelemetry" in warning_msg.lower()
+        )
 
     def test_warns_when_no_otlp_endpoint_configured(self):
         """setup_telemetry should warn when otel_enabled but endpoint is empty."""
-        settings = self._make_settings(otel_enabled=True, otel_exporter_otlp_endpoint="")
+        settings = self._make_settings(
+            otel_enabled=True, otel_exporter_otlp_endpoint=""
+        )
 
         with (
             patch("opentelemetry.sdk.trace.TracerProvider"),
@@ -244,8 +267,13 @@ class TestSetupTelemetry:
         mock_provider_inst = MagicMock(name="provider_instance")
 
         with (
-            patch("opentelemetry.sdk.trace.TracerProvider", return_value=mock_provider_inst),
-            patch("opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"),
+            patch(
+                "opentelemetry.sdk.trace.TracerProvider",
+                return_value=mock_provider_inst,
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
+            ),
             patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
             patch("opentelemetry.sdk.resources.Resource"),
             patch("opentelemetry.trace.set_tracer_provider") as mock_set_provider,
@@ -264,8 +292,13 @@ class TestSetupTelemetry:
         mock_provider_inst = MagicMock(name="provider_instance")
 
         with (
-            patch("opentelemetry.sdk.trace.TracerProvider", return_value=mock_provider_inst),
-            patch("opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"),
+            patch(
+                "opentelemetry.sdk.trace.TracerProvider",
+                return_value=mock_provider_inst,
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
+            ),
             patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
             patch("opentelemetry.sdk.resources.Resource"),
             patch("opentelemetry.trace.set_tracer_provider"),
@@ -276,12 +309,17 @@ class TestSetupTelemetry:
 
     def test_no_span_processor_without_endpoint(self):
         """Without an OTLP endpoint, no span processor should be added."""
-        settings = self._make_settings(otel_enabled=True, otel_exporter_otlp_endpoint="")
+        settings = self._make_settings(
+            otel_enabled=True, otel_exporter_otlp_endpoint=""
+        )
 
         mock_provider_inst = MagicMock(name="provider_instance")
 
         with (
-            patch("opentelemetry.sdk.trace.TracerProvider", return_value=mock_provider_inst),
+            patch(
+                "opentelemetry.sdk.trace.TracerProvider",
+                return_value=mock_provider_inst,
+            ),
             patch("opentelemetry.sdk.resources.Resource"),
             patch("opentelemetry.trace.set_tracer_provider"),
         ):
@@ -298,7 +336,9 @@ class TestSetupTelemetry:
 
         with (
             patch("opentelemetry.sdk.trace.TracerProvider"),
-            patch("opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"),
+            patch(
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
+            ),
             patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
             patch("opentelemetry.sdk.resources.Resource"),
             patch("opentelemetry.trace.set_tracer_provider"),
@@ -318,7 +358,9 @@ class TestSetupTelemetry:
 
         with (
             patch("opentelemetry.sdk.trace.TracerProvider"),
-            patch("opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"),
+            patch(
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
+            ),
             patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
             patch("opentelemetry.sdk.resources.Resource") as mock_resource_cls,
             patch("opentelemetry.trace.set_tracer_provider"),
@@ -402,14 +444,19 @@ class TestMain:
 
     def test_returns_one_on_settings_load_failure(self):
         """main() should return 1 when Settings() raises an exception."""
-        with patch("projects.stargazer.backend.main.Settings", side_effect=Exception("bad env")):
+        with patch(
+            "projects.stargazer.backend.main.Settings", side_effect=Exception("bad env")
+        ):
             result = main()
 
         assert result == 1
 
     def test_returns_one_on_validation_error(self):
         """main() should return 1 when Settings() raises a validation error."""
-        with patch("projects.stargazer.backend.main.Settings", side_effect=ValueError("invalid field")):
+        with patch(
+            "projects.stargazer.backend.main.Settings",
+            side_effect=ValueError("invalid field"),
+        ):
             result = main()
 
         assert result == 1
@@ -422,7 +469,10 @@ class TestMain:
             patch("projects.stargazer.backend.main.Settings", return_value=settings),
             patch("projects.stargazer.backend.main.setup_telemetry"),
             patch("projects.stargazer.backend.main.ensure_directories"),
-            patch("projects.stargazer.backend.main.asyncio.run", side_effect=RuntimeError("boom")),
+            patch(
+                "projects.stargazer.backend.main.asyncio.run",
+                side_effect=RuntimeError("boom"),
+            ),
         ):
             result = main()
 
@@ -473,7 +523,10 @@ class TestMain:
     def test_settings_failure_skips_setup_telemetry(self):
         """If Settings() fails, setup_telemetry should not be called."""
         with (
-            patch("projects.stargazer.backend.main.Settings", side_effect=ValueError("bad")),
+            patch(
+                "projects.stargazer.backend.main.Settings",
+                side_effect=ValueError("bad"),
+            ),
             patch("projects.stargazer.backend.main.setup_telemetry") as mock_setup,
         ):
             main()
@@ -483,7 +536,10 @@ class TestMain:
     def test_settings_failure_skips_ensure_directories(self):
         """If Settings() fails, ensure_directories should not be called."""
         with (
-            patch("projects.stargazer.backend.main.Settings", side_effect=ValueError("bad")),
+            patch(
+                "projects.stargazer.backend.main.Settings",
+                side_effect=ValueError("bad"),
+            ),
             patch("projects.stargazer.backend.main.ensure_directories") as mock_dirs,
         ):
             main()
