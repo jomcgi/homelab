@@ -23,6 +23,10 @@ def extract(body: str) -> list[Link]:
     out: list[Link] = []
     for match in _WIKILINK.finditer(stripped):
         target = match.group(1).strip()
+        # Strip heading anchor (#section) or block reference (^id) so that
+        # [[Note#Heading]] and [[Note^block]] both resolve to the note name.
+        # This ensures graph edges target note_ids, not ephemeral sub-anchors.
+        target = re.split(r"[#^]", target, maxsplit=1)[0].strip()
         if not target or target in seen:
             continue
         seen.add(target)
