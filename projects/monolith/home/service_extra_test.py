@@ -239,9 +239,7 @@ class TestArchiveAndResetCommitFailure:
         mock_session = MagicMock()
         mock_session.exec.return_value.first.return_value = None
         mock_session.exec.return_value.all.return_value = []
-        mock_session.commit.side_effect = OperationalError(
-            "disk full", None, None
-        )
+        mock_session.commit.side_effect = OperationalError("disk full", None, None)
 
         result = None
         raised = False

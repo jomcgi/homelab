@@ -127,7 +127,11 @@ class TestCompleteJob:
         refreshed = session.get(ScheduledJob, "j5")
         assert refreshed is not None
         next_run = refreshed.next_run_at.replace(tzinfo=timezone.utc)
-        assert before + timedelta(seconds=120) <= next_run <= after + timedelta(seconds=120)
+        assert (
+            before + timedelta(seconds=120)
+            <= next_run
+            <= after + timedelta(seconds=120)
+        )
 
     def test_uses_override_for_next_run_at(self, session):
         """When an override datetime is provided, next_run_at is set to it exactly."""
@@ -231,7 +235,9 @@ class TestFailJob:
         refreshed = session.get(ScheduledJob, "f6")
         assert refreshed is not None
         next_run = refreshed.next_run_at.replace(tzinfo=timezone.utc)
-        assert before + timedelta(seconds=60) <= next_run <= after + timedelta(seconds=60)
+        assert (
+            before + timedelta(seconds=60) <= next_run <= after + timedelta(seconds=60)
+        )
 
     def test_sets_last_run_at(self, session):
         """_fail_job records last_run_at even when the handler failed."""
