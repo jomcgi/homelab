@@ -206,6 +206,18 @@ py_test(
 )
 
 py_test(
+    name = "notes_service_network_errors_test",
+    srcs = ["notes/service_network_errors_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "home_service_test",
     srcs = ["home/service_test.py"],
     imports = ["."],
@@ -1978,6 +1990,18 @@ py_test(
 py_test(
     name = "knowledge_store_zero_chunk_test",
     srcs = ["knowledge/store_zero_chunk_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "knowledge_store_optional_metadata_test",
+    srcs = ["knowledge/store_optional_metadata_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
