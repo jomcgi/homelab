@@ -5,6 +5,7 @@ Prints JSON array of matching notes to stdout.
 """
 import asyncio
 import json
+import math
 import os
 import sys
 
@@ -14,18 +15,24 @@ async def main() -> None:
     if not query:
         print("[]")
         return
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        print("knowledge-search: DATABASE_URL not set", file=sys.stderr)
+        print("[]")
+        return
     from shared.embedding import EmbeddingClient
     from knowledge.store import KnowledgeStore
     from sqlmodel import Session, create_engine
 
-    engine = create_engine(os.environ["DATABASE_URL"])
+    engine = create_engine(db_url)
     embed_client = EmbeddingClient()
     embedding = await embed_client.embed(query)
     with Session(engine) as session:
         results = KnowledgeStore(session=session).search_notes(
             query_embedding=embedding, limit=5
         )
-    print(json.dumps(results))
+    safe_results = [r for r in results if isinstance(r.get("score"), (int, float)) and math.isfinite(r["score"])]
+    print(json.dumps(safe_results))
 
 
 asyncio.run(main())
