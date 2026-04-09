@@ -1950,6 +1950,69 @@ py_test(
     ],
 )
 
+py_test(
+    name = "chat_store_reclaim_race_test",
+    srcs = ["chat/store_reclaim_race_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "shared_service_naive_dtend_test",
+    srcs = ["shared/service_naive_dtend_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//icalendar",
+        "@pip//pytest",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
+    name = "knowledge_store_zero_chunk_test",
+    srcs = ["knowledge/store_zero_chunk_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "notes_router_whitespace_test",
+    srcs = ["notes/router_whitespace_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
+    name = "chat_web_search_type_error_test",
+    srcs = ["chat/web_search_type_error_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     exclude_rules = [
