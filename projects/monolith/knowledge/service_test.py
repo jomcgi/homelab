@@ -249,3 +249,27 @@ class TestGardenHandler:
         ):
             await garden_handler(session)
         assert mock_gardener.call_args.kwargs["max_files_per_run"] == 25
+
+    @pytest.mark.asyncio
+    async def test_invalid_max_files_env_falls_back_to_default(
+        self, monkeypatch, tmp_path
+    ):
+        """GARDENER_MAX_FILES_PER_RUN set to a non-integer falls back to the default of 10."""
+        monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-test")
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        monkeypatch.setenv("GARDENER_MAX_FILES_PER_RUN", "notanumber")
+        session = MagicMock()
+        gardener_instance = MagicMock()
+        gardener_instance.run = AsyncMock(
+            return_value=GardenStats(ingested=0, failed=0, ttl_cleaned=0)
+        )
+        with (
+            patch("anthropic.Anthropic"),
+            patch(
+                "knowledge.gardener.Gardener", return_value=gardener_instance
+            ) as mock_gardener,
+            patch("knowledge.service.KnowledgeStore"),
+            patch("knowledge.service.EmbeddingClient"),
+        ):
+            await garden_handler(session)
+        assert mock_gardener.call_args.kwargs["max_files_per_run"] == 10
