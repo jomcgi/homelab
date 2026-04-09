@@ -283,9 +283,7 @@ class TestEmptyBodyFallback:
 
 class TestUnicodeDecodeError:
     @pytest.mark.asyncio
-    async def test_unicode_decode_error_increments_failed(
-        self, reconciler, tmp_path
-    ):
+    async def test_unicode_decode_error_increments_failed(self, reconciler, tmp_path):
         """A file with invalid UTF-8 bytes causes _read_text to log a warning
         and re-raise UnicodeDecodeError. The outer run() loop must catch it,
         increment stats.failed, and continue.
