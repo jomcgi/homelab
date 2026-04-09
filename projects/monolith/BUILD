@@ -1867,6 +1867,67 @@ sh_binary(
     visibility = ["//bazel/tools/format:__pkg__"],
 )
 
+py_test(
+    name = "chat_backfill_extra_test",
+    srcs = ["chat/backfill_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "knowledge_store_extra_test",
+    srcs = ["knowledge/store_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "knowledge_frontmatter_extra_test",
+    srcs = ["knowledge/frontmatter_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pyyaml",
+    ],
+)
+
+py_test(
+    name = "home_service_extra_test",
+    srcs = ["home/service_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
+    name = "home_router_extra_test",
+    srcs = ["home/router_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     exclude_rules = [
