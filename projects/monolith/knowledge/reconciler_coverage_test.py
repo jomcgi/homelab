@@ -394,3 +394,49 @@ class TestRollbackFailurePaths:
 
         assert result.failed == 1
         assert any("rollback after frontmatter" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# Empty-vault guard: skip deletions when _processed/ is empty but DB has notes
+# ---------------------------------------------------------------------------
+
+
+class TestEmptyVaultGuard:
+    @pytest.mark.asyncio
+    async def test_skips_cycle_when_vault_empty_and_db_has_notes(
+        self, reconciler, tmp_path, session, caplog
+    ):
+        """If _processed/ is empty but the DB still has indexed notes, skip
+        the reconcile cycle entirely.
+
+        This guards against the cold-start race where the scheduler fires
+        before the Obsidian sidecar has finished syncing the emptyDir vault.
+        Without the guard, an empty walk result would cause all DB notes to
+        be pruned.
+        """
+        import logging
+
+        # Seed the DB with one note via a normal run.
+        _write(tmp_path, "seed.md", "---\nid: seed\ntitle: Seed\n---\nBody.")
+        await reconciler.run()
+        assert session.scalars(select(Note)).first() is not None
+
+        # Now empty _processed/ to simulate a pod restart with unsync'd vault.
+        (tmp_path / "_processed" / "seed.md").unlink()
+
+        with caplog.at_level(logging.WARNING, logger="monolith.knowledge.reconciler"):
+            result = await reconciler.run()
+
+        # Cycle skipped: no deletions, DB entry preserved.
+        assert result == _stats()
+        assert session.scalars(select(Note)).first() is not None
+        assert any("vault sync likely in progress" in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_allows_deletion_when_vault_empty_and_db_empty(
+        self, reconciler, tmp_path, session
+    ):
+        """When both _processed/ and the DB are empty, no guard fires and
+        the cycle completes normally with all-zero stats."""
+        result = await reconciler.run()
+        assert result == _stats()
