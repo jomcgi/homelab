@@ -206,13 +206,9 @@ class TestChannelSummaryDBConstraints:
         second row with the same channel_id must still be rejected (this
         confirms the constraint isn't accidentally composite).
         """
-        session.add(
-            ChannelSummary(channel_id="ch-z", summary="s1", last_message_id=1)
-        )
+        session.add(ChannelSummary(channel_id="ch-z", summary="s1", last_message_id=1))
         session.commit()
 
-        session.add(
-            ChannelSummary(channel_id="ch-z", summary="s2", last_message_id=2)
-        )
+        session.add(ChannelSummary(channel_id="ch-z", summary="s2", last_message_id=2))
         with pytest.raises(IntegrityError):
             session.commit()

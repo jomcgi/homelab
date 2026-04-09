@@ -247,7 +247,9 @@ class TestWalkPermissionErrorNewFile:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("---\nid: blocked\ntitle: Blocked\n---\nBody.")
 
-        _write(tmp_path, "readable.md", "---\nid: readable\ntitle: Readable\n---\nBody.")
+        _write(
+            tmp_path, "readable.md", "---\nid: readable\ntitle: Readable\n---\nBody."
+        )
 
         original_read_bytes = Path.read_bytes
 
