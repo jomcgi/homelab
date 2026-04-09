@@ -76,7 +76,7 @@ spec:
             {{- end }}
             {{- end }}
             {{- if .Values.gardener.enabled }}
-            - name: ANTHROPIC_AUTH_TOKEN
+            - name: CLAUDE_CODE_OAUTH_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ include "monolith.fullname" . }}-gardener

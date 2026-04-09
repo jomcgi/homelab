@@ -156,60 +156,45 @@ class TestReconcileHandler:
 
 class TestGardenHandler:
     @pytest.mark.asyncio
-    async def test_skips_when_api_key_unset(self, monkeypatch):
-        """garden_handler returns None and constructs neither an Anthropic
-        client nor a Gardener when ANTHROPIC_AUTH_TOKEN is unset."""
-        monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    async def test_skips_when_oauth_token_unset(self, monkeypatch):
+        """garden_handler returns None without constructing a Gardener when token absent."""
+        monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
         session = MagicMock()
-        with (
-            patch("anthropic.Anthropic") as mock_anthropic,
-            patch("knowledge.gardener.Gardener") as mock_gardener,
-        ):
+        with patch("knowledge.gardener.Gardener") as mock_gardener:
             result = await garden_handler(session)
         assert result is None
-        mock_anthropic.assert_not_called()
         mock_gardener.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_runs_gardener_when_api_key_set(self, monkeypatch, tmp_path):
-        """garden_handler constructs Gardener with the expected wiring and
-        awaits run() when ANTHROPIC_AUTH_TOKEN is present."""
-        monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-test")
+    async def test_runs_gardener_when_token_set(self, monkeypatch, tmp_path):
+        """garden_handler constructs Gardener(vault_root, max_files_per_run) and awaits run()."""
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "ot-test")
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
         session = MagicMock()
         gardener_instance = MagicMock()
         gardener_instance.run = AsyncMock(
             return_value=GardenStats(ingested=2, failed=0, ttl_cleaned=1)
         )
-        with (
-            patch("anthropic.Anthropic") as mock_anthropic,
-            patch(
-                "knowledge.gardener.Gardener", return_value=gardener_instance
-            ) as mock_gardener,
-            patch("knowledge.service.KnowledgeStore") as mock_store,
-            patch("knowledge.service.EmbeddingClient") as mock_embed,
-        ):
+        with patch(
+            "knowledge.gardener.Gardener", return_value=gardener_instance
+        ) as mock_gardener:
             result = await garden_handler(session)
         assert result is None
-        mock_anthropic.assert_called_once_with(auth_token="sk-test")
-        mock_store.assert_called_once_with(session=session)
-        mock_embed.assert_called_once_with()
         mock_gardener.assert_called_once()
         kwargs = mock_gardener.call_args.kwargs
         assert kwargs["vault_root"] == tmp_path
-        assert kwargs["anthropic_client"] is mock_anthropic.return_value
-        assert kwargs["store"] is mock_store.return_value
-        assert kwargs["embed_client"] is mock_embed.return_value
         assert kwargs["max_files_per_run"] == 10
+        assert "anthropic_client" not in kwargs
+        assert "store" not in kwargs
+        assert "embed_client" not in kwargs
         gardener_instance.run.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_logs_error_when_all_ingests_failed(
         self, monkeypatch, tmp_path, caplog
     ):
-        """When every ingest attempt failed, the completion log is promoted
-        to ERROR so log-level alerting surfaces the outage."""
-        monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-test")
+        """When every ingest failed, the completion log is promoted to ERROR."""
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "ot-test")
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
         session = MagicMock()
         gardener_instance = MagicMock()
@@ -217,10 +202,7 @@ class TestGardenHandler:
             return_value=GardenStats(ingested=0, failed=3, ttl_cleaned=0)
         )
         with (
-            patch("anthropic.Anthropic"),
             patch("knowledge.gardener.Gardener", return_value=gardener_instance),
-            patch("knowledge.service.KnowledgeStore"),
-            patch("knowledge.service.EmbeddingClient"),
             caplog.at_level(logging.ERROR, logger="knowledge.service"),
         ):
             await garden_handler(session)
@@ -231,7 +213,7 @@ class TestGardenHandler:
     @pytest.mark.asyncio
     async def test_honors_max_files_env_override(self, monkeypatch, tmp_path):
         """GARDENER_MAX_FILES_PER_RUN env var overrides the default cap."""
-        monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-test")
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "ot-test")
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
         monkeypatch.setenv("GARDENER_MAX_FILES_PER_RUN", "25")
         session = MagicMock()
@@ -239,14 +221,9 @@ class TestGardenHandler:
         gardener_instance.run = AsyncMock(
             return_value=GardenStats(ingested=0, failed=0, ttl_cleaned=0)
         )
-        with (
-            patch("anthropic.Anthropic"),
-            patch(
-                "knowledge.gardener.Gardener", return_value=gardener_instance
-            ) as mock_gardener,
-            patch("knowledge.service.KnowledgeStore"),
-            patch("knowledge.service.EmbeddingClient"),
-        ):
+        with patch(
+            "knowledge.gardener.Gardener", return_value=gardener_instance
+        ) as mock_gardener:
             await garden_handler(session)
         assert mock_gardener.call_args.kwargs["max_files_per_run"] == 25
 

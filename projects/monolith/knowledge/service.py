@@ -24,17 +24,13 @@ _TTL_SECS = 600
 
 async def garden_handler(session: Session) -> datetime | None:
     """Scheduler handler: run the knowledge vault gardener."""
-    auth_token = os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
-    if not auth_token:
-        logger.warning("knowledge.garden: ANTHROPIC_AUTH_TOKEN not set, skipping")
+    if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        logger.warning("knowledge.garden: CLAUDE_CODE_OAUTH_TOKEN not set, skipping")
         return None
-
-    import anthropic
 
     from knowledge.gardener import Gardener
 
     vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
-    # Env-overridable cap so operators can throttle without a chart change.
     try:
         max_files = int(os.environ.get("GARDENER_MAX_FILES_PER_RUN", "10"))
     except ValueError:
@@ -45,9 +41,6 @@ async def garden_handler(session: Session) -> datetime | None:
         max_files = 10
     gardener = Gardener(
         vault_root=vault_root,
-        anthropic_client=anthropic.Anthropic(auth_token=auth_token),
-        store=KnowledgeStore(session=session),
-        embed_client=EmbeddingClient(),
         max_files_per_run=max_files,
     )
     stats = await gardener.run()
@@ -56,11 +49,6 @@ async def garden_handler(session: Session) -> datetime | None:
         "failed": stats.failed,
         "ttl_cleaned": stats.ttl_cleaned,
     }
-    # When every ingest attempt failed (e.g. Anthropic API outage, auth error,
-    # or the whole batch hit malformed content), promote the summary log to
-    # ERROR so log-level-based alerting surfaces the outage even though the
-    # handler itself returns cleanly (we don't want to poison the scheduler's
-    # last_status for recoverable data errors).
     if stats.ingested == 0 and stats.failed > 0:
         logger.error("knowledge.garden complete (all failed)", extra=extra)
     else:
