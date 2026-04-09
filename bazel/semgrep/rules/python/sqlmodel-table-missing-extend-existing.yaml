@@ -18,7 +18,7 @@ rules:
     metadata:
       category: correctness
       subcategory: orm
-      cwe: ["CWE-570: Expression is Always False"]
+      cwe: ["CWE-664: Improper Control of a Resource Through its Lifetime"]
       confidence: HIGH
       likelihood: HIGH
       impact: HIGH

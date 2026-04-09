@@ -11,7 +11,7 @@ from sqlmodel import Field, SQLModel
 
 class Message(SQLModel, table=True):
     __tablename__ = "messages"
-    __table_args__ = {"schema": "chat"}
+    __table_args__ = {"schema": "chat", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     discord_message_id: str = Field(unique=True)
@@ -34,7 +34,7 @@ class Message(SQLModel, table=True):
 
 class Blob(SQLModel, table=True):
     __tablename__ = "blobs"
-    __table_args__ = {"schema": "chat"}
+    __table_args__ = {"schema": "chat", "extend_existing": True}
 
     sha256: str = Field(primary_key=True, max_length=64)
     data: bytes
@@ -44,7 +44,7 @@ class Blob(SQLModel, table=True):
 
 class Attachment(SQLModel, table=True):
     __tablename__ = "attachments"
-    __table_args__ = {"schema": "chat"}
+    __table_args__ = {"schema": "chat", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     message_id: int = Field(foreign_key="chat.messages.id")
@@ -56,7 +56,7 @@ class UserChannelSummary(SQLModel, table=True):
     __tablename__ = "user_channel_summaries"
     __table_args__ = (
         UniqueConstraint("channel_id", "user_id"),
-        {"schema": "chat"},
+        {"schema": "chat", "extend_existing": True},
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -70,7 +70,7 @@ class UserChannelSummary(SQLModel, table=True):
 
 class MessageLock(SQLModel, table=True):
     __tablename__ = "message_locks"
-    __table_args__ = {"schema": "chat"}
+    __table_args__ = {"schema": "chat", "extend_existing": True}
 
     discord_message_id: str = Field(primary_key=True)
     channel_id: str
@@ -80,7 +80,7 @@ class MessageLock(SQLModel, table=True):
 
 class ChannelSummary(SQLModel, table=True):
     __tablename__ = "channel_summaries"
-    __table_args__ = {"schema": "chat"}
+    __table_args__ = {"schema": "chat", "extend_existing": True}
 
     id: int | None = Field(default=None, primary_key=True)
     channel_id: str = Field(unique=True)
