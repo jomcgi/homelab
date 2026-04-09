@@ -80,6 +80,14 @@ chat:
   onepassword:
     itemPath: ""
 
+# Knowledge gardener: LLM-driven decomposition of raw vault notes into
+# typed knowledge artifacts via Claude Sonnet. Requires an Anthropic API
+# key provisioned via 1Password. Disabled by default for portability.
+gardener:
+  enabled: false
+  onepassword:
+    itemPath: ""
+
 cfIngress:
   private:
     enabled: true
