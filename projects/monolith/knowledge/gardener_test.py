@@ -6,7 +6,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from knowledge.gardener import Gardener, GardenStats
+from knowledge.gardener import (
+    Gardener,
+    GardenStats,
+    _is_error_result,
+    _slugify,
+    _split_frontmatter,
+)
 
 
 def _write(tmp_path: Path, rel: str, content: str) -> None:
@@ -640,3 +646,226 @@ class TestPatchEdgesTool:
         assert "new-c" in updated
         # Count occurrences of existing-b to ensure no dupe
         assert updated.count("existing-b") == 1
+
+
+class TestIsErrorResult:
+    def test_valid_error_json_returns_true(self):
+        """_is_error_result returns True for JSON with an 'error' key."""
+        import json
+
+        assert _is_error_result(json.dumps({"error": "something went wrong"})) is True
+
+    def test_valid_non_error_json_returns_false(self):
+        """_is_error_result returns False for JSON without an 'error' key."""
+        import json
+
+        assert (
+            _is_error_result(json.dumps({"created": "note.md", "note_id": "test"}))
+            is False
+        )
+
+    def test_invalid_json_returns_false(self):
+        """_is_error_result returns False when the input is not valid JSON."""
+        assert _is_error_result("this is not json {{{") is False
+
+    def test_none_input_returns_false(self):
+        """_is_error_result returns False when the input is None (TypeError is swallowed)."""
+        assert _is_error_result(None) is False  # type: ignore[arg-type]
+
+
+class TestSlugify:
+    def test_ascii_text(self):
+        """_slugify converts plain ASCII text to a lowercased hyphen-separated slug."""
+        assert _slugify("Hello World") == "hello-world"
+
+    def test_unicode_text(self):
+        """_slugify strips non-ASCII characters after NFKD decomposition."""
+        # 'é' decomposes to 'e' + combining accent; the accent is dropped by ascii encode.
+        assert _slugify("Café Notes") == "cafe-notes"
+
+    def test_empty_string_returns_note(self):
+        """_slugify returns the sentinel value 'note' when the slug would be empty."""
+        assert _slugify("") == "note"
+
+    def test_special_characters_become_single_hyphens(self):
+        """_slugify collapses runs of non-alphanumeric characters into a single hyphen."""
+        assert _slugify("foo: bar/baz!qux") == "foo-bar-baz-qux"
+
+
+class TestSplitFrontmatter:
+    def test_valid_frontmatter_splits_correctly(self):
+        """_split_frontmatter returns parsed meta dict and body for a well-formed file."""
+        raw = "---\ntitle: My Note\ntype: atom\n---\nBody text.\n"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {"title": "My Note", "type": "atom"}
+        assert body == "Body text.\n"
+
+    def test_no_frontmatter_returns_empty_dict_and_full_raw(self):
+        """_split_frontmatter returns ({}, raw) when there is no opening '---'."""
+        raw = "Just a plain body with no frontmatter.\n"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {}
+        assert body == raw
+
+    def test_unclosed_frontmatter_returns_empty_dict_and_full_raw(self):
+        """_split_frontmatter returns ({}, raw) when the closing '---' is missing."""
+        raw = "---\ntitle: Broken\nno closing delimiter\n"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {}
+        assert body == raw
+
+    def test_non_dict_yaml_returns_empty_dict_and_full_raw(self):
+        """_split_frontmatter returns ({}, raw) when the YAML block is a list, not a dict."""
+        raw = "---\n- item1\n- item2\n---\nBody.\n"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {}
+        assert body == raw
+
+    def test_invalid_yaml_returns_empty_dict_and_full_raw(self):
+        """_split_frontmatter returns ({}, raw) when the YAML block is syntactically invalid."""
+        raw = "---\n}\n---\nBody.\n"  # '}' outside a flow mapping is a parse error
+        meta, body = _split_frontmatter(raw)
+        assert meta == {}
+        assert body == raw
+
+
+class TestGetNoteTool:
+    def test_happy_path_returns_file_content(self, tmp_path):
+        """_handle_get_note returns the raw file content when note and file both exist."""
+        note_path = tmp_path / "_processed" / "my-note.md"
+        note_path.parent.mkdir(parents=True)
+        note_path.write_text(
+            "---\nid: my-note\ntitle: My Note\n---\nBody content.", encoding="utf-8"
+        )
+
+        mock_note = MagicMock()
+        mock_note.note_id = "my-note"
+        mock_note.path = "_processed/my-note.md"
+        mock_store = MagicMock()
+        mock_store.session.execute.return_value.scalar_one_or_none.return_value = (
+            mock_note
+        )
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=mock_store,
+            embed_client=None,
+        )
+        result = gardener._handle_get_note({"note_id": "my-note"})
+        # Raw file content is returned directly (not wrapped in JSON).
+        assert "Body content." in result
+        assert "My Note" in result
+
+    def test_note_not_found_returns_error_json(self, tmp_path):
+        """_handle_get_note returns an error JSON when no Note row matches the note_id."""
+        import json
+
+        mock_store = MagicMock()
+        mock_store.session.execute.return_value.scalar_one_or_none.return_value = None
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=mock_store,
+            embed_client=None,
+        )
+        result = gardener._handle_get_note({"note_id": "missing-id"})
+        parsed = json.loads(result)
+        assert "error" in parsed
+        assert "missing-id" in parsed["error"]
+        assert "not found" in parsed["error"]
+
+    def test_file_not_found_returns_error_json(self, tmp_path):
+        """_handle_get_note returns an error JSON when the DB row exists but the file is gone."""
+        import json
+
+        mock_note = MagicMock()
+        mock_note.note_id = "orphan"
+        mock_note.path = "_processed/orphan.md"  # file does NOT exist on disk
+        mock_store = MagicMock()
+        mock_store.session.execute.return_value.scalar_one_or_none.return_value = (
+            mock_note
+        )
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=mock_store,
+            embed_client=None,
+        )
+        result = gardener._handle_get_note({"note_id": "orphan"})
+        parsed = json.loads(result)
+        assert "error" in parsed
+        assert "file not found" in parsed["error"]
+
+    def test_store_unavailable_returns_error_json(self, tmp_path):
+        """_handle_get_note returns an error JSON when the store is None."""
+        import json
+
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        result = gardener._handle_get_note({"note_id": "any"})
+        parsed = json.loads(result)
+        assert "error" in parsed
+        assert "store unavailable" in parsed["error"]
+
+
+class TestHandleTool:
+    @pytest.mark.asyncio
+    async def test_unknown_tool_returns_error_json(self, tmp_path):
+        """_handle_tool returns a JSON error string for an unrecognised tool name."""
+        import json
+
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        result = await gardener._handle_tool("does_not_exist", {})
+        parsed = json.loads(result)
+        assert "error" in parsed
+        assert "unknown tool" in parsed["error"]
+        assert "does_not_exist" in parsed["error"]
+
+    @pytest.mark.asyncio
+    async def test_exception_in_handler_caught_and_returned_as_error(self, tmp_path):
+        """_handle_tool catches exceptions from a handler and returns an error JSON string."""
+        import json
+
+        gardener = Gardener(
+            vault_root=tmp_path, anthropic_client=None, store=None, embed_client=None
+        )
+        # _handle_create_note raises KeyError for missing required keys.
+        result = await gardener._handle_tool("create_note", {})
+        parsed = json.loads(result)
+        assert "error" in parsed
+        assert "create_note" in parsed["error"]
+
+
+class TestRunFailurePath:
+    @pytest.mark.asyncio
+    async def test_failed_ingest_increments_failed_and_continues(self, tmp_path):
+        """run() increments failed when _ingest_one raises and continues with remaining files."""
+        for i in range(3):
+            _write(tmp_path, f"inbox/note-{i}.md", f"---\ntitle: N{i}\n---\nBody {i}.")
+
+        call_order: list[str] = []
+
+        async def fake_ingest(path: Path) -> None:
+            call_order.append(path.name)
+            if path.name == "note-1.md":
+                raise RuntimeError("simulated ingest failure")
+
+        gardener = Gardener(
+            vault_root=tmp_path,
+            anthropic_client=None,
+            store=None,
+            embed_client=None,
+        )
+        gardener._ingest_one = fake_ingest  # type: ignore[method-assign]
+        stats = await gardener.run()
+
+        # All three files must have been attempted regardless of the failure.
+        assert len(call_order) == 3
+        assert stats.failed == 1
+        assert stats.ingested == 2
