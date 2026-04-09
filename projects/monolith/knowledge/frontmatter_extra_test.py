@@ -4,7 +4,13 @@ from datetime import datetime, timezone
 
 import pytest
 
-from knowledge.frontmatter import FrontmatterError, ParsedFrontmatter, _edges, _to_datetime, parse
+from knowledge.frontmatter import (
+    FrontmatterError,
+    ParsedFrontmatter,
+    _edges,
+    _to_datetime,
+    parse,
+)
 
 
 # ---------------------------------------------------------------------------
