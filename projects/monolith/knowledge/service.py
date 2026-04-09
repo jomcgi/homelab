@@ -78,10 +78,13 @@ def on_startup(session: Session) -> None:
     """Register knowledge jobs with the scheduler."""
     from shared.scheduler import register_job
 
-    # knowledge.garden must be registered first: the scheduler claims jobs by
-    # ORDER BY next_run_at, and on first registration both jobs share the same
-    # next_run_at, so insertion order acts as the tiebreaker. The gardener
-    # writes files to _processed/ that the reconciler then indexes.
+    # The scheduler claims one job per tick (LIMIT 1) and polls every 30s,
+    # so the two jobs always run in separate ticks — there is no hard
+    # ordering guarantee between them within a single cycle, and Postgres
+    # gives no tiebreaker for identical next_run_at values. Registration
+    # order is documentary rather than load-bearing. The eventual
+    # consistency is fine: any file the gardener writes to _processed/ is
+    # picked up by the reconciler on its next tick (~30s later).
     register_job(
         session,
         name="knowledge.garden",
