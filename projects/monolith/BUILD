@@ -1728,6 +1728,30 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_models_test",
+    srcs = ["knowledge/models_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "knowledge_service_test",
+    srcs = ["knowledge/service_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "chat_bot_thinking_extra_test",
     srcs = ["chat/bot_thinking_extra_test.py"],
     imports = ["."],
