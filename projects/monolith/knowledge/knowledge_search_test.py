@@ -13,6 +13,7 @@ import asyncio
 import importlib.util
 import json
 import sys
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -26,9 +27,17 @@ _SCRIPT_PATH = Path(__file__).parent / "tools" / "knowledge-search"
 
 
 def _load_main():
-    """Import knowledge-search as a module and return its ``main`` coroutine."""
-    spec = importlib.util.spec_from_file_location("knowledge_search", str(_SCRIPT_PATH))
-    mod = importlib.util.module_from_spec(spec)
+    """Import knowledge-search as a module and return its ``main`` coroutine.
+
+    The script has no ``.py`` extension so we must supply an explicit
+    ``SourceFileLoader`` — otherwise ``spec_from_file_location`` cannot detect
+    the loader and returns a spec with ``loader=None``.
+    """
+    loader = SourceFileLoader("knowledge_search", str(_SCRIPT_PATH))
+    spec = importlib.util.spec_from_file_location(
+        "knowledge_search", str(_SCRIPT_PATH), loader=loader
+    )
+    mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     # Patch asyncio.run so the top-level call is a no-op during import.
     with patch.object(asyncio, "run"):
         spec.loader.exec_module(mod)  # type: ignore[union-attr]
