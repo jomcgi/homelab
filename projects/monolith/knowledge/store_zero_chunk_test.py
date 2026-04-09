@@ -116,7 +116,9 @@ class TestUpsertNoteZeroChunks:
         note = session.exec(select(Note).where(Note.path == "linked-empty.md")).first()
         assert note is not None
 
-        links = list(session.scalars(select(NoteLink).where(NoteLink.src_note_fk == note.id)))
+        links = list(
+            session.scalars(select(NoteLink).where(NoteLink.src_note_fk == note.id))
+        )
         assert len(links) == 1
         assert links[0].target_id == "other-note"
         assert links[0].kind == "link"
