@@ -1919,6 +1919,18 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_search_test",
+    srcs = ["knowledge/knowledge_search_test.py"],
+    data = ["knowledge/tools/knowledge-search"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "chat_bot_thinking_extra_test",
     srcs = ["chat/bot_thinking_extra_test.py"],
     imports = ["."],
