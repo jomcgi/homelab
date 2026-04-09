@@ -110,18 +110,14 @@ class TestNaiveDtend:
 
     def test_naive_dtend_different_date_produces_end_time(self):
         """A different event with naive DTEND also produces a correct endTime."""
-        events = parse_events_for_date(
-            NAIVE_DTEND_SAME_DAY_ICS, date(2026, 4, 1), TZ
-        )
+        events = parse_events_for_date(NAIVE_DTEND_SAME_DAY_ICS, date(2026, 4, 1), TZ)
         assert len(events) == 1
         assert events[0]["endTime"] == "15:30"
         assert events[0]["title"] == "Afternoon Meeting"
 
     def test_naive_dtend_explicit_short_event(self):
         """Naive 30-minute event with DTEND yields correct endTime."""
-        events = parse_events_for_date(
-            NAIVE_DTEND_EXPLICIT_ICS, date(2026, 4, 1), TZ
-        )
+        events = parse_events_for_date(NAIVE_DTEND_EXPLICIT_ICS, date(2026, 4, 1), TZ)
         assert len(events) == 1
         assert events[0]["endTime"] == "08:30"
 
