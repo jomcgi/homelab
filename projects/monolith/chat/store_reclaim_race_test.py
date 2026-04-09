@@ -12,10 +12,11 @@ SQLite test fixture's lack of advisory-lock support is irrelevant.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import text as _real_text
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
@@ -24,21 +25,18 @@ from chat.store import MessageStore
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers  (mirrors store_lock_test.py)
 # ---------------------------------------------------------------------------
 
 
-def _sqlite_text(sql_str, *args, **kwargs):
-    """Replace the Postgres-specific SQL with SQLite-compatible equivalent."""
-    from sqlalchemy import text
+def _sqlite_text(sql: str):
+    """Translate Postgres-specific SQL to SQLite-compatible SQL.
 
-    # Strip the FOR UPDATE SKIP LOCKED clause (SQLite doesn't support it)
-    sqlite_sql = (
-        sql_str.replace("FOR UPDATE SKIP LOCKED", "")
-        .replace("chat.message_locks", "messagelocks")
-        .strip()
-    )
-    return text(sqlite_sql)
+    Strips the ``chat.`` schema prefix and removes ``FOR UPDATE SKIP LOCKED``.
+    """
+    sql = sql.replace("chat.message_locks", "message_locks")
+    sql = sql.replace("FOR UPDATE SKIP LOCKED", "").rstrip()
+    return _real_text(sql)
 
 
 @pytest.fixture(name="session")
@@ -89,8 +87,6 @@ class TestReclaimExpiredRaceGuard:
     """
 
     def _insert_lock(self, session, msg_id, *, age_seconds=60):
-        from datetime import timedelta
-
         lock = MessageLock(
             discord_message_id=msg_id,
             channel_id="ch-race",
@@ -141,17 +137,14 @@ class TestReclaimExpiredRaceGuard:
         # The lock is returned from the SELECT phase...
         assert len(result) == 1
         # ...but session.add() was never called with a bump, so claimed_at
-        # is unchanged in the DB.
+        # is unchanged in the DB (the original row persists, no-op update).
         session.expire_all()
         lock_after = session.get(MessageLock, "race-2")
         assert lock_after is not None
-        # The original lock is still in the DB (no-op update path)
 
     def test_partial_race_only_bumps_present_locks(self, store, session):
         """When only one of two expired locks disappears mid-reclaim, only the
         present lock has its claimed_at bumped."""
-        from datetime import timedelta
-
         lock_a = self._insert_lock(session, "race-a", age_seconds=60)
         original_claimed_a = lock_a.claimed_at
         self._insert_lock(session, "race-b", age_seconds=60)
