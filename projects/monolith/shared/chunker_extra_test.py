@@ -303,7 +303,7 @@ class TestChunkMarkdownEdgeCases:
     @pytest.mark.parametrize(
         "max_tok,min_tok",
         [
-            (5, 1),      # Very small max forces many chunks.
+            (5, 1),  # Very small max forces many chunks.
             (10000, 1),  # Very large max keeps everything in one chunk.
         ],
     )
