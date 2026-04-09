@@ -81,9 +81,9 @@ chat:
     itemPath: ""
 
 # Knowledge gardener: LLM-driven decomposition of raw vault notes into
-# typed knowledge artifacts via Claude Sonnet. Requires the shared Claude
-# OAuth token (same 1Password item used by goose agents). Disabled by
-# default for portability.
+# typed knowledge artifacts via the claude Code CLI. Uses CLAUDE_CODE_OAUTH_TOKEN
+# from the litellm-claude-auth 1Password item (same token as goose agents).
+# Disabled by default for portability.
 gardener:
   enabled: false
   onepassword:
