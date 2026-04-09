@@ -1,6 +1,7 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
+load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 py_venv_binary(
     name = "main",
@@ -132,4 +133,73 @@ semgrep_target_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":main",
+)
+
+py_test(
+    name = "scoring_test",
+    srcs = ["scoring_test.py"],
+    deps = [
+        ":backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "config_test",
+    srcs = ["config_test.py"],
+    deps = [
+        ":backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "acquisition_test",
+    srcs = ["acquisition_test.py"],
+    deps = [
+        ":backend",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "api_test",
+    srcs = ["api_test.py"],
+    deps = [
+        ":backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "preprocessing_test",
+    srcs = ["preprocessing_test.py"],
+    deps = [
+        ":backend",
+        "@pip//pillow",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "weather_test",
+    srcs = ["weather_test.py"],
+    deps = [
+        ":backend",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "spatial_test",
+    srcs = ["spatial_test.py"],
+    deps = [
+        ":backend",
+        "@pip//geopandas",
+        "@pip//numpy",
+        "@pip//pytest",
+        "@pip//shapely",
+    ],
 )
