@@ -91,3 +91,4 @@ class TestIngestOneSubprocessFailure:
             )._ingest_one(tmp_path / "inbox" / "raw.md")
 
         assert mock_exec.call_args[0][0] == "/custom/claude"
+        assert mock_exec.call_args[1].get("cwd") == tmp_path

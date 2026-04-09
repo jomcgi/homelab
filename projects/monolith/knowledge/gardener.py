@@ -186,12 +186,14 @@ class Gardener:
         proc = await asyncio.create_subprocess_exec(
             self.claude_bin,
             "--print",
+            "--dangerouslySkipPermissions",
             "--allowedTools",
             "Bash,Read,Write,Edit",
             "-p",
             prompt,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            cwd=self.vault_root,
         )
         try:
             _, stderr = await asyncio.wait_for(
