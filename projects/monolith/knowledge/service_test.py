@@ -53,9 +53,11 @@ class TestReconcileHandler:
         mock_reconciler = AsyncMock()
         mock_reconciler.run.return_value = mock_stats
 
-        with patch("knowledge.service.Reconciler") as MockReconciler, patch(
-            "knowledge.service.KnowledgeStore"
-        ), patch("knowledge.service.EmbeddingClient"):
+        with (
+            patch("knowledge.service.Reconciler") as MockReconciler,
+            patch("knowledge.service.KnowledgeStore"),
+            patch("knowledge.service.EmbeddingClient"),
+        ):
             MockReconciler.return_value = mock_reconciler
             await service.reconcile_handler(MagicMock())
 
@@ -74,9 +76,11 @@ class TestReconcileHandler:
         mock_reconciler = AsyncMock()
         mock_reconciler.run.return_value = mock_stats
 
-        with patch("knowledge.service.Reconciler") as MockReconciler, patch(
-            "knowledge.service.KnowledgeStore"
-        ), patch("knowledge.service.EmbeddingClient"):
+        with (
+            patch("knowledge.service.Reconciler") as MockReconciler,
+            patch("knowledge.service.KnowledgeStore"),
+            patch("knowledge.service.EmbeddingClient"),
+        ):
             MockReconciler.return_value = mock_reconciler
             await service.reconcile_handler(MagicMock())
 
@@ -94,9 +98,11 @@ class TestReconcileHandler:
         mock_reconciler = AsyncMock()
         mock_reconciler.run.return_value = mock_stats
 
-        with patch("knowledge.service.Reconciler") as MockReconciler, patch(
-            "knowledge.service.KnowledgeStore"
-        ), patch("knowledge.service.EmbeddingClient"):
+        with (
+            patch("knowledge.service.Reconciler") as MockReconciler,
+            patch("knowledge.service.KnowledgeStore"),
+            patch("knowledge.service.EmbeddingClient"),
+        ):
             MockReconciler.return_value = mock_reconciler
             await service.reconcile_handler(MagicMock())
 
@@ -113,9 +119,11 @@ class TestReconcileHandler:
         mock_reconciler = AsyncMock()
         mock_reconciler.run.return_value = mock_stats
 
-        with patch("knowledge.service.Reconciler") as MockReconciler, patch(
-            "knowledge.service.KnowledgeStore"
-        ), patch("knowledge.service.EmbeddingClient"):
+        with (
+            patch("knowledge.service.Reconciler") as MockReconciler,
+            patch("knowledge.service.KnowledgeStore"),
+            patch("knowledge.service.EmbeddingClient"),
+        ):
             MockReconciler.return_value = mock_reconciler
             result = await service.reconcile_handler(MagicMock())
 
@@ -133,9 +141,11 @@ class TestReconcileHandler:
         mock_reconciler = AsyncMock()
         mock_reconciler.run.return_value = mock_stats
 
-        with patch("knowledge.service.Reconciler") as MockReconciler, patch(
-            "knowledge.service.KnowledgeStore"
-        ) as MockStore, patch("knowledge.service.EmbeddingClient"):
+        with (
+            patch("knowledge.service.Reconciler") as MockReconciler,
+            patch("knowledge.service.KnowledgeStore") as MockStore,
+            patch("knowledge.service.EmbeddingClient"),
+        ):
             MockReconciler.return_value = mock_reconciler
             await service.reconcile_handler(session)
 
