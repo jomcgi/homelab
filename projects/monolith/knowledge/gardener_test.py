@@ -9,7 +9,6 @@ import pytest
 from knowledge.gardener import (
     Gardener,
     GardenStats,
-    _is_error_result,
     _slugify,
     _split_frontmatter,
 )
