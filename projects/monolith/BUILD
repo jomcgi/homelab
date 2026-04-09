@@ -1887,6 +1887,28 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_gardener_coverage_test",
+    srcs = ["knowledge/gardener_coverage_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "knowledge_service_coverage_test",
+    srcs = ["knowledge/service_coverage_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "chat_bot_thinking_extra_test",
     srcs = ["chat/bot_thinking_extra_test.py"],
     imports = ["."],
