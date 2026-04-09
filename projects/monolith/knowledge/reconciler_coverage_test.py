@@ -213,8 +213,15 @@ class TestWalkFileNotFoundRace:
         self, reconciler, tmp_path, session
     ):
         """A FileNotFoundError from read_bytes (file vanished between rglob and
-        read) causes the file to be absent from the walk result — it is neither
-        re-ingested nor deleted in this cycle.
+        read) causes the file to be absent from on_disk in _walk.
+
+        Because the file was previously indexed but is now absent from the walk
+        result, it appears in to_delete — the reconciler correctly deletes it
+        (treating the race as a genuine file removal). Stats show deleted=1.
+
+        This differs from the PermissionError case: PermissionError carries
+        forward the previous hash so the file stays in the snapshot (unchanged=1,
+        not deleted). FileNotFoundError has no such carry-forward logic.
         """
         _write(tmp_path, "vanish.md", "---\nid: v\ntitle: V\n---\nContent.")
         # First run: ingest the file normally.
@@ -234,11 +241,10 @@ class TestWalkFileNotFoundRace:
         with patch.object(Path, "read_bytes", raise_fnf):
             result = await reconciler.run()
 
-        # File not found → absent from walk → neither unchanged nor deleted
-        # (the note stays in the DB from the first run because nothing triggered
-        # a delete). Stats should show 0 upserted, 0 deleted, 0 unchanged.
+        # File not found → absent from on_disk → goes into to_delete → deleted=1.
         assert result.upserted == 0
-        assert result.deleted == 0
+        assert result.deleted == 1
+        assert result.failed == 0
 
 
 # ---------------------------------------------------------------------------
