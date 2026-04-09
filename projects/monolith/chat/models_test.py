@@ -4,7 +4,14 @@ import pytest
 from pydantic import ValidationError
 from sqlmodel import SQLModel
 
-from chat.models import Attachment, Blob, ChannelSummary, Message, MessageLock, UserChannelSummary
+from chat.models import (
+    Attachment,
+    Blob,
+    ChannelSummary,
+    Message,
+    MessageLock,
+    UserChannelSummary,
+)
 
 
 def _get_table_args_dict(model_class: type) -> dict:
@@ -216,7 +223,14 @@ class TestExtendExisting:
     @pytest.mark.parametrize(
         "model_class",
         [Message, Blob, Attachment, UserChannelSummary, MessageLock, ChannelSummary],
-        ids=["Message", "Blob", "Attachment", "UserChannelSummary", "MessageLock", "ChannelSummary"],
+        ids=[
+            "Message",
+            "Blob",
+            "Attachment",
+            "UserChannelSummary",
+            "MessageLock",
+            "ChannelSummary",
+        ],
     )
     def test_extend_existing_is_true(self, model_class):
         """__table_args__ must contain extend_existing=True for every chat model."""
@@ -228,7 +242,14 @@ class TestExtendExisting:
     @pytest.mark.parametrize(
         "model_class",
         [Message, Blob, Attachment, UserChannelSummary, MessageLock, ChannelSummary],
-        ids=["Message", "Blob", "Attachment", "UserChannelSummary", "MessageLock", "ChannelSummary"],
+        ids=[
+            "Message",
+            "Blob",
+            "Attachment",
+            "UserChannelSummary",
+            "MessageLock",
+            "ChannelSummary",
+        ],
     )
     def test_schema_is_chat(self, model_class):
         """__table_args__ must still declare schema='chat' for every chat model."""
