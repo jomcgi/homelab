@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
+from sqlalchemy import func
 from sqlmodel import Session, delete, select
 
 from knowledge.frontmatter import ParsedFrontmatter
@@ -109,6 +110,48 @@ class KnowledgeStore:
             self.session.flush()
 
         self.session.commit()
+
+    def search_notes(
+        self,
+        query_embedding: list[float],
+        limit: int = 5,
+        exclude_ids: list[str] | None = None,
+    ) -> list[dict]:
+        """Semantic search over notes using cosine similarity.
+
+        Joins Note with Chunk, computes pgvector cosine_distance on
+        Chunk.embedding, groups by note, and returns the best (minimum
+        distance) chunk score per note as ``score = 1 - distance``.
+        """
+        distance = Chunk.embedding.cosine_distance(query_embedding)
+        best_score = (1 - func.min(distance)).label("score")
+
+        stmt = (
+            select(
+                Note.note_id,
+                Note.title,
+                Note.path,
+                best_score,
+            )
+            .join(Chunk, Chunk.note_fk == Note.id)
+            .group_by(Note.id)
+            .order_by(func.min(distance))
+            .limit(limit)
+        )
+
+        if exclude_ids:
+            stmt = stmt.where(Note.note_id.notin_(exclude_ids))
+
+        rows = self.session.execute(stmt).all()
+        return [
+            {
+                "note_id": row.note_id,
+                "title": row.title,
+                "path": row.path,
+                "score": float(row.score),
+            }
+            for row in rows
+        ]
 
     def delete_note(self, path: str) -> None:
         existing = self.session.execute(

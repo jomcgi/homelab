@@ -1,5 +1,6 @@
 """Tests for KnowledgeStore."""
 
+import os
 from datetime import datetime, timezone
 
 import pytest
@@ -11,6 +12,8 @@ from knowledge.frontmatter import ParsedFrontmatter
 from knowledge.links import Link
 from knowledge.models import Chunk, Note, NoteLink
 from knowledge.store import KnowledgeStore
+
+_PG_URL = os.environ.get("TEST_POSTGRES_URL")
 
 
 @pytest.fixture(name="session")
@@ -31,6 +34,29 @@ def session_fixture():
     for table in SQLModel.metadata.tables.values():
         if table.name in original_schemas:
             table.schema = original_schemas[table.name]
+
+
+@pytest.fixture(name="pg_session")
+def pg_session_fixture():
+    """Session backed by a real Postgres database with pgvector.
+
+    Set TEST_POSTGRES_URL to a connection string like
+    ``postgresql://user:pass@localhost/testdb`` to enable.
+    The database must have the ``vector`` extension and ``knowledge``
+    schema created.
+    """
+    if _PG_URL is None:
+        pytest.skip("TEST_POSTGRES_URL not set — skipping Postgres tests")
+    engine = create_engine(_PG_URL)
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session
+    # Clean up all rows so tests are hermetic.
+    with Session(engine) as session:
+        session.execute(Chunk.__table__.delete())
+        session.execute(NoteLink.__table__.delete())
+        session.execute(Note.__table__.delete())
+        session.commit()
 
 
 @pytest.fixture
@@ -226,3 +252,67 @@ class TestDeleteNote:
         assert list(session.scalars(select(Note))) == []
         assert list(session.scalars(select(Chunk))) == []
         assert list(session.scalars(select(NoteLink))) == []
+
+
+class TestSearchNotes:
+    """search_notes requires pgvector cosine_distance (Postgres only)."""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, pg_session):
+        self.session = pg_session
+        self.store = KnowledgeStore(session=pg_session)
+
+    def test_empty_returns_empty_list(self):
+        result = self.store.search_notes(query_embedding=[0.0] * 1024)
+        assert result == []
+
+    def test_returns_matching_notes_ranked_by_score(self):
+        # Insert two notes with distinct embeddings.
+        _upsert(self.store, note_id="n1", path="a.md", title="Alpha", n_chunks=1)
+        _upsert(self.store, note_id="n2", path="b.md", title="Beta", n_chunks=1)
+
+        # Query with the same embedding as note n1's chunk (all 0.0s).
+        results = self.store.search_notes(query_embedding=[0.0] * 1024)
+        assert len(results) == 2
+        # Both results should have the required keys.
+        assert set(results[0].keys()) == {"note_id", "title", "path", "score"}
+        # First result should be n1 (closer to all-zeros query).
+        assert results[0]["note_id"] == "n1"
+
+    def test_limit_restricts_result_count(self):
+        for i in range(5):
+            _upsert(
+                self.store,
+                note_id=f"n{i}",
+                path=f"{i}.md",
+                title=f"Note {i}",
+                n_chunks=1,
+            )
+        results = self.store.search_notes(query_embedding=[0.0] * 1024, limit=2)
+        assert len(results) == 2
+
+    def test_exclude_ids_filters_notes(self):
+        _upsert(self.store, note_id="n1", path="a.md", title="Alpha", n_chunks=1)
+        _upsert(self.store, note_id="n2", path="b.md", title="Beta", n_chunks=1)
+
+        results = self.store.search_notes(
+            query_embedding=[0.0] * 1024, exclude_ids=["n1"]
+        )
+        note_ids = [r["note_id"] for r in results]
+        assert "n1" not in note_ids
+        assert "n2" in note_ids
+
+    def test_score_is_between_zero_and_one(self):
+        _upsert(self.store, note_id="n1", path="a.md", title="Alpha", n_chunks=1)
+        results = self.store.search_notes(query_embedding=[1.0] * 1024)
+        assert len(results) == 1
+        assert 0.0 <= results[0]["score"] <= 1.0
+
+    def test_best_chunk_score_used_for_multi_chunk_note(self):
+        # A note with 2 chunks — the best chunk's score should be used.
+        _upsert(self.store, note_id="n1", path="a.md", title="Alpha", n_chunks=2)
+        results = self.store.search_notes(query_embedding=[0.0] * 1024)
+        assert len(results) == 1
+        # chunk_0 embedding is all 0.0s, chunk_1 is all 1.0s.
+        # Query is all 0.0s, so chunk_0 is a perfect match (distance=0, score=1).
+        assert results[0]["score"] == pytest.approx(1.0, abs=1e-6)
