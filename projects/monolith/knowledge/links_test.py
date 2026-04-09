@@ -52,3 +52,32 @@ class TestExtract:
         """All wikilinks on the same line are extracted left-to-right."""
         body = "See [[Alpha]] and [[Beta]] and [[Gamma]] on one line."
         assert [link.target for link in extract(body)] == ["Alpha", "Beta", "Gamma"]
+
+    def test_anchor_only_link_is_skipped(self):
+        """[[#heading]] with no note name produces no Link.
+
+        After stripping the anchor the target becomes an empty string, which
+        the extractor silently drops. An anchor-only link cannot resolve to a
+        note_id, so it must not appear in the output.
+        """
+        assert extract("See [[#Introduction]].") == []
+
+    def test_anchor_only_link_among_valid_links(self):
+        """[[#heading]] is filtered out while normal links around it survive."""
+        body = "[[RealNote]] and [[#section]] and [[AnotherNote]]"
+        assert [link.target for link in extract(body)] == ["RealNote", "AnotherNote"]
+
+    def test_heading_anchor_with_display_text(self):
+        """[[note#heading|Display]] strips the anchor but keeps the display text."""
+        result = extract("See [[Design Notes#Summary|summary section]].")
+        assert result == [Link(target="Design Notes", display="summary section")]
+
+    def test_block_ref_with_display_text(self):
+        """[[note^block|Display]] strips the block ref but keeps the display text."""
+        result = extract("See [[My Note^abc123|that block]].")
+        assert result == [Link(target="My Note", display="that block")]
+
+    def test_display_text_without_anchor(self):
+        """[[note|Display]] with no anchor already worked; this pins the behaviour."""
+        result = extract("See [[Project Plan|the plan]].")
+        assert result == [Link(target="Project Plan", display="the plan")]

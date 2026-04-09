@@ -266,3 +266,109 @@ class TestExtendExisting:
         """extend_existing is in the kwargs dict at the end of the UserChannelSummary tuple."""
         kwargs = _get_table_args_dict(UserChannelSummary)
         assert kwargs.get("extend_existing") is True
+
+
+# ---------------------------------------------------------------------------
+# Field default values — MessageLock, ChannelSummary, UserChannelSummary
+# ---------------------------------------------------------------------------
+
+
+class TestMessageLockDefaults:
+    """MessageLock field defaults."""
+
+    def test_completed_defaults_false(self):
+        """MessageLock.completed defaults to False."""
+        lock = MessageLock(
+            discord_message_id="msg-1",
+            channel_id="ch-1",
+        )
+        assert lock.completed is False
+
+    def test_claimed_at_defaults_to_current_utc(self):
+        """MessageLock.claimed_at auto-populates with a UTC datetime."""
+        lock = MessageLock(
+            discord_message_id="msg-2",
+            channel_id="ch-2",
+        )
+        assert lock.claimed_at is not None
+        assert lock.claimed_at.tzinfo is not None
+
+    def test_id_defaults_none(self):
+        """MessageLock has no surrogate pk field; discord_message_id is the pk."""
+        # Ensure no 'id' attribute leaks onto MessageLock.
+        columns = {c.name for c in MessageLock.__table__.columns}
+        assert "discord_message_id" in columns
+        assert "id" not in columns
+
+
+class TestChannelSummaryDefaults:
+    """ChannelSummary field defaults."""
+
+    def test_message_count_defaults_zero(self):
+        """ChannelSummary.message_count defaults to 0."""
+        cs = ChannelSummary(
+            channel_id="ch-1",
+            summary="A summary.",
+            last_message_id=42,
+        )
+        assert cs.message_count == 0
+
+    def test_updated_at_defaults_to_current_utc(self):
+        """ChannelSummary.updated_at auto-populates with a UTC datetime."""
+        cs = ChannelSummary(
+            channel_id="ch-2",
+            summary="Another summary.",
+            last_message_id=99,
+        )
+        assert cs.updated_at is not None
+        assert cs.updated_at.tzinfo is not None
+
+    def test_id_defaults_none(self):
+        """ChannelSummary.id is None until persisted."""
+        cs = ChannelSummary(
+            channel_id="ch-3",
+            summary="s",
+            last_message_id=1,
+        )
+        assert cs.id is None
+
+
+class TestUserChannelSummaryDefaults:
+    """UserChannelSummary field defaults."""
+
+    def test_updated_at_defaults_to_current_utc(self):
+        """UserChannelSummary.updated_at auto-populates with a UTC datetime."""
+        ucs = UserChannelSummary(
+            channel_id="ch-1",
+            user_id="u-1",
+            username="alice",
+            summary="A user summary.",
+            last_message_id=7,
+        )
+        assert ucs.updated_at is not None
+        assert ucs.updated_at.tzinfo is not None
+
+    def test_id_defaults_none(self):
+        """UserChannelSummary.id is None until persisted."""
+        ucs = UserChannelSummary(
+            channel_id="ch-2",
+            user_id="u-2",
+            username="bob",
+            summary="s",
+            last_message_id=1,
+        )
+        assert ucs.id is None
+
+    def test_has_required_columns(self):
+        """UserChannelSummary has all expected columns."""
+        columns = {c.name for c in UserChannelSummary.__table__.columns}
+        expected = {
+            "id",
+            "channel_id",
+            "user_id",
+            "username",
+            "summary",
+            "last_message_id",
+            "updated_at",
+        }
+        assert expected == columns
