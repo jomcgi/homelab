@@ -156,14 +156,23 @@ class TestReconcileHandler:
 
 class TestGardenHandler:
     @pytest.mark.asyncio
-    async def test_skips_when_oauth_token_unset(self, monkeypatch):
-        """garden_handler returns None without constructing a Gardener when token absent."""
+    async def test_skips_when_oauth_token_unset(self, monkeypatch, caplog):
+        """garden_handler returns None and logs a warning when token is absent.
+
+        When CLAUDE_CODE_OAUTH_TOKEN is not set, garden_handler returns None
+        immediately before the deferred `from knowledge.gardener import Gardener`
+        is ever reached.  The observable effects are the return value and the
+        warning log entry.
+        """
         monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
         session = MagicMock()
-        with patch("knowledge.gardener.Gardener") as mock_gardener:
+        with caplog.at_level(logging.WARNING, logger="knowledge.service"):
             result = await garden_handler(session)
         assert result is None
-        mock_gardener.assert_not_called()
+        warning_messages = [
+            r.message for r in caplog.records if r.levelno == logging.WARNING
+        ]
+        assert any("CLAUDE_CODE_OAUTH_TOKEN" in msg for msg in warning_messages)
 
     @pytest.mark.asyncio
     async def test_runs_gardener_when_token_set(self, monkeypatch, tmp_path):
