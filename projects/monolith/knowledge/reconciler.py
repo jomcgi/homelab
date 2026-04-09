@@ -70,22 +70,6 @@ class Reconciler:
         indexed = self.store.get_indexed()
         on_disk = self._walk(previous_indexed=indexed)
 
-        # Guard against the cold-start race: the vault is an emptyDir that the
-        # Obsidian sidecar populates asynchronously. If the scheduler fires
-        # before sync completes, on_disk will be empty while the DB still has
-        # notes from a prior pod lifetime. Pruning in that state would wipe the
-        # entire knowledge base. Skip this cycle — the next tick will run after
-        # sync has had more time to complete.
-        if not on_disk and indexed:
-            logger.warning(
-                "knowledge: _processed/ is empty but DB has %d indexed notes; "
-                "skipping cycle (vault sync likely in progress)",
-                len(indexed),
-            )
-            return ReconcileStats(
-                upserted=0, deleted=0, unchanged=0, failed=0, skipped_locked=0
-            )
-
         to_upsert = sorted(
             path for path, h in on_disk.items() if indexed.get(path) != h
         )
