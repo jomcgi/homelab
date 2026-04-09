@@ -19,9 +19,7 @@ class TestGardenHandlerExceptionPropagation:
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
 
         gardener_instance = MagicMock()
-        gardener_instance.run = AsyncMock(
-            side_effect=RuntimeError("gardener exploded")
-        )
+        gardener_instance.run = AsyncMock(side_effect=RuntimeError("gardener exploded"))
 
         with (
             patch("anthropic.Anthropic"),
@@ -53,9 +51,7 @@ class TestGardenHandlerExceptionPropagation:
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
 
         gardener_instance = MagicMock()
-        gardener_instance.run = AsyncMock(
-            side_effect=OSError("vault mount gone")
-        )
+        gardener_instance.run = AsyncMock(side_effect=OSError("vault mount gone"))
 
         with (
             patch("anthropic.Anthropic"),
@@ -89,9 +85,7 @@ class TestReconcileHandlerExceptionPropagation:
                 await service.reconcile_handler(MagicMock())
 
     @pytest.mark.asyncio
-    async def test_propagates_os_error_from_reconciler_run(
-        self, monkeypatch, tmp_path
-    ):
+    async def test_propagates_os_error_from_reconciler_run(self, monkeypatch, tmp_path):
         """OSError from Reconciler.run() (e.g. vault is unmounted mid-run)
         propagates out of reconcile_handler()."""
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
