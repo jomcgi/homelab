@@ -37,7 +37,7 @@ title: <concise title>
 type: atom|fact|active
 tags: [optional]
 edges:
-  derives_from: [source-slug]
+  derives_from: [source-slug]   # allowed edge types: derives_from | refines | generalizes | related | contradicts | supersedes
 ---
 <markdown body>
 5. Patch edges on related existing notes using the Edit tool.

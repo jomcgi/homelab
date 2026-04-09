@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+import datetime as _dt
 from datetime import datetime, timezone
 from typing import Any
 
@@ -83,6 +84,19 @@ def parse(raw: str) -> tuple[ParsedFrontmatter, str]:
     return _build(data), body
 
 
+def _json_safe(v: Any) -> Any:
+    """Coerce YAML-parsed values to JSON-serializable types.
+
+    YAML safe_load produces Python date/datetime objects for bare ISO dates.
+    These must be converted to strings before the extra dict reaches json.dumps.
+    """
+    if isinstance(v, _dt.datetime):
+        return v.isoformat()
+    if isinstance(v, _dt.date):
+        return v.isoformat()
+    return v
+
+
 def _build(data: dict[str, Any]) -> ParsedFrontmatter:
     meta = ParsedFrontmatter()
     meta.note_id = _str_or_none(data.get("id"))
@@ -95,7 +109,7 @@ def _build(data: dict[str, Any]) -> ParsedFrontmatter:
     meta.edges = _edges(data.get("edges"))
     meta.created = _to_datetime(data.get("created"))
     meta.updated = _to_datetime(data.get("updated"))
-    meta.extra = {k: v for k, v in data.items() if k not in _PROMOTED_KEYS}
+    meta.extra = {k: _json_safe(v) for k, v in data.items() if k not in _PROMOTED_KEYS}
     return meta
 
 
