@@ -21,6 +21,7 @@
   let selectedNote = $state(null);
   let activeIndex = $state(-1);
   let searching = $state(false);
+  let searchError = $state("");
   let searchType = $state("all");
   let savedCapture = $state("");
   let searchInputRef = $state(null);
@@ -39,6 +40,7 @@
     selectedNote = null;
     activeIndex = -1;
     searching = false;
+    searchError = "";
     tick().then(() => captureRef?.focus());
   }
 
@@ -125,6 +127,7 @@
       return;
     }
     searching = true;
+    searchError = "";
     searchTimer = setTimeout(async () => {
       const controller = new AbortController();
       searchController = controller;
@@ -134,12 +137,21 @@
         const res = await fetch(`/api/knowledge/search?${params}`, {
           signal: controller.signal,
         });
-        if (res.ok && !controller.signal.aborted) {
+        if (controller.signal.aborted) return;
+        if (res.ok) {
           searchResults = (await res.json()).results;
           activeIndex = -1;
+          searchError = "";
+        } else if (res.status === 503) {
+          searchError = "embedding unavailable";
+          searchResults = [];
+        } else {
+          searchError = `search failed (${res.status})`;
+          searchResults = [];
         }
       } catch (e) {
         if (e.name !== "AbortError") {
+          searchError = "search unavailable";
           searchResults = [];
         }
       } finally {
@@ -547,7 +559,9 @@
           </div>
         </div>
       {:else}
-        {#if searching && searchResults.length === 0}
+        {#if searchError}
+          <p class="search-status search-status--error">{searchError}</p>
+        {:else if searching && searchResults.length === 0}
           <p class="search-status">searching...</p>
         {:else if !searching && searchQuery.length >= 2 && searchResults.length === 0}
           <p class="search-status">no results</p>
@@ -993,6 +1007,10 @@
     color: var(--fg-tertiary);
     margin-top: 1rem;
     font-size: 0.85rem;
+  }
+
+  .search-status--error {
+    color: var(--danger);
   }
 
   /* ── Note preview ─────────────────────────── */
