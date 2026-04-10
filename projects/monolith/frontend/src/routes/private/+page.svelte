@@ -42,16 +42,42 @@
     tick().then(() => captureRef?.focus());
   }
 
+  function slugify(s) {
+    return s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+  }
+
+  function renderNote(md) {
+    const blocks = md.replace(/^---\n[\s\S]*?\n---\n?/, "").split(/\n\n+/);
+    return blocks.map((block) => {
+      const h = block.match(/^(#{1,3}) (.+)$/);
+      if (h) return { tag: `h${h[1].length}`, id: slugify(h[2]), text: h[2] };
+      return { tag: "p", text: block };
+    });
+  }
+
   async function selectResult(result) {
     try {
       const res = await fetch(`/api/knowledge/notes/${result.note_id}`);
       if (res.ok) {
-        selectedNote = await res.json();
+        const note = await res.json();
+        selectedNote = { ...note, section: result.section };
       }
     } catch (e) {
       console.error("Failed to fetch note:", e);
     }
   }
+
+  $effect(() => {
+    if (selectedNote?.content && selectedNote?.section) {
+      tick().then(() => {
+        const slug = slugify(selectedNote.section.replace(/^#+\s*/, ""));
+        document.getElementById(slug)?.scrollIntoView({ block: "start" });
+      });
+    }
+  });
 
   $effect(() => {
     function handleGlobalKeyDown(e) {
@@ -63,15 +89,19 @@
         e.preventDefault();
         closeSearch();
       }
-      if (searchOpen && e.key === "ArrowDown" && searchResults.length > 0) {
+      if (searchOpen && e.key === "ArrowLeft" && selectedNote) {
+        e.preventDefault();
+        selectedNote = null;
+      }
+      if (searchOpen && e.key === "ArrowDown" && !selectedNote && searchResults.length > 0) {
         e.preventDefault();
         activeIndex = Math.min(activeIndex + 1, searchResults.length - 1);
       }
-      if (searchOpen && e.key === "ArrowUp" && searchResults.length > 0) {
+      if (searchOpen && e.key === "ArrowUp" && !selectedNote && searchResults.length > 0) {
         e.preventDefault();
         activeIndex = Math.max(activeIndex - 1, -1);
       }
-      if (searchOpen && e.key === "Enter" && activeIndex >= 0) {
+      if (searchOpen && e.key === "Enter" && !selectedNote && activeIndex >= 0) {
         e.preventDefault();
         const result = searchResults[activeIndex];
         if (result) selectResult(result);
@@ -481,52 +511,86 @@
           </button>
         {/each}
       </div>
-      {#if searching && searchResults.length === 0}
-        <p class="search-status">searching...</p>
-      {:else if !searching && searchQuery.length >= 2 && searchResults.length === 0}
-        <p class="search-status">no results</p>
-      {/if}
-      {#if searchResults.length > 0}
-        <ul
-          class="search-results"
-          class:search-results--stale={searching}
-          role="listbox"
-          aria-label="Search results"
-        >
-          {#each searchResults as result, i}
-            <li
-              class="search-result"
-              class:active={activeIndex === i}
-              role="option"
-              aria-selected={activeIndex === i}
+      {#if selectedNote}
+        <div class="search-preview">
+          <div class="search-preview-header">
+            <button
+              class="search-back"
               onclick={() => {
-                activeIndex = i;
-                selectResult(result);
+                selectedNote = null;
               }}
             >
-              <div class="search-result-title">
-                {result.title}
-                {#if result.type}
-                  <span class="search-result-badge">{result.type}</span>
-                {/if}
+              &larr; back &middot; esc
+            </button>
+            <h2 class="search-preview-title">{selectedNote.title}</h2>
+            {#if selectedNote.tags?.length}
+              <div class="search-preview-tags">
+                {selectedNote.tags.join(" \u00b7 ")}
               </div>
-              {#if result.section || result.tags?.length}
-                <div class="search-result-meta">
-                  {#if result.section}{result.section}{/if}
-                  {#if result.section && result.tags?.length}
-                    &nbsp;&middot;&nbsp;
-                  {/if}
-                  {#if result.tags?.length}
-                    {result.tags.join(" \u00b7 ")}
+            {/if}
+          </div>
+          <div class="search-preview-content">
+            {#each renderNote(selectedNote.content) as block}
+              {#if block.tag === "h1"}
+                <h1 id={block.id}>{block.text}</h1>
+              {:else if block.tag === "h2"}
+                <h2 id={block.id}>{block.text}</h2>
+              {:else if block.tag === "h3"}
+                <h3 id={block.id}>{block.text}</h3>
+              {:else}
+                <p>{block.text}</p>
+              {/if}
+            {/each}
+          </div>
+        </div>
+      {:else}
+        {#if searching && searchResults.length === 0}
+          <p class="search-status">searching...</p>
+        {:else if !searching && searchQuery.length >= 2 && searchResults.length === 0}
+          <p class="search-status">no results</p>
+        {/if}
+        {#if searchResults.length > 0}
+          <ul
+            class="search-results"
+            class:search-results--stale={searching}
+            role="listbox"
+            aria-label="Search results"
+          >
+            {#each searchResults as result, i}
+              <li
+                class="search-result"
+                class:active={activeIndex === i}
+                role="option"
+                aria-selected={activeIndex === i}
+                onclick={() => {
+                  activeIndex = i;
+                  selectResult(result);
+                }}
+              >
+                <div class="search-result-title">
+                  {result.title}
+                  {#if result.type}
+                    <span class="search-result-badge">{result.type}</span>
                   {/if}
                 </div>
-              {/if}
-              {#if result.snippet}
-                <div class="search-result-snippet">{result.snippet}</div>
-              {/if}
-            </li>
-          {/each}
-        </ul>
+                {#if result.section || result.tags?.length}
+                  <div class="search-result-meta">
+                    {#if result.section}{result.section}{/if}
+                    {#if result.section && result.tags?.length}
+                      &nbsp;&middot;&nbsp;
+                    {/if}
+                    {#if result.tags?.length}
+                      {result.tags.join(" \u00b7 ")}
+                    {/if}
+                  </div>
+                {/if}
+                {#if result.snippet}
+                  <div class="search-result-snippet">{result.snippet}</div>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
       {/if}
     </div>
   </div>
@@ -920,5 +984,58 @@
     color: var(--fg-tertiary);
     margin-top: 1rem;
     font-size: 0.85rem;
+  }
+
+  /* ── Note preview ─────────────────────────── */
+
+  .search-preview-header {
+    border-bottom: 0.06rem solid var(--border);
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .search-back {
+    font-family: var(--font);
+    font-size: 0.75rem;
+    color: var(--fg-tertiary);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    margin-bottom: 1rem;
+  }
+  .search-back:hover {
+    color: var(--fg-secondary);
+  }
+  .search-preview-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--fg);
+    margin: 0;
+  }
+  .search-preview-tags {
+    font-size: 0.75rem;
+    color: var(--fg-tertiary);
+    margin-top: 0.5rem;
+  }
+  .search-preview-content h1,
+  .search-preview-content h2,
+  .search-preview-content h3 {
+    color: var(--fg);
+    margin: 1.5rem 0 0.75rem 0;
+  }
+  .search-preview-content h1 {
+    font-size: 1.15rem;
+  }
+  .search-preview-content h2 {
+    font-size: 1rem;
+  }
+  .search-preview-content h3 {
+    font-size: 0.9rem;
+  }
+  .search-preview-content p {
+    color: var(--fg-secondary);
+    line-height: 1.6;
+    margin: 0 0 1rem 0;
+    white-space: pre-wrap;
   }
 </style>
