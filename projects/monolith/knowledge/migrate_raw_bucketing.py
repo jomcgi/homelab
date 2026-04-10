@@ -11,6 +11,7 @@ import argparse
 import logging
 import os
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -108,6 +109,7 @@ def _grandfather_raws(vault_root: Path, session: Session) -> int:
                     content_hash=raw_id,
                     type="raw",
                     source="grandfathered",
+                    indexed_at=datetime.now(timezone.utc),
                 )
             )
             session.add(
