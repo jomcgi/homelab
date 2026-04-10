@@ -48,9 +48,7 @@ class TestGetVesselHttp404Bug:
     """
 
     @pytest.mark.asyncio
-    async def test_get_vessel_missing_mmsi_returns_http_404(
-        self, test_client
-    ):
+    async def test_get_vessel_missing_mmsi_returns_http_404(self, test_client):
         """GET /api/vessels/{mmsi} returns HTTP 404 when the MMSI is not found.
 
         Regression test: the old implementation returned HTTP 200 with a JSON
@@ -61,18 +59,14 @@ class TestGetVesselHttp404Bug:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_get_vessel_missing_mmsi_returns_proper_error_body(
-        self, test_client
-    ):
+    async def test_get_vessel_missing_mmsi_returns_proper_error_body(self, test_client):
         """GET /api/vessels/{mmsi} returns the FastAPI HTTPException detail body."""
         response = await test_client.get("/api/vessels/000000000")
         body = response.json()
         assert body == {"detail": "Vessel not found"}
 
     @pytest.mark.asyncio
-    async def test_get_vessel_missing_mmsi_body_is_not_json_array(
-        self, test_client
-    ):
+    async def test_get_vessel_missing_mmsi_body_is_not_json_array(self, test_client):
         """Response body must be a JSON object, not the erroneous JSON array.
 
         Before the fix, the body was ``[{"error": "Vessel not found"}, 404]``.
