@@ -9,6 +9,13 @@ import pytest
 from knowledge import service
 
 
+@pytest.fixture(autouse=True)
+def _vault_sync_ready_by_default():
+    """Most handler tests assume the vault sync is complete."""
+    with patch("knowledge.service._vault_sync_ready", return_value=True):
+        yield
+
+
 class TestGardenHandlerExceptionPropagation:
     @pytest.mark.asyncio
     async def test_propagates_exception_from_gardener_run(self, monkeypatch, tmp_path):
