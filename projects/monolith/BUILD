@@ -2126,6 +2126,18 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_router_test",
+    srcs = ["knowledge/router_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "notes_router_whitespace_test",
     srcs = ["notes/router_whitespace_test.py"],
     imports = ["."],
