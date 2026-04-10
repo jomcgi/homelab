@@ -50,6 +50,16 @@ def render_links_section(meta: ParsedFrontmatter) -> str | None:
     return "\n## Links\n\n" + "\n".join(lines) + "\n"
 
 
+def strip_links_section(body: str) -> str:
+    """Return body with any ## Links section removed.
+
+    Used by the reconciler to obtain the authored body for chunking and
+    link extraction, regardless of whether the Links section was already
+    written by the pre-sync pass.
+    """
+    return _LINKS_RE.sub("", body)
+
+
 def sync_links(raw: str, meta: ParsedFrontmatter) -> str | None:
     """Return updated file text with ## Links synced, or None if already current.
 

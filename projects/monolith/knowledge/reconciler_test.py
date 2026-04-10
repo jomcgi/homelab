@@ -552,16 +552,17 @@ class TestReconcilerWikilinks:
     async def test_pre_sync_backfills_already_indexed_notes(
         self, reconciler, session, tmp_path
     ):
-        # Ingest a note without edges so it gets indexed with no Links section.
-        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\ntype: atom\n---\n\nBody.\n")
+        # No type and no edges — no Links section generated.
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\n\nBody.\n")
         await reconciler.run()
         assert "## Links" not in (tmp_path / "_processed" / "a.md").read_text()
 
-        # Now add edges — simulating the gardener enriching frontmatter.
+        # Gardener enriches with edges — pre-sync backfills the Links section
+        # even though the note was already indexed (stable hash).
         _write(
             tmp_path,
             "a.md",
-            "---\nid: a\ntitle: A\ntype: atom\nedges:\n  derives_from: [source]\n---\n\nBody.\n",
+            "---\nid: a\ntitle: A\nedges:\n  derives_from: [source]\n---\n\nBody.\n",
         )
         await reconciler.run()
         written = (tmp_path / "_processed" / "a.md").read_text()
