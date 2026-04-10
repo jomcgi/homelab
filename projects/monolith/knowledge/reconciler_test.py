@@ -549,6 +549,26 @@ class TestReconcilerWikilinks:
         assert "old-source" not in written
 
     @pytest.mark.asyncio
+    async def test_pre_sync_backfills_already_indexed_notes(
+        self, reconciler, session, tmp_path
+    ):
+        # Ingest a note without edges so it gets indexed with no Links section.
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\ntype: atom\n---\n\nBody.\n")
+        await reconciler.run()
+        assert "## Links" not in (tmp_path / "_processed" / "a.md").read_text()
+
+        # Now add edges — simulating the gardener enriching frontmatter.
+        _write(
+            tmp_path,
+            "a.md",
+            "---\nid: a\ntitle: A\ntype: atom\nedges:\n  derives_from: [source]\n---\n\nBody.\n",
+        )
+        await reconciler.run()
+        written = (tmp_path / "_processed" / "a.md").read_text()
+        assert "## Links" in written
+        assert "Up: [[_processed/source|source]]" in written
+
+    @pytest.mark.asyncio
     async def test_current_links_section_not_rewritten(
         self, reconciler, embed_client, tmp_path
     ):
