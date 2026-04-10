@@ -153,6 +153,85 @@ class KnowledgeStore:
             for row in rows
         ]
 
+    def search_notes_with_context(
+        self,
+        query_embedding: list[float],
+        limit: int = 20,
+        type_filter: str | None = None,
+    ) -> list[dict]:
+        """Semantic search returning type, tags, best chunk section + snippet.
+
+        Powers the knowledge search overlay (ADR 003). Runs two SQL
+        round-trips:
+
+        1. Top-N notes ranked by ``best_score = 1 - min(cosine_distance)``
+           across their chunks, with optional ``Note.type`` filter.
+        2. A single batched ``SELECT DISTINCT ON (note_fk)`` to pick the
+           best-matching chunk per top-N note — no N+1.
+
+        Results are stitched in Python into dicts with keys:
+        ``note_id, title, path, type, tags, score, section, snippet``.
+        """
+        distance = Chunk.embedding.cosine_distance(query_embedding)
+        best_score = (1 - func.min(distance)).label("score")
+
+        notes_stmt = (
+            select(
+                Note.id,
+                Note.note_id,
+                Note.title,
+                Note.path,
+                Note.type,
+                Note.tags,
+                best_score,
+            )
+            .join(Chunk, Chunk.note_fk == Note.id)
+            .group_by(Note.id)
+            .order_by(func.min(distance))
+            .limit(limit)
+        )
+        if type_filter is not None:
+            notes_stmt = notes_stmt.where(Note.type == type_filter)
+
+        note_rows = self.session.execute(notes_stmt).all()
+        if not note_rows:
+            return []
+
+        top_ids = [row.id for row in note_rows]
+
+        chunk_distance = Chunk.embedding.cosine_distance(query_embedding)
+        chunks_stmt = (
+            select(
+                Chunk.note_fk,
+                Chunk.section_header,
+                Chunk.chunk_text,
+            )
+            .where(Chunk.note_fk.in_(top_ids))
+            .order_by(Chunk.note_fk, chunk_distance)
+            .distinct(Chunk.note_fk)
+        )
+        chunk_rows = self.session.execute(chunks_stmt).all()
+        best_chunk_by_note = {
+            row.note_fk: (row.section_header, row.chunk_text) for row in chunk_rows
+        }
+
+        results: list[dict] = []
+        for row in note_rows:
+            section, chunk_text = best_chunk_by_note.get(row.id, ("", ""))
+            results.append(
+                {
+                    "note_id": row.note_id,
+                    "title": row.title,
+                    "path": row.path,
+                    "type": row.type,
+                    "tags": list(row.tags or []),
+                    "score": float(row.score),
+                    "section": section,
+                    "snippet": (chunk_text or "")[:240],
+                }
+            )
+        return results
+
     def delete_note(self, path: str) -> None:
         existing = self.session.execute(
             select(Note.id).where(Note.path == path)
