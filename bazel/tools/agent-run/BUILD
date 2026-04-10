@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
     name = "agent-run_lib",
@@ -25,4 +25,15 @@ go_binary(
     name = "agent-run",
     embed = [":agent-run_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "agent-run_test",
+    srcs = ["main_test.go"],
+    embed = [":agent-run_lib"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+    ],
 )
