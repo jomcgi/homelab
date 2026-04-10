@@ -88,6 +88,8 @@ spec:
             {{- if .Values.knowledge.gitRemote }}
             - name: VAULT_GIT_REMOTE
               value: {{ .Values.knowledge.gitRemote | quote }}
+            - name: USER
+              value: "vault-backup"
             - name: GIT_AUTHOR_NAME
               value: "vault-backup"
             - name: GIT_AUTHOR_EMAIL
