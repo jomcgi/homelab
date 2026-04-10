@@ -1,9 +1,10 @@
 # ADR 012: Knowledge Gardener Two-Tier Model Pipeline
 
 **Author:** jomcgi
-**Status:** Draft
+**Status:** Superseded by [ADR 013](013-knowledge-gardener-gemma4-only.md)
 **Created:** 2026-04-09
 **Supersedes:** N/A
+**Superseded by:** [ADR 013](013-knowledge-gardener-gemma4-only.md)
 
 ---
 
