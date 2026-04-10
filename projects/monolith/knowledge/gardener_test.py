@@ -216,6 +216,56 @@ class TestSoftDelete:
 
 class TestIngestOneClaude:
     @pytest.mark.asyncio
+    async def test_prompt_includes_full_raw_content_for_frontmatter_only_note(
+        self, tmp_path
+    ):
+        """Frontmatter-only notes (e.g. book refs) must include the raw YAML in the prompt.
+
+        If only `body` is passed, Claude receives an empty string and has nothing
+        to decompose, causing timeouts and producing no notes.
+        """
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "book.md"
+        raw = (
+            "---\n"
+            "title: The Staff Engineer's Path\n"
+            "author: Tanya Reilly\n"
+            "description: A book about staff engineering.\n"
+            "isbn13: 9781098118709\n"
+            "---\n"
+        )
+        note.write_text(raw)
+        processed = vault / "_processed"
+        processed.mkdir()
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+
+        async def fake_communicate():
+            (processed / "staff-path.md").write_text(
+                "---\nid: staff-path\ntitle: Staff Path\ntype: atom\n---\nbody"
+            )
+            return b"", b""
+
+        proc_mock.communicate = fake_communicate
+
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=proc_mock
+        ) as mock_exec:
+            await Gardener(vault_root=vault)._ingest_one(note)
+
+        args = mock_exec.call_args[0]
+        # The prompt is passed via the -p flag as the last positional arg
+        p_idx = list(args).index("-p")
+        prompt = args[p_idx + 1]
+        assert "Tanya Reilly" in prompt, "frontmatter author must appear in prompt"
+        assert "9781098118709" in prompt, "frontmatter isbn must appear in prompt"
+        assert "A book about staff engineering." in prompt, (
+            "description must appear in prompt"
+        )
+
+    @pytest.mark.asyncio
     async def test_spawns_claude_with_correct_flags(self, tmp_path):
         """_ingest_one spawns claude with --dangerously-skip-permissions and cwd=vault_root."""
         vault = tmp_path / "vault"
