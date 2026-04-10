@@ -673,3 +673,115 @@ class TestKnowledgeOverlay:
 
         # Capture value should be restored
         assert capture.input_value() == "draft thought"
+
+    # -- Task 13: results + preview + zero results --------------------------
+
+    def test_search_renders_results(
+        self, page, sveltekit_server, live_server_with_fake_embedding, pg
+    ):
+        """Seed a note, search, verify result title appears."""
+        _cleanup_knowledge(pg)
+        _seed_knowledge_note(
+            pg,
+            note_id="e2e-overlay-attn",
+            title="Attention Mechanisms",
+            path="notes/attention.md",
+            note_type="note",
+            tags=["ml"],
+            chunk_texts=[
+                "Attention mechanisms allow models to focus on relevant parts."
+            ],
+        )
+
+        try:
+            page.goto(f"{sveltekit_server}/private")
+            page.keyboard.press("Meta+k")
+            page.locator(".search-input").wait_for(state="visible")
+            page.locator(".search-input").fill(
+                "Attention mechanisms allow models to focus on relevant parts."
+            )
+            page.locator(".search-result").first.wait_for(
+                state="visible", timeout=10000
+            )
+
+            assert page.locator(".search-result").count() >= 1
+            first_title = page.locator(".search-result-title").first.inner_text()
+            assert "Attention Mechanisms" in first_title
+        finally:
+            _cleanup_knowledge(pg)
+
+    def test_search_preview_and_back(
+        self, page, sveltekit_server, live_server_with_fake_embedding, pg, tmp_path
+    ):
+        """Select a result, verify preview renders, ArrowLeft returns to results."""
+        import os
+
+        _cleanup_knowledge(pg)
+
+        # Write a vault file for the note
+        vault_dir = tmp_path / "vault"
+        md_file = vault_dir / "notes" / "preview-test.md"
+        md_file.parent.mkdir(parents=True, exist_ok=True)
+        md_file.write_text(
+            "# Preview Test\n\nAttention is a mechanism for weighting inputs."
+        )
+
+        old_vault_root = os.environ.get("VAULT_ROOT")
+        os.environ["VAULT_ROOT"] = str(vault_dir)
+
+        try:
+            _seed_knowledge_note(
+                pg,
+                note_id="e2e-overlay-preview",
+                title="Preview Test Note",
+                path="notes/preview-test.md",
+                note_type="note",
+                chunk_texts=["Attention is a mechanism for weighting inputs."],
+            )
+
+            page.goto(f"{sveltekit_server}/private")
+            page.keyboard.press("Meta+k")
+            page.locator(".search-input").wait_for(state="visible")
+            page.locator(".search-input").fill(
+                "Attention is a mechanism for weighting inputs."
+            )
+            page.locator(".search-result").first.wait_for(
+                state="visible", timeout=10000
+            )
+
+            # Select the first result
+            page.keyboard.press("ArrowDown")
+            page.keyboard.press("Enter")
+
+            # Preview should appear
+            preview = page.locator(".search-preview-content")
+            preview.wait_for(state="visible", timeout=10000)
+            assert "attention" in preview.inner_text().lower()
+
+            # ArrowLeft goes back to results
+            page.keyboard.press("ArrowLeft")
+            assert page.locator(".search-preview-content").count() == 0
+            assert page.locator(".search-results").count() >= 1
+
+            # Escape closes overlay
+            page.keyboard.press("Escape")
+            assert page.locator(".search-overlay").count() == 0
+        finally:
+            if old_vault_root is None:
+                os.environ.pop("VAULT_ROOT", None)
+            else:
+                os.environ["VAULT_ROOT"] = old_vault_root
+            _cleanup_knowledge(pg)
+
+    def test_zero_results_shows_no_results(
+        self, page, sveltekit_server, live_server_with_fake_embedding
+    ):
+        """Type a nonsense query and verify 'no results' status appears."""
+        page.goto(f"{sveltekit_server}/private")
+        page.keyboard.press("Meta+k")
+        page.locator(".search-input").wait_for(state="visible")
+        page.locator(".search-input").fill("zxqvfnonsensequery")
+
+        status = page.locator(".search-status")
+        status.wait_for(state="visible", timeout=10000)
+        assert "no results" in status.inner_text().lower()
