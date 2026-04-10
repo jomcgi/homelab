@@ -93,7 +93,11 @@ class ThinkingView(discord.ui.View):
         super().__init__(timeout=None)
         self.thinking_text = thinking_text
 
-    @discord.ui.button(label="Show thinking", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(
+        label="Show thinking",
+        style=discord.ButtonStyle.secondary,
+        custom_id="show_thinking",
+    )
     async def show_thinking(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):

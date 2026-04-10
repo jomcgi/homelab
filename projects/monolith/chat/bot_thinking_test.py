@@ -156,6 +156,12 @@ class TestThinkingView:
         view = ThinkingView("some thinking")
         assert view.timeout is None
 
+    def test_button_has_custom_id_for_persistence(self):
+        """ThinkingView button has a fixed custom_id so add_view() works after restarts."""
+        view = ThinkingView("some thinking")
+        buttons = [c for c in view.children if isinstance(c, discord.ui.Button)]
+        assert buttons[0].custom_id == "show_thinking"
+
     @pytest.mark.asyncio
     async def test_button_sends_ephemeral(self):
         """Clicking the button sends thinking as an ephemeral message."""
