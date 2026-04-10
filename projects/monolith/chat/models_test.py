@@ -51,6 +51,7 @@ class TestMessageModel:
             "is_bot",
             "embedding",
             "created_at",
+            "thinking",
         }
         assert expected == columns
 
