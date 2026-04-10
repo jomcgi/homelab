@@ -632,6 +632,87 @@ class TestBackfillProvenanceFromNotes:
         assert count == 0
         assert session.exec(select(AtomRawProvenance)).all() == []
 
+    def test_returns_zero_when_session_is_none(self, tmp_path):
+        """Gardener with session=None returns 0 without touching the DB."""
+        gardener = Gardener(vault_root=tmp_path, session=None)
+        count = gardener._backfill_provenance_from_notes()
+        assert count == 0
+
+    def test_returns_zero_when_no_notes_have_derived_from_raw(self, tmp_path, session):
+        """When no Note rows carry derived_from_raw in their extra JSON,
+        the method returns 0 and creates no provenance rows."""
+        from knowledge.models import AtomRawProvenance, Note, RawInput
+
+        raw = RawInput(
+            raw_id="r1",
+            path="_raw/2026/04/09/r1-n.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        # Note with no derived_from_raw field in extra
+        note = Note(
+            note_id="orphan",
+            path="_processed/orphan.md",
+            title="Orphan Note",
+            content_hash="abc",
+            type="atom",
+            extra={"tags": ["misc"]},
+        )
+        session.add(raw)
+        session.add(note)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        count = gardener._backfill_provenance_from_notes()
+
+        assert count == 0
+        assert session.exec(select(AtomRawProvenance)).all() == []
+
+    def test_skips_raws_that_already_have_provenance(self, tmp_path, session):
+        """If a raw already has an AtomRawProvenance row, it must NOT be
+        backfilled again even if a Note references its raw_id."""
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, Note, RawInput
+
+        raw = RawInput(
+            raw_id="r1",
+            path="_raw/2026/04/09/r1-n.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        session.add(raw)
+        session.flush()
+        # Pre-existing provenance for this raw
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                derived_note_id="already-recorded",
+                gardener_version=GARDENER_VERSION,
+            )
+        )
+        # A note that references the same raw_id — backfill should ignore it
+        atom = Note(
+            note_id="atom-dup",
+            path="_processed/atom-dup.md",
+            title="Atom Dup",
+            content_hash="dup",
+            type="atom",
+            extra={"derived_from_raw": "r1"},
+        )
+        session.add(atom)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        count = gardener._backfill_provenance_from_notes()
+
+        assert count == 0
+        # Only the original provenance row must exist; no duplicate created
+        rows = session.exec(select(AtomRawProvenance)).all()
+        assert len(rows) == 1
+        assert rows[0].derived_note_id == "already-recorded"
+
 
 class TestIngestOneNoNoteSentinel:
     @pytest.mark.asyncio
