@@ -122,14 +122,14 @@ class TestSearchEndpoint:
         failing_client.embed.side_effect = RuntimeError("boom")
         app.dependency_overrides[get_session] = lambda: fake_session
         app.dependency_overrides[get_embedding_client] = lambda: failing_client
-        c = TestClient(app, raise_server_exceptions=False)
-
-        r = c.get("/api/knowledge/search?q=hello")
-
-        app.dependency_overrides.clear()
-        assert r.status_code == 503
-        body = r.json()
-        assert body.get("detail") == "embedding unavailable"
+        try:
+            c = TestClient(app, raise_server_exceptions=False)
+            r = c.get("/api/knowledge/search?q=hello")
+            assert r.status_code == 503
+            body = r.json()
+            assert body.get("detail") == "embedding unavailable"
+        finally:
+            app.dependency_overrides.clear()
 
     def test_default_limit_is_20(self, client):
         """When limit is not specified, store is called with limit=20."""
