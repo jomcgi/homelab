@@ -1,0 +1,54 @@
+# Reference fixture for the fastapi-bare-tuple-return semgrep rule.
+# This file documents ok/bad patterns for human review.
+# The actual semgrep test fixture is bazel/semgrep/rules/python/fastapi-bare-tuple-return.py.
+
+examples:
+  bad:
+    - description: returning a bare (dict, 404) tuple from a FastAPI route handler
+      code: |
+        @app.get("/vessels/{mmsi}")
+        async def get_vessel(mmsi: str):
+            vessel = await db.get_vessel(mmsi)
+            if vessel is None:
+                return {"error": "Vessel not found"}, 404  # BUG: always returns HTTP 200 with JSON array
+            return vessel
+
+    - description: returning a bare (dict, 500) tuple for server errors
+      code: |
+        @app.post("/process")
+        async def process():
+            try:
+                result = await do_work()
+            except Exception:
+                return {"error": "Internal error"}, 500  # BUG: FastAPI ignores the 500
+
+    - description: returning a bare (dict, 403) tuple for permission errors
+      code: |
+        @app.get("/admin")
+        async def admin_only():
+            if not is_admin():
+                return {"error": "Forbidden"}, 403  # BUG: client receives HTTP 200
+
+  ok:
+    - description: raise HTTPException with status_code and detail
+      code: |
+        from fastapi import HTTPException
+
+        @app.get("/vessels/{mmsi}")
+        async def get_vessel(mmsi: str):
+            vessel = await db.get_vessel(mmsi)
+            if vessel is None:
+                raise HTTPException(status_code=404, detail="Vessel not found")
+            return vessel
+
+    - description: 2xx status codes are not error tuples and are not caught
+      code: |
+        @app.get("/ok")
+        async def ok_route():
+            return {"data": "value"}, 200
+
+    - description: returning a plain dict (no tuple) is fine
+      code: |
+        @app.get("/data")
+        async def data_route():
+            return {"key": "value"}

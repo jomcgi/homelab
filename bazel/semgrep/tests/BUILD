@@ -9,6 +9,7 @@ filegroup(
         # Exclude Go-rule reference fixtures that are not tested against yaml_rules.
         # Exclude SQL/generic and kubernetes-specific fixtures that are tested separately.
         exclude = [
+            "fixtures/fastapi-bare-tuple-return.yaml",
             "fixtures/no-create-extension-sql.yaml",
             "fixtures/no-discarded-json-marshal.yaml",
             "fixtures/no-shared-preload-libraries-cnpg.yaml",
