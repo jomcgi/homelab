@@ -67,6 +67,10 @@ class Reconciler:
 
     async def run(self) -> ReconcileStats:
         """Reconcile the vault. Returns a ReconcileStats breakdown."""
+        # Sync ## Links sections across all processed notes before hash
+        # comparison so that notes with missing or stale sections get
+        # re-ingested in this cycle via the normal hash-change path.
+        self._pre_sync_links()
         indexed = self.store.get_indexed()
         on_disk = self._walk(previous_indexed=indexed)
 
@@ -288,6 +292,26 @@ class Reconciler:
             f.write(new_raw)
         new_hash = hashlib.sha256(new_raw.encode("utf-8")).hexdigest()
         return new_raw, new_hash
+
+    def _pre_sync_links(self) -> None:
+        """Sync the ## Links section for every note in _processed/ before reconcile.
+
+        Files whose links section is missing or stale are rewritten so their
+        on-disk hash changes, causing the main reconcile loop to re-ingest them
+        via the normal hash-change path.
+        """
+        if not self.processed_root.exists():
+            return
+        for p in self.processed_root.rglob("*.md"):
+            try:
+                raw = self._read_text(p)
+                meta, _ = frontmatter.parse(raw)
+                updated = wikilinks.sync_links(raw, meta)
+                if updated is not None:
+                    self._write_back_links(p, updated)
+                    logger.debug("knowledge: pre-synced links in %s", p.name)
+            except Exception:  # noqa: BLE001 — best-effort, never block reconcile
+                logger.warning("knowledge: failed to pre-sync links for %s", p)
 
     def _write_back_links(self, abs_path: Path, new_raw: str) -> tuple[str, str]:
         """Write the updated file (with synced ## Links section) and return (raw, hash)."""
