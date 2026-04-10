@@ -7,11 +7,14 @@ can be resumed safely.
 
 from __future__ import annotations
 
+import argparse
 import logging
+import os
 import shutil
 from pathlib import Path
 
 import yaml
+from sqlalchemy import create_engine
 from sqlmodel import Session, select
 
 from knowledge import frontmatter
@@ -156,3 +159,23 @@ def run_migration(*, vault_root: Path, session: Session) -> None:
         raws,
         atoms,
     )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--vault-root", default=os.environ.get("VAULT_ROOT", "/vault"))
+    parser.add_argument("--dsn", default=os.environ.get("DATABASE_URL"))
+    args = parser.parse_args()
+
+    if not args.dsn:
+        raise SystemExit("--dsn or DATABASE_URL is required")
+
+    logging.basicConfig(level=logging.INFO)
+    engine = create_engine(args.dsn)
+    with Session(engine) as session:
+        run_migration(vault_root=Path(args.vault_root), session=session)
+        session.commit()
+
+
+if __name__ == "__main__":
+    main()
