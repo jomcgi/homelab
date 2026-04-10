@@ -31,6 +31,9 @@ _SLUG_RE = re.compile(r"[^a-z0-9]+")
 _CLAUDE_PROMPT_HEADER = """\
 You are a knowledge gardener. Decompose the raw note below into atomic knowledge artifacts.
 
+Source raw_id: {raw_id}
+Include `derived_from_raw: {raw_id}` as a frontmatter field in every note you create.
+
 Steps:
 1. Run `knowledge-search "<topic>"` (Bash) to find related existing notes.
 2. Read related notes from {processed_root}/ using the Read tool.
@@ -41,6 +44,7 @@ Steps:
 id: <slug-of-title>
 title: "<concise title — MUST be quoted if it contains a colon>"
 type: atom|fact|active
+derived_from_raw: {raw_id}
 tags: [optional]
 edges:
   derives_from: [source-slug]   # allowed edge types: derives_from | refines | generalizes | related | contradicts | supersedes
@@ -219,26 +223,8 @@ class Gardener:
                     raw.append(p)
         return sorted(raw)
 
-    async def _ingest_one(self, path: Path) -> None:
-        """Decompose a single raw note by spawning a claude Code subprocess."""
-        raw = path.read_text(encoding="utf-8")
-        meta, body = frontmatter.parse(raw)
-        title = meta.title or path.stem
-
-        prompt = (
-            _CLAUDE_PROMPT_HEADER.format(
-                processed_root=self.processed_root,
-                title=title,
-            )
-            + raw
-        )
-
-        before = (
-            set(self.processed_root.glob("*.md"))
-            if self.processed_root.exists()
-            else set()
-        )
-
+    async def _run_claude_subprocess(self, prompt: str) -> None:
+        """Spawn a claude Code subprocess and wait for completion."""
         proc = await asyncio.create_subprocess_exec(
             self.claude_bin,
             "--print",
@@ -262,9 +248,7 @@ class Gardener:
         except asyncio.TimeoutError:
             proc.kill()
             await proc.wait()
-            raise RuntimeError(
-                f"claude timed out after {_CLAUDE_TIMEOUT_SECS}s for {path}"
-            )
+            raise RuntimeError(f"claude timed out after {_CLAUDE_TIMEOUT_SECS}s")
 
         if proc.returncode != 0:
             raise RuntimeError(
@@ -272,15 +256,75 @@ class Gardener:
                 f"{stderr.decode(errors='replace')[:300]}"
             )
 
+        self._last_stdout = stdout
+
+    async def _ingest_one(self, path: Path) -> None:
+        """Decompose a single raw note by spawning a claude Code subprocess."""
+        raw_text = path.read_text(encoding="utf-8")
+        meta, body = frontmatter.parse(raw_text)
+        title = meta.title or path.stem
+
+        # Look up RawInput row for raw_id breadcrumb and provenance.
+        raw_row: RawInput | None = None
+        raw_id = ""
+        if self.session is not None:
+            raw_row = self.session.exec(
+                select(RawInput).where(
+                    RawInput.path == str(path.relative_to(self.vault_root))
+                )
+            ).first()
+            if raw_row is not None:
+                raw_id = raw_row.raw_id
+
+        prompt = (
+            _CLAUDE_PROMPT_HEADER.format(
+                processed_root=self.processed_root,
+                title=title,
+                raw_id=raw_id,
+            )
+            + raw_text
+        )
+
+        before = (
+            set(self.processed_root.glob("*.md"))
+            if self.processed_root.exists()
+            else set()
+        )
+
+        self._last_stdout = b""
+        await self._run_claude_subprocess(prompt)
+
         after = (
             set(self.processed_root.glob("*.md"))
             if self.processed_root.exists()
             else set()
         )
-        if not (after - before):
+        new_files = sorted(after - before)
+        if not new_files:
             logger.warning(
                 "gardener: claude produced no notes for %s; leaving raw file in place\n"
                 "  stdout: %s",
                 path,
-                stdout.decode(errors="replace")[:500],
+                self._last_stdout.decode(errors="replace")[:500],
             )
+            return
+
+        if raw_row is not None and self.session is not None:
+            for new_file in new_files:
+                try:
+                    file_meta, _ = frontmatter.parse(
+                        new_file.read_text(encoding="utf-8")
+                    )
+                    note_id = file_meta.note_id
+                except Exception:
+                    continue
+                if not note_id:
+                    continue
+                self.session.add(
+                    AtomRawProvenance(
+                        raw_fk=raw_row.id,
+                        derived_note_id=note_id,
+                        gardener_version=GARDENER_VERSION,
+                    )
+                )
+            self.session.commit()

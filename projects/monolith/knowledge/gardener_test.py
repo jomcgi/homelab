@@ -524,6 +524,49 @@ class TestGardenerSkipsAlreadyProcessedRaws:
         assert [r.raw_id for r in surfaced] == ["r3"]
 
 
+class TestIngestOneRecordsPendingProvenance:
+    @pytest.mark.asyncio
+    async def test_inserts_pending_provenance_for_new_files(self, tmp_path, session):
+        """After claude produces atoms, the gardener records
+        pending atom_raw_provenance rows keyed by derived_note_id."""
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        (tmp_path / "_raw" / "2026" / "04" / "09").mkdir(parents=True)
+        raw_rel_path = "_raw/2026/04/09/r1-n.md"
+        (tmp_path / raw_rel_path).write_text("Body.", encoding="utf-8")
+        (tmp_path / "_processed").mkdir()
+
+        raw = RawInput(
+            raw_id="r1",
+            path=raw_rel_path,
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        session.add(raw)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+
+        async def fake_subprocess(prompt: str) -> None:
+            (tmp_path / "_processed" / "hello.md").write_text(
+                "---\nid: hello\ntitle: Hello\ntype: atom\n---\nBody.\n",
+                encoding="utf-8",
+            )
+
+        gardener._run_claude_subprocess = fake_subprocess  # type: ignore[method-assign]
+
+        await gardener._ingest_one(tmp_path / raw_rel_path)
+
+        rows = session.exec(select(AtomRawProvenance)).all()
+        assert len(rows) == 1
+        assert rows[0].raw_fk == raw.id
+        assert rows[0].atom_fk is None
+        assert rows[0].derived_note_id == "hello"
+        assert rows[0].gardener_version == GARDENER_VERSION
+
+
 class TestGardenerRunPhases:
     @pytest.mark.asyncio
     async def test_run_invokes_move_then_reconcile_then_decompose(
