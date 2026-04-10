@@ -7,7 +7,7 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
-from knowledge.models import Chunk, NoteLink
+from knowledge.models import AtomRawProvenance, Chunk, Note, NoteLink, RawInput
 
 
 @pytest.fixture(name="session")
@@ -154,8 +154,6 @@ class TestChunkParseEmbedding:
 
 
 def test_raw_input_roundtrip(session):
-    from knowledge.models import RawInput
-
     ri = RawInput(
         raw_id="abc123",
         path="_raw/2026/04/09/abc1-my-note.md",
@@ -175,8 +173,6 @@ def test_raw_input_roundtrip(session):
 
 
 def test_atom_raw_provenance_roundtrip(session):
-    from knowledge.models import AtomRawProvenance, Note, RawInput
-
     note = Note(
         note_id="hello-world",
         path="_processed/atoms/hello-world.md",
@@ -209,8 +205,6 @@ def test_atom_raw_provenance_roundtrip(session):
 
 
 def test_atom_raw_provenance_rejects_both_null():
-    from knowledge.models import AtomRawProvenance
-
     with pytest.raises(ValueError, match="at least one of atom_fk or raw_fk"):
         AtomRawProvenance(
             atom_fk=None,
@@ -228,8 +222,6 @@ class TestDefaultFactoryTimestamps:
 
     def test_note_created_at_auto_populated(self):
         """Note.created_at is a UTC datetime when no explicit value is given."""
-        from knowledge.models import Note
-
         note = Note(
             note_id="auto-ts-note",
             path="_processed/atoms/auto-ts-note.md",
@@ -242,8 +234,6 @@ class TestDefaultFactoryTimestamps:
 
     def test_note_indexed_at_auto_populated(self):
         """Note.indexed_at is a UTC datetime when no explicit value is given."""
-        from knowledge.models import Note
-
         note = Note(
             note_id="auto-ts-note2",
             path="_processed/atoms/auto-ts-note2.md",
@@ -255,9 +245,7 @@ class TestDefaultFactoryTimestamps:
         assert note.indexed_at.tzinfo == timezone.utc
 
     def test_note_timestamps_are_independent_instances(self):
-        """Each Note construction produces independent timestamp values (no shared reference)."""
-        from knowledge.models import Note
-
+        """Each Note construction produces independent timestamp values (default_factory, not default)."""
         n1 = Note(
             note_id="ts-a",
             path="_processed/atoms/ts-a.md",
@@ -272,15 +260,16 @@ class TestDefaultFactoryTimestamps:
             content_hash="h2",
             type="atom",
         )
-        # Both are datetimes but not the same object — default_factory calls
-        # datetime.now() each time, so they should differ by at most a few ms.
-        assert n1.created_at is not n2.created_at
-        assert n1.indexed_at is not n2.indexed_at
+        # default_factory=lambda: datetime.now(timezone.utc) is called fresh
+        # for each construction, so values differ.  Using != (not `is not`)
+        # catches the classic bug where default= would share a single evaluated
+        # object — Pydantic copies on validation so identity always differs, but
+        # value equality correctly distinguishes the two cases.
+        assert n1.created_at != n2.created_at
+        assert n1.indexed_at != n2.indexed_at
 
     def test_raw_input_created_at_auto_populated(self):
         """RawInput.created_at is a UTC datetime when no explicit value is given."""
-        from knowledge.models import RawInput
-
         ri = RawInput(
             raw_id="ri-auto-ts",
             path="_raw/2026/04/10/ri-auto-ts.md",
@@ -293,8 +282,6 @@ class TestDefaultFactoryTimestamps:
 
     def test_atom_raw_provenance_created_at_auto_populated(self):
         """AtomRawProvenance.created_at is a UTC datetime when no explicit value is given."""
-        from knowledge.models import AtomRawProvenance
-
         prov = AtomRawProvenance(
             raw_fk=1,
             gardener_version="v1",
@@ -304,8 +291,6 @@ class TestDefaultFactoryTimestamps:
 
     def test_explicit_created_at_is_respected(self):
         """Passing an explicit created_at overrides the default_factory."""
-        from knowledge.models import RawInput
-
         explicit_ts = datetime(2025, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
         ri = RawInput(
             raw_id="ri-explicit-ts",
