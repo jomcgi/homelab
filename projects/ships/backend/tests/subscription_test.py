@@ -220,14 +220,16 @@ class TestSubscribeAisStreamCatchupDetection:
         """After an empty batch, pending <= threshold marks replay as complete."""
         service = _make_service(replay_complete=False)
 
-        # Initial check: still catching up; post-batch check: below threshold
+        # Initial check: still catching up; post-batch check: below threshold.
+        # Note: the empty batch (messages_received=0) also triggers the
+        # progress-log path (0 % 10000 == 0), consuming a consumer_info call
+        # before the actual catchup-complete check runs.
         mock_psub = AsyncMock()
         mock_psub.consumer_info = AsyncMock(
             side_effect=[
                 _make_consumer_info(50_000),  # initial
-                _make_consumer_info(
-                    5_000
-                ),  # post-batch (below CATCHUP_PENDING_THRESHOLD=10000)
+                _make_consumer_info(5_000),   # progress log (messages_received=0, 0%10000==0)
+                _make_consumer_info(5_000),   # post-batch catchup check (below CATCHUP_PENDING_THRESHOLD=10000)
             ]
         )
 
@@ -249,11 +251,14 @@ class TestSubscribeAisStreamCatchupDetection:
         """After a batch, if pending > threshold, replay_complete stays False."""
         service = _make_service(replay_complete=False)
 
+        # Same three-call pattern as test_catchup_complete_after_batch:
+        # (1) initial, (2) progress log (0 % 10000 == 0), (3) post-batch check.
         mock_psub = AsyncMock()
         mock_psub.consumer_info = AsyncMock(
             side_effect=[
                 _make_consumer_info(50_000),  # initial
-                _make_consumer_info(20_000),  # post-batch: still above threshold
+                _make_consumer_info(20_000),  # progress log (messages_received=0, 0%10000==0)
+                _make_consumer_info(20_000),  # post-batch catchup check: still above threshold
             ]
         )
 
