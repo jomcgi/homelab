@@ -228,8 +228,12 @@ class TestSubscribeAisStreamCatchupDetection:
         mock_psub.consumer_info = AsyncMock(
             side_effect=[
                 _make_consumer_info(50_000),  # initial
-                _make_consumer_info(5_000),   # progress log (messages_received=0, 0%10000==0)
-                _make_consumer_info(5_000),   # post-batch catchup check (below CATCHUP_PENDING_THRESHOLD=10000)
+                _make_consumer_info(
+                    5_000
+                ),  # progress log (messages_received=0, 0%10000==0)
+                _make_consumer_info(
+                    5_000
+                ),  # post-batch catchup check (below CATCHUP_PENDING_THRESHOLD=10000)
             ]
         )
 
@@ -257,8 +261,12 @@ class TestSubscribeAisStreamCatchupDetection:
         mock_psub.consumer_info = AsyncMock(
             side_effect=[
                 _make_consumer_info(50_000),  # initial
-                _make_consumer_info(20_000),  # progress log (messages_received=0, 0%10000==0)
-                _make_consumer_info(20_000),  # post-batch catchup check: still above threshold
+                _make_consumer_info(
+                    20_000
+                ),  # progress log (messages_received=0, 0%10000==0)
+                _make_consumer_info(
+                    20_000
+                ),  # post-batch catchup check: still above threshold
             ]
         )
 
