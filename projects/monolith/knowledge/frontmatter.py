@@ -20,6 +20,39 @@ class FrontmatterError(Exception):
 
 _FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n?", re.DOTALL)
 
+# Matches a top-level YAML key-value line where the value is an unquoted
+# scalar (not indented, not a comment, not a block indicator).
+_BARE_KV_RE = re.compile(r"^([A-Za-z_][\w]*):[ \t]+(.+)$")
+
+
+def _sanitize_yaml_block(block: str) -> str:
+    """Quote top-level scalar values that contain bare `: ` sequences.
+
+    Claude-generated frontmatter sometimes produces unquoted titles like
+    ``title: Atomic Note: One Concept`` which breaks ``yaml.safe_load``
+    because YAML interprets the second colon as a nested mapping key.
+
+    This pre-processes the raw YAML block, wrapping such values in double
+    quotes.  Indented lines, already-quoted values, and flow collections
+    (``[…]`` / ``{…}``) are left untouched.
+    """
+    out: list[str] = []
+    for line in block.splitlines():
+        m = _BARE_KV_RE.match(line)
+        if m:
+            key, val = m.group(1), m.group(2)
+            val_stripped = val.strip()
+            already_safe = (
+                val_stripped.startswith(("'", '"', "[", "{"))
+                or ": " not in val_stripped
+            )
+            if not already_safe:
+                escaped = val_stripped.replace("\\", "\\\\").replace('"', '\\"')
+                line = f'{key}: "{escaped}"'
+        out.append(line)
+    return "\n".join(out)
+
+
 _PROMOTED_KEYS = {
     "id",
     "title",
@@ -73,7 +106,7 @@ def parse(raw: str) -> tuple[ParsedFrontmatter, str]:
     match = _FRONTMATTER_RE.match(raw)
     if not match:
         return ParsedFrontmatter(), raw
-    block = match.group(1)
+    block = _sanitize_yaml_block(match.group(1))
     body = raw[match.end() :]
     try:
         data = yaml.safe_load(block) or {}

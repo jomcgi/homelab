@@ -33,13 +33,15 @@ Steps:
 4. Each file must start with YAML frontmatter:
 ---
 id: <slug-of-title>
-title: <concise title>
+title: "<concise title — MUST be quoted if it contains a colon>"
 type: atom|fact|active
 tags: [optional]
 edges:
   derives_from: [source-slug]   # allowed edge types: derives_from | refines | generalizes | related | contradicts | supersedes
 ---
 <markdown body>
+   IMPORTANT: Always wrap the title value in double quotes to avoid YAML parse errors
+   (e.g. `title: "Atomic Note: One Concept"`, NOT `title: Atomic Note: One Concept`).
 5. Patch edges on related existing notes using the Edit tool.
 6. Each note covers exactly one concept. Prefer many small notes over one large note.
 
@@ -85,7 +87,7 @@ def _split_frontmatter(raw: str) -> tuple[dict, str]:
     block = "".join(lines[1:end_idx])
     body = "".join(lines[end_idx + 1 :])
     try:
-        meta = yaml.safe_load(block) or {}
+        meta = yaml.safe_load(frontmatter._sanitize_yaml_block(block)) or {}
     except yaml.YAMLError:
         return {}, raw
     if not isinstance(meta, dict):
