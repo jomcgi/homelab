@@ -184,6 +184,23 @@ class ChatBot(discord.Client):
 
     async def on_ready(self):
         logger.info("Discord bot connected as %s", self.user)
+        # Re-register ThinkingView for recent bot messages so the "Show thinking"
+        # button keeps working after a pod restart.
+        try:
+            with Session(get_engine()) as session:
+                store = MessageStore(session=session, embed_client=self.embed_client)
+                messages_with_thinking = store.get_messages_with_thinking()
+            for msg in messages_with_thinking:
+                self.add_view(
+                    ThinkingView(msg.thinking),
+                    message_id=int(msg.discord_message_id),
+                )
+            logger.info(
+                "Re-registered ThinkingView for %d bot messages",
+                len(messages_with_thinking),
+            )
+        except Exception:
+            logger.exception("Failed to re-register ThinkingViews on ready")
 
     async def on_message(self, message: discord.Message):
         # Skip own messages — bot responses are stored explicitly after sending
@@ -276,7 +293,7 @@ class ChatBot(discord.Client):
                 store.mark_completed(msg_id)
             return
 
-        # Store bot response separately
+        # Store bot response separately, including thinking for button persistence
         try:
             with Session(get_engine()) as session:
                 store = MessageStore(session=session, embed_client=self.embed_client)
@@ -287,6 +304,7 @@ class ChatBot(discord.Client):
                     username=self.user.display_name,
                     content=response_text,
                     is_bot=True,
+                    thinking=thinking,
                 )
         except Exception:
             logger.exception("Failed to store bot response for message %s", msg_id)

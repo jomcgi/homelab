@@ -202,3 +202,53 @@ class TestGetAttachments:
         att, blob = result[msg.id][0]
         assert att.filename == "a.png"
         assert blob.description == "Cat"
+
+
+class TestThinking:
+    @pytest.mark.asyncio
+    async def test_save_message_stores_thinking(self, store):
+        """Thinking text is persisted alongside the message."""
+        msg = await store.save_message(
+            discord_message_id="t1",
+            channel_id="ch1",
+            user_id="u1",
+            username="Bot",
+            content="Hello!",
+            is_bot=True,
+            thinking="my reasoning here",
+        )
+        assert msg is not None
+        assert msg.thinking == "my reasoning here"
+
+    @pytest.mark.asyncio
+    async def test_save_message_no_thinking_defaults_none(self, store):
+        """Messages saved without thinking have thinking=None."""
+        msg = await store.save_message(
+            discord_message_id="t2",
+            channel_id="ch1",
+            user_id="u1",
+            username="Alice",
+            content="Hi",
+            is_bot=False,
+        )
+        assert msg.thinking is None
+
+    @pytest.mark.asyncio
+    async def test_get_messages_with_thinking(self, store):
+        """get_messages_with_thinking returns only bot messages with thinking."""
+        store.embed_client.embed_batch.return_value = [
+            [0.0] * 1024,
+            [0.0] * 1024,
+            [0.0] * 1024,
+        ]
+
+        await store.save_message(
+            "m1", "ch1", "u1", "Bot", "resp1", True, thinking="thought1"
+        )
+        await store.save_message("m2", "ch1", "u1", "Bot", "resp2", True, thinking=None)
+        await store.save_message("m3", "ch1", "u2", "Alice", "human msg", False)
+
+        results = store.get_messages_with_thinking()
+        assert len(results) == 1
+        assert results[0].discord_message_id == "m1"
+        assert results[0].thinking == "thought1"

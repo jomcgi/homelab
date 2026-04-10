@@ -20,6 +20,7 @@ class Message(SQLModel, table=True):
     username: str
     content: str
     is_bot: bool = Field(default=False)
+    thinking: str | None = Field(default=None)
     embedding: list[float] = Field(sa_column=Column(Vector(1024)))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

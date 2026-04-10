@@ -256,6 +256,9 @@ class TestThinkingIntegration:
         call_kwargs = message.reply.call_args
         assert call_kwargs[0][0] == "Hello!"
         assert isinstance(call_kwargs[1].get("view"), ThinkingView)
+        # Verify thinking was passed to save_message for the bot response
+        bot_save_call = mock_store.save_message.call_args_list[-1]
+        assert bot_save_call.kwargs.get("thinking") == "reasoning here"
 
     @pytest.mark.asyncio
     async def test_response_without_thinking_no_view(self):
@@ -390,3 +393,80 @@ class TestThinkingIntegration:
             await bot.on_message(message)
 
         message.reply.assert_called_once_with(literal_output)
+
+
+class TestOnReadyThinkingRegistration:
+    @pytest.mark.asyncio
+    async def test_on_ready_registers_views_for_messages_with_thinking(self):
+        """on_ready calls add_view for each stored bot message that has thinking."""
+        bot = _make_bot()
+
+        msg1 = MagicMock()
+        msg1.discord_message_id = "111"
+        msg1.thinking = "thought A"
+        msg2 = MagicMock()
+        msg2.discord_message_id = "222"
+        msg2.thinking = "thought B"
+
+        mock_store = MagicMock()
+        mock_store.get_messages_with_thinking.return_value = [msg1, msg2]
+
+        bot.add_view = MagicMock()
+
+        with (
+            patch("chat.bot.get_engine"),
+            patch("chat.bot.Session") as mock_session_cls,
+            patch("chat.bot.MessageStore", return_value=mock_store),
+        ):
+            ctx = MagicMock()
+            mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
+            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
+            await bot.on_ready()
+
+        assert bot.add_view.call_count == 2
+        calls = bot.add_view.call_args_list
+        assert calls[0].kwargs["message_id"] == 111
+        assert calls[1].kwargs["message_id"] == 222
+        assert isinstance(calls[0].args[0], ThinkingView)
+        assert isinstance(calls[1].args[0], ThinkingView)
+
+    @pytest.mark.asyncio
+    async def test_on_ready_no_views_when_no_thinking_messages(self):
+        """on_ready does not call add_view when there are no stored thinking messages."""
+        bot = _make_bot()
+
+        mock_store = MagicMock()
+        mock_store.get_messages_with_thinking.return_value = []
+
+        bot.add_view = MagicMock()
+
+        with (
+            patch("chat.bot.get_engine"),
+            patch("chat.bot.Session") as mock_session_cls,
+            patch("chat.bot.MessageStore", return_value=mock_store),
+        ):
+            ctx = MagicMock()
+            mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
+            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
+            await bot.on_ready()
+
+        bot.add_view.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_on_ready_store_failure_does_not_crash(self):
+        """on_ready swallows store errors so the bot still starts."""
+        bot = _make_bot()
+        bot.add_view = MagicMock()
+
+        with (
+            patch("chat.bot.get_engine"),
+            patch("chat.bot.Session") as mock_session_cls,
+            patch("chat.bot.MessageStore", side_effect=Exception("db error")),
+        ):
+            ctx = MagicMock()
+            mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
+            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
+            # Should not raise
+            await bot.on_ready()
+
+        bot.add_view.assert_not_called()

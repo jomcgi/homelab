@@ -72,6 +72,7 @@ class MessageStore:
                     username=m["username"],
                     content=m["content"],
                     is_bot=m["is_bot"],
+                    thinking=m.get("thinking"),
                     embedding=embedding,
                 )
                 self.session.add(msg)
@@ -116,6 +117,7 @@ class MessageStore:
         content: str,
         is_bot: bool,
         attachments: list[dict] | None = None,
+        thinking: str | None = None,
     ) -> Message | None:
         """Embed and persist a message. Returns None if already stored."""
         msg_dict = {
@@ -126,6 +128,7 @@ class MessageStore:
             "content": content,
             "is_bot": is_bot,
             "attachments": attachments,
+            "thinking": thinking,
         }
         result = await self.save_messages([msg_dict])
         if result.skipped:
@@ -314,6 +317,16 @@ class MessageStore:
         stmt = select(UserChannelSummary).where(
             UserChannelSummary.channel_id == channel_id,
             UserChannelSummary.user_id.in_(user_ids),
+        )
+        return list(self.session.exec(stmt).all())
+
+    def get_messages_with_thinking(self, limit: int = 200) -> list[Message]:
+        """Return recent bot messages that have stored thinking, newest first."""
+        stmt = (
+            select(Message)
+            .where(Message.is_bot == True, Message.thinking != None)  # noqa: E711,E712
+            .order_by(Message.created_at.desc())
+            .limit(limit)
         )
         return list(self.session.exec(stmt).all())
 
