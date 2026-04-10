@@ -8,7 +8,7 @@ import os
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -20,8 +20,7 @@ from knowledge.models import AtomRawProvenance, RawInput
 
 logger = logging.getLogger("monolith.knowledge.gardener")
 
-_EXCLUDED_DIRS = {"_processed", "_deleted_with_ttl", ".obsidian", ".trash"}
-_TTL_HOURS = 24
+_EXCLUDED_DIRS = {"_processed", "_raw", ".obsidian", ".trash"}
 
 # Version stamp recorded on every provenance row the gardener produces.
 # Bump this when the prompt or model changes to trigger a manual reprocess.
@@ -70,7 +69,9 @@ def _slugify(text_in: str) -> str:
 class GardenStats:
     ingested: int
     failed: int
-    ttl_cleaned: int
+    moved: int = 0
+    deduped: int = 0
+    reconciled: int = 0
 
 
 def _split_frontmatter(raw: str) -> tuple[dict, str]:
@@ -122,7 +123,6 @@ class Gardener:
         self.claude_bin = claude_bin
         self.session = session
         self.processed_root = self.vault_root / "_processed"
-        self.deleted_root = self.vault_root / "_deleted_with_ttl"
 
     def _raws_needing_decomposition(self) -> list[RawInput]:
         """Return raws that have no current-version provenance and no sentinel."""
@@ -148,31 +148,52 @@ class Gardener:
         return list(self.session.exec(stmt).all())
 
     async def run(self) -> GardenStats:
-        """Run one gardening cycle: ingest raw files, then TTL cleanup."""
-        raw_files = self._discover_raw_files()
-        if self.max_files_per_run > 0 and len(raw_files) > self.max_files_per_run:
+        """Run one gardening cycle: move -> reconcile -> decompose."""
+        from knowledge.raw_ingest import move_phase, reconcile_raw_phase
+
+        now = datetime.now(timezone.utc)
+        move_stats = move_phase(vault_root=self.vault_root, now=now)
+
+        reconcile_stats = None
+        if self.session is not None:
+            reconcile_stats = reconcile_raw_phase(
+                vault_root=self.vault_root, session=self.session
+            )
+            self.session.commit()
+
+        raws = self._raws_needing_decomposition()
+        if self.max_files_per_run > 0 and len(raws) > self.max_files_per_run:
             logger.info(
-                "gardener: discovered %d raw files, capping this run at %d",
-                len(raw_files),
+                "gardener: %d raws need decomposition, capping to %d",
+                len(raws),
                 self.max_files_per_run,
             )
-            raw_files = raw_files[: self.max_files_per_run]
+            raws = raws[: self.max_files_per_run]
+
         ingested = 0
         failed = 0
-        for path in raw_files:
+        for raw in raws:
             try:
-                await self._ingest_one(path)
+                await self._ingest_one(self.vault_root / raw.path)
                 ingested += 1
             except Exception:
-                logger.exception("gardener: failed to ingest %s", path)
+                logger.exception("gardener: failed to ingest %s", raw.path)
                 failed += 1
-        ttl_cleaned = self._cleanup_ttl()
-        stats = GardenStats(ingested=ingested, failed=failed, ttl_cleaned=ttl_cleaned)
+
+        stats = GardenStats(
+            ingested=ingested,
+            failed=failed,
+            moved=move_stats.moved,
+            deduped=move_stats.deduped,
+            reconciled=(reconcile_stats.inserted if reconcile_stats else 0),
+        )
         logger.info(
-            "knowledge.garden: ingested=%d failed=%d ttl_cleaned=%d",
+            "knowledge.garden: moved=%d deduped=%d reconciled=%d ingested=%d failed=%d",
+            stats.moved,
+            stats.deduped,
+            stats.reconciled,
             stats.ingested,
             stats.failed,
-            stats.ttl_cleaned,
         )
         return stats
 
@@ -263,54 +284,3 @@ class Gardener:
                 path,
                 stdout.decode(errors="replace")[:500],
             )
-            return
-
-        self._soft_delete(path)
-
-    def _soft_delete(self, source: Path) -> None:
-        """Move a raw file to _deleted_with_ttl/ with a TTL in frontmatter."""
-        rel = source.relative_to(self.vault_root)
-        dest = self.deleted_root / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-
-        raw = source.read_text(encoding="utf-8")
-        ttl_dt = datetime.now(timezone.utc) + timedelta(hours=_TTL_HOURS)
-        ttl_iso = ttl_dt.isoformat()
-
-        meta_dict, body = _split_frontmatter(raw)
-        meta_dict["ttl"] = ttl_iso  # Overwrites any existing ttl
-
-        new_raw = (
-            f"---\n{yaml.safe_dump(meta_dict, sort_keys=False).rstrip()}\n---\n{body}"
-        )
-
-        dest.write_text(new_raw, encoding="utf-8")
-        source.unlink()
-
-    def _cleanup_ttl(self) -> int:
-        """Delete files in _deleted_with_ttl/ whose TTL has expired."""
-        if not self.deleted_root.exists():
-            return 0
-        now = datetime.now(timezone.utc)
-        cleaned = 0
-        for p in list(self.deleted_root.rglob("*.md")):
-            try:
-                raw = p.read_text(encoding="utf-8")
-                meta, _ = frontmatter.parse(raw)
-                ttl_str = meta.extra.get("ttl")
-                if not ttl_str:
-                    continue
-                ttl_dt = datetime.fromisoformat(str(ttl_str))
-                if ttl_dt.tzinfo is None:
-                    ttl_dt = ttl_dt.replace(tzinfo=timezone.utc)
-                if now >= ttl_dt:
-                    p.unlink()
-                    cleaned += 1
-            except (
-                ValueError,
-                OSError,
-                yaml.YAMLError,
-                frontmatter.FrontmatterError,
-            ) as exc:
-                logger.warning("gardener: failed to check TTL for %s: %s", p, exc)
-        return cleaned
