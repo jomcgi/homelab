@@ -193,9 +193,8 @@ class KnowledgeStore:
         if type_filter is not None:
             notes_stmt = notes_stmt.where(Note.type == type_filter)
 
-        note_rows = self.session.execute(
-            notes_stmt
-        ).all()  # nosemgrep: generic-sql-fastapi
+        # nosemgrep: generic-sql-fastapi
+        note_rows = self.session.execute(notes_stmt).all()
         if not note_rows:
             return []
 
@@ -212,6 +211,7 @@ class KnowledgeStore:
             .order_by(Chunk.note_fk, chunk_distance)
             .distinct(Chunk.note_fk)
         )
+        # nosemgrep: generic-sql-fastapi
         chunk_rows = self.session.execute(chunks_stmt).all()
         best_chunk_by_note = {
             row.note_fk: (row.section_header, row.chunk_text) for row in chunk_rows
