@@ -687,7 +687,9 @@ class TestPublishPositionNATSDetails:
         assert service.messages_published == 0
         await service.publish_position("111", data)
         assert service.messages_published == 1
-        await service.publish_position("111", {**data, "timestamp": "2024-01-15T10:01:00Z"})
+        await service.publish_position(
+            "111", {**data, "timestamp": "2024-01-15T10:01:00Z"}
+        )
         assert service.messages_published == 2
 
     @pytest.mark.asyncio

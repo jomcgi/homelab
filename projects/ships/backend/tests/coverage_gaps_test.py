@@ -845,9 +845,7 @@ class TestDatabaseIndexOperations:
         db = Database.__new__(Database)
         executed_sqls = []
         mock_conn = AsyncMock()
-        mock_conn.execute = AsyncMock(
-            side_effect=lambda sql: executed_sqls.append(sql)
-        )
+        mock_conn.execute = AsyncMock(side_effect=lambda sql: executed_sqls.append(sql))
         mock_conn.commit = AsyncMock()
         db.db = mock_conn
 
