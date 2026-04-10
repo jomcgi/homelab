@@ -385,7 +385,10 @@ class TestCloudflareOperatorTestChart:
             for c in _mock_k8s.ObjectMeta.call_args_list
             if c.kwargs.get("annotations") is not None
         )
-        assert service_meta.kwargs["annotations"]["cloudflare.zero-trust.enabled"] == "false"
+        assert (
+            service_meta.kwargs["annotations"]["cloudflare.zero-trust.enabled"]
+            == "false"
+        )
 
     def test_auth_service_has_zero_trust_policy(self):
         """The auth service must have cloudflare.zero-trust.policy annotation."""
@@ -395,7 +398,10 @@ class TestCloudflareOperatorTestChart:
             for c in _mock_k8s.ObjectMeta.call_args_list
             if c.kwargs.get("annotations") is not None
         )
-        assert service_meta.kwargs["annotations"]["cloudflare.zero-trust.policy"] == "admins"
+        assert (
+            service_meta.kwargs["annotations"]["cloudflare.zero-trust.policy"]
+            == "admins"
+        )
 
     def test_noauth_service_hostname_annotation(self):
         """The noauth service must carry its Cloudflare hostname annotation."""
@@ -408,7 +414,10 @@ class TestCloudflareOperatorTestChart:
             for c in _mock_k8s.ObjectMeta.call_args_list
             if c.kwargs.get("annotations") is not None
         )
-        assert service_meta.kwargs["annotations"]["cloudflare.ingress.hostname"] == "noauth.example.com"
+        assert (
+            service_meta.kwargs["annotations"]["cloudflare.ingress.hostname"]
+            == "noauth.example.com"
+        )
 
     def test_auth_service_hostname_annotation(self):
         """The auth service must carry its Cloudflare hostname annotation."""
@@ -421,7 +430,10 @@ class TestCloudflareOperatorTestChart:
             for c in _mock_k8s.ObjectMeta.call_args_list
             if c.kwargs.get("annotations") is not None
         )
-        assert service_meta.kwargs["annotations"]["cloudflare.ingress.hostname"] == "auth.example.com"
+        assert (
+            service_meta.kwargs["annotations"]["cloudflare.ingress.hostname"]
+            == "auth.example.com"
+        )
 
     def test_noauth_replicas_custom(self):
         self._create(noauth_replicas=2, auth_enabled=False)
