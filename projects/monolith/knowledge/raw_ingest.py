@@ -7,8 +7,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from sqlmodel import Session, select
+
 from knowledge import frontmatter
+from knowledge.models import Note, RawInput
 from knowledge.raw_paths import (
+    GRANDFATHERED_SUBDIR,
     RAW_ROOT_NAME,
     compute_raw_id,
     raw_target_path,
@@ -94,3 +98,84 @@ def move_phase(*, vault_root: Path, now: datetime) -> MovePhaseStats:
         moved += 1
 
     return MovePhaseStats(moved=moved, deduped=deduped)
+
+
+@dataclass(frozen=True)
+class ReconcileRawStats:
+    inserted: int
+    skipped: int
+
+
+def _infer_source(meta_source: str | None, rel_parts: tuple[str, ...]) -> str:
+    if meta_source:
+        return meta_source
+    if GRANDFATHERED_SUBDIR in rel_parts:
+        return "grandfathered"
+    return "vault-drop"
+
+
+def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawStats:
+    """Mirror _raw/ contents into knowledge.raw_inputs + notes(type='raw').
+
+    Idempotent on path: already-reconciled files are skipped.
+    """
+    raw_root = vault_root / RAW_ROOT_NAME
+    if not raw_root.exists():
+        return ReconcileRawStats(inserted=0, skipped=0)
+
+    inserted = 0
+    skipped = 0
+
+    existing_paths = set(session.exec(select(RawInput.path)).all())
+
+    for file_path in sorted(raw_root.rglob("*.md")):
+        rel = file_path.relative_to(vault_root).as_posix()
+        if rel in existing_paths:
+            skipped += 1
+            continue
+
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except OSError as read_err:
+            logger.warning(
+                "reconcile_raw_phase: failed to read %s: %s", file_path, read_err
+            )
+            continue
+
+        try:
+            meta, _body = frontmatter.parse(content)
+        except Exception:
+            meta = None
+
+        raw_id = compute_raw_id(content)
+        title = meta.title if meta and meta.title else file_path.stem
+        source = _infer_source(
+            meta.source if meta else None,
+            file_path.relative_to(vault_root).parts,
+        )
+        original_path = None
+        if meta and meta.extra:
+            original_path = meta.extra.get("original_path")
+
+        ri = RawInput(
+            raw_id=raw_id,
+            path=rel,
+            source=source,
+            original_path=original_path,
+            content=content,
+            content_hash=raw_id,
+        )
+        session.add(ri)
+
+        note = Note(
+            note_id=raw_id,
+            path=rel,
+            title=title,
+            content_hash=raw_id,
+            type="raw",
+            source=source,
+        )
+        session.add(note)
+        inserted += 1
+
+    return ReconcileRawStats(inserted=inserted, skipped=skipped)
