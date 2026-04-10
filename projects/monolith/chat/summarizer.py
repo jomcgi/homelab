@@ -217,9 +217,31 @@ def on_startup(
 
     if bot is not None:
         from chat.changelog import run_changelog_iteration
+        from shared.embedding import EmbeddingClient
 
         async def _changelog_handler(session: "Session") -> datetime | None:
-            await run_changelog_iteration(bot, llm_call)
+            from chat.store import MessageStore
+
+            embed_client = EmbeddingClient()
+
+            async def _store_message(
+                discord_message_id: str,
+                channel_id: str,
+                user_id: str,
+                username: str,
+                content: str,
+            ) -> None:
+                store = MessageStore(session=session, embed_client=embed_client)
+                await store.save_message(
+                    discord_message_id=discord_message_id,
+                    channel_id=channel_id,
+                    user_id=user_id,
+                    username=username,
+                    content=content,
+                    is_bot=True,
+                )
+
+            await run_changelog_iteration(bot, llm_call, store_message=_store_message)
             # Always align to the next hour boundary
             now = datetime.now(timezone.utc)
             next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(

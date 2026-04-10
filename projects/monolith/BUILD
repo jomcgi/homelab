@@ -726,6 +726,18 @@ py_test(
 )
 
 py_test(
+    name = "bot_embed_test",
+    srcs = ["chat/bot_embed_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "web_search_headers_test",
     srcs = ["chat/web_search_headers_test.py"],
     imports = ["."],

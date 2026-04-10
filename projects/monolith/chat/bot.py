@@ -164,13 +164,26 @@ async def download_image_attachments(
 
 
 def _has_embeddable_content(message: discord.Message) -> bool:
-    """Return True if the message has text or image attachments that produce a description."""
+    """Return True if the message has text, image attachments, or Discord embeds."""
     if message.content.strip():
         return True
-    return any(
+    if any(
         a.content_type and a.content_type.startswith("image/")
         for a in message.attachments
-    )
+    ):
+        return True
+    return any(e.title or e.description for e in message.embeds)
+
+
+def _extract_embed_text(message: discord.Message) -> str:
+    """Extract text from Discord embeds as a single string."""
+    parts = []
+    for embed in message.embeds:
+        if embed.title:
+            parts.append(embed.title)
+        if embed.description:
+            parts.append(embed.description)
+    return "\n".join(parts)
 
 
 class ChatBot(discord.Client):
@@ -244,12 +257,13 @@ class ChatBot(discord.Client):
                 attachments = await download_image_attachments(
                     message.attachments, self.vision_client, store=store
                 )
+                content = message.content or _extract_embed_text(message)
                 await store.save_message(
                     discord_message_id=msg_id,
                     channel_id=channel_id,
                     user_id=str(message.author.id),
                     username=message.author.display_name,
-                    content=message.content,
+                    content=content,
                     is_bot=message.author.bot,
                     attachments=attachments if attachments else None,
                 )

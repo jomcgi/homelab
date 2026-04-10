@@ -421,3 +421,86 @@ class TestRunChangelogIteration:
 
         # Should log a warning but not crash
         bot.get_channel.assert_called_once_with(888)
+
+    @pytest.mark.asyncio
+    async def test_store_message_called_after_successful_send(self):
+        """store_message callback is called with the sent message's ID and content."""
+        sent_msg = MagicMock()
+        sent_msg.id = 12345
+
+        mock_channel = AsyncMock()
+        mock_channel.send = AsyncMock(return_value=sent_msg)
+
+        bot = MagicMock(spec=discord.Client)
+        bot.get_channel.return_value = mock_channel
+        bot.user = MagicMock()
+        bot.user.id = 999
+        bot.user.display_name = "Gemma4"
+
+        mock_llm = AsyncMock(return_value="A great new feature landed.")
+        store_message = AsyncMock()
+
+        env = {
+            "CHANGELOG_CHANNEL_ID": "777",
+            "GITHUB_TOKEN": "ghp_tok",
+            "CHANGELOG_GITHUB_REPO": "owner/repo",
+        }
+
+        commits = [_make_commit("feat: cool thing", "Alice")]
+        mock_response = MagicMock()
+        mock_response.json.return_value = commits
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.dict("os.environ", env):
+            with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
+                await run_changelog_iteration(
+                    bot, mock_llm, store_message=store_message
+                )
+
+        store_message.assert_called_once()
+        call_args = store_message.call_args[0]
+        assert call_args[0] == "12345"  # discord_message_id
+        assert call_args[1] == "777"  # channel_id
+        assert call_args[2] == "999"  # user_id
+        assert call_args[3] == "Gemma4"  # username
+        assert "A great new feature landed." in call_args[4]  # content includes summary
+
+    @pytest.mark.asyncio
+    async def test_store_message_not_called_when_channel_not_found(self):
+        """store_message is not called when the channel cannot be found."""
+        bot = MagicMock(spec=discord.Client)
+        bot.get_channel.return_value = None
+        bot.user = MagicMock()
+        bot.user.id = 999
+
+        mock_llm = AsyncMock(return_value="Summary.")
+        store_message = AsyncMock()
+
+        env = {
+            "CHANGELOG_CHANNEL_ID": "777",
+            "GITHUB_TOKEN": "ghp_tok",
+            "CHANGELOG_GITHUB_REPO": "owner/repo",
+        }
+
+        commits = [_make_commit("feat: thing", "Alice")]
+        mock_response = MagicMock()
+        mock_response.json.return_value = commits
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.dict("os.environ", env):
+            with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
+                await run_changelog_iteration(
+                    bot, mock_llm, store_message=store_message
+                )
+
+        store_message.assert_not_called()

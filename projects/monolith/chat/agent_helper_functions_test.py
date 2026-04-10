@@ -671,6 +671,33 @@ class TestSearchHistoryUsernameCoercion:
         assert store.search_similar.call_args.kwargs.get("user_id") is None
 
     @pytest.mark.asyncio
+    async def test_discord_user_id_mention_dict_used_directly(self):
+        """A {'type': 'user_id', 'id': ...} dict bypasses username lookup and uses the id directly."""
+        embed_client = AsyncMock()
+        embed_client.embed.return_value = [0.0] * 1024
+        store = MagicMock()
+        store.search_similar.return_value = []
+
+        deps = _make_deps(
+            store=store, embed_client=embed_client, channel_id="ch-mention"
+        )
+        await create_agent(base_url="http://fake:8080").run(
+            "p",
+            model=_tool_model(
+                "search_history",
+                {
+                    "query": "changelog",
+                    "username": {"type": "user_id", "id": "1294788769672593501"},
+                    "limit": 5,
+                },
+            ),
+            deps=deps,
+        )
+
+        store.find_user_id_by_username.assert_not_called()
+        assert store.search_similar.call_args.kwargs["user_id"] == "1294788769672593501"
+
+    @pytest.mark.asyncio
     async def test_resolved_user_id_forwarded_to_search_similar(self):
         """Resolved user_id from store lookup is passed to store.search_similar."""
         embed_client = AsyncMock()

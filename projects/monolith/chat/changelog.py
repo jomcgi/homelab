@@ -87,8 +87,14 @@ def _build_embed(summary: str, commit_count: int) -> discord.Embed:
 async def run_changelog_iteration(
     bot: discord.Client,
     llm_call: Callable[[str], Awaitable[str]],
+    store_message: "Callable[[str, str, str, str, str], Awaitable[None]] | None" = None,
 ) -> None:
-    """Single iteration: fetch recent commits, summarize, post to Discord."""
+    """Single iteration: fetch recent commits, summarize, post to Discord.
+
+    store_message, if provided, is called with (discord_message_id, channel_id,
+    user_id, username, content) after a successful send so the changelog message
+    is searchable in history.
+    """
     channel_id = os.environ.get("CHANGELOG_CHANNEL_ID", "")
     github_token = os.environ.get("GITHUB_TOKEN", "")
     github_repo = os.environ.get("CHANGELOG_GITHUB_REPO", "")
@@ -117,11 +123,22 @@ async def run_changelog_iteration(
 
     channel = bot.get_channel(int(channel_id))
     if channel:
-        await channel.send(embed=embed)
+        sent = await channel.send(embed=embed)
         logger.info(
             "Changelog: posted %d changes to channel %s",
             len(changelog_commits),
             channel_id,
         )
+        if store_message is not None and bot.user is not None:
+            try:
+                await store_message(
+                    str(sent.id),
+                    channel_id,
+                    str(bot.user.id),
+                    bot.user.display_name,
+                    f"Homelab Changelog\n{summary}",
+                )
+            except Exception:
+                logger.exception("Changelog: failed to store sent message %s", sent.id)
     else:
         logger.warning("Changelog: channel %s not found", channel_id)
