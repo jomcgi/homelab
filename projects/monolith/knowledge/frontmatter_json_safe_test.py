@@ -213,12 +213,7 @@ class TestJsonSafeIntegration:
 
     def test_multiple_date_fields_in_extra_all_coerced(self):
         """Multiple date fields in extra are all coerced to strings."""
-        raw = (
-            "---\ntitle: T\n"
-            "start_date: 2024-01-01\n"
-            "end_date: 2024-12-31\n"
-            "---\nbody"
-        )
+        raw = "---\ntitle: T\nstart_date: 2024-01-01\nend_date: 2024-12-31\n---\nbody"
         meta, _ = parse(raw)
         assert isinstance(meta.extra["start_date"], str)
         assert isinstance(meta.extra["end_date"], str)
