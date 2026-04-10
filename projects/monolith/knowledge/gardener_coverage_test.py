@@ -6,14 +6,39 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
 
 from knowledge.gardener import Gardener
+from knowledge.models import RawInput
 
 
 def _write(tmp_path: Path, rel: str, content: str) -> None:
     p = tmp_path / rel
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content)
+
+
+@pytest.fixture(name="session")
+def session_fixture():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    original_schemas = {}
+    for table in SQLModel.metadata.tables.values():
+        if table.schema is not None:
+            original_schemas[table.name] = table.schema
+            table.schema = None
+    try:
+        SQLModel.metadata.create_all(engine)
+        with Session(engine) as session:
+            yield session
+    finally:
+        for table in SQLModel.metadata.tables.values():
+            if table.name in original_schemas:
+                table.schema = original_schemas[table.name]
 
 
 class TestIngestOneFileIOError:
@@ -29,18 +54,21 @@ class TestIngestOneFileIOError:
             await Gardener(vault_root=tmp_path)._ingest_one(nonexistent)
 
     @pytest.mark.asyncio
-    async def test_run_counts_io_error_as_failed(self, tmp_path):
-        """A missing file discovered between _discover_raw_files() and _ingest_one()
-        is counted as a failure, not an unhandled crash."""
-        nonexistent = tmp_path / "inbox" / "ghost.md"
-        nonexistent.parent.mkdir(parents=True, exist_ok=True)
+    async def test_run_counts_io_error_as_failed(self, tmp_path, session):
+        """A raw in the DB whose file is missing on disk is counted as a
+        failure, not an unhandled crash."""
+        # Insert a RawInput row pointing to a file that doesn't exist on disk.
+        raw = RawInput(
+            raw_id="ghost",
+            path="_raw/2026/04/09/ghost-note.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="ghost",
+        )
+        session.add(raw)
+        session.commit()
 
-        gardener = Gardener(vault_root=tmp_path)
-
-        def patched_discover():
-            return [nonexistent]
-
-        gardener._discover_raw_files = patched_discover  # type: ignore[method-assign]
+        gardener = Gardener(vault_root=tmp_path, session=session)
         stats = await gardener.run()
 
         assert stats.failed == 1
@@ -49,21 +77,36 @@ class TestIngestOneFileIOError:
 
 class TestIngestOneSubprocessFailure:
     @pytest.mark.asyncio
-    async def test_raises_on_nonzero_exit_propagates_through_run(self, tmp_path):
+    async def test_raises_on_nonzero_exit_propagates_through_run(
+        self, tmp_path, session
+    ):
         """When claude exits non-zero, run() counts it as failed and continues."""
-        _write(tmp_path, "inbox/raw.md", "---\ntitle: Test\n---\nBody.")
+        raw_dir = tmp_path / "_raw" / "2026" / "04" / "09"
+        raw_dir.mkdir(parents=True)
+        raw_file = raw_dir / "abc1-test.md"
+        raw_file.write_text("---\ntitle: Test\n---\nBody.")
+
+        raw = RawInput(
+            raw_id="abc1",
+            path="_raw/2026/04/09/abc1-test.md",
+            source="vault-drop",
+            content="---\ntitle: Test\n---\nBody.",
+            content_hash="abc1",
+        )
+        session.add(raw)
+        session.commit()
 
         proc_mock = AsyncMock()
         proc_mock.returncode = 1
         proc_mock.communicate = AsyncMock(return_value=(b"", b"some error"))
 
         with patch("asyncio.create_subprocess_exec", return_value=proc_mock):
-            stats = await Gardener(vault_root=tmp_path).run()
+            stats = await Gardener(vault_root=tmp_path, session=session).run()
 
         assert stats.failed == 1
         assert stats.ingested == 0
-        # Raw file must survive — it was not soft-deleted
-        assert (tmp_path / "inbox" / "raw.md").exists()
+        # Raw file must survive
+        assert raw_file.exists()
 
     @pytest.mark.asyncio
     async def test_custom_claude_bin_is_passed_to_subprocess(self, tmp_path):

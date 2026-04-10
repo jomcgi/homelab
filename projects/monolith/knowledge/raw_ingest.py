@@ -23,7 +23,6 @@ logger = logging.getLogger("monolith.knowledge.raw_ingest")
 _EXCLUDED_TOP_LEVEL = {
     RAW_ROOT_NAME,
     "_processed",
-    "_deleted_with_ttl",
     ".obsidian",
     ".trash",
 }

@@ -37,7 +37,6 @@ class TestMovePhase:
     def test_skips_files_already_under_managed_dirs(self, tmp_path):
         _write(tmp_path / "_raw" / "2026" / "04" / "09" / "abc-note.md", "x")
         _write(tmp_path / "_processed" / "atoms" / "a.md", "y")
-        _write(tmp_path / "_deleted_with_ttl" / "old.md", "z")
         stats = move_phase(
             vault_root=tmp_path,
             now=datetime(2026, 4, 9, tzinfo=timezone.utc),
