@@ -247,7 +247,7 @@ class Reconciler:
         if not chunks:
             chunks = [{"index": 0, "section_header": "", "text": body or title}]
         vectors = await self.embed_client.embed_batch([c["text"] for c in chunks])
-        wikilinks = links.extract(body)
+        note_links = links.extract(body)
 
         self.store.upsert_note(
             note_id=note_id,
@@ -257,7 +257,7 @@ class Reconciler:
             metadata=meta,
             chunks=chunks,
             vectors=vectors,
-            links=wikilinks,
+            links=note_links,
         )
         return True
 
