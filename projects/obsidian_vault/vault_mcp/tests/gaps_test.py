@@ -444,7 +444,12 @@ class TestEditNoteTextNotFound:
         # Create a note with known content
         note = tmp_path / "my_note.md"
         note.write_text("Hello world")
-        result = await edit_note(path="my_note.md", old_text="nonexistent text", new_text="replacement", reason="test")
+        result = await edit_note(
+            path="my_note.md",
+            old_text="nonexistent text",
+            new_text="replacement",
+            reason="test",
+        )
         assert "error" in result
         assert "Text not found" in result["error"]
 
@@ -453,7 +458,9 @@ class TestEditNoteTextNotFound:
         Python's str.replace('', new, 1) inserts new_text at position 0."""
         note = tmp_path / "note.md"
         note.write_text("existing content")
-        result = await edit_note(path="note.md", old_text="", new_text="PREFIX", reason="test")
+        result = await edit_note(
+            path="note.md", old_text="", new_text="PREFIX", reason="test"
+        )
         # Empty string is "found" in any content — edit proceeds
         # str.replace("", "PREFIX", 1) inserts PREFIX at position 0
         assert "error" not in result or result.get("error") is None
@@ -474,6 +481,7 @@ class TestGitCommitErrorHandling:
         from unittest.mock import patch, MagicMock
 
         call_count = 0
+
         def add_succeeds_commit_fails(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -484,6 +492,7 @@ class TestGitCommitErrorHandling:
             return MagicMock()
 
         import projects.obsidian_vault.vault_mcp.app.main as _mod
+
         with patch.object(_mod, "_git", side_effect=add_succeeds_commit_fails):
             result = _git_commit(["some_file.md"], "test message")
 
@@ -496,6 +505,7 @@ class TestGitCommitErrorHandling:
         from unittest.mock import patch, MagicMock
 
         commit_called = False
+
         def add_fails(*args, **kwargs):
             nonlocal commit_called
             if args[0] == "add":
@@ -506,6 +516,7 @@ class TestGitCommitErrorHandling:
             return MagicMock()
 
         import projects.obsidian_vault.vault_mcp.app.main as _mod
+
         with patch.object(_mod, "_git", side_effect=add_fails):
             result = _git_commit(["bad_file.md"], "test message")
 
