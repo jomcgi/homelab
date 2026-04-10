@@ -3,6 +3,8 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 from knowledge.raw_paths import (
     compute_raw_id,
     raw_target_path,
@@ -55,6 +57,15 @@ def test_raw_target_path_handles_title_with_only_punctuation():
     )
     # Slug falls back to "note"
     assert p.name == "fedcba98-note.md"
+
+
+def test_raw_target_path_raises_without_created_at():
+    with pytest.raises(ValueError, match="created_at is required"):
+        raw_target_path(
+            vault_root=Path("/vault"),
+            raw_id="a" * 64,
+            title="test",
+        )
 
 
 def test_raw_root_name_constant():
