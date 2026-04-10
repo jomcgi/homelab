@@ -21,12 +21,14 @@ def session_fixture():
         if table.schema is not None:
             original_schemas[table.name] = table.schema
             table.schema = None
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-    for table in SQLModel.metadata.tables.values():
-        if table.name in original_schemas:
-            table.schema = original_schemas[table.name]
+    try:
+        SQLModel.metadata.create_all(engine)
+        with Session(engine) as session:
+            yield session
+    finally:
+        for table in SQLModel.metadata.tables.values():
+            if table.name in original_schemas:
+                table.schema = original_schemas[table.name]
 
 
 class TestNoteLinkDiscriminatedUnion:
@@ -203,3 +205,14 @@ def test_atom_raw_provenance_roundtrip(session):
     assert loaded is not None
     assert loaded.atom_fk == note.id
     assert loaded.raw_fk == raw.id
+
+
+def test_atom_raw_provenance_rejects_both_null():
+    from knowledge.models import AtomRawProvenance
+
+    with pytest.raises(ValueError, match="at least one of atom_fk or raw_fk"):
+        AtomRawProvenance(
+            atom_fk=None,
+            raw_fk=None,
+            gardener_version="claude-sonnet-4-6@v1",
+        )

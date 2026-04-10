@@ -132,3 +132,14 @@ class AtomRawProvenance(SQLModel, table=True):
     derived_note_id: str | None = None
     gardener_version: str
     created_at: datetime | None = None
+
+    def __init__(self, **data: Any) -> None:
+        # Mirror the SQL CHECK (atom_fk IS NOT NULL OR raw_fk IS NOT NULL).
+        # Catches bugs at the Python call site instead of waiting for Postgres.
+        atom_fk = data.get("atom_fk")
+        raw_fk = data.get("raw_fk")
+        if atom_fk is None and raw_fk is None:
+            raise ValueError(
+                "AtomRawProvenance requires at least one of atom_fk or raw_fk"
+            )
+        super().__init__(**data)
