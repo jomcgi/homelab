@@ -7,6 +7,8 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
 
 from knowledge.gardener import (
     Gardener,
@@ -560,3 +562,92 @@ class TestRunFailurePath:
         assert len(calls) == 3
         assert stats.ingested == 2
         assert stats.failed == 1
+
+
+@pytest.fixture(name="session")
+def session_fixture():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    original_schemas = {}
+    for table in SQLModel.metadata.tables.values():
+        if table.schema is not None:
+            original_schemas[table.name] = table.schema
+            table.schema = None
+    try:
+        SQLModel.metadata.create_all(engine)
+        with Session(engine) as session:
+            yield session
+    finally:
+        for table in SQLModel.metadata.tables.values():
+            if table.name in original_schemas:
+                table.schema = original_schemas[table.name]
+
+
+class TestGardenerSkipsAlreadyProcessedRaws:
+    def test_raws_with_current_version_provenance_are_skipped(self, tmp_path, session):
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        raw = RawInput(
+            raw_id="r1",
+            path="_raw/2026/04/09/r1-n.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        session.add(raw)
+        session.flush()
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                gardener_version=GARDENER_VERSION,
+            )
+        )
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        to_process = gardener._raws_needing_decomposition()
+        assert [r.raw_id for r in to_process] == []
+
+    def test_grandfathered_sentinel_blocks_decomposition(self, tmp_path, session):
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        raw = RawInput(
+            raw_id="r2",
+            path="_raw/grandfathered/r2-n.md",
+            source="grandfathered",
+            content="Body.",
+            content_hash="r2",
+        )
+        session.add(raw)
+        session.flush()
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                gardener_version="pre-migration",
+            )
+        )
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        assert gardener._raws_needing_decomposition() == []
+
+    def test_new_raw_is_surfaced(self, tmp_path, session):
+        from knowledge.models import RawInput
+
+        raw = RawInput(
+            raw_id="r3",
+            path="_raw/2026/04/09/r3-n.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="r3",
+        )
+        session.add(raw)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        surfaced = gardener._raws_needing_decomposition()
+        assert [r.raw_id for r in surfaced] == ["r3"]
