@@ -155,6 +155,63 @@ class Gardener:
             resolved += 1
         return resolved
 
+    def _backfill_provenance_from_processed(self) -> int:
+        """Bulk-insert sentinel provenance for raws already decomposed on disk.
+
+        Scans _processed/ atoms for derived_from_raw frontmatter and creates
+        provenance rows for any matching raws that lack them. This avoids
+        sending already-decomposed raws to Claude just to hear "already done".
+        """
+        if self.session is None:
+            return 0
+        if not self.processed_root.exists():
+            return 0
+
+        # Collect raw_ids referenced by existing atoms on disk.
+        processed_raw_ids: set[str] = set()
+        for atom_path in self.processed_root.glob("*.md"):
+            try:
+                meta, _ = frontmatter.parse(atom_path.read_text(encoding="utf-8"))
+                if meta.extra and meta.extra.get("derived_from_raw"):
+                    processed_raw_ids.add(meta.extra["derived_from_raw"])
+            except Exception:
+                continue
+
+        if not processed_raw_ids:
+            return 0
+
+        # Find raws that have no provenance at all.
+        has_prov = (
+            select(AtomRawProvenance.raw_fk)
+            .where(AtomRawProvenance.raw_fk.is_not(None))
+            .subquery()
+        )
+        unhandled = list(
+            self.session.exec(
+                select(RawInput).where(not_(RawInput.id.in_(select(has_prov.c.raw_fk))))
+            ).all()
+        )
+
+        backfilled = 0
+        for raw in unhandled:
+            if raw.raw_id in processed_raw_ids:
+                self.session.add(
+                    AtomRawProvenance(
+                        raw_fk=raw.id,
+                        derived_note_id="backfill-from-disk",
+                        gardener_version=GARDENER_VERSION,
+                    )
+                )
+                backfilled += 1
+
+        if backfilled:
+            self.session.commit()
+            logger.info(
+                "gardener: backfilled provenance for %d already-processed raws",
+                backfilled,
+            )
+        return backfilled
+
     def _raws_needing_decomposition(self) -> list[RawInput]:
         """Return raws that have no current-version provenance and no sentinel."""
         if self.session is None:
@@ -195,6 +252,8 @@ class Gardener:
                 vault_root=self.vault_root, session=self.session
             )
             self.session.commit()
+
+        self._backfill_provenance_from_processed()
 
         raws = self._raws_needing_decomposition()
         if self.max_files_per_run > 0 and len(raws) > self.max_files_per_run:
