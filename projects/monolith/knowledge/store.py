@@ -15,10 +15,12 @@ from shared.chunker import Chunk as ChunkPayload
 
 logger = logging.getLogger(__name__)
 
-# Minimum cosine similarity (1 - cosine_distance) to include in search
-# results.  Results below this threshold are noise — short or generic
-# embeddings that happen to be nearest-neighbours without real relevance.
-MIN_SEARCH_SCORE = 0.3
+# Minimum adjusted score to include in search results.  The adjusted
+# score is ``(1 - cosine_distance) * min(1, chunk_len / 100)`` — a
+# chunk-length penalty that downranks ultra-short stubs whose embeddings
+# are too generic to be meaningful.
+MIN_SEARCH_SCORE = 0.4
+_CHUNK_LEN_RAMP = 100  # chars at which the length penalty reaches 1.0
 
 
 class KnowledgeStore:
@@ -126,10 +128,16 @@ class KnowledgeStore:
 
         Joins Note with Chunk, computes pgvector cosine_distance on
         Chunk.embedding, groups by note, and returns the best (minimum
-        distance) chunk score per note as ``score = 1 - distance``.
+        distance) chunk score per note as ``score = 1 - distance``,
+        penalised by chunk length to downrank ultra-short stubs.
         """
         distance = Chunk.embedding.cosine_distance(query_embedding)
-        best_score = (1 - func.min(distance)).label("score")
+        len_penalty = func.least(
+            1.0,
+            func.length(Chunk.chunk_text) / float(_CHUNK_LEN_RAMP),
+        )
+        adjusted = (1 - distance) * len_penalty
+        best_score = func.max(adjusted).label("score")
 
         stmt = (
             select(
@@ -140,8 +148,8 @@ class KnowledgeStore:
             )
             .join(Chunk, Chunk.note_fk == Note.id)
             .group_by(Note.id)
-            .having(func.min(distance) <= 1 - MIN_SEARCH_SCORE)
-            .order_by(func.min(distance))
+            .having(func.max(adjusted) >= MIN_SEARCH_SCORE)
+            .order_by(best_score.desc())
             .limit(limit)
         )
 
@@ -179,7 +187,12 @@ class KnowledgeStore:
         ``note_id, title, path, type, tags, score, section, snippet``.
         """
         distance = Chunk.embedding.cosine_distance(query_embedding)
-        best_score = (1 - func.min(distance)).label("score")
+        len_penalty = func.least(
+            1.0,
+            func.length(Chunk.chunk_text) / float(_CHUNK_LEN_RAMP),
+        )
+        adjusted = (1 - distance) * len_penalty
+        best_score = func.max(adjusted).label("score")
 
         notes_stmt = (
             select(
@@ -193,8 +206,8 @@ class KnowledgeStore:
             )
             .join(Chunk, Chunk.note_fk == Note.id)
             .group_by(Note.id)
-            .having(func.min(distance) <= 1 - MIN_SEARCH_SCORE)
-            .order_by(func.min(distance))
+            .having(func.max(adjusted) >= MIN_SEARCH_SCORE)
+            .order_by(best_score.desc())
             .limit(limit)
         )
         if type_filter is not None:
@@ -206,7 +219,9 @@ class KnowledgeStore:
 
         top_ids = [row.id for row in note_rows]
 
-        chunk_distance = Chunk.embedding.cosine_distance(query_embedding)
+        chunk_adj = (1 - Chunk.embedding.cosine_distance(query_embedding)) * func.least(
+            1.0, func.length(Chunk.chunk_text) / float(_CHUNK_LEN_RAMP)
+        )
         chunks_stmt = (
             select(
                 Chunk.note_fk,
@@ -214,7 +229,7 @@ class KnowledgeStore:
                 Chunk.chunk_text,
             )
             .where(Chunk.note_fk.in_(top_ids))
-            .order_by(Chunk.note_fk, chunk_distance)
+            .order_by(Chunk.note_fk, chunk_adj.desc())
             .distinct(Chunk.note_fk)
         )
 
