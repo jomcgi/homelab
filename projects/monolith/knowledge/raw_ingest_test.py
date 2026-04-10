@@ -106,6 +106,7 @@ class TestReconcileRawPhase:
         assert len(rows) == 1
         assert rows[0].path == "_raw/2026/04/09/abc1-my-note.md"
         assert rows[0].source == "vault-drop"
+        assert rows[0].created_at is not None
 
         notes = session.exec(select(Note).where(Note.type == "raw")).all()
         assert len(notes) == 1
@@ -160,3 +161,55 @@ class TestReconcileRawPhase:
         stats = reconcile_raw_phase(vault_root=tmp_path, session=session)
         assert stats.inserted == 0
         assert stats.skipped == 0
+
+    def test_infer_source_grandfathered(self, tmp_path, session):
+        """Files under _raw/grandfathered/ get source='grandfathered' when
+        no frontmatter source is present."""
+        raw_file = tmp_path / "_raw" / "grandfathered" / "abcd1234-old-note.md"
+        raw_file.parent.mkdir(parents=True)
+        raw_file.write_text(
+            "---\ntitle: Old Note\n---\nBody.",
+            encoding="utf-8",
+        )
+
+        stats = reconcile_raw_phase(vault_root=tmp_path, session=session)
+        session.commit()
+
+        assert stats.inserted == 1
+        rows = session.exec(select(RawInput)).all()
+        assert len(rows) == 1
+        assert rows[0].source == "grandfathered"
+
+    def test_raw_input_insert_failure_on_duplicate_raw_id(self, tmp_path, session):
+        """When a RawInput with the same raw_id already exists (different path),
+        the DB insert fails gracefully and inserted==0."""
+        content = "---\ntitle: Collision\n---\nBody."
+        raw_file = tmp_path / "_raw" / "2026" / "04" / "09" / "abc1-collision.md"
+        raw_file.parent.mkdir(parents=True)
+        raw_file.write_text(content, encoding="utf-8")
+
+        from knowledge.raw_paths import compute_raw_id
+
+        raw_id = compute_raw_id(content)
+        # Pre-insert a RawInput that shares raw_id but has a different path
+        # so the path-based idempotency check does NOT skip it, but the DB
+        # unique constraint on raw_id causes the insert to fail.
+        existing = RawInput(
+            raw_id=raw_id,
+            path="_raw/2026/04/08/abc1-other.md",
+            source="vault-drop",
+            content=content,
+            content_hash=raw_id,
+            created_at=datetime.now(timezone.utc),
+        )
+        session.add(existing)
+        session.commit()
+
+        stats = reconcile_raw_phase(vault_root=tmp_path, session=session)
+        session.commit()
+
+        assert stats.inserted == 0
+        # Only the original pre-inserted row should exist.
+        rows = session.exec(select(RawInput)).all()
+        assert len(rows) == 1
+        assert rows[0].path == "_raw/2026/04/08/abc1-other.md"
