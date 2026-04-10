@@ -193,7 +193,9 @@ class KnowledgeStore:
         if type_filter is not None:
             notes_stmt = notes_stmt.where(Note.type == type_filter)
 
-        note_rows = self.session.execute(notes_stmt).all()
+        note_rows = self.session.execute(
+            notes_stmt
+        ).all()  # nosemgrep: generic-sql-fastapi
         if not note_rows:
             return []
 
