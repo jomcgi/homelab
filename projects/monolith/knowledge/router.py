@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app.db import get_session
-from knowledge.service import _DEFAULT_VAULT_ROOT, _VAULT_ROOT_ENV
+from knowledge.service import DEFAULT_VAULT_ROOT, VAULT_ROOT_ENV
 from knowledge.store import KnowledgeStore
 from shared.embedding import EmbeddingClient
 
@@ -69,16 +69,16 @@ async def search_knowledge(
 
 @router.get("/notes/{note_id}")
 def get_knowledge_note(
-    note_id: int,
+    note_id: str,
     session: Session = Depends(get_session),
 ) -> dict:
     note = KnowledgeStore(session).get_note_by_id(note_id)
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
 
-    vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
-    file_path = vault_root / note["path"]
-    if not file_path.is_file():
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
+    resolved = (vault_root / note["path"]).resolve()
+    if not resolved.is_relative_to(vault_root) or not resolved.is_file():
         raise HTTPException(status_code=404, detail="vault file missing")
 
-    return {**note, "content": file_path.read_text()}
+    return {**note, "content": resolved.read_text()}
