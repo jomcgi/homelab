@@ -52,7 +52,7 @@
   function renderNote(md) {
     const blocks = md.replace(/^---\n[\s\S]*?\n---\n?/, "").split(/\n\n+/);
     return blocks.map((block) => {
-      const h = block.match(/^(#{1,3}) (.+)$/);
+      const h = block.match(/^(#{1,3}) (.+)$/m);
       if (h) return { tag: `h${h[1].length}`, id: slugify(h[2]), text: h[2] };
       return { tag: "p", text: block };
     });
@@ -62,8 +62,8 @@
     try {
       const res = await fetch(`/api/knowledge/notes/${result.note_id}`);
       if (res.ok) {
-        const note = await res.json();
-        selectedNote = { ...note, section: result.section };
+        const fetchedNote = await res.json();
+        selectedNote = { ...fetchedNote, section: result.section };
       }
     } catch (e) {
       console.error("Failed to fetch note:", e);
