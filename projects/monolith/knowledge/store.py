@@ -15,6 +15,11 @@ from shared.chunker import Chunk as ChunkPayload
 
 logger = logging.getLogger(__name__)
 
+# Minimum cosine similarity (1 - cosine_distance) to include in search
+# results.  Results below this threshold are noise — short or generic
+# embeddings that happen to be nearest-neighbours without real relevance.
+MIN_SEARCH_SCORE = 0.3
+
 
 class KnowledgeStore:
     def __init__(self, session: Session) -> None:
@@ -135,6 +140,7 @@ class KnowledgeStore:
             )
             .join(Chunk, Chunk.note_fk == Note.id)
             .group_by(Note.id)
+            .having(func.min(distance) <= 1 - MIN_SEARCH_SCORE)
             .order_by(func.min(distance))
             .limit(limit)
         )
@@ -187,6 +193,7 @@ class KnowledgeStore:
             )
             .join(Chunk, Chunk.note_fk == Note.id)
             .group_by(Note.id)
+            .having(func.min(distance) <= 1 - MIN_SEARCH_SCORE)
             .order_by(func.min(distance))
             .limit(limit)
         )
