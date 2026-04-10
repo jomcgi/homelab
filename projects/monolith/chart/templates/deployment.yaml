@@ -88,6 +88,14 @@ spec:
             {{- if .Values.knowledge.gitRemote }}
             - name: VAULT_GIT_REMOTE
               value: {{ .Values.knowledge.gitRemote | quote }}
+            - name: GIT_AUTHOR_NAME
+              value: "vault-backup"
+            - name: GIT_AUTHOR_EMAIL
+              value: "vault-backup@monolith.local"
+            - name: GIT_COMMITTER_NAME
+              value: "vault-backup"
+            - name: GIT_COMMITTER_EMAIL
+              value: "vault-backup@monolith.local"
             {{- end }}
             {{- end }}
           livenessProbe:
