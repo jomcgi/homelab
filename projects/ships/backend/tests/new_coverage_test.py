@@ -509,9 +509,7 @@ class TestSubscribeAisStreamBatchProcessing:
 
         # Subscription: first fetch returns one message, second raises TimeoutError
         mock_psub = AsyncMock()
-        mock_psub.fetch = AsyncMock(
-            side_effect=[[mock_msg], asyncio.TimeoutError()]
-        )
+        mock_psub.fetch = AsyncMock(side_effect=[[mock_msg], asyncio.TimeoutError()])
         consumer_info_mock = MagicMock()
         consumer_info_mock.num_pending = 0
         mock_psub.consumer_info = AsyncMock(return_value=consumer_info_mock)
@@ -585,9 +583,7 @@ class TestSubscribeAisStreamBatchProcessing:
         mock_msg.ack = AsyncMock()
 
         mock_psub = AsyncMock()
-        mock_psub.fetch = AsyncMock(
-            side_effect=[[mock_msg], asyncio.TimeoutError()]
-        )
+        mock_psub.fetch = AsyncMock(side_effect=[[mock_msg], asyncio.TimeoutError()])
         consumer_info_mock = MagicMock()
         consumer_info_mock.num_pending = 0
         mock_psub.consumer_info = AsyncMock(return_value=consumer_info_mock)
@@ -612,9 +608,7 @@ class TestSubscribeAisStreamBatchProcessing:
         assert service.ws_manager.broadcast.call_count >= 1
         call_args = service.ws_manager.broadcast.call_args[0][0]
         assert call_args["type"] == "positions"
-        assert any(
-            p["mmsi"] == "777777777" for p in call_args["positions"]
-        )
+        assert any(p["mmsi"] == "777777777" for p in call_args["positions"])
 
         await db.close()
 
@@ -647,9 +641,7 @@ class TestSubscribeAisStreamBatchProcessing:
         mock_msg.ack = AsyncMock()
 
         mock_psub = AsyncMock()
-        mock_psub.fetch = AsyncMock(
-            side_effect=[[mock_msg], asyncio.TimeoutError()]
-        )
+        mock_psub.fetch = AsyncMock(side_effect=[[mock_msg], asyncio.TimeoutError()])
         consumer_info_mock = MagicMock()
         consumer_info_mock.num_pending = 0
         mock_psub.consumer_info = AsyncMock(return_value=consumer_info_mock)
