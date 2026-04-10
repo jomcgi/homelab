@@ -12,11 +12,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
-from sqlalchemy import not_, or_
+from sqlalchemy import and_, not_, or_
 from sqlmodel import Session, select
 
 from knowledge import frontmatter
-from knowledge.models import AtomRawProvenance, RawInput
+from knowledge.models import AtomRawProvenance, Note, RawInput
 
 logger = logging.getLogger("monolith.knowledge.gardener")
 
@@ -76,6 +76,7 @@ class GardenStats:
     moved: int = 0
     deduped: int = 0
     reconciled: int = 0
+    resolved: int = 0
 
 
 def _split_frontmatter(raw: str) -> tuple[dict, str]:
@@ -129,6 +130,31 @@ class Gardener:
         self._last_stdout: bytes = b""
         self.processed_root = self.vault_root / "_processed"
 
+    def _resolve_pending_provenance(self) -> int:
+        """Upgrade pending provenance rows by resolving derived_note_id to atom_fk."""
+        if self.session is None:
+            return 0
+        pending = self.session.exec(
+            select(AtomRawProvenance).where(
+                and_(
+                    AtomRawProvenance.atom_fk.is_(None),
+                    AtomRawProvenance.derived_note_id.is_not(None),
+                )
+            )
+        ).all()
+        resolved = 0
+        for row in pending:
+            note = self.session.exec(
+                select(Note).where(Note.note_id == row.derived_note_id)
+            ).first()
+            if note is None:
+                continue
+            row.atom_fk = note.id
+            row.derived_note_id = None
+            self.session.add(row)
+            resolved += 1
+        return resolved
+
     def _raws_needing_decomposition(self) -> list[RawInput]:
         """Return raws that have no current-version provenance and no sentinel."""
         if self.session is None:
@@ -153,8 +179,12 @@ class Gardener:
         return list(self.session.exec(stmt).all())
 
     async def run(self) -> GardenStats:
-        """Run one gardening cycle: move -> reconcile -> decompose."""
+        """Run one gardening cycle: resolve pending → move → reconcile → decompose."""
         from knowledge.raw_ingest import move_phase, reconcile_raw_phase
+
+        resolved_count = self._resolve_pending_provenance()
+        if resolved_count and self.session is not None:
+            self.session.commit()
 
         now = datetime.now(timezone.utc)
         move_stats = move_phase(vault_root=self.vault_root, now=now)
@@ -191,9 +221,11 @@ class Gardener:
             moved=move_stats.moved,
             deduped=move_stats.deduped,
             reconciled=(reconcile_stats.inserted if reconcile_stats else 0),
+            resolved=resolved_count,
         )
         logger.info(
-            "knowledge.garden: moved=%d deduped=%d reconciled=%d ingested=%d failed=%d",
+            "knowledge.garden: resolved=%d moved=%d deduped=%d reconciled=%d ingested=%d failed=%d",
+            stats.resolved,
             stats.moved,
             stats.deduped,
             stats.reconciled,

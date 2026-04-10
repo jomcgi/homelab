@@ -126,6 +126,7 @@ async def garden_handler(session: Session) -> datetime | None:
     )
     stats = await gardener.run()
     extra = {
+        "resolved": stats.resolved,
         "moved": stats.moved,
         "deduped": stats.deduped,
         "reconciled": stats.reconciled,
