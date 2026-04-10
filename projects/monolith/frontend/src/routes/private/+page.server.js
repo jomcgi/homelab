@@ -35,4 +35,41 @@ export const actions = {
     });
     if (!res.ok) return { error: true };
   },
+  search: async ({ request, fetch }) => {
+    const data = await request.formData();
+    const q = data.get("q");
+    const type = data.get("type");
+    if (!q) return { results: [] };
+    const params = new URLSearchParams({ q });
+    if (type && type !== "all") params.set("type", type);
+    try {
+      const res = await fetch(`${API_BASE}/api/knowledge/search?${params}`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return { results: json.results };
+      }
+      if (res.status === 503)
+        return { results: [], error: "embedding unavailable" };
+      return { results: [], error: `search failed (${res.status})` };
+    } catch {
+      return { results: [], error: "search unavailable" };
+    }
+  },
+  preview: async ({ request, fetch }) => {
+    const data = await request.formData();
+    const noteId = data.get("note_id");
+    if (!noteId) return { note: null };
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/knowledge/notes/${encodeURIComponent(noteId)}`,
+        { signal: AbortSignal.timeout(10000) },
+      );
+      if (res.ok) return { note: await res.json() };
+      return { note: null };
+    } catch {
+      return { note: null };
+    }
+  },
 };
