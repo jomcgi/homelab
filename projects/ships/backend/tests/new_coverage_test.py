@@ -39,37 +39,50 @@ from projects.ships.backend.main import Database, ShipsAPIService
 
 
 class TestGetVesselHttp404Bug:
-    """Documents the FastAPI tuple-return bug in the get_vessel endpoint.
+    """Regression tests for the bare-tuple return bug in GET /api/vessels/{mmsi}.
 
-    The handler currently does:
-        return {"error": "Vessel not found"}, 404
-    FastAPI ignores the integer status code and serialises the whole tuple as
-    a JSON array with HTTP 200.  The correct fix is to raise HTTPException(404).
+    Previously, returning ``({"error": "Vessel not found"}, 404)`` from the
+    FastAPI route handler caused HTTP 200 with a JSON *array* body instead of a
+    proper 404 response.  The fix replaces the bare tuple with
+    ``raise HTTPException(status_code=404, detail="Vessel not found")``.
     """
 
     @pytest.mark.asyncio
-    async def test_get_vessel_missing_mmsi_returns_http_200_with_list_body(
+    async def test_get_vessel_missing_mmsi_returns_http_404(
         self, test_client
     ):
-        """BUG: 404 path returns HTTP 200 with a list body instead of 404.
+        """GET /api/vessels/{mmsi} returns HTTP 404 when the MMSI is not found.
 
-        This test documents the current broken behavior.  When the bug is
-        fixed (by raising HTTPException(status_code=404)), this test should
-        be updated to assert response.status_code == 404.
-
-        TODO: fix get_vessel() to raise HTTPException(status_code=404) instead
-        of returning a bare tuple.
+        Regression test: the old implementation returned HTTP 200 with a JSON
+        array body ``[{"error": "Vessel not found"}, 404]`` because FastAPI
+        silently ignored the integer element of the bare tuple.
         """
         response = await test_client.get("/api/vessels/000000000")
-        # BUG: should be 404 but FastAPI returns 200 for bare-tuple returns
-        assert response.status_code == 200
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_missing_mmsi_returns_proper_error_body(
+        self, test_client
+    ):
+        """GET /api/vessels/{mmsi} returns the FastAPI HTTPException detail body."""
+        response = await test_client.get("/api/vessels/000000000")
         body = response.json()
-        # FastAPI serialises the tuple (dict, int) as a JSON array
-        assert isinstance(body, list), (
-            "Expected FastAPI to serialise the bare tuple as a list"
+        assert body == {"detail": "Vessel not found"}
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_missing_mmsi_body_is_not_json_array(
+        self, test_client
+    ):
+        """Response body must be a JSON object, not the erroneous JSON array.
+
+        Before the fix, the body was ``[{"error": "Vessel not found"}, 404]``.
+        """
+        response = await test_client.get("/api/vessels/000000000")
+        body = response.json()
+        assert not isinstance(body, list), (
+            "Response body must not be a list; "
+            "got the old bare-tuple serialisation instead of HTTPException"
         )
-        assert body[0].get("error") == "Vessel not found"
-        assert body[1] == 404
 
     @pytest.mark.asyncio
     async def test_get_vessel_existing_mmsi_returns_vessel_data(

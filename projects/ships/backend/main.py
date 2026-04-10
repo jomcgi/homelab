@@ -26,7 +26,7 @@ from pathlib import Path
 import aiosqlite
 import nats
 from nats.js.api import ConsumerConfig, DeliverPolicy
-from fastapi import FastAPI, Query, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 # Configure logging
@@ -1003,7 +1003,7 @@ async def get_vessel(mmsi: str):
     """Get single vessel by MMSI with latest position and analytics."""
     vessel = await service.db.get_vessel(mmsi)
     if vessel is None:
-        return {"error": "Vessel not found"}, 404
+        raise HTTPException(status_code=404, detail="Vessel not found")
     return vessel
 
 
