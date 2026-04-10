@@ -2,9 +2,10 @@
 
 import logging
 import os
-import subprocess
 from datetime import datetime
 from pathlib import Path
+
+from dulwich import porcelain
 
 from sqlmodel import Session
 
@@ -23,51 +24,51 @@ _INTERVAL_SECS = 300
 _TTL_SECS = 600
 _BACKUP_INTERVAL_SECS = 86400  # 24 hours
 _BACKUP_TTL_SECS = 3600  # 1 hour timeout
+_GIT_READY_SENTINEL = ".git-ready"
 
 
 async def clone_vault() -> None:
     """Clone the vault repo to pre-seed the emptyDir volume.
 
     Skips if VAULT_GIT_REMOTE is not set or if the vault already has a .git dir.
-    Embeds GITHUB_TOKEN in the clone URL for auth.
+    Always writes a .git-ready sentinel so the obsidian sidecar can start.
     """
-    remote = os.environ.get("VAULT_GIT_REMOTE", "")
-    if not remote:
-        logger.info("VAULT_GIT_REMOTE not set, skipping clone")
-        return
-
     vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
-    if (vault_root / ".git").exists():
-        logger.info("Vault at %s already initialised, skipping clone", vault_root)
-        return
-
-    token = os.environ.get("GITHUB_TOKEN", "")
-    if token:
-        remote = remote.replace("https://", f"https://x-access-token:{token}@")
-
     try:
-        subprocess.run(
-            ["git", "clone", "--depth=1", remote, str(vault_root)],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        logger.info("Vault cloned from git to %s", vault_root)
-    except subprocess.CalledProcessError as exc:
-        logger.warning(
-            "Vault clone failed, proceeding without pre-seed: %s", exc.stderr
-        )
+        remote = os.environ.get("VAULT_GIT_REMOTE", "")
+        if not remote:
+            logger.info("VAULT_GIT_REMOTE not set, skipping clone")
+            return
+
+        if (vault_root / ".git").exists():
+            logger.info("Vault at %s already initialised, skipping clone", vault_root)
+            return
+
+        token = os.environ.get("GITHUB_TOKEN", "")
+        clone_kwargs: dict = {
+            "source": remote,
+            "target": str(vault_root),
+            "depth": 1,
+        }
+        if token:
+            clone_kwargs["username"] = "x-access-token"
+            clone_kwargs["password"] = token
+
+        try:
+            porcelain.clone(**clone_kwargs)
+            logger.info("Vault cloned from git to %s", vault_root)
+        except Exception as exc:
+            logger.warning("Vault clone failed, proceeding without pre-seed: %s", exc)
+    finally:
+        vault_root.mkdir(parents=True, exist_ok=True)
+        (vault_root / _GIT_READY_SENTINEL).touch()
 
 
-def _git_in_vault(*args: str) -> subprocess.CompletedProcess:
-    vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
-    return subprocess.run(
-        ["git", *args],
-        cwd=vault_root,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+def _has_changes(vault_root: Path) -> bool:
+    """Check if the vault has any uncommitted or untracked changes."""
+    status = porcelain.status(str(vault_root))
+    has_staged = any(status.staged.get(k) for k in ("add", "delete", "modify"))
+    return has_staged or bool(status.unstaged) or bool(status.untracked)
 
 
 async def vault_backup_handler(session: Session) -> datetime | None:
@@ -77,23 +78,22 @@ async def vault_backup_handler(session: Session) -> datetime | None:
         logger.info("knowledge.vault-backup: no .git dir, skipping")
         return None
 
-    status = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=vault_root,
-        capture_output=True,
-        text=True,
-    )
-    if not status.stdout.strip():
+    if not _has_changes(vault_root):
         logger.info("knowledge.vault-backup: no changes to commit")
         return None
 
     try:
-        _git_in_vault("add", "-A")
-        _git_in_vault("commit", "-m", "sync: vault backup")
-        _git_in_vault("push")
+        porcelain.add(str(vault_root))
+        porcelain.commit(str(vault_root), message=b"sync: vault backup")
+        token = os.environ.get("GITHUB_TOKEN", "")
+        push_kwargs: dict = {"path": str(vault_root)}
+        if token:
+            push_kwargs["username"] = "x-access-token"
+            push_kwargs["password"] = token
+        porcelain.push(**push_kwargs)
         logger.info("knowledge.vault-backup: committed and pushed")
-    except subprocess.CalledProcessError as exc:
-        logger.warning("knowledge.vault-backup: push failed: %s", exc.stderr)
+    except Exception as exc:
+        logger.warning("knowledge.vault-backup: push failed: %s", exc)
     return None
 
 
