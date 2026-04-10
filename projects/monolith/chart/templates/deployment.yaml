@@ -82,6 +82,14 @@ spec:
                   name: {{ include "monolith.fullname" . }}-gardener
                   key: CLAUDE_AUTH_TOKEN
             {{- end }}
+            {{- if .Values.knowledge.enabled }}
+            - name: VAULT_ROOT
+              value: {{ .Values.knowledge.vault.mountPath }}
+            {{- if .Values.knowledge.gitRemote }}
+            - name: VAULT_GIT_REMOTE
+              value: {{ .Values.knowledge.gitRemote | quote }}
+            {{- end }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

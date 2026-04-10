@@ -62,6 +62,7 @@ cfIngress:
 
 knowledge:
   enabled: true
+  gitRemote: "https://github.com/jomcgi/obsidian-vault.git"
   headlessSync:
     vaultName: "jomcgi"
   onepassword:
