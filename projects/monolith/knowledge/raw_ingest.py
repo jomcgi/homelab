@@ -118,6 +118,7 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
     """Mirror _raw/ contents into knowledge.raw_inputs + notes(type='raw').
 
     Idempotent on path: already-reconciled files are skipped.
+    The caller is responsible for committing the session.
     """
     raw_root = vault_root / RAW_ROOT_NAME
     if not raw_root.exists():
@@ -165,8 +166,6 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
             content=content,
             content_hash=raw_id,
         )
-        session.add(ri)
-
         note = Note(
             note_id=raw_id,
             path=rel,
@@ -175,7 +174,15 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
             type="raw",
             source=source,
         )
-        session.add(note)
+        try:
+            with session.begin_nested():
+                session.add(ri)
+                session.add(note)
+        except Exception:
+            logger.warning(
+                "reconcile_raw_phase: failed to insert %s", rel, exc_info=True
+            )
+            continue
         inserted += 1
 
     return ReconcileRawStats(inserted=inserted, skipped=skipped)
