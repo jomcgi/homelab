@@ -317,11 +317,7 @@ class TestProcessStaticDataDimensionEdgeCases:
         service.js = mock_js
 
         # ShipStaticData is an empty dict — falsy → early return
-        message = {
-            "Message": {
-                "ShipStaticData": {}
-            }
-        }
+        message = {"Message": {"ShipStaticData": {}}}
         metadata = {"time_utc": "2024-06-01T10:00:00Z"}
 
         await service._process_static_data(message, "123456789", metadata)
