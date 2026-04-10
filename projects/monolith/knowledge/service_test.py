@@ -11,6 +11,9 @@ from knowledge.gardener import GardenStats
 from knowledge.reconciler import ReconcileStats
 from knowledge.service import garden_handler, on_startup
 
+# Save a reference before autouse fixture patches it.
+_real_vault_sync_ready = service._vault_sync_ready
+
 
 @pytest.fixture(autouse=True)
 def _vault_sync_ready_by_default():
@@ -500,10 +503,6 @@ class TestVaultSyncGate:
 
     def test_vault_sync_ready_checks_sentinel(self, monkeypatch, tmp_path):
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
-        # Override the autouse fixture for this test
-        with patch.object(
-            service, "_vault_sync_ready", wraps=service._vault_sync_ready
-        ):
-            assert not service._vault_sync_ready()
-            (tmp_path / ".sync-ready").touch()
-            assert service._vault_sync_ready()
+        assert not _real_vault_sync_ready()
+        (tmp_path / ".sync-ready").touch()
+        assert _real_vault_sync_ready()
