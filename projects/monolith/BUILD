@@ -1268,6 +1268,18 @@ py_test(
 )
 
 py_test(
+    name = "chat_bot_embeddable_content_test",
+    srcs = ["chat/bot_embeddable_content_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//discord_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "chat_agent_max_tokens_test",
     srcs = ["chat/agent_max_tokens_test.py"],
     imports = ["."],
