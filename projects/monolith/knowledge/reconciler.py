@@ -236,10 +236,10 @@ class Reconciler:
                 ) from exc
 
         # Sync ## Links section from frontmatter edges (template or update).
-        # Capture authored_body before the sync so chunks and link extraction
-        # use only the hand-written content — the generated ## Links section
-        # must not be embedded or re-ingested as wikilinks.
-        authored_body = body
+        # Strip the generated section from body for chunking/link extraction —
+        # the pre-sync pass may have already written it before _ingest_one ran,
+        # so we cannot rely on capturing body before the sync call.
+        authored_body = wikilinks.strip_links_section(body)
         updated = wikilinks.sync_links(raw, meta)
         if updated is not None:
             try:
