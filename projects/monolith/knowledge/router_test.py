@@ -1,6 +1,5 @@
 """Unit tests for knowledge/router.py — /search and /notes endpoints."""
 
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -166,7 +165,9 @@ def note_client(fake_session):
 class TestGetNoteEndpoint:
     """Tests for GET /api/knowledge/notes/{note_id}."""
 
-    def test_happy_path_returns_note_with_content(self, tmp_path, fake_session):
+    def test_happy_path_returns_note_with_content(
+        self, tmp_path, fake_session, monkeypatch
+    ):
         """Existing note + vault file returns all fields plus content."""
         vault_dir = tmp_path / "vault"
         vault_dir.mkdir()
@@ -174,19 +175,14 @@ class TestGetNoteEndpoint:
         note_file.parent.mkdir(parents=True)
         note_file.write_text("# Attention\n\nSelf-attention mechanism.")
 
+        monkeypatch.setenv(VAULT_ROOT_ENV, str(vault_dir))
         app.dependency_overrides[get_session] = lambda: fake_session
-        old_val = os.environ.get(VAULT_ROOT_ENV)
-        os.environ[VAULT_ROOT_ENV] = str(vault_dir)
         try:
             c = TestClient(app, raise_server_exceptions=False)
             with patch("knowledge.router.KnowledgeStore") as MockStore:
                 MockStore.return_value.get_note_by_id.return_value = SAMPLE_NOTE
                 r = c.get("/api/knowledge/notes/n1")
         finally:
-            if old_val is None:
-                os.environ.pop(VAULT_ROOT_ENV, None)
-            else:
-                os.environ[VAULT_ROOT_ENV] = old_val
             app.dependency_overrides.clear()
 
         assert r.status_code == 200
@@ -208,27 +204,48 @@ class TestGetNoteEndpoint:
         body = r.json()
         assert body.get("detail") == "note not found"
 
-    def test_missing_vault_file_returns_404(self, note_client):
+    def test_missing_vault_file_returns_404(self, tmp_path, fake_session, monkeypatch):
         """Note exists in DB but vault file missing on disk -> 404."""
-        with patch("knowledge.router.KnowledgeStore") as MockStore:
-            MockStore.return_value.get_note_by_id.return_value = {
-                **SAMPLE_NOTE,
-                "path": "nonexistent/missing.md",
-            }
-            r = note_client.get("/api/knowledge/notes/n1")
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        monkeypatch.setenv(VAULT_ROOT_ENV, str(vault_dir))
+
+        app.dependency_overrides[get_session] = lambda: fake_session
+        try:
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.get_note_by_id.return_value = {
+                    **SAMPLE_NOTE,
+                    "path": "nonexistent/missing.md",
+                }
+                c = TestClient(app, raise_server_exceptions=False)
+                r = c.get("/api/knowledge/notes/n1")
+        finally:
+            app.dependency_overrides.clear()
 
         assert r.status_code == 404
         body = r.json()
         assert body.get("detail") == "vault file missing"
 
-    def test_path_traversal_returns_404(self, note_client):
-        """Path containing ../ is caught by is_relative_to guard -> 404."""
-        with patch("knowledge.router.KnowledgeStore") as MockStore:
-            MockStore.return_value.get_note_by_id.return_value = {
-                **SAMPLE_NOTE,
-                "path": "../../../etc/passwd",
-            }
-            r = note_client.get("/api/knowledge/notes/n1")
+    def test_path_traversal_returns_404(self, tmp_path, fake_session, monkeypatch):
+        """Path traversal is caught by is_relative_to guard."""
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        # Create a file outside vault that the traversal path would reach
+        secret = tmp_path / "secret.txt"
+        secret.write_text("should not be readable")
+        monkeypatch.setenv(VAULT_ROOT_ENV, str(vault_dir))
+
+        app.dependency_overrides[get_session] = lambda: fake_session
+        try:
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.get_note_by_id.return_value = {
+                    **SAMPLE_NOTE,
+                    "path": "../secret.txt",
+                }
+                c = TestClient(app, raise_server_exceptions=False)
+                r = c.get("/api/knowledge/notes/n1")
+        finally:
+            app.dependency_overrides.clear()
 
         assert r.status_code == 404
         body = r.json()
