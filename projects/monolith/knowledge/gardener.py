@@ -12,13 +12,20 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
+from sqlalchemy import not_, or_
+from sqlmodel import Session, select
 
 from knowledge import frontmatter
+from knowledge.models import AtomRawProvenance, RawInput
 
 logger = logging.getLogger("monolith.knowledge.gardener")
 
 _EXCLUDED_DIRS = {"_processed", "_deleted_with_ttl", ".obsidian", ".trash"}
 _TTL_HOURS = 24
+
+# Version stamp recorded on every provenance row the gardener produces.
+# Bump this when the prompt or model changes to trigger a manual reprocess.
+GARDENER_VERSION = "claude-sonnet-4-6@v1"
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
@@ -105,6 +112,7 @@ class Gardener:
         vault_root: Path,
         max_files_per_run: int = _DEFAULT_MAX_FILES_PER_RUN,
         claude_bin: str = "claude",
+        session: Session | None = None,
     ) -> None:
         self.vault_root = Path(vault_root)
         # Cap the number of raw files processed per cycle. The claude subprocess
@@ -112,8 +120,32 @@ class Gardener:
         # over a large vault could run for hours. A value <= 0 disables the cap.
         self.max_files_per_run = max_files_per_run
         self.claude_bin = claude_bin
+        self.session = session
         self.processed_root = self.vault_root / "_processed"
         self.deleted_root = self.vault_root / "_deleted_with_ttl"
+
+    def _raws_needing_decomposition(self) -> list[RawInput]:
+        """Return raws that have no current-version provenance and no sentinel."""
+        if self.session is None:
+            return []
+
+        handled_subq = (
+            select(AtomRawProvenance.raw_fk)
+            .where(AtomRawProvenance.raw_fk.is_not(None))
+            .where(
+                or_(
+                    AtomRawProvenance.gardener_version == GARDENER_VERSION,
+                    AtomRawProvenance.gardener_version == "pre-migration",
+                )
+            )
+            .subquery()
+        )
+        stmt = (
+            select(RawInput)
+            .where(not_(RawInput.id.in_(select(handled_subq.c.raw_fk))))
+            .order_by(RawInput.created_at.asc().nullslast(), RawInput.id.asc())
+        )
+        return list(self.session.exec(stmt).all())
 
     async def run(self) -> GardenStats:
         """Run one gardening cycle: ingest raw files, then TTL cleanup."""

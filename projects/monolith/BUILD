@@ -1890,8 +1890,10 @@ py_test(
     imports = ["."],
     deps = [
         ":monolith_backend",
+        "@pip//pgvector",
         "@pip//pytest",
         "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
     ],
 )
 
