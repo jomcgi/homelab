@@ -12,8 +12,8 @@ Fills gaps identified in the coverage review:
   paths are exercised via mock injection.
 
 Note: the cold-start vault race (empty _processed/ while DB has notes) is handled
-by _wait_for_vault_sync() in main.py, which gates the scheduler from starting until
-the vault has populated. The reconciler itself does not guard against this case.
+by _vault_sync_ready() in service.py, which gates each handler from running until
+the obsidian sidecar writes .sync-ready to the shared vault volume.
 """
 
 from __future__ import annotations

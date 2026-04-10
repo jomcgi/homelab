@@ -28,5 +28,6 @@ cd "$VAULT_PATH"
 # The readiness probe checks for /tmp/ready so the pod stays not-ready until
 # the initial vault download finishes.
 ob sync
+touch "$VAULT_PATH/.sync-ready"
 touch /tmp/ready
 exec ob sync --continuous

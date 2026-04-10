@@ -25,7 +25,14 @@ _TTL_SECS = 600
 _BACKUP_INTERVAL_SECS = 86400  # 24 hours
 _BACKUP_TTL_SECS = 3600  # 1 hour timeout
 _GIT_READY_SENTINEL = ".git-ready"
+_SYNC_READY_SENTINEL = ".sync-ready"
 _GIT_AUTHOR = b"vault-backup <vault-backup@monolith.local>"
+
+
+def _vault_sync_ready() -> bool:
+    """Return True if the obsidian sidecar has completed its initial sync."""
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
+    return (vault_root / _SYNC_READY_SENTINEL).exists()
 
 
 async def clone_vault() -> None:
@@ -74,6 +81,9 @@ def _has_changes(vault_root: Path) -> bool:
 
 async def vault_backup_handler(session: Session) -> datetime | None:
     """Scheduler handler: commit and push vault changes to GitHub."""
+    if not _vault_sync_ready():
+        logger.info("knowledge.vault-backup: vault sync not ready, deferring")
+        return None
     vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
     if not (vault_root / ".git").exists():
         logger.info("knowledge.vault-backup: no .git dir, skipping")
@@ -105,6 +115,9 @@ async def vault_backup_handler(session: Session) -> datetime | None:
 
 async def garden_handler(session: Session) -> datetime | None:
     """Scheduler handler: run the knowledge vault gardener."""
+    if not _vault_sync_ready():
+        logger.info("knowledge.garden: vault sync not ready, deferring")
+        return None
     if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
         logger.warning("knowledge.garden: CLAUDE_CODE_OAUTH_TOKEN not set, skipping")
         return None
@@ -143,6 +156,9 @@ async def garden_handler(session: Session) -> datetime | None:
 
 async def reconcile_handler(session: Session) -> datetime | None:
     """Scheduler handler: run the knowledge vault reconciler."""
+    if not _vault_sync_ready():
+        logger.info("knowledge.reconcile: vault sync not ready, deferring")
+        return None
     vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
     reconciler = Reconciler(
         store=KnowledgeStore(session=session),

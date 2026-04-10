@@ -132,6 +132,16 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Test 8: .sync-ready sentinel written to shared vault volume
+# ---------------------------------------------------------------------------
+echo "--- Test 8: .sync-ready sentinel written to shared vault volume ---"
+if grep -q '\.sync-ready' "$ENTRYPOINT"; then
+	pass "entrypoint.sh writes .sync-ready sentinel to vault volume"
+else
+	fail "entrypoint.sh does NOT write .sync-ready — knowledge handlers will never run!"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

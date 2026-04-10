@@ -12,6 +12,13 @@ from knowledge.reconciler import ReconcileStats
 from knowledge.service import garden_handler, on_startup
 
 
+@pytest.fixture(autouse=True)
+def _vault_sync_ready_by_default():
+    """Most handler tests assume the vault sync is complete."""
+    with patch("knowledge.service._vault_sync_ready", return_value=True):
+        yield
+
+
 class TestOnStartup:
     def test_registers_garden_and_reconcile_jobs(self):
         """on_startup registers garden, reconcile, and vault-backup jobs."""
@@ -456,3 +463,47 @@ class TestVaultBackupHandler:
         mock_push.assert_called_once_with(
             str(tmp_path), username="x-access-token", password="ghp_secret"
         )
+
+
+class TestVaultSyncGate:
+    """All knowledge handlers defer when the obsidian sidecar hasn't synced yet."""
+
+    @pytest.mark.asyncio
+    async def test_reconcile_defers_when_sync_not_ready(self, caplog):
+        with patch("knowledge.service._vault_sync_ready", return_value=False):
+            with caplog.at_level(logging.INFO, logger="knowledge.service"):
+                result = await service.reconcile_handler(MagicMock())
+        assert result is None
+        assert any(
+            "vault sync not ready" in m for m in [r.message for r in caplog.records]
+        )
+
+    @pytest.mark.asyncio
+    async def test_garden_defers_when_sync_not_ready(self, caplog):
+        with patch("knowledge.service._vault_sync_ready", return_value=False):
+            with caplog.at_level(logging.INFO, logger="knowledge.service"):
+                result = await service.garden_handler(MagicMock())
+        assert result is None
+        assert any(
+            "vault sync not ready" in m for m in [r.message for r in caplog.records]
+        )
+
+    @pytest.mark.asyncio
+    async def test_backup_defers_when_sync_not_ready(self, caplog):
+        with patch("knowledge.service._vault_sync_ready", return_value=False):
+            with caplog.at_level(logging.INFO, logger="knowledge.service"):
+                result = await service.vault_backup_handler(MagicMock())
+        assert result is None
+        assert any(
+            "vault sync not ready" in m for m in [r.message for r in caplog.records]
+        )
+
+    def test_vault_sync_ready_checks_sentinel(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        # Override the autouse fixture for this test
+        with patch.object(
+            service, "_vault_sync_ready", wraps=service._vault_sync_ready
+        ):
+            assert not service._vault_sync_ready()
+            (tmp_path / ".sync-ready").touch()
+            assert service._vault_sync_ready()
