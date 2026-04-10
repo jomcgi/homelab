@@ -6,6 +6,20 @@ set -e
 : "${OBSIDIAN_PASSWORD:?OBSIDIAN_PASSWORD is required}"
 : "${VAULT_PATH:=/vault}"
 
+# Wait for the backend to finish git clone (or skip/fail).
+# The backend always writes .git-ready, even on failure, so this
+# won't block forever.  5-minute timeout as a safety net.
+_MAX_WAIT=300
+_WAITED=0
+while [ ! -f "$VAULT_PATH/.git-ready" ]; do
+	if [ "$_WAITED" -ge "$_MAX_WAIT" ]; then
+		echo "WARNING: .git-ready not found after ${_MAX_WAIT}s, proceeding anyway"
+		break
+	fi
+	sleep 1
+	_WAITED=$((_WAITED + 1))
+done
+
 ob login --email "$OBSIDIAN_EMAIL" --password "$OBSIDIAN_PASSWORD"
 ob sync-setup --vault "$VAULT_NAME" --path "$VAULT_PATH" --password "$OBSIDIAN_PASSWORD"
 cd "$VAULT_PATH"
