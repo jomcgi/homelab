@@ -406,3 +406,31 @@ class TestSearchNotesWithContext:
         assert row["section"] == "## Ones"
         assert ones_text in row["snippet"]
         assert zeros_text not in row["snippet"]
+
+    def test_filters_by_type(self):
+        _upsert(
+            self.store,
+            note_id="n1",
+            path="a.md",
+            title="Paper",
+            metadata=_meta(title="Paper", type="paper"),
+            n_chunks=1,
+        )
+        _upsert(
+            self.store,
+            note_id="n2",
+            path="b.md",
+            title="Journal",
+            metadata=_meta(title="Journal", type="journal"),
+            n_chunks=1,
+        )
+        results = self.store.search_notes_with_context(
+            query_embedding=[0.0] * 1024, type_filter="paper"
+        )
+        assert len(results) == 1
+        assert results[0]["note_id"] == "n1"
+        assert results[0]["type"] == "paper"
+
+    def test_empty_db_returns_empty_list(self):
+        results = self.store.search_notes_with_context(query_embedding=[0.0] * 1024)
+        assert results == []
