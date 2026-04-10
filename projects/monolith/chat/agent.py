@@ -164,11 +164,17 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
     ) -> str:
         """Search older messages in this channel by topic. Optionally filter by username."""
         deps = ctx.deps
-        username = _coerce_username(username)
         query_embedding = await deps.embed_client.embed(query)
         user_id = None
-        if username:
-            user_id = deps.store.find_user_id_by_username(deps.channel_id, username)
+        # Handle Discord mention dicts (e.g. {'type': 'user_id', 'id': '...'})
+        if isinstance(username, dict) and username.get("type") == "user_id":
+            raw_id = username.get("id")
+            if raw_id is not None:
+                user_id = str(raw_id)
+        else:
+            coerced = _coerce_username(username)
+            if coerced:
+                user_id = deps.store.find_user_id_by_username(deps.channel_id, coerced)
         results = deps.store.search_similar(
             channel_id=deps.channel_id,
             query_embedding=query_embedding,
