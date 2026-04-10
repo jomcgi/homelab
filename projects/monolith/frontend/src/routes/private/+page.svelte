@@ -1,5 +1,6 @@
 <script>
   import { tick } from "svelte";
+  import { deserialize } from "$app/forms";
 
   let { data } = $props();
 
@@ -62,10 +63,15 @@
 
   async function selectResult(result) {
     try {
-      const res = await fetch(`/api/knowledge/notes/${result.note_id}`);
-      if (res.ok) {
-        const fetchedNote = await res.json();
-        selectedNote = { ...fetchedNote, section: result.section };
+      const formData = new FormData();
+      formData.append("note_id", result.note_id);
+      const res = await fetch("?/preview", {
+        method: "POST",
+        body: formData,
+      });
+      const outcome = deserialize(await res.text());
+      if (outcome.type === "success" && outcome.data?.note) {
+        selectedNote = { ...outcome.data.note, section: result.section };
       }
     } catch (e) {
       console.error("Failed to fetch note:", e);
@@ -132,21 +138,28 @@
       const controller = new AbortController();
       searchController = controller;
       try {
-        const params = new URLSearchParams({ q });
-        if (type !== "all") params.set("type", type);
-        const res = await fetch(`/api/knowledge/search?${params}`, {
+        const formData = new FormData();
+        formData.append("q", q);
+        if (type !== "all") formData.append("type", type);
+        const res = await fetch("?/search", {
+          method: "POST",
+          body: formData,
           signal: controller.signal,
         });
         if (controller.signal.aborted) return;
-        if (res.ok) {
-          searchResults = (await res.json()).results;
-          activeIndex = -1;
-          searchError = "";
-        } else if (res.status === 503) {
-          searchError = "embedding unavailable";
-          searchResults = [];
+        const outcome = deserialize(await res.text());
+        if (outcome.type === "success") {
+          const d = outcome.data;
+          if (d.error) {
+            searchError = d.error;
+            searchResults = [];
+          } else {
+            searchResults = d.results;
+            activeIndex = -1;
+            searchError = "";
+          }
         } else {
-          searchError = `search failed (${res.status})`;
+          searchError = "search failed";
           searchResults = [];
         }
       } catch (e) {
