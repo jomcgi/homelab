@@ -63,7 +63,11 @@ def _grandfather_raws(vault_root: Path, session: Session) -> int:
     inserted = 0
     for src in sorted(deleted_root.rglob("*.md")):
         raw_content = src.read_text(encoding="utf-8")
-        meta, _ = frontmatter.parse(raw_content)
+        try:
+            meta, _ = frontmatter.parse(raw_content)
+        except Exception:
+            logger.warning("migrate: bad frontmatter in %s, using defaults", src)
+            meta = None
         original_path = meta.extra.get("original_path") if meta else None
         stripped = _strip_frontmatter_keys(raw_content, _STRIPPED_FRONTMATTER_KEYS)
         raw_id = compute_raw_id(stripped)
@@ -77,7 +81,6 @@ def _grandfather_raws(vault_root: Path, session: Session) -> int:
         target.parent.mkdir(parents=True, exist_ok=True)
         if not target.exists():
             target.write_text(stripped, encoding="utf-8")
-        src.unlink()
 
         rel = target.relative_to(vault_root).as_posix()
         existing = session.exec(
@@ -111,6 +114,9 @@ def _grandfather_raws(vault_root: Path, session: Session) -> int:
                 )
             )
             inserted += 1
+
+        # Delete source after DB record exists so a crash doesn't lose data.
+        src.unlink()
 
     shutil.rmtree(deleted_root, ignore_errors=True)
     return inserted
