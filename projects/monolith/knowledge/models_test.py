@@ -3,8 +3,30 @@
 import json
 
 import pytest
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
 
 from knowledge.models import Chunk, NoteLink
+
+
+@pytest.fixture(name="session")
+def session_fixture():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    original_schemas = {}
+    for table in SQLModel.metadata.tables.values():
+        if table.schema is not None:
+            original_schemas[table.name] = table.schema
+            table.schema = None
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session
+    for table in SQLModel.metadata.tables.values():
+        if table.name in original_schemas:
+            table.schema = original_schemas[table.name]
 
 
 class TestNoteLinkDiscriminatedUnion:
@@ -126,3 +148,58 @@ class TestChunkParseEmbedding:
         """Non-string, non-list values (e.g. None) pass through for pydantic to handle."""
         result = Chunk._parse_embedding(None)
         assert result is None
+
+
+def test_raw_input_roundtrip(session):
+    from knowledge.models import RawInput
+
+    ri = RawInput(
+        raw_id="abc123",
+        path="_raw/2026/04/09/abc1-my-note.md",
+        source="vault-drop",
+        original_path="inbox/my-note.md",
+        content="# Hello\n\nBody.",
+        content_hash="abc123",
+    )
+    session.add(ri)
+    session.commit()
+
+    loaded = session.get(RawInput, ri.id)
+    assert loaded is not None
+    assert loaded.raw_id == "abc123"
+    assert loaded.source == "vault-drop"
+    assert loaded.extra == {}
+
+
+def test_atom_raw_provenance_roundtrip(session):
+    from knowledge.models import AtomRawProvenance, Note, RawInput
+
+    note = Note(
+        note_id="hello-world",
+        path="_processed/atoms/hello-world.md",
+        title="Hello World",
+        content_hash="def456",
+        type="atom",
+    )
+    raw = RawInput(
+        raw_id="abc123",
+        path="_raw/2026/04/09/abc1-my-note.md",
+        source="vault-drop",
+        content="Body.",
+        content_hash="abc123",
+    )
+    session.add_all([note, raw])
+    session.commit()
+
+    prov = AtomRawProvenance(
+        atom_fk=note.id,
+        raw_fk=raw.id,
+        gardener_version="claude-sonnet-4-6@v1",
+    )
+    session.add(prov)
+    session.commit()
+
+    loaded = session.get(AtomRawProvenance, prov.id)
+    assert loaded is not None
+    assert loaded.atom_fk == note.id
+    assert loaded.raw_fk == raw.id
