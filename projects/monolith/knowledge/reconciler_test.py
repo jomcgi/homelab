@@ -495,3 +495,68 @@ class TestWriteBackIdNoFrontmatter:
         # Confirm the backfilled id was written to disk.
         written = (tmp_path / "_processed" / "bare.md").read_text()
         assert "id: bare" in written
+
+
+class TestReconcilerWikilinks:
+    @pytest.mark.asyncio
+    async def test_links_section_written_for_note_with_edges(
+        self, reconciler, tmp_path
+    ):
+        _write(
+            tmp_path,
+            "a.md",
+            "---\nid: a\ntitle: A\nedges:\n  derives_from: [source-book]\n  related: [b]\n---\n\nBody.\n",
+        )
+        await reconciler.run()
+        written = (tmp_path / "_processed" / "a.md").read_text()
+        assert "## Links" in written
+        assert "Up: [[_processed/source-book|source-book]]" in written
+        assert "- [[_processed/b|b]]" in written
+
+    @pytest.mark.asyncio
+    async def test_links_section_written_for_note_with_type_only(
+        self, reconciler, tmp_path
+    ):
+        _write(
+            tmp_path,
+            "a.md",
+            "---\nid: a\ntitle: A\ntype: feedback\n---\n\nBody.\n",
+        )
+        await reconciler.run()
+        written = (tmp_path / "_processed" / "a.md").read_text()
+        assert "## Links" in written
+        assert "Up: [[feedback]]" in written
+
+    @pytest.mark.asyncio
+    async def test_links_section_not_written_when_no_edges_or_type(
+        self, reconciler, tmp_path
+    ):
+        _write(tmp_path, "a.md", "---\nid: a\ntitle: A\n---\n\nBody.\n")
+        await reconciler.run()
+        written = (tmp_path / "_processed" / "a.md").read_text()
+        assert "## Links" not in written
+
+    @pytest.mark.asyncio
+    async def test_stale_links_section_is_updated(self, reconciler, tmp_path):
+        _write(
+            tmp_path,
+            "a.md",
+            "---\nid: a\ntitle: A\nedges:\n  derives_from: [new-source]\n---\n\nBody.\n\n## Links\n\nUp: [[_processed/old-source|old-source]]\n",
+        )
+        await reconciler.run()
+        written = (tmp_path / "_processed" / "a.md").read_text()
+        assert "new-source" in written
+        assert "old-source" not in written
+
+    @pytest.mark.asyncio
+    async def test_current_links_section_not_rewritten(
+        self, reconciler, embed_client, tmp_path
+    ):
+        content = "---\nid: a\ntitle: A\ntype: atom\n---\n\nBody.\n\n## Links\n\nUp: [[atom]]\n"
+        _write(tmp_path, "a.md", content)
+        await reconciler.run()
+        # embed_batch is called once for the first ingest
+        first_call_count = embed_client.embed_batch.call_count
+        # Second run: content unchanged — file must not be rewritten
+        await reconciler.run()
+        assert embed_client.embed_batch.call_count == first_call_count

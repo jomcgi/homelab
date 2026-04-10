@@ -12,7 +12,7 @@ from typing import Protocol
 
 from sqlalchemy import text
 
-from knowledge import frontmatter, links
+from knowledge import frontmatter, links, wikilinks
 from knowledge.frontmatter import FrontmatterError
 from knowledge.store import KnowledgeStore
 from shared.chunker import chunk_markdown
@@ -231,6 +231,18 @@ class Reconciler:
                     " refusing to ingest with ephemeral id"
                 ) from exc
 
+        # Sync ## Links section from frontmatter edges (template or update).
+        updated = wikilinks.sync_links(raw, meta)
+        if updated is not None:
+            try:
+                raw, content_hash = self._write_back_links(abs_path, updated)
+            except OSError:
+                logger.warning(
+                    "knowledge: vault read-only, skipping links sync for %s", rel_path
+                )
+            else:
+                _, body = frontmatter.parse(raw)
+
         chunks = chunk_markdown(body)
         if not chunks:
             chunks = [{"index": 0, "section_header": "", "text": body or title}]
@@ -268,6 +280,13 @@ class Reconciler:
             # No existing frontmatter — default to LF.
             new_raw = f"---\nid: {note_id}\n---\n{raw}"
         # newline="" preserves whatever EOLs are already in new_raw.
+        with open(abs_path, "w", encoding="utf-8", newline="") as f:
+            f.write(new_raw)
+        new_hash = hashlib.sha256(new_raw.encode("utf-8")).hexdigest()
+        return new_raw, new_hash
+
+    def _write_back_links(self, abs_path: Path, new_raw: str) -> tuple[str, str]:
+        """Write the updated file (with synced ## Links section) and return (raw, hash)."""
         with open(abs_path, "w", encoding="utf-8", newline="") as f:
             f.write(new_raw)
         new_hash = hashlib.sha256(new_raw.encode("utf-8")).hexdigest()
