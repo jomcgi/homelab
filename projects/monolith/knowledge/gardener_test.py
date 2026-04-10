@@ -2,12 +2,11 @@
 
 import logging
 import os
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
 from knowledge.gardener import (
@@ -24,13 +23,13 @@ def _write(tmp_path: Path, rel: str, content: str) -> None:
 
 
 class TestDiscoverRawFiles:
-    def test_finds_md_files_outside_processed_and_deleted(self, tmp_path):
+    def test_finds_md_files_outside_processed_and_raw(self, tmp_path):
         _write(tmp_path, "inbox/new-note.md", "---\ntitle: New\n---\nBody.")
         _write(tmp_path, "_processed/existing.md", "---\nid: e\ntitle: E\n---\nBody.")
         _write(
             tmp_path,
-            "_deleted_with_ttl/old.md",
-            "---\nttl: 2026-01-01T00:00:00Z\n---\nBody.",
+            "_raw/2026/04/09/abc-old.md",
+            "---\ntitle: Old\n---\nBody.",
         )
         gardener = Gardener(vault_root=tmp_path)
         raw = gardener._discover_raw_files()
@@ -55,12 +54,12 @@ class TestDiscoverRawFiles:
 
 class TestMaxFilesPerRun:
     @pytest.mark.asyncio
-    async def test_cap_limits_ingest_to_max_files(self, tmp_path):
+    async def test_cap_limits_ingest_to_max_files(self, tmp_path, session):
         """run() processes at most max_files_per_run raw files per cycle,
         leaving the remainder for a future tick."""
         for i in range(5):
             _write(tmp_path, f"inbox/note-{i}.md", f"---\ntitle: N{i}\n---\nBody {i}.")
-        gardener = Gardener(vault_root=tmp_path, max_files_per_run=2)
+        gardener = Gardener(vault_root=tmp_path, max_files_per_run=2, session=session)
         calls: list[Path] = []
 
         async def fake_ingest(path: Path) -> None:
@@ -71,18 +70,13 @@ class TestMaxFilesPerRun:
         assert len(calls) == 2
         assert stats.ingested == 2
         assert stats.failed == 0
-        # The remaining 3 files must still be on disk waiting for the next tick.
-        remaining = sorted(
-            p.name for p in (tmp_path / "inbox").glob("*.md") if p.is_file()
-        )
-        assert len(remaining) == 5  # fake ingest doesn't soft-delete
 
     @pytest.mark.asyncio
-    async def test_cap_disabled_when_zero_or_negative(self, tmp_path):
+    async def test_cap_disabled_when_zero_or_negative(self, tmp_path, session):
         """max_files_per_run <= 0 disables the cap."""
         for i in range(3):
             _write(tmp_path, f"inbox/note-{i}.md", f"---\ntitle: N{i}\n---\nBody.")
-        gardener = Gardener(vault_root=tmp_path, max_files_per_run=0)
+        gardener = Gardener(vault_root=tmp_path, max_files_per_run=0, session=session)
         calls: list[Path] = []
 
         async def fake_ingest(path: Path) -> None:
@@ -92,128 +86,6 @@ class TestMaxFilesPerRun:
         stats = await gardener.run()
         assert len(calls) == 3
         assert stats.ingested == 3
-
-
-class TestTtlCleanup:
-    def test_deletes_expired_files(self, tmp_path):
-        expired = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
-        _write(
-            tmp_path, "_deleted_with_ttl/old.md", f'---\nttl: "{expired}"\n---\nBody.'
-        )
-        gardener = Gardener(vault_root=tmp_path)
-        cleaned = gardener._cleanup_ttl()
-        assert cleaned == 1
-        assert not (tmp_path / "_deleted_with_ttl" / "old.md").exists()
-
-    def test_keeps_non_expired_files(self, tmp_path):
-        future = (datetime.now(timezone.utc) + timedelta(hours=23)).isoformat()
-        _write(
-            tmp_path, "_deleted_with_ttl/recent.md", f'---\nttl: "{future}"\n---\nBody.'
-        )
-        gardener = Gardener(vault_root=tmp_path)
-        cleaned = gardener._cleanup_ttl()
-        assert cleaned == 0
-        assert (tmp_path / "_deleted_with_ttl" / "recent.md").exists()
-
-    def test_handles_missing_ttl_frontmatter(self, tmp_path):
-        _write(tmp_path, "_deleted_with_ttl/no-ttl.md", "---\ntitle: Oops\n---\nBody.")
-        gardener = Gardener(vault_root=tmp_path)
-        cleaned = gardener._cleanup_ttl()
-        # No ttl = don't delete (conservative)
-        assert cleaned == 0
-
-    def test_handles_empty_deleted_dir(self, tmp_path):
-        gardener = Gardener(vault_root=tmp_path)
-        cleaned = gardener._cleanup_ttl()
-        assert cleaned == 0
-
-    def test_treats_naive_expired_datetime_as_utc(self, tmp_path):
-        # Naive ISO datetime in the past (no tz suffix)
-        expired_naive = (
-            (datetime.now(timezone.utc) - timedelta(hours=1))
-            .replace(tzinfo=None)
-            .isoformat()
-        )
-        _write(
-            tmp_path,
-            "_deleted_with_ttl/naive.md",
-            f'---\nttl: "{expired_naive}"\n---\nBody.',
-        )
-        gardener = Gardener(vault_root=tmp_path)
-        cleaned = gardener._cleanup_ttl()
-        assert cleaned == 1
-        assert not (tmp_path / "_deleted_with_ttl" / "naive.md").exists()
-
-    def test_skips_corrupt_ttl_but_cleans_expired_sibling(self, tmp_path):
-        expired = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
-        _write(
-            tmp_path,
-            "_deleted_with_ttl/valid.md",
-            f'---\nttl: "{expired}"\n---\nValid.',
-        )
-        _write(
-            tmp_path,
-            "_deleted_with_ttl/corrupt.md",
-            "---\nttl: not-a-datetime\n---\nCorrupt.",
-        )
-        gardener = Gardener(vault_root=tmp_path)
-        cleaned = gardener._cleanup_ttl()
-        assert cleaned == 1
-        assert not (tmp_path / "_deleted_with_ttl" / "valid.md").exists()
-        assert (tmp_path / "_deleted_with_ttl" / "corrupt.md").exists()
-
-
-class TestSoftDelete:
-    def test_moves_file_with_existing_frontmatter_and_injects_ttl(self, tmp_path):
-        _write(
-            tmp_path,
-            "inbox/note.md",
-            "---\ntitle: Hello\ntags: [a, b]\n---\nBody text.\n",
-        )
-        gardener = Gardener(vault_root=tmp_path)
-        source = tmp_path / "inbox" / "note.md"
-        gardener._soft_delete(source)
-
-        assert not source.exists()
-        dest = tmp_path / "_deleted_with_ttl" / "inbox" / "note.md"
-        assert dest.exists()
-        content = dest.read_text()
-        assert "ttl:" in content
-        assert "title: Hello" in content
-        # Body preserved
-        assert "Body text." in content
-
-    def test_adds_frontmatter_to_file_without_any(self, tmp_path):
-        _write(tmp_path, "inbox/plain.md", "Just body, no frontmatter.\n")
-        gardener = Gardener(vault_root=tmp_path)
-        source = tmp_path / "inbox" / "plain.md"
-        gardener._soft_delete(source)
-
-        dest = tmp_path / "_deleted_with_ttl" / "inbox" / "plain.md"
-        assert dest.exists()
-        content = dest.read_text()
-        assert content.startswith("---\n")
-        assert "ttl:" in content
-        assert "Just body, no frontmatter." in content
-
-    def test_overwrites_existing_ttl(self, tmp_path):
-        """If the file already has a ttl (e.g. already soft-deleted), new ttl wins."""
-        old_ttl = "2020-01-01T00:00:00+00:00"
-        _write(
-            tmp_path,
-            "inbox/retry.md",
-            f'---\nttl: "{old_ttl}"\ntitle: X\n---\nBody.\n',
-        )
-        gardener = Gardener(vault_root=tmp_path)
-        source = tmp_path / "inbox" / "retry.md"
-        gardener._soft_delete(source)
-
-        dest = tmp_path / "_deleted_with_ttl" / "inbox" / "retry.md"
-        content = dest.read_text()
-        # Old ttl must not be present
-        assert old_ttl not in content
-        assert "ttl:" in content
-        assert content.count("ttl:") == 1
 
 
 class TestIngestOneClaude:
@@ -307,8 +179,8 @@ class TestIngestOneClaude:
         assert kwargs.get("env", {}).get("HOME") == "/tmp"
 
     @pytest.mark.asyncio
-    async def test_soft_deletes_after_notes_created(self, tmp_path):
-        """Raw file is moved to _deleted_with_ttl/ if claude creates notes in _processed/."""
+    async def test_raw_file_stays_in_place_after_decomposition(self, tmp_path):
+        """Raw file stays in _raw/ after successful decomposition (no soft delete)."""
         vault = tmp_path / "vault"
         vault.mkdir()
         note = vault / "test.md"
@@ -330,9 +202,8 @@ class TestIngestOneClaude:
         with patch("asyncio.create_subprocess_exec", return_value=proc_mock):
             await Gardener(vault_root=vault)._ingest_one(note)
 
-        assert not note.exists()
-        deleted = list((vault / "_deleted_with_ttl").rglob("*.md"))
-        assert len(deleted) == 1
+        # Raw file stays in place (no soft delete to _deleted_with_ttl/)
+        assert note.exists()
 
     @pytest.mark.asyncio
     async def test_leaves_raw_when_no_notes_created(self, tmp_path):
@@ -543,17 +414,17 @@ class TestSplitFrontmatter:
 
 class TestRunFailurePath:
     @pytest.mark.asyncio
-    async def test_continues_after_mid_run_failure(self, tmp_path):
+    async def test_continues_after_mid_run_failure(self, tmp_path, session):
         """run() continues processing files even when one raises an exception."""
         for name in ("after.md", "before.md", "middle.md"):
             _write(tmp_path, name, f"---\ntitle: {name}\n---\nBody.")
 
-        gardener = Gardener(vault_root=tmp_path)
+        gardener = Gardener(vault_root=tmp_path, session=session)
         calls: list[Path] = []
 
         async def fake_ingest(path: Path) -> None:
             calls.append(path)
-            if path.name == "middle.md":
+            if "middle" in path.name:
                 raise RuntimeError("simulated ingest failure")
 
         gardener._ingest_one = fake_ingest  # type: ignore[method-assign]
@@ -651,3 +522,29 @@ class TestGardenerSkipsAlreadyProcessedRaws:
         gardener = Gardener(vault_root=tmp_path, session=session)
         surfaced = gardener._raws_needing_decomposition()
         assert [r.raw_id for r in surfaced] == ["r3"]
+
+
+class TestGardenerRunPhases:
+    @pytest.mark.asyncio
+    async def test_run_invokes_move_then_reconcile_then_decompose(
+        self, tmp_path, session
+    ):
+        from knowledge.models import RawInput
+
+        (tmp_path / "inbox").mkdir()
+        (tmp_path / "inbox" / "note.md").write_text(
+            "---\ntitle: Note\n---\nBody.", encoding="utf-8"
+        )
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        gardener._ingest_one = AsyncMock()
+
+        stats = await gardener.run()
+
+        assert not (tmp_path / "inbox" / "note.md").exists()
+        raw_files = list((tmp_path / "_raw").rglob("*.md"))
+        assert len(raw_files) == 1
+        raws_in_db = session.exec(select(RawInput)).all()
+        assert len(raws_in_db) == 1
+        assert gardener._ingest_one.call_count == 1
+        assert stats.ingested == 1

@@ -126,9 +126,11 @@ async def garden_handler(session: Session) -> datetime | None:
     )
     stats = await gardener.run()
     extra = {
+        "moved": stats.moved,
+        "deduped": stats.deduped,
+        "reconciled": stats.reconciled,
         "ingested": stats.ingested,
         "failed": stats.failed,
-        "ttl_cleaned": stats.ttl_cleaned,
     }
     if stats.ingested == 0 and stats.failed > 0:
         logger.error("knowledge.garden complete (all failed)", extra=extra)

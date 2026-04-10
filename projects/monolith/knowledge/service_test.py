@@ -183,7 +183,7 @@ class TestGardenHandler:
         session = MagicMock()
         gardener_instance = MagicMock()
         gardener_instance.run = AsyncMock(
-            return_value=GardenStats(ingested=2, failed=0, ttl_cleaned=1)
+            return_value=GardenStats(ingested=2, failed=0)
         )
         with patch(
             "knowledge.gardener.Gardener", return_value=gardener_instance
@@ -209,7 +209,7 @@ class TestGardenHandler:
         session = MagicMock()
         gardener_instance = MagicMock()
         gardener_instance.run = AsyncMock(
-            return_value=GardenStats(ingested=0, failed=3, ttl_cleaned=0)
+            return_value=GardenStats(ingested=0, failed=3)
         )
         with (
             patch("knowledge.gardener.Gardener", return_value=gardener_instance),
@@ -229,7 +229,7 @@ class TestGardenHandler:
         session = MagicMock()
         gardener_instance = MagicMock()
         gardener_instance.run = AsyncMock(
-            return_value=GardenStats(ingested=0, failed=0, ttl_cleaned=0)
+            return_value=GardenStats(ingested=0, failed=0)
         )
         with patch(
             "knowledge.gardener.Gardener", return_value=gardener_instance
@@ -248,7 +248,7 @@ class TestGardenHandler:
         session = MagicMock()
         gardener_instance = MagicMock()
         gardener_instance.run = AsyncMock(
-            return_value=GardenStats(ingested=0, failed=0, ttl_cleaned=0)
+            return_value=GardenStats(ingested=0, failed=0)
         )
         with patch(
             "knowledge.gardener.Gardener", return_value=gardener_instance
