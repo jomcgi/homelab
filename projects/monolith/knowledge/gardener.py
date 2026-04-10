@@ -340,6 +340,16 @@ class Gardener:
                 path,
                 self._last_stdout.decode(errors="replace")[:500],
             )
+            # Record a sentinel so this raw is not reprocessed every cycle.
+            if raw_row is not None and self.session is not None:
+                self.session.add(
+                    AtomRawProvenance(
+                        raw_fk=raw_row.id,
+                        derived_note_id="no-new-notes",
+                        gardener_version=GARDENER_VERSION,
+                    )
+                )
+                self.session.commit()
             return
 
         if raw_row is not None and self.session is not None:

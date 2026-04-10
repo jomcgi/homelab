@@ -567,6 +567,44 @@ class TestIngestOneRecordsPendingProvenance:
         assert rows[0].gardener_version == GARDENER_VERSION
 
 
+class TestIngestOneNoNoteSentinel:
+    @pytest.mark.asyncio
+    async def test_records_sentinel_when_no_notes_produced(self, tmp_path, session):
+        """When claude exits 0 but creates no new files, a sentinel
+        provenance row prevents the raw from being reprocessed."""
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        (tmp_path / "_raw" / "2026" / "04" / "09").mkdir(parents=True)
+        raw_rel_path = "_raw/2026/04/09/r1-n.md"
+        (tmp_path / raw_rel_path).write_text("Body.", encoding="utf-8")
+
+        raw = RawInput(
+            raw_id="r1",
+            path=raw_rel_path,
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        session.add(raw)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+
+        async def fake_subprocess(prompt: str) -> None:
+            pass  # produces no files
+
+        gardener._run_claude_subprocess = fake_subprocess  # type: ignore[method-assign]
+
+        await gardener._ingest_one(tmp_path / raw_rel_path)
+
+        rows = session.exec(select(AtomRawProvenance)).all()
+        assert len(rows) == 1
+        assert rows[0].raw_fk == raw.id
+        assert rows[0].derived_note_id == "no-new-notes"
+        assert rows[0].gardener_version == GARDENER_VERSION
+
+
 class TestGardenerRunPhases:
     @pytest.mark.asyncio
     async def test_run_invokes_move_then_reconcile_then_decompose(
