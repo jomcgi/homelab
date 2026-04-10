@@ -13,12 +13,12 @@ examples:
                 return {"error": "Vessel not found"}, 404  # BUG: always returns HTTP 200 with JSON array
             return vessel
 
-    - description: returning a bare (dict, 500) tuple for server errors
+    - description: returning a bare (dict, 500) tuple for server errors (sync handler)
       code: |
         @app.post("/process")
-        async def process():
+        def process():
             try:
-                result = await do_work()
+                result = do_work()
             except Exception:
                 return {"error": "Internal error"}, 500  # BUG: FastAPI ignores the 500
 
@@ -41,14 +41,25 @@ examples:
                 raise HTTPException(status_code=404, detail="Vessel not found")
             return vessel
 
-    - description: 2xx status codes are not error tuples and are not caught
+    - description: returning a plain dict (no tuple) — the most common correct pattern
+      code: |
+        @app.get("/data")
+        async def data_route():
+            return {"key": "value"}
+
+    - description: >-
+        2xx and 3xx codes are out of scope for this rule.
+        Note: returning (dict, 200) is also a FastAPI anti-pattern (produces a JSON
+        array instead of a plain dict), but it silently returns the right status code
+        so it is less dangerous and is excluded to reduce noise.
       code: |
         @app.get("/ok")
         async def ok_route():
             return {"data": "value"}, 200
 
-    - description: returning a plain dict (no tuple) is fine
+    - description: variable-bound status codes are out of scope (only literals are matched)
       code: |
-        @app.get("/data")
-        async def data_route():
-            return {"key": "value"}
+        @app.get("/dynamic")
+        async def dynamic_route():
+            status_code = 404
+            return {"error": "not found"}, status_code
