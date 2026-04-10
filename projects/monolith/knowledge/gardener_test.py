@@ -532,6 +532,12 @@ class TestSplitFrontmatter:
         assert meta == {}
         assert body == raw
 
+    def test_title_with_unquoted_colon_parses(self):
+        raw = "---\ntitle: Concept: Important Idea\ntype: atom\n---\nBody"
+        meta, body = _split_frontmatter(raw)
+        assert meta == {"title": "Concept: Important Idea", "type": "atom"}
+        assert body == "Body"
+
 
 class TestRunFailurePath:
     @pytest.mark.asyncio

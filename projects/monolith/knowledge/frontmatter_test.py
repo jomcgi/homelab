@@ -4,7 +4,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from knowledge.frontmatter import FrontmatterError, ParsedFrontmatter, parse
+from knowledge.frontmatter import (
+    FrontmatterError,
+    ParsedFrontmatter,
+    _sanitize_yaml_block,
+    parse,
+)
 
 
 class TestParse:
@@ -131,3 +136,83 @@ class TestParse:
         raw = "---\nup: '[[Index]]'\n---\nx"
         meta, _ = parse(raw)
         assert meta.extra == {"up": "[[Index]]"}
+
+    def test_title_with_unquoted_colon_parses(self):
+        raw = "---\ntitle: Atomic Note: One Concept Per Note Principle\ntype: atom\n---\nBody."
+        meta, body = parse(raw)
+        assert meta.title == "Atomic Note: One Concept Per Note Principle"
+        assert meta.type == "atom"
+        assert body == "Body."
+
+    def test_title_with_multiple_colons_parses(self):
+        raw = "---\ntitle: Note Type Taxonomy: atom / fact / active\n---\nBody."
+        meta, _ = parse(raw)
+        assert meta.title == "Note Type Taxonomy: atom / fact / active"
+
+    def test_already_quoted_title_with_colon_unchanged(self):
+        raw = '---\ntitle: "Already: Quoted"\n---\nBody.'
+        meta, _ = parse(raw)
+        assert meta.title == "Already: Quoted"
+
+    def test_single_quoted_title_with_colon_unchanged(self):
+        raw = "---\ntitle: 'Single: Quoted'\n---\nBody."
+        meta, _ = parse(raw)
+        assert meta.title == "Single: Quoted"
+
+    def test_colon_without_space_not_affected(self):
+        raw = "---\ntitle: ratio 3:1 works\n---\nx"
+        meta, _ = parse(raw)
+        assert meta.title == "ratio 3:1 works"
+
+    def test_nested_edges_not_broken_by_sanitizer(self):
+        raw = (
+            "---\n"
+            "title: Test: With Colon\n"
+            "edges:\n"
+            "  refines: [parent]\n"
+            "  related: [a, b]\n"
+            "---\n"
+            "Body."
+        )
+        meta, body = parse(raw)
+        assert meta.title == "Test: With Colon"
+        assert meta.edges == {"refines": ["parent"], "related": ["a", "b"]}
+
+
+class TestSanitizeYamlBlock:
+    def test_quotes_value_with_embedded_colon_space(self):
+        block = "title: Foo: Bar Baz"
+        assert _sanitize_yaml_block(block) == 'title: "Foo: Bar Baz"'
+
+    def test_leaves_already_quoted_values_alone(self):
+        block = 'title: "Foo: Bar"'
+        assert _sanitize_yaml_block(block) == 'title: "Foo: Bar"'
+
+    def test_leaves_single_quoted_values_alone(self):
+        block = "title: 'Foo: Bar'"
+        assert _sanitize_yaml_block(block) == "title: 'Foo: Bar'"
+
+    def test_leaves_flow_sequence_alone(self):
+        block = "tags: [ml, attention]"
+        assert _sanitize_yaml_block(block) == "tags: [ml, attention]"
+
+    def test_leaves_flow_mapping_alone(self):
+        block = "meta: {key: val}"
+        assert _sanitize_yaml_block(block) == "meta: {key: val}"
+
+    def test_skips_indented_lines(self):
+        block = "edges:\n  refines: [parent]\n  related: [a]"
+        assert _sanitize_yaml_block(block) == block
+
+    def test_no_colon_in_value_unchanged(self):
+        block = "title: Simple Title"
+        assert _sanitize_yaml_block(block) == "title: Simple Title"
+
+    def test_escapes_double_quotes_in_value(self):
+        block = 'title: He said "hello": world'
+        assert _sanitize_yaml_block(block) == r'title: "He said \"hello\": world"'
+
+    def test_multiple_lines_mixed(self):
+        block = "id: my-note\ntitle: Concept: Important One\ntype: atom"
+        result = _sanitize_yaml_block(block)
+        assert result == 'id: my-note\ntitle: "Concept: Important One"\ntype: atom'
