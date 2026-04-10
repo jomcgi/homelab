@@ -316,3 +316,93 @@ class TestSearchNotes:
         # chunk_0 embedding is all 0.0s, chunk_1 is all 1.0s.
         # Query is all 0.0s, so chunk_0 is a perfect match (distance=0, score=1).
         assert results[0]["score"] == pytest.approx(1.0, abs=1e-6)
+
+
+class TestSearchNotesWithContext:
+    """search_notes_with_context requires pgvector cosine_distance (Postgres only)."""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, pg_session):
+        self.session = pg_session
+        self.store = KnowledgeStore(session=pg_session)
+
+    def test_returns_type_tags_snippet_and_section(self):
+        # Insert a note with a distinctive chunk under "## Architecture".
+        distinctive = "transformer replaces recurrence entirely"
+        self.store.upsert_note(
+            note_id="n1",
+            path="attention.md",
+            content_hash="h1",
+            title="Attention",
+            metadata=_meta(
+                title="Attention",
+                type="paper",
+                tags=["ml", "transformers"],
+            ),
+            chunks=[
+                {
+                    "index": 0,
+                    "section_header": "## Architecture",
+                    "text": distinctive,
+                }
+            ],
+            vectors=[[0.0] * 1024],
+            links=[],
+        )
+
+        results = self.store.search_notes_with_context(query_embedding=[0.0] * 1024)
+        assert len(results) == 1
+        row = results[0]
+        assert set(row.keys()) == {
+            "note_id",
+            "title",
+            "path",
+            "type",
+            "tags",
+            "score",
+            "section",
+            "snippet",
+        }
+        assert row["note_id"] == "n1"
+        assert row["title"] == "Attention"
+        assert row["path"] == "attention.md"
+        assert row["type"] == "paper"
+        assert row["tags"] == ["ml", "transformers"]
+        assert row["section"] == "## Architecture"
+        assert distinctive in row["snippet"]
+
+    def test_best_chunk_snippet_used_for_multi_chunk_note(self):
+        # One note with two chunks whose embeddings are far apart. The
+        # DISTINCT ON query must pick the chunk whose embedding is closest
+        # to the query — not the first one, not an arbitrary one.
+        zeros_text = "zeros chunk about attention heads"
+        ones_text = "ones chunk about positional encoding"
+        self.store.upsert_note(
+            note_id="n1",
+            path="multi.md",
+            content_hash="h1",
+            title="Multi",
+            metadata=_meta(title="Multi", type="paper", tags=["ml"]),
+            chunks=[
+                {
+                    "index": 0,
+                    "section_header": "## Zeros",
+                    "text": zeros_text,
+                },
+                {
+                    "index": 1,
+                    "section_header": "## Ones",
+                    "text": ones_text,
+                },
+            ],
+            vectors=[[0.0] * 1024, [1.0] * 1024],
+            links=[],
+        )
+
+        # Query matches the all-ones chunk exactly.
+        results = self.store.search_notes_with_context(query_embedding=[1.0] * 1024)
+        assert len(results) == 1
+        row = results[0]
+        assert row["section"] == "## Ones"
+        assert ones_text in row["snippet"]
+        assert zeros_text not in row["snippet"]
