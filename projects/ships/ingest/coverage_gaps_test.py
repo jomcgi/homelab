@@ -11,6 +11,7 @@ Tests cover gaps not addressed by existing test files:
 
 import asyncio
 import json
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -342,8 +343,6 @@ class TestFormatEtaYearRolloverInference:
     def test_january_1_always_results_in_future_or_current_year(self):
         """ETA of January 1 is always treated as future: if Jan 1 already passed
         this year, it should return next year."""
-        from datetime import datetime, timezone
-
         now = datetime.now(timezone.utc)
         result = format_eta({"Month": 1, "Day": 1, "Hour": 0, "Minute": 0})
         assert result is not None
@@ -353,8 +352,6 @@ class TestFormatEtaYearRolloverInference:
 
     def test_past_date_gets_bumped_to_next_year(self):
         """A date that was clearly in the past this year returns next year."""
-        from datetime import datetime, timezone
-
         now = datetime.now(timezone.utc)
         # Pick a month guaranteed to be in the past (at least 2 months ago)
         # Skip if we're in Jan or Feb (can't guarantee a past month)
@@ -373,8 +370,6 @@ class TestFormatEtaYearRolloverInference:
 
     def test_future_date_stays_in_current_year(self):
         """A date clearly in the future stays in the current year."""
-        from datetime import datetime, timezone
-
         now = datetime.now(timezone.utc)
         # Pick Dec 31 unless it's actually Dec 31 right now
         if now.month == 12 and now.day >= 30:

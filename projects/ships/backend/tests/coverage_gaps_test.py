@@ -857,8 +857,6 @@ class TestDatabaseIndexOperations:
     @pytest.mark.asyncio
     async def test_drop_then_create_cycle_on_real_db(self):
         """drop_indexes followed by create_indexes works on a real in-memory DB."""
-        import pytest_asyncio
-
         db = Database(":memory:")
         await db.connect()
 
