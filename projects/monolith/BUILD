@@ -2126,6 +2126,16 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_raw_ingest_test",
+    srcs = ["knowledge/raw_ingest_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "knowledge_raw_paths_test",
     srcs = ["knowledge/raw_paths_test.py"],
     imports = ["."],
