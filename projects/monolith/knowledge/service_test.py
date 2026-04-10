@@ -393,7 +393,10 @@ class TestVaultBackupHandler:
             committer=b"vault-backup <vault-backup@monolith.local>",
         )
         mock_push.assert_called_once_with(
-            str(tmp_path), username="x-access-token", password="ghp_test"
+            str(tmp_path),
+            refspecs=[b"refs/heads/master:refs/heads/main"],
+            username="x-access-token",
+            password="ghp_test",
         )
 
     @pytest.mark.asyncio
@@ -453,5 +456,8 @@ class TestVaultBackupHandler:
         ):
             await service.vault_backup_handler(MagicMock())
         mock_push.assert_called_once_with(
-            str(tmp_path), username="x-access-token", password="ghp_secret"
+            str(tmp_path),
+            refspecs=[b"refs/heads/master:refs/heads/main"],
+            username="x-access-token",
+            password="ghp_secret",
         )
