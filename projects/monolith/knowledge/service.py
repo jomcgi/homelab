@@ -96,11 +96,7 @@ async def vault_backup_handler(session: Session) -> datetime | None:
         if token:
             push_kwargs["username"] = "x-access-token"
             push_kwargs["password"] = token
-        porcelain.push(
-            str(vault_root),
-            refspecs=[b"refs/heads/master:refs/heads/main"],
-            **push_kwargs,
-        )
+        porcelain.push(str(vault_root), **push_kwargs)
         logger.info("knowledge.vault-backup: committed and pushed")
     except Exception as exc:
         logger.warning("knowledge.vault-backup: push failed: %s", exc)
