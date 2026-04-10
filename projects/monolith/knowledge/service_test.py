@@ -390,7 +390,7 @@ class TestVaultBackupHandler:
             str(tmp_path), message=b"sync: vault backup"
         )
         mock_push.assert_called_once_with(
-            path=str(tmp_path), username="x-access-token", password="ghp_test"
+            str(tmp_path), username="x-access-token", password="ghp_test"
         )
 
     @pytest.mark.asyncio
@@ -450,5 +450,5 @@ class TestVaultBackupHandler:
         ):
             await service.vault_backup_handler(MagicMock())
         mock_push.assert_called_once_with(
-            path=str(tmp_path), username="x-access-token", password="ghp_secret"
+            str(tmp_path), username="x-access-token", password="ghp_secret"
         )
