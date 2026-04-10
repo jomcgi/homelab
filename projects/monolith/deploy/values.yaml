@@ -1,5 +1,5 @@
 backend:
-  replicas: 1
+  replicas: 0
   vaultApiUrl: "http://obsidian-vault.obsidian.svc.cluster.local:8000"
   resources:
     requests:
