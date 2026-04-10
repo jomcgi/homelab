@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlmodel import Session, select
@@ -172,6 +172,7 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
             content_hash=raw_id,
             type="raw",
             source=source,
+            indexed_at=datetime.now(timezone.utc),
         )
         try:
             with session.begin_nested():
