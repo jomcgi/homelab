@@ -42,6 +42,17 @@
     tick().then(() => captureRef?.focus());
   }
 
+  async function selectResult(result) {
+    try {
+      const res = await fetch(`/api/knowledge/notes/${result.note_id}`);
+      if (res.ok) {
+        selectedNote = await res.json();
+      }
+    } catch (e) {
+      console.error("Failed to fetch note:", e);
+    }
+  }
+
   $effect(() => {
     function handleGlobalKeyDown(e) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -52,24 +63,18 @@
         e.preventDefault();
         closeSearch();
       }
-      if (searchOpen && e.key === "ArrowDown") {
+      if (searchOpen && e.key === "ArrowDown" && searchResults.length > 0) {
         e.preventDefault();
         activeIndex = Math.min(activeIndex + 1, searchResults.length - 1);
       }
-      if (searchOpen && e.key === "ArrowUp") {
+      if (searchOpen && e.key === "ArrowUp" && searchResults.length > 0) {
         e.preventDefault();
         activeIndex = Math.max(activeIndex - 1, -1);
       }
       if (searchOpen && e.key === "Enter" && activeIndex >= 0) {
         e.preventDefault();
         const result = searchResults[activeIndex];
-        if (result) {
-          fetch(`/api/knowledge/notes/${result.note_id}`)
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data) => {
-              if (data) selectedNote = data;
-            });
-        }
+        if (result) selectResult(result);
       }
     }
     document.addEventListener("keydown", handleGlobalKeyDown);
@@ -78,8 +83,10 @@
 
   // ── Debounced search ───────────────────────────
   let searchTimer;
+  let searchController;
   $effect(() => {
     clearTimeout(searchTimer);
+    searchController?.abort();
     const q = searchQuery;
     const type = searchType;
     if (q.length < 2) {
@@ -89,15 +96,32 @@
     }
     searching = true;
     searchTimer = setTimeout(async () => {
-      const params = new URLSearchParams({ q });
-      if (type !== "all") params.set("type", type);
-      const res = await fetch(`/api/knowledge/search?${params}`);
-      if (res.ok) {
-        searchResults = (await res.json()).results;
-        activeIndex = -1;
+      const controller = new AbortController();
+      searchController = controller;
+      try {
+        const params = new URLSearchParams({ q });
+        if (type !== "all") params.set("type", type);
+        const res = await fetch(`/api/knowledge/search?${params}`, {
+          signal: controller.signal,
+        });
+        if (res.ok && !controller.signal.aborted) {
+          searchResults = (await res.json()).results;
+          activeIndex = -1;
+        }
+      } catch (e) {
+        if (e.name !== "AbortError") {
+          searchResults = [];
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          searching = false;
+        }
       }
-      searching = false;
     }, 300);
+    return () => {
+      clearTimeout(searchTimer);
+      searchController?.abort();
+    };
   });
 
   async function submitCapture() {
@@ -466,18 +490,18 @@
         <ul
           class="search-results"
           class:search-results--stale={searching}
+          role="listbox"
+          aria-label="Search results"
         >
           {#each searchResults as result, i}
             <li
               class="search-result"
               class:active={activeIndex === i}
+              role="option"
+              aria-selected={activeIndex === i}
               onclick={() => {
                 activeIndex = i;
-                fetch(`/api/knowledge/notes/${result.note_id}`)
-                  .then((res) => (res.ok ? res.json() : null))
-                  .then((data) => {
-                    if (data) selectedNote = data;
-                  });
+                selectResult(result);
               }}
             >
               <div class="search-result-title">
