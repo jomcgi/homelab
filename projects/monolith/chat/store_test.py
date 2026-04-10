@@ -236,10 +236,10 @@ class TestThinking:
     @pytest.mark.asyncio
     async def test_get_messages_with_thinking(self, store):
         """get_messages_with_thinking returns only bot messages with thinking."""
-        store.embed_client.embed_batch.return_value = [
-            [0.0] * 1024,
-            [0.0] * 1024,
-            [0.0] * 1024,
+        store.embed_client.embed_batch.side_effect = [
+            [[0.0] * 1024],
+            [[0.0] * 1024],
+            [[0.0] * 1024],
         ]
 
         await store.save_message(
