@@ -54,9 +54,10 @@ graph TD
 
 ### Stage 1: Gemma4 Generation
 
-- Called via OpenAI-compatible HTTP API (same endpoint used by the chatbot)
+- Model: `gemma-4-26b-a4b` via `LLAMA_CPP_URL` env var (same endpoint and model ID used by the Discord chatbot in `chat/agent.py`)
+- Called via OpenAI-compatible HTTP API using PydanticAI `OpenAIChatModel` + `OpenAIProvider`
 - Structured output mode (`response_format` JSON schema) enforces valid frontmatter fields
-- Prompt instructs decomposition into typed notes with edge reasoning
+- Prompt includes the raw note **and** a sample of existing vault notes (via semantic search) to inform edge reasoning — Gemma4 is responsible for proposing `derives_from` and `related` edges at generation time
 - Output: one or more draft note objects (not yet written to disk)
 
 ### Stage 2: Opus Semantic Review
@@ -80,8 +81,9 @@ Opus's prompt should minimise output tokens:
 
 ### Phase 1: Gemma4 generation stage
 
-- [ ] Add OpenAI SDK client (`openai` Python package, pointed at homelab endpoint) to `gardener.py`
+- [ ] Add PydanticAI `OpenAIChatModel` client (model `gemma-4-26b-a4b`, `LLAMA_CPP_URL` env var) to `gardener.py`
 - [ ] Replace or wrap `_ingest_one` with a Gemma4 call using structured output schema matching the existing frontmatter Pydantic model
+- [ ] Before calling Gemma4, run semantic search (`search_notes`) to retrieve related vault notes and include them in the prompt for edge reasoning
 - [ ] Validate draft output passes frontmatter schema before forwarding to Opus
 - [ ] Write unit tests with mocked Gemma4 responses
 
@@ -121,8 +123,7 @@ See `docs/security.md` for baseline. No deviations from baseline.
 
 ## Open Questions
 
-1. Should the Gemma4 prompt include existing vault notes as context (for edge reasoning), or keep it stateless and rely on Opus to add edges? Stateful Gemma4 calls are more expensive; Opus adding edges during review might be cleaner.
-2. What is the Gemma4 model identifier on the homelab endpoint? (Needed for the OpenAI client `model=` param.)
+_None — all design questions resolved._
 
 ---
 
