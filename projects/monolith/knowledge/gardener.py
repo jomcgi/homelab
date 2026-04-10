@@ -155,28 +155,25 @@ class Gardener:
             resolved += 1
         return resolved
 
-    def _backfill_provenance_from_processed(self) -> int:
-        """Bulk-insert sentinel provenance for raws already decomposed on disk.
+    def _backfill_provenance_from_notes(self) -> int:
+        """Bulk-insert sentinel provenance for raws already linked to notes.
 
-        Scans _processed/ atoms for derived_from_raw frontmatter and creates
-        provenance rows for any matching raws that lack them. This avoids
-        sending already-decomposed raws to Claude just to hear "already done".
+        Queries the notes table for derived_from_raw JSONB values and creates
+        provenance rows for any matching raws that lack them.  This is
+        deterministic (DB-only, no disk scan) and avoids sending
+        already-decomposed raws to Claude.
         """
         if self.session is None:
             return 0
-        if not self.processed_root.exists():
-            return 0
 
-        # Collect raw_ids referenced by existing atoms on disk.
-        processed_raw_ids: set[str] = set()
-        for atom_path in self.processed_root.glob("*.md"):
-            try:
-                meta, _ = frontmatter.parse(atom_path.read_text(encoding="utf-8"))
-                if meta.extra and meta.extra.get("derived_from_raw"):
-                    processed_raw_ids.add(meta.extra["derived_from_raw"])
-            except Exception:
-                continue
-
+        # Collect raw_ids referenced by existing atom notes in the DB.
+        processed_raw_ids: set[str] = set(
+            self.session.exec(
+                select(Note.extra["derived_from_raw"].as_string()).where(
+                    Note.extra["derived_from_raw"].as_string().is_not(None)
+                )
+            ).all()
+        )
         if not processed_raw_ids:
             return 0
 
@@ -198,7 +195,7 @@ class Gardener:
                 self.session.add(
                     AtomRawProvenance(
                         raw_fk=raw.id,
-                        derived_note_id="backfill-from-disk",
+                        derived_note_id="backfill-from-notes",
                         gardener_version=GARDENER_VERSION,
                     )
                 )
@@ -253,7 +250,7 @@ class Gardener:
             )
             self.session.commit()
 
-        self._backfill_provenance_from_processed()
+        self._backfill_provenance_from_notes()
 
         raws = self._raws_needing_decomposition()
         if self.max_files_per_run > 0 and len(raws) > self.max_files_per_run:

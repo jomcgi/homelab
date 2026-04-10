@@ -567,72 +567,67 @@ class TestIngestOneRecordsPendingProvenance:
         assert rows[0].gardener_version == GARDENER_VERSION
 
 
-class TestBackfillProvenanceFromProcessed:
-    def test_backfills_provenance_for_already_processed_raws(self, tmp_path, session):
-        """Raws whose atoms already exist on disk get sentinel provenance
+class TestBackfillProvenanceFromNotes:
+    def test_backfills_provenance_for_raws_linked_to_notes(self, tmp_path, session):
+        """Raws whose atoms exist in the notes table get sentinel provenance
         without calling Claude."""
         from knowledge.gardener import GARDENER_VERSION
-        from knowledge.models import AtomRawProvenance, RawInput
+        from knowledge.models import AtomRawProvenance, Note, RawInput
 
-        # Create a raw input row.
-        (tmp_path / "_raw" / "2026" / "04" / "09").mkdir(parents=True)
-        raw_path = "_raw/2026/04/09/r1-n.md"
-        (tmp_path / raw_path).write_text("Body.", encoding="utf-8")
         raw = RawInput(
             raw_id="r1",
-            path=raw_path,
+            path="_raw/2026/04/09/r1-n.md",
             source="vault-drop",
             content="Body.",
             content_hash="r1",
         )
+        atom = Note(
+            note_id="atom-1",
+            path="_processed/atom.md",
+            title="Atom",
+            content_hash="abc",
+            type="atom",
+            extra={"derived_from_raw": "r1"},
+        )
         session.add(raw)
+        session.add(atom)
         session.commit()
 
-        # Simulate a processed atom referencing this raw_id.
-        processed = tmp_path / "_processed"
-        processed.mkdir()
-        (processed / "atom.md").write_text(
-            "---\nid: atom-1\ntitle: Atom\ntype: atom\nderived_from_raw: r1\n---\nBody.\n",
-            encoding="utf-8",
-        )
-
         gardener = Gardener(vault_root=tmp_path, session=session)
-        count = gardener._backfill_provenance_from_processed()
+        count = gardener._backfill_provenance_from_notes()
 
         assert count == 1
         rows = session.exec(select(AtomRawProvenance)).all()
         assert len(rows) == 1
         assert rows[0].raw_fk == raw.id
-        assert rows[0].derived_note_id == "backfill-from-disk"
+        assert rows[0].derived_note_id == "backfill-from-notes"
         assert rows[0].gardener_version == GARDENER_VERSION
 
-    def test_skips_raws_without_matching_atoms(self, tmp_path, session):
-        """Raws with no matching atoms on disk are left for Claude."""
-        from knowledge.models import AtomRawProvenance, RawInput
+    def test_skips_raws_without_matching_notes(self, tmp_path, session):
+        """Raws with no matching notes in the DB are left for Claude."""
+        from knowledge.models import AtomRawProvenance, Note, RawInput
 
-        (tmp_path / "_raw" / "2026" / "04" / "09").mkdir(parents=True)
-        raw_path = "_raw/2026/04/09/r1-n.md"
-        (tmp_path / raw_path).write_text("Body.", encoding="utf-8")
         raw = RawInput(
             raw_id="r1",
-            path=raw_path,
+            path="_raw/2026/04/09/r1-n.md",
             source="vault-drop",
             content="Body.",
             content_hash="r1",
         )
+        atom = Note(
+            note_id="other",
+            path="_processed/other.md",
+            title="Other",
+            content_hash="xyz",
+            type="atom",
+            extra={"derived_from_raw": "r999"},
+        )
         session.add(raw)
+        session.add(atom)
         session.commit()
 
-        # Processed dir exists but has no atoms referencing r1.
-        processed = tmp_path / "_processed"
-        processed.mkdir()
-        (processed / "unrelated.md").write_text(
-            "---\nid: other\ntitle: Other\ntype: atom\nderived_from_raw: r999\n---\nBody.\n",
-            encoding="utf-8",
-        )
-
         gardener = Gardener(vault_root=tmp_path, session=session)
-        count = gardener._backfill_provenance_from_processed()
+        count = gardener._backfill_provenance_from_notes()
 
         assert count == 0
         assert session.exec(select(AtomRawProvenance)).all() == []
