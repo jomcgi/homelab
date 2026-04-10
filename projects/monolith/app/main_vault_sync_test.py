@@ -124,26 +124,14 @@ async def test_wait_for_vault_sync_ignores_non_md_files():
         (Path(vault_dir) / "readme.txt").write_text("readme")
 
         sleep_mock = AsyncMock()
-        # We limit iterations to avoid an infinite loop in this test —
-        # we patch rglob to return empty after the non-md files are "present"
-        call_count = [0]
-        orig_rglob = Path.rglob
 
-        def limited_rglob(self, pattern):
-            if call_count[0] < 3:
-                call_count[0] += 1
-                return iter([])  # never finds any .md files
-            raise StopIteration  # force the loop to exhaust naturally
+        # Create an .md file after 2 sleeps — verifies the function kept polling
+        async def side_effect_sleep(seconds):  # noqa: ARG001
+            if sleep_mock.call_count == 2:
+                (Path(vault_dir) / "note.md").write_text("# Note")
 
-        # Instead: patch the vault_root.rglob to return empty for all 60 tries
-        # by just making .md file appear on call 3
+        sleep_mock.side_effect = side_effect_sleep
         with patch.dict(os.environ, {"VAULT_ROOT": vault_dir}):
-            # Create an .md file after 2 sleeps
-            async def side_effect_sleep(seconds):  # noqa: ARG001
-                if sleep_mock.call_count == 2:
-                    (Path(vault_dir) / "note.md").write_text("# Note")
-
-            sleep_mock.side_effect = side_effect_sleep
             with patch("asyncio.sleep", sleep_mock):
                 await _wait_for_vault_sync()
 
