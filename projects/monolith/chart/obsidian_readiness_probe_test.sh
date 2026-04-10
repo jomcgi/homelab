@@ -2,7 +2,7 @@
 # obsidian_readiness_probe_test.sh - Validates the obsidian sidecar readiness probe
 # configuration in the monolith Helm chart.
 #
-# Usage: obsidian_readiness_probe_test.sh <helm-binary> <chart-yaml> <entrypoint-sh>
+# Usage: obsidian_readiness_probe_test.sh <helm-binary> <chart-tgz> <entrypoint-sh>
 #
 # Verifies:
 #   1. The obsidian container is absent when knowledge.enabled=false (default)
@@ -16,13 +16,12 @@
 set -euo pipefail
 
 if [[ $# -lt 3 ]]; then
-	echo "Usage: $0 <helm-binary> <chart-yaml> <entrypoint-sh>"
+	echo "Usage: $0 <helm-binary> <chart-tgz> <entrypoint-sh>"
 	exit 1
 fi
 
 HELM="$1"
-CHART_YAML="$2"
-CHART_DIR="$(dirname "$CHART_YAML")"
+CHART_TGZ="$2"
 ENTRYPOINT="$3"
 
 PASSED=0
@@ -42,7 +41,7 @@ fail() {
 # Test 1: obsidian container is absent when knowledge.enabled=false (default)
 # ---------------------------------------------------------------------------
 echo "--- Test 1: obsidian container absent when knowledge.enabled=false ---"
-RENDERED_DEFAULT=$("$HELM" template monolith "$CHART_DIR")
+RENDERED_DEFAULT=$("$HELM" template monolith "$CHART_TGZ")
 if echo "$RENDERED_DEFAULT" | grep -q "name: obsidian"; then
 	fail "obsidian container should NOT be present when knowledge.enabled=false"
 else
@@ -50,7 +49,7 @@ else
 fi
 
 # Render with knowledge enabled for remaining tests
-RENDERED=$("$HELM" template monolith "$CHART_DIR" \
+RENDERED=$("$HELM" template monolith "$CHART_TGZ" \
 	--set knowledge.enabled=true \
 	--set knowledge.headlessSync.vaultName=test-vault)
 
