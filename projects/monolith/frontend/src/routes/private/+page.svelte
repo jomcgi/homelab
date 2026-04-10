@@ -52,9 +52,52 @@
         e.preventDefault();
         closeSearch();
       }
+      if (searchOpen && e.key === "ArrowDown") {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, searchResults.length - 1);
+      }
+      if (searchOpen && e.key === "ArrowUp") {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, -1);
+      }
+      if (searchOpen && e.key === "Enter" && activeIndex >= 0) {
+        e.preventDefault();
+        const result = searchResults[activeIndex];
+        if (result) {
+          fetch(`/api/knowledge/notes/${result.note_id}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+              if (data) selectedNote = data;
+            });
+        }
+      }
     }
     document.addEventListener("keydown", handleGlobalKeyDown);
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  });
+
+  // ── Debounced search ───────────────────────────
+  let searchTimer;
+  $effect(() => {
+    clearTimeout(searchTimer);
+    const q = searchQuery;
+    const type = searchType;
+    if (q.length < 2) {
+      searchResults = [];
+      searching = false;
+      return;
+    }
+    searching = true;
+    searchTimer = setTimeout(async () => {
+      const params = new URLSearchParams({ q });
+      if (type !== "all") params.set("type", type);
+      const res = await fetch(`/api/knowledge/search?${params}`);
+      if (res.ok) {
+        searchResults = (await res.json()).results;
+        activeIndex = -1;
+      }
+      searching = false;
+    }, 300);
   });
 
   async function submitCapture() {
@@ -403,6 +446,64 @@
         bind:value={searchQuery}
         bind:this={searchInputRef}
       />
+      <div class="search-type-filters">
+        {#each ["all", "note", "paper", "article", "recipe"] as type}
+          <button
+            class="search-type-pill"
+            class:active={searchType === type}
+            onclick={() => (searchType = type)}
+          >
+            {type}
+          </button>
+        {/each}
+      </div>
+      {#if searching && searchResults.length === 0}
+        <p class="search-status">searching...</p>
+      {:else if !searching && searchQuery.length >= 2 && searchResults.length === 0}
+        <p class="search-status">no results</p>
+      {/if}
+      {#if searchResults.length > 0}
+        <ul
+          class="search-results"
+          class:search-results--stale={searching}
+        >
+          {#each searchResults as result, i}
+            <li
+              class="search-result"
+              class:active={activeIndex === i}
+              onclick={() => {
+                activeIndex = i;
+                fetch(`/api/knowledge/notes/${result.note_id}`)
+                  .then((res) => (res.ok ? res.json() : null))
+                  .then((data) => {
+                    if (data) selectedNote = data;
+                  });
+              }}
+            >
+              <div class="search-result-title">
+                {result.title}
+                {#if result.type}
+                  <span class="search-result-badge">{result.type}</span>
+                {/if}
+              </div>
+              {#if result.section || result.tags?.length}
+                <div class="search-result-meta">
+                  {#if result.section}{result.section}{/if}
+                  {#if result.section && result.tags?.length}
+                    &nbsp;&middot;&nbsp;
+                  {/if}
+                  {#if result.tags?.length}
+                    {result.tags.join(" \u00b7 ")}
+                  {/if}
+                </div>
+              {/if}
+              {#if result.snippet}
+                <div class="search-result-snippet">{result.snippet}</div>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
     </div>
   </div>
 {/if}
@@ -719,5 +820,81 @@
 
   .search-input::placeholder {
     color: var(--fg-tertiary);
+  }
+
+  .search-type-filters {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+
+  .search-type-pill {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--fg-tertiary);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font);
+  }
+
+  .search-type-pill.active {
+    color: var(--fg);
+  }
+
+  .search-results {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0 0;
+  }
+
+  .search-results--stale {
+    opacity: 0.5;
+  }
+
+  .search-result {
+    padding: 0.75rem 0;
+    border-bottom: 0.04rem solid var(--border);
+    cursor: pointer;
+  }
+
+  .search-result.active {
+    background: var(--surface);
+  }
+
+  .search-result-title {
+    font-weight: 700;
+    color: var(--fg);
+  }
+
+  .search-result-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--fg-tertiary);
+    margin-left: 0.5rem;
+  }
+
+  .search-result-meta {
+    font-size: 0.75rem;
+    color: var(--fg-tertiary);
+    margin-top: 0.25rem;
+  }
+
+  .search-result-snippet {
+    font-size: 0.85rem;
+    color: var(--fg-secondary);
+    margin-top: 0.25rem;
+    line-height: 1.5;
+  }
+
+  .search-status {
+    color: var(--fg-tertiary);
+    margin-top: 1rem;
+    font-size: 0.85rem;
   }
 </style>
