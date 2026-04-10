@@ -1,5 +1,6 @@
-"""Unit tests for knowledge/router.py — /search endpoint."""
+"""Unit tests for knowledge/router.py — /search and /notes endpoints."""
 
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -8,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.db import get_session
 from app.main import app
 from knowledge.router import get_embedding_client
+from knowledge.service import VAULT_ROOT_ENV
 
 FAKE_EMBEDDING = [0.1] * 1024
 
@@ -142,3 +144,92 @@ class TestSearchEndpoint:
                 limit=20,
                 type_filter=None,
             )
+
+
+SAMPLE_NOTE = {
+    "note_id": "n1",
+    "title": "Attention Is All You Need",
+    "path": "papers/attention.md",
+    "type": "paper",
+    "tags": ["ml", "transformers"],
+}
+
+
+@pytest.fixture()
+def note_client(fake_session):
+    """TestClient with only session override — /notes doesn't need embed."""
+    app.dependency_overrides[get_session] = lambda: fake_session
+    yield TestClient(app, raise_server_exceptions=False)
+    app.dependency_overrides.clear()
+
+
+class TestGetNoteEndpoint:
+    """Tests for GET /api/knowledge/notes/{note_id}."""
+
+    def test_happy_path_returns_note_with_content(self, tmp_path, fake_session):
+        """Existing note + vault file returns all fields plus content."""
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        note_file = vault_dir / "papers" / "attention.md"
+        note_file.parent.mkdir(parents=True)
+        note_file.write_text("# Attention\n\nSelf-attention mechanism.")
+
+        app.dependency_overrides[get_session] = lambda: fake_session
+        old_val = os.environ.get(VAULT_ROOT_ENV)
+        os.environ[VAULT_ROOT_ENV] = str(vault_dir)
+        try:
+            c = TestClient(app, raise_server_exceptions=False)
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.get_note_by_id.return_value = SAMPLE_NOTE
+                r = c.get("/api/knowledge/notes/n1")
+        finally:
+            if old_val is None:
+                os.environ.pop(VAULT_ROOT_ENV, None)
+            else:
+                os.environ[VAULT_ROOT_ENV] = old_val
+            app.dependency_overrides.clear()
+
+        assert r.status_code == 200
+        body = r.json()
+        assert body["note_id"] == "n1"
+        assert body["title"] == "Attention Is All You Need"
+        assert body["path"] == "papers/attention.md"
+        assert body["type"] == "paper"
+        assert body["tags"] == ["ml", "transformers"]
+        assert body["content"] == "# Attention\n\nSelf-attention mechanism."
+
+    def test_missing_note_returns_404(self, note_client):
+        """get_note_by_id returns None -> 404 'note not found'."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.get_note_by_id.return_value = None
+            r = note_client.get("/api/knowledge/notes/nonexistent")
+
+        assert r.status_code == 404
+        body = r.json()
+        assert body.get("detail") == "note not found"
+
+    def test_missing_vault_file_returns_404(self, note_client):
+        """Note exists in DB but vault file missing on disk -> 404."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.get_note_by_id.return_value = {
+                **SAMPLE_NOTE,
+                "path": "nonexistent/missing.md",
+            }
+            r = note_client.get("/api/knowledge/notes/n1")
+
+        assert r.status_code == 404
+        body = r.json()
+        assert body.get("detail") == "vault file missing"
+
+    def test_path_traversal_returns_404(self, note_client):
+        """Path containing ../ is caught by is_relative_to guard -> 404."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.get_note_by_id.return_value = {
+                **SAMPLE_NOTE,
+                "path": "../../../etc/passwd",
+            }
+            r = note_client.get("/api/knowledge/notes/n1")
+
+        assert r.status_code == 404
+        body = r.json()
+        assert body.get("detail") == "vault file missing"
