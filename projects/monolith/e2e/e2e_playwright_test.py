@@ -621,3 +621,55 @@ class TestKnowledgeSearchHttp:
         base = live_server_with_fake_embedding
         r = httpx.get(f"{base}/api/knowledge/notes/nonexistent")
         assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Browser: Knowledge search overlay (requires SvelteKit + Playwright)
+# ---------------------------------------------------------------------------
+
+
+class TestKnowledgeOverlay:
+    """Playwright tests for the Cmd+K knowledge search overlay.
+
+    Covers open/close behaviour, capture preservation, search results,
+    note preview, and zero-results state.
+    """
+
+    # -- Task 12: open/close + capture preservation -------------------------
+
+    def test_cmdk_opens_and_esc_closes(
+        self, page, sveltekit_server, live_server_with_fake_embedding
+    ):
+        """Press Cmd+K to open overlay, Escape to close it."""
+        page.goto(f"{sveltekit_server}/private")
+        page.wait_for_selector(".capture-input")
+
+        # Open overlay
+        page.keyboard.press("Meta+k")
+        overlay = page.locator(".search-overlay")
+        overlay.wait_for(state="visible")
+
+        # Search input should be focused
+        search_input = page.locator(".search-input")
+        assert search_input.evaluate("el => el === document.activeElement")
+
+        # Close overlay
+        page.keyboard.press("Escape")
+        assert page.locator(".search-overlay").count() == 0
+
+    def test_cmdk_preserves_capture_value(
+        self, page, sveltekit_server, live_server_with_fake_embedding
+    ):
+        """Capture textarea value is preserved across overlay open/close."""
+        page.goto(f"{sveltekit_server}/private")
+        capture = page.locator(".capture-input")
+        capture.wait_for(state="visible")
+        capture.fill("draft thought")
+
+        # Open and close overlay
+        page.keyboard.press("Meta+k")
+        page.locator(".search-overlay").wait_for(state="visible")
+        page.keyboard.press("Escape")
+
+        # Capture value should be restored
+        assert capture.input_value() == "draft thought"
