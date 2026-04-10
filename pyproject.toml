@@ -82,6 +82,8 @@ dependencies = [
     "anthropic>=0.92",
     "icalendar~=6.0",
     "tzdata",
+    # Knowledge vault git sync (pure Python, no system git binary)
+    "dulwich",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/

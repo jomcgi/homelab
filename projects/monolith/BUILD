@@ -63,6 +63,7 @@ py_library(
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//discord_py",
+        "@pip//dulwich",
         "@pip//fastapi",
         "@pip//httpx",
         "@pip//icalendar",
