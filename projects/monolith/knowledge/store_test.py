@@ -434,3 +434,25 @@ class TestSearchNotesWithContext:
     def test_empty_db_returns_empty_list(self):
         results = self.store.search_notes_with_context(query_embedding=[0.0] * 1024)
         assert results == []
+
+
+class TestGetNoteById:
+    def test_returns_note_metadata(self, store):
+        _upsert(
+            store,
+            note_id="n1",
+            path="folder/note.md",
+            title="My Note",
+            metadata=_meta(title="My Note", type="paper", tags=["x"]),
+        )
+        got = store.get_note_by_id("n1")
+        assert got == {
+            "note_id": "n1",
+            "title": "My Note",
+            "path": "folder/note.md",
+            "type": "paper",
+            "tags": ["x"],
+        }
+
+    def test_returns_none_when_missing(self, store):
+        assert store.get_note_by_id("nope") is None

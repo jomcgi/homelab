@@ -232,6 +232,34 @@ class KnowledgeStore:
             )
         return results
 
+    def get_note_by_id(self, note_id: str) -> dict | None:
+        """Fetch lightweight note metadata by stable ``note_id``.
+
+        Returns ``None`` if no note matches. Used by the knowledge search
+        overlay's preview pane (ADR 003) to resolve a selected result to
+        its displayable metadata without re-running the vector query.
+        """
+        row = self.session.execute(
+            select(
+                Note.note_id,
+                Note.title,
+                Note.path,
+                Note.type,
+                Note.tags,
+            )
+            .where(Note.note_id == note_id)
+            .limit(1)
+        ).first()
+        if row is None:
+            return None
+        return {
+            "note_id": row.note_id,
+            "title": row.title,
+            "path": row.path,
+            "type": row.type,
+            "tags": list(row.tags or []),
+        }
+
     def delete_note(self, path: str) -> None:
         existing = self.session.execute(
             select(Note.id).where(Note.path == path)
