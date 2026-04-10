@@ -232,6 +232,10 @@ class Reconciler:
                 ) from exc
 
         # Sync ## Links section from frontmatter edges (template or update).
+        # Capture authored_body before the sync so chunks and link extraction
+        # use only the hand-written content — the generated ## Links section
+        # must not be embedded or re-ingested as wikilinks.
+        authored_body = body
         updated = wikilinks.sync_links(raw, meta)
         if updated is not None:
             try:
@@ -240,14 +244,14 @@ class Reconciler:
                 logger.warning(
                     "knowledge: vault read-only, skipping links sync for %s", rel_path
                 )
-            else:
-                _, body = frontmatter.parse(raw)
 
-        chunks = chunk_markdown(body)
+        chunks = chunk_markdown(authored_body)
         if not chunks:
-            chunks = [{"index": 0, "section_header": "", "text": body or title}]
+            chunks = [
+                {"index": 0, "section_header": "", "text": authored_body or title}
+            ]
         vectors = await self.embed_client.embed_batch([c["text"] for c in chunks])
-        note_links = links.extract(body)
+        note_links = links.extract(authored_body)
 
         self.store.upsert_note(
             note_id=note_id,
