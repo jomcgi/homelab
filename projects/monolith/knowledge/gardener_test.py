@@ -591,3 +591,72 @@ class TestGardenerRunPhases:
         assert len(raws_in_db) == 1
         assert gardener._ingest_one.call_count == 1
         assert stats.ingested == 1
+
+
+class TestResolvePendingProvenance:
+    def test_resolves_note_id_to_atom_fk(self, tmp_path, session):
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, Note, RawInput
+
+        raw = RawInput(
+            raw_id="r1",
+            path="_raw/2026/04/09/r1.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        note = Note(
+            note_id="hello",
+            path="_processed/atoms/hello.md",
+            title="Hello",
+            content_hash="h1",
+            type="atom",
+        )
+        session.add_all([raw, note])
+        session.flush()
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                derived_note_id="hello",
+                gardener_version=GARDENER_VERSION,
+            )
+        )
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        resolved = gardener._resolve_pending_provenance()
+        session.commit()
+
+        assert resolved == 1
+        rows = session.exec(select(AtomRawProvenance)).all()
+        assert len(rows) == 1
+        assert rows[0].atom_fk == note.id
+        assert rows[0].derived_note_id is None
+
+    def test_leaves_unresolved_when_note_missing(self, tmp_path, session):
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        raw = RawInput(
+            raw_id="r1",
+            path="_raw/2026/04/09/r1.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        session.add(raw)
+        session.flush()
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                derived_note_id="ghost",
+                gardener_version=GARDENER_VERSION,
+            )
+        )
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        assert gardener._resolve_pending_provenance() == 0
+        row = session.exec(select(AtomRawProvenance)).first()
+        assert row.atom_fk is None
+        assert row.derived_note_id == "ghost"
