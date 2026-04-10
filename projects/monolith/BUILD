@@ -688,6 +688,18 @@ py_test(
 )
 
 py_test(
+    name = "main_vault_sync_test",
+    srcs = ["app/main_vault_sync_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "store_integrity_test",
     srcs = ["chat/store_integrity_test.py"],
     imports = ["."],
@@ -1983,6 +1995,17 @@ py_test(
 py_test(
     name = "knowledge_frontmatter_extra_test",
     srcs = ["knowledge/frontmatter_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pyyaml",
+    ],
+)
+
+py_test(
+    name = "knowledge_frontmatter_json_safe_test",
+    srcs = ["knowledge/frontmatter_json_safe_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
