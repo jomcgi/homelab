@@ -66,19 +66,6 @@ class TestGetVesselHttp404Bug:
         assert body == {"detail": "Vessel not found"}
 
     @pytest.mark.asyncio
-    async def test_get_vessel_missing_mmsi_body_is_not_json_array(self, test_client):
-        """Response body must be a JSON object, not the erroneous JSON array.
-
-        Before the fix, the body was ``[{"error": "Vessel not found"}, 404]``.
-        """
-        response = await test_client.get("/api/vessels/000000000")
-        body = response.json()
-        assert not isinstance(body, list), (
-            "Response body must not be a list; "
-            "got the old bare-tuple serialisation instead of HTTPException"
-        )
-
-    @pytest.mark.asyncio
     async def test_get_vessel_existing_mmsi_returns_vessel_data(
         self, test_client_with_data, multiple_vessels_data
     ):
