@@ -670,3 +670,78 @@ class TestWebsocketLiveDisconnect:
 
         # Even on exception, finally block must call disconnect
         mock_disconnect.assert_called_once_with(mock_ws)
+
+
+# ---------------------------------------------------------------------------
+# 6. Database.should_insert_position() — missing lat/lon keys
+# ---------------------------------------------------------------------------
+
+
+class TestShouldInsertPositionMissingCoordinates:
+    """Test should_insert_position() when lat/lon keys are missing or zero."""
+
+    def test_missing_lat_lon_keys_defaults_to_zero(self):
+        """When lat/lon keys are absent, they default to 0 (equator/prime meridian).
+        A position with no lat/lon but a cached vessel at the same origin
+        is treated as close together, goes through time check."""
+        db = _make_bare_db()
+        # Cache a vessel at origin (0, 0) with a recent timestamp
+        db._position_cache["777"] = _cached(
+            lat=0.0,
+            lon=0.0,
+            speed=0.0,
+            timestamp="2024-06-01T10:00:00Z",
+        )
+
+        # No lat/lon keys: defaults to 0.0 — same location as cache → distance ~0m
+        # Timestamp only 30s later → below DEDUP_TIME_THRESHOLD → deduplicated
+        data = {
+            "mmsi": "777",
+            # lat and lon keys absent — both default to 0
+            "speed": 0.0,
+            "timestamp": "2024-06-01T10:00:30Z",
+        }
+        should_insert, _ = db.should_insert_position(data)
+        # Effectively at same location, within time threshold → deduplicated
+        assert should_insert is False
+
+    def test_missing_lat_key_first_vessel_inserts(self):
+        """First position for a vessel with missing lat/lon still inserts (no cache entry)."""
+        db = _make_bare_db()
+        # No cache entry for this MMSI — first position always inserts
+
+        data = {
+            "mmsi": "888",
+            # lat and lon keys absent — both default to 0
+            "speed": 0.0,
+            "timestamp": "2024-06-01T10:00:00Z",
+        }
+        should_insert, first_seen = db.should_insert_position(data)
+        assert should_insert is True
+        assert first_seen == "2024-06-01T10:00:00Z"
+
+    def test_lat_lon_zero_is_valid_equatorial_position(self):
+        """lat=0, lon=0 is a valid equatorial position - should work with deduplication."""
+        db = _make_bare_db()
+        # Cache a vessel at origin
+        db._position_cache["999"] = _cached(
+            lat=0.0,
+            lon=0.0,
+            speed=0.0,
+            timestamp="2024-06-01T10:00:00Z",
+            first_seen="2024-06-01T09:00:00Z",
+        )
+
+        # Explicit lat=0, lon=0 — same location, well beyond time threshold
+        data = {
+            "mmsi": "999",
+            "lat": 0.0,
+            "lon": 0.0,
+            "speed": 0.0,
+            "timestamp": "2024-06-01T11:00:00Z",  # 1 hour later → beyond time threshold
+        }
+        should_insert, first_seen = db.should_insert_position(data)
+        # Distance = 0 m (not > DEDUP_DISTANCE_METERS), but time > DEDUP_TIME_THRESHOLD → insert
+        assert should_insert is True
+        # Still within moored radius → first_seen preserved from cache
+        assert first_seen == "2024-06-01T09:00:00Z"

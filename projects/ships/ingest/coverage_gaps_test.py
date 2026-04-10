@@ -268,3 +268,63 @@ class TestMetricsCounterIncrements:
 
         assert payload["messages_published"] == 0
         assert payload["last_message_time"] is None
+
+
+# ---------------------------------------------------------------------------
+# 4. _process_static_data() — dimension edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestProcessStaticDataDimensionEdgeCases:
+    """Test _process_static_data() dimension handling."""
+
+    @pytest.mark.asyncio
+    async def test_missing_dimension_key_all_none(self):
+        """When Dimension key is absent, dimension_a/b/c/d are all None."""
+        service = AISIngestService()
+        mock_js = AsyncMock()
+        service.js = mock_js
+
+        message = {
+            "Message": {
+                "ShipStaticData": {
+                    "ImoNumber": 1234567,
+                    "CallSign": "ABCD1",
+                    "Name": "TEST VESSEL",
+                    "Type": 70,
+                    # Dimension key is absent
+                    "Destination": "PORT",
+                    "MaximumStaticDraught": 5.5,
+                }
+            }
+        }
+        metadata = {"time_utc": "2024-06-01T10:00:00Z"}
+
+        await service._process_static_data(message, "123456789", metadata)
+
+        mock_js.publish.assert_called_once()
+        published_payload = json.loads(mock_js.publish.call_args[0][1])
+        assert published_payload["dimension_a"] is None
+        assert published_payload["dimension_b"] is None
+        assert published_payload["dimension_c"] is None
+        assert published_payload["dimension_d"] is None
+
+    @pytest.mark.asyncio
+    async def test_empty_ship_static_data_returns_none(self):
+        """When ShipStaticData is empty, function returns without publishing."""
+        service = AISIngestService()
+        mock_js = AsyncMock()
+        service.js = mock_js
+
+        # ShipStaticData is an empty dict — falsy → early return
+        message = {
+            "Message": {
+                "ShipStaticData": {}
+            }
+        }
+        metadata = {"time_utc": "2024-06-01T10:00:00Z"}
+
+        await service._process_static_data(message, "123456789", metadata)
+
+        # publish must NOT have been called
+        mock_js.publish.assert_not_called()
