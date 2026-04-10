@@ -174,7 +174,6 @@ py_test(
     deps = [
         ":conftest",
         "//projects/ships/backend:ships-api",
-        "@pip//nats_py",
         "@pip//pytest",
         "@pip//pytest_asyncio",  # keep
     ],

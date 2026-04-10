@@ -101,18 +101,14 @@ class TestRunSubscription:
     @pytest.mark.asyncio
     async def test_propagates_runtime_exceptions(self, service):
         """Exceptions from subscribe_ais_stream() propagate through _run_subscription()."""
-        service.subscribe_ais_stream = AsyncMock(
-            side_effect=RuntimeError("NATS error")
-        )
+        service.subscribe_ais_stream = AsyncMock(side_effect=RuntimeError("NATS error"))
         with pytest.raises(RuntimeError, match="NATS error"):
             await service._run_subscription()
 
     @pytest.mark.asyncio
     async def test_propagates_cancelled_error(self, service):
         """CancelledError from subscribe_ais_stream() propagates cleanly."""
-        service.subscribe_ais_stream = AsyncMock(
-            side_effect=asyncio.CancelledError()
-        )
+        service.subscribe_ais_stream = AsyncMock(side_effect=asyncio.CancelledError())
         with pytest.raises(asyncio.CancelledError):
             await service._run_subscription()
 
@@ -211,9 +207,7 @@ class TestSubscribeAisStreamCatchupDetection:
         service.running = False  # skip loop body
 
         mock_psub = AsyncMock()
-        mock_psub.consumer_info = AsyncMock(
-            return_value=_make_consumer_info(50_000)
-        )
+        mock_psub.consumer_info = AsyncMock(return_value=_make_consumer_info(50_000))
         _attach_js(service, mock_psub)
 
         await service.subscribe_ais_stream()
@@ -231,7 +225,9 @@ class TestSubscribeAisStreamCatchupDetection:
         mock_psub.consumer_info = AsyncMock(
             side_effect=[
                 _make_consumer_info(50_000),  # initial
-                _make_consumer_info(5_000),   # post-batch (below CATCHUP_PENDING_THRESHOLD=10000)
+                _make_consumer_info(
+                    5_000
+                ),  # post-batch (below CATCHUP_PENDING_THRESHOLD=10000)
             ]
         )
 
@@ -311,7 +307,7 @@ class TestSubscribeAisStreamCatchupDetection:
         mock_psub.consumer_info = AsyncMock(
             side_effect=[
                 _make_consumer_info(50_000),  # initial
-                _make_consumer_info(100),     # timeout check: below threshold
+                _make_consumer_info(100),  # timeout check: below threshold
             ]
         )
 
