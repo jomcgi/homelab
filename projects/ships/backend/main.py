@@ -26,7 +26,14 @@ from pathlib import Path
 import aiosqlite
 import nats
 from nats.js.api import ConsumerConfig, DeliverPolicy
-from fastapi import FastAPI, HTTPException, Query, Response, WebSocket, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Query,
+    Response,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 
 # Configure logging
