@@ -86,11 +86,11 @@ async def vault_backup_handler(session: Session) -> datetime | None:
         porcelain.add(str(vault_root))
         porcelain.commit(str(vault_root), message=b"sync: vault backup")
         token = os.environ.get("GITHUB_TOKEN", "")
-        push_kwargs: dict = {"path": str(vault_root)}
+        push_kwargs: dict = {}
         if token:
             push_kwargs["username"] = "x-access-token"
             push_kwargs["password"] = token
-        porcelain.push(**push_kwargs)
+        porcelain.push(str(vault_root), **push_kwargs)
         logger.info("knowledge.vault-backup: committed and pushed")
     except Exception as exc:
         logger.warning("knowledge.vault-backup: push failed: %s", exc)
