@@ -105,3 +105,30 @@ class NoteLink(SQLModel, table=True):
         if kind == "edge" and edge_type is None:
             raise ValueError("NoteLink.kind='edge' requires a non-None edge_type")
         super().__init__(**data)
+
+
+class RawInput(SQLModel, table=True):
+    __tablename__ = "raw_inputs"
+    __table_args__ = {"schema": "knowledge", "extend_existing": True}
+
+    id: int | None = Field(default=None, primary_key=True)
+    raw_id: str = Field(sa_column=Column(String, nullable=False, unique=True))
+    path: str = Field(unique=True)
+    source: str
+    original_path: str | None = None
+    content: str
+    content_hash: str
+    created_at: datetime | None = None
+    extra: dict[str, Any] = Field(default_factory=dict, sa_column=Column(_JSONB))
+
+
+class AtomRawProvenance(SQLModel, table=True):
+    __tablename__ = "atom_raw_provenance"
+    __table_args__ = {"schema": "knowledge", "extend_existing": True}
+
+    id: int | None = Field(default=None, primary_key=True)
+    atom_fk: int | None = Field(default=None, foreign_key="knowledge.notes.id")
+    raw_fk: int | None = Field(default=None, foreign_key="knowledge.raw_inputs.id")
+    derived_note_id: str | None = None
+    gardener_version: str
+    created_at: datetime | None = None
