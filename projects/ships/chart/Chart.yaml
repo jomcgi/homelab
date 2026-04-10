@@ -2,7 +2,7 @@ apiVersion: v2
 name: marine
 description: Marine services - AIS vessel tracking and API
 type: application
-version: 0.3.26
+version: 0.3.27
 appVersion: "0.1.0"
 maintainers:
   - name: homelab
