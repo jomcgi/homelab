@@ -123,6 +123,7 @@ async def garden_handler(session: Session) -> datetime | None:
     gardener = Gardener(
         vault_root=vault_root,
         max_files_per_run=max_files,
+        session=session,
     )
     stats = await gardener.run()
     extra = {
