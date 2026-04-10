@@ -90,4 +90,7 @@ async def test_changelog_handler_calls_run_changelog_iteration():
         handler = _registry["chat.changelog"]
         await handler(session)
 
-    mock_iter.assert_called_once_with(bot, llm_call)
+    mock_iter.assert_called_once()
+    args, kwargs = mock_iter.call_args
+    assert args == (bot, llm_call)
+    assert callable(kwargs.get("store_message"))

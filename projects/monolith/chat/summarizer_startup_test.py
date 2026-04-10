@@ -147,4 +147,7 @@ class TestChangelogHandlerReturnValue:
             summarizer.on_startup(session, bot=bot, llm_call=llm_call)
             await captured_handlers["chat.changelog"](session)
 
-        mock_iter.assert_called_once_with(bot, llm_call)
+        mock_iter.assert_called_once()
+        args, kwargs = mock_iter.call_args
+        assert args == (bot, llm_call)
+        assert callable(kwargs.get("store_message"))
