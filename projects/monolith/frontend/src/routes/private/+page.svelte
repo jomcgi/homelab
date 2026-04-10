@@ -357,16 +357,19 @@
       aria-label="Quick note"
     ></textarea>
     <footer class="capture-footer">
-      <span class="capture-hint" class:capture-hint--error={error}>
-        {#if error}
-          failed
-        {:else if sent}
-          sent
-        {:else if note.trim()}
-          ⌘ enter
-        {:else}
-          &nbsp;
-        {/if}
+      <span class="capture-hints">
+        <span class="capture-hint" class:capture-hint--error={error}>
+          {#if error}
+            failed
+          {:else if sent}
+            sent
+          {:else if note.trim()}
+            ⌘ enter
+          {:else}
+            &nbsp;
+          {/if}
+        </span>
+        <span class="capture-hint">⌘K</span>
       </span>
       {#if note.length > 0}
         <span class="capture-count">{note.length}</span>
@@ -659,6 +662,12 @@
     color: var(--fg-tertiary);
     letter-spacing: 0.04em;
     transition: opacity 0.2s ease;
+  }
+
+  .capture-hints {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
   }
 
   .capture-hint--error {
