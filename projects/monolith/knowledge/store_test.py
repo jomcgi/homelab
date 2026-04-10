@@ -141,6 +141,18 @@ class TestUpsertNote:
         assert len(notes) == 1
         assert notes[0].content_hash == "h2"
 
+    def test_upsert_with_changed_path_replaces_old_row(self, store, session):
+        # Simulates the raw-bucketing migration: same note_id but path moves
+        # from e.g. "notes/foo.md" → "_processed/foo.md". The old row must be
+        # deleted by note_id fallback so the INSERT doesn't hit the unique
+        # constraint on note_id.
+        _upsert(store, note_id="migrated", path="notes/foo.md", content_hash="h1")
+        _upsert(store, note_id="migrated", path="_processed/foo.md", content_hash="h2")
+        notes = list(session.scalars(select(Note)))
+        assert len(notes) == 1
+        assert notes[0].path == "_processed/foo.md"
+        assert notes[0].content_hash == "h2"
+
     def test_edges_emit_typed_link_rows(self, store, session):
         _upsert(
             store,

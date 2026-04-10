@@ -50,9 +50,15 @@ class KnowledgeStore:
             # Delete existing note and its dependents. Explicit cascade for
             # portability across Postgres and SQLite (which needs PRAGMA
             # foreign_keys=ON for FK cascades to fire).
+            # Fall back to note_id lookup to handle path migrations (e.g.
+            # notes moved from their original vault path into _processed/).
             existing = self.session.execute(
                 select(Note.id).where(Note.path == path)
             ).scalar_one_or_none()
+            if existing is None:
+                existing = self.session.execute(
+                    select(Note.id).where(Note.note_id == note_id)
+                ).scalar_one_or_none()
             if existing is not None:
                 self.session.execute(delete(Chunk).where(Chunk.note_fk == existing))
                 self.session.execute(
