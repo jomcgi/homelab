@@ -66,6 +66,10 @@ class TestRunMigration:
 
         mirror = session.exec(select(Note).where(Note.type == "raw")).all()
         assert len(mirror) == 1
+        # indexed_at must be set — previously this was passed explicitly; after
+        # commit 1a7de3b0 it is omitted from the call site and relies on the
+        # default_factory on Note.indexed_at.
+        assert mirror[0].indexed_at is not None
 
         sentinels = session.exec(
             select(AtomRawProvenance).where(

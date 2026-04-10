@@ -1,6 +1,7 @@
 """Unit tests for knowledge.models — NoteLink validation and Chunk._parse_embedding."""
 
 import json
+from datetime import datetime, timezone
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
@@ -216,3 +217,102 @@ def test_atom_raw_provenance_rejects_both_null():
             raw_fk=None,
             gardener_version="claude-sonnet-4-6@v1",
         )
+
+
+class TestDefaultFactoryTimestamps:
+    """Models with default_factory timestamps auto-populate UTC datetimes on construction.
+
+    Verifies commit 1a7de3b0: created_at/indexed_at use default_factory so
+    explicit NULL is never sent to Postgres, bypassing the DEFAULT now() column.
+    """
+
+    def test_note_created_at_auto_populated(self):
+        """Note.created_at is a UTC datetime when no explicit value is given."""
+        from knowledge.models import Note
+
+        note = Note(
+            note_id="auto-ts-note",
+            path="_processed/atoms/auto-ts-note.md",
+            title="Auto TS",
+            content_hash="abc",
+            type="atom",
+        )
+        assert isinstance(note.created_at, datetime)
+        assert note.created_at.tzinfo == timezone.utc
+
+    def test_note_indexed_at_auto_populated(self):
+        """Note.indexed_at is a UTC datetime when no explicit value is given."""
+        from knowledge.models import Note
+
+        note = Note(
+            note_id="auto-ts-note2",
+            path="_processed/atoms/auto-ts-note2.md",
+            title="Auto TS 2",
+            content_hash="def",
+            type="atom",
+        )
+        assert isinstance(note.indexed_at, datetime)
+        assert note.indexed_at.tzinfo == timezone.utc
+
+    def test_note_timestamps_are_independent_instances(self):
+        """Each Note construction produces independent timestamp values (no shared reference)."""
+        from knowledge.models import Note
+
+        n1 = Note(
+            note_id="ts-a",
+            path="_processed/atoms/ts-a.md",
+            title="A",
+            content_hash="h1",
+            type="atom",
+        )
+        n2 = Note(
+            note_id="ts-b",
+            path="_processed/atoms/ts-b.md",
+            title="B",
+            content_hash="h2",
+            type="atom",
+        )
+        # Both are datetimes but not the same object — default_factory calls
+        # datetime.now() each time, so they should differ by at most a few ms.
+        assert n1.created_at is not n2.created_at
+        assert n1.indexed_at is not n2.indexed_at
+
+    def test_raw_input_created_at_auto_populated(self):
+        """RawInput.created_at is a UTC datetime when no explicit value is given."""
+        from knowledge.models import RawInput
+
+        ri = RawInput(
+            raw_id="ri-auto-ts",
+            path="_raw/2026/04/10/ri-auto-ts.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="ri-auto-ts",
+        )
+        assert isinstance(ri.created_at, datetime)
+        assert ri.created_at.tzinfo == timezone.utc
+
+    def test_atom_raw_provenance_created_at_auto_populated(self):
+        """AtomRawProvenance.created_at is a UTC datetime when no explicit value is given."""
+        from knowledge.models import AtomRawProvenance
+
+        prov = AtomRawProvenance(
+            raw_fk=1,
+            gardener_version="v1",
+        )
+        assert isinstance(prov.created_at, datetime)
+        assert prov.created_at.tzinfo == timezone.utc
+
+    def test_explicit_created_at_is_respected(self):
+        """Passing an explicit created_at overrides the default_factory."""
+        from knowledge.models import RawInput
+
+        explicit_ts = datetime(2025, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        ri = RawInput(
+            raw_id="ri-explicit-ts",
+            path="_raw/2026/04/10/ri-explicit-ts.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="ri-explicit-ts",
+            created_at=explicit_ts,
+        )
+        assert ri.created_at == explicit_ts
