@@ -423,3 +423,201 @@ class TestBrowserUI:
         # (The vault isn't mocked at server level so this may fail,
         # but we can at least verify the key binding triggers the action)
         page.wait_for_timeout(300)
+
+
+# ---------------------------------------------------------------------------
+# Knowledge search HTTP tests (no browser needed)
+# ---------------------------------------------------------------------------
+
+
+def _seed_knowledge_note(
+    pg,
+    *,
+    note_id: str,
+    title: str,
+    path: str,
+    note_type: str = "note",
+    tags: list[str] | None = None,
+    chunk_texts: list[str],
+) -> None:
+    """Insert a note + chunks with deterministic embeddings into the test DB.
+
+    Uses a fresh engine+session per call so the data is committed and visible
+    to the live server (which uses its own connection pool).
+    """
+    from conftest import deterministic_embedding
+    from sqlmodel import Session as SMSession
+    from sqlmodel import create_engine as sm_create_engine
+
+    engine = sm_create_engine(pg.url)
+    with SMSession(engine) as session:
+        from knowledge.models import Chunk, Note
+
+        note = Note(
+            note_id=note_id,
+            path=path,
+            title=title,
+            content_hash="e2e-test-hash",
+            type=note_type,
+            tags=tags or [],
+        )
+        session.add(note)
+        session.flush()
+
+        for idx, text in enumerate(chunk_texts):
+            session.add(
+                Chunk(
+                    note_fk=note.id,
+                    chunk_index=idx,
+                    section_header=f"Section {idx}",
+                    chunk_text=text,
+                    embedding=deterministic_embedding(text),
+                )
+            )
+        session.commit()
+    engine.dispose()
+
+
+def _cleanup_knowledge(pg) -> None:
+    """Remove all knowledge rows so tests are isolated."""
+    from sqlalchemy import text
+    from sqlmodel import create_engine as sm_create_engine
+
+    engine = sm_create_engine(pg.url)
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM knowledge.chunks"))
+        conn.execute(text("DELETE FROM knowledge.note_links"))
+        conn.execute(text("DELETE FROM knowledge.notes"))
+    engine.dispose()
+
+
+class TestKnowledgeSearchHttp:
+    """HTTP-level tests for /api/knowledge endpoints (no browser needed).
+
+    These hit the real live FastAPI server + real Postgres, but use a
+    deterministic embedding client so no external embedding service is needed.
+    """
+
+    def test_knowledge_search_empty_query(self, live_server_with_fake_embedding):
+        """GET /api/knowledge/search?q= returns empty results."""
+        base = live_server_with_fake_embedding
+        r = httpx.get(f"{base}/api/knowledge/search?q=")
+        assert r.status_code == 200
+        assert r.json() == {"results": []}
+
+    def test_knowledge_search_returns_results(
+        self, live_server_with_fake_embedding, pg
+    ):
+        """Seed a note, search with matching text, expect it in results."""
+        _cleanup_knowledge(pg)
+        _seed_knowledge_note(
+            pg,
+            note_id="e2e-transformers-001",
+            title="Transformer Architecture",
+            path="notes/transformers.md",
+            note_type="note",
+            tags=["ml", "architecture"],
+            chunk_texts=["Transformers use self-attention to process sequences."],
+        )
+
+        base = live_server_with_fake_embedding
+        r = httpx.get(
+            f"{base}/api/knowledge/search",
+            params={"q": "Transformers use self-attention to process sequences."},
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data["results"]) >= 1
+
+        hit = data["results"][0]
+        assert hit["note_id"] == "e2e-transformers-001"
+        assert hit["title"] == "Transformer Architecture"
+        assert hit["type"] == "note"
+        assert hit["tags"] == ["ml", "architecture"]
+        assert hit["score"] > 0
+        assert "snippet" in hit
+        assert "section" in hit
+
+        _cleanup_knowledge(pg)
+
+    def test_knowledge_search_type_filter(self, live_server_with_fake_embedding, pg):
+        """Seed two notes with different types, filter by type, expect only matching."""
+        _cleanup_knowledge(pg)
+        shared_text = "Neural network training and optimization techniques."
+        _seed_knowledge_note(
+            pg,
+            note_id="e2e-filter-article",
+            title="Training Neural Nets",
+            path="notes/training.md",
+            note_type="article",
+            chunk_texts=[shared_text],
+        )
+        _seed_knowledge_note(
+            pg,
+            note_id="e2e-filter-log",
+            title="Training Log Entry",
+            path="notes/training-log.md",
+            note_type="log",
+            chunk_texts=[shared_text],
+        )
+
+        base = live_server_with_fake_embedding
+        r = httpx.get(
+            f"{base}/api/knowledge/search",
+            params={"q": shared_text, "type": "article"},
+        )
+        assert r.status_code == 200
+        data = r.json()
+        results = data["results"]
+        assert len(results) >= 1
+        assert all(hit["type"] == "article" for hit in results)
+        assert any(hit["note_id"] == "e2e-filter-article" for hit in results)
+        assert not any(hit["note_id"] == "e2e-filter-log" for hit in results)
+
+        _cleanup_knowledge(pg)
+
+    def test_knowledge_note_returns_content(
+        self, live_server_with_fake_embedding, pg, tmp_path_factory
+    ):
+        """Seed a note whose vault file exists, GET it by id, expect content."""
+        _cleanup_knowledge(pg)
+
+        vault_dir = tmp_path_factory.mktemp("vault")
+        md_file = vault_dir / "notes" / "e2e-content.md"
+        md_file.parent.mkdir(parents=True, exist_ok=True)
+        md_file.write_text("# E2E Content\n\nThis is the vault file content.")
+
+        import os
+
+        old_vault_root = os.environ.get("VAULT_ROOT")
+        os.environ["VAULT_ROOT"] = str(vault_dir)
+
+        try:
+            _seed_knowledge_note(
+                pg,
+                note_id="e2e-content-001",
+                title="E2E Content Note",
+                path="notes/e2e-content.md",
+                chunk_texts=["E2E content for testing."],
+            )
+
+            base = live_server_with_fake_embedding
+            r = httpx.get(f"{base}/api/knowledge/notes/e2e-content-001")
+            assert r.status_code == 200
+            data = r.json()
+            assert data["note_id"] == "e2e-content-001"
+            assert data["title"] == "E2E Content Note"
+            assert "content" in data
+            assert "E2E Content" in data["content"]
+        finally:
+            if old_vault_root is None:
+                os.environ.pop("VAULT_ROOT", None)
+            else:
+                os.environ["VAULT_ROOT"] = old_vault_root
+            _cleanup_knowledge(pg)
+
+    def test_knowledge_note_missing_returns_404(self, live_server_with_fake_embedding):
+        """GET /api/knowledge/notes/nonexistent returns 404."""
+        base = live_server_with_fake_embedding
+        r = httpx.get(f"{base}/api/knowledge/notes/nonexistent")
+        assert r.status_code == 404
