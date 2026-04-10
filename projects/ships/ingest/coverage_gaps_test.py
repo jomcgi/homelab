@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from projects.ships.ingest.main import AISIngestService
+from projects.ships.ingest.main import AISIngestService, format_eta
 
 
 # ---------------------------------------------------------------------------
@@ -324,3 +324,570 @@ class TestProcessStaticDataDimensionEdgeCases:
 
         # publish must NOT have been called
         mock_js.publish.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 4. format_eta() — year rollover inference
+# ---------------------------------------------------------------------------
+
+
+class TestFormatEtaYearRolloverInference:
+    """Tests for format_eta year inference: past dates become next year.
+
+    The existing ais_ingest_test.py test_format_eta_past_date_uses_next_year
+    is date-sensitive and asserts `result_year >= now.year` (weak check).
+    These tests are more explicit.
+    """
+
+    def test_january_1_always_results_in_future_or_current_year(self):
+        """ETA of January 1 is always treated as future: if Jan 1 already passed
+        this year, it should return next year."""
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        result = format_eta({"Month": 1, "Day": 1, "Hour": 0, "Minute": 0})
+        assert result is not None
+        result_year = int(result[:4])
+        # Result must be current or next year (never in the past)
+        assert result_year >= now.year
+
+    def test_past_date_gets_bumped_to_next_year(self):
+        """A date that was clearly in the past this year returns next year."""
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        # Pick a month guaranteed to be in the past (at least 2 months ago)
+        # Skip if we're in Jan or Feb (can't guarantee a past month)
+        if now.month <= 2:
+            # Use January with day 1 — guaranteed to be in the past if we're in Feb+
+            if now.month == 1 and now.day == 1:
+                return  # Edge case: literally Jan 1 right now
+            past_month = 1
+        else:
+            past_month = now.month - 2
+
+        result = format_eta({"Month": past_month, "Day": 1, "Hour": 0, "Minute": 0})
+        assert result is not None
+        result_year = int(result[:4])
+        assert result_year == now.year + 1
+
+    def test_future_date_stays_in_current_year(self):
+        """A date clearly in the future stays in the current year."""
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        # Pick Dec 31 unless it's actually Dec 31 right now
+        if now.month == 12 and now.day >= 30:
+            return  # Skip — can't guarantee Dec 31 is in future
+
+        result = format_eta({"Month": 12, "Day": 31, "Hour": 23, "Minute": 59})
+        assert result is not None
+        assert result.startswith(str(now.year))
+
+    def test_invalid_date_feb_30_returns_none(self):
+        """Dates that don't exist (e.g. Feb 30) return None gracefully."""
+        assert format_eta({"Month": 2, "Day": 30, "Hour": 12, "Minute": 0}) is None
+
+    def test_none_input_returns_none(self):
+        """None input returns None (not an exception)."""
+        assert format_eta(None) is None
+
+    def test_empty_dict_input_returns_none(self):
+        """Empty dict — all keys absent (Month=0, Day=0) — returns None."""
+        assert format_eta({}) is None
+
+    def test_non_dict_input_returns_none(self):
+        """Non-dict input (string, list) returns None."""
+        assert format_eta("March 15 14:30") is None  # type: ignore[arg-type]
+        assert format_eta([3, 15, 14, 30]) is None  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# 5. AISIngestService._process_position_report() — null/invalid coordinates
+# ---------------------------------------------------------------------------
+
+
+class TestProcessPositionReportCoordinates:
+    """Tests for _process_position_report coordinate validation."""
+
+    @pytest.fixture
+    def service(self):
+        svc = AISIngestService()
+        svc.js = AsyncMock()
+        return svc
+
+    def _make_position_message(self, lat, lon, mmsi="123456789"):
+        """Build a PositionReport JSON message with given coordinates."""
+        payload = {
+            "MessageType": "PositionReport",
+            "MetaData": {
+                "MMSI": mmsi,
+                "time_utc": "2024-01-15T10:00:00Z",
+                "ShipName": "TEST",
+            },
+            "Message": {
+                "PositionReport": {
+                    "Latitude": lat,
+                    "Longitude": lon,
+                    "Sog": 5.0,
+                    "Cog": 90.0,
+                    "TrueHeading": 88,
+                    "NavigationalStatus": 0,
+                    "RateOfTurn": 0,
+                    "PositionAccuracy": True,
+                }
+            },
+        }
+        return json.dumps(payload)
+
+    @pytest.mark.asyncio
+    async def test_null_latitude_skips_publish(self, service):
+        """A position report with Latitude=None must NOT be published."""
+        await service.process_message(self._make_position_message(lat=None, lon=-123.4))
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_null_longitude_skips_publish(self, service):
+        """A position report with Longitude=None must NOT be published."""
+        await service.process_message(self._make_position_message(lat=48.5, lon=None))
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_both_null_coordinates_skips_publish(self, service):
+        """A position report with both Latitude=None and Longitude=None is skipped."""
+        await service.process_message(self._make_position_message(lat=None, lon=None))
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_valid_coordinates_publishes(self, service):
+        """A position report with valid coordinates is published."""
+        await service.process_message(self._make_position_message(lat=48.5, lon=-123.4))
+        service.js.publish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_valid_position_payload_includes_all_fields(self, service):
+        """Published payload includes mmsi, lat, lon, speed, course, heading, etc."""
+        await service.process_message(self._make_position_message(lat=48.5, lon=-123.4))
+        raw = service.js.publish.call_args[0][1]
+        payload = json.loads(raw)
+        assert payload["mmsi"] == "123456789"
+        assert payload["lat"] == pytest.approx(48.5)
+        assert payload["lon"] == pytest.approx(-123.4)
+        assert payload["speed"] is not None
+        assert "timestamp" in payload
+
+    @pytest.mark.asyncio
+    async def test_missing_position_report_key_skips_publish(self, service):
+        """A PositionReport message where Message.PositionReport is absent is skipped."""
+        msg = json.dumps(
+            {
+                "MessageType": "PositionReport",
+                "MetaData": {"MMSI": "123456789", "time_utc": "2024-01-15T10:00:00Z"},
+                "Message": {},  # No PositionReport key
+            }
+        )
+        await service.process_message(msg)
+        service.js.publish.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 6. AISIngestService._process_static_data() — field extraction
+# ---------------------------------------------------------------------------
+
+
+class TestProcessStaticDataFields:
+    """Tests for _process_static_data with various field configurations."""
+
+    @pytest.fixture
+    def service(self):
+        svc = AISIngestService()
+        svc.js = AsyncMock()
+        return svc
+
+    def _make_static_message(
+        self,
+        mmsi="123456789",
+        static_data: dict | None = None,
+        metadata: dict | None = None,
+    ):
+        """Build a ShipStaticData JSON message."""
+        msg = {
+            "MessageType": "ShipStaticData",
+            "MetaData": {
+                "MMSI": mmsi,
+                "time_utc": "2024-01-15T10:00:00Z",
+                "ShipName": "TEST",
+                **(metadata or {}),
+            },
+            "Message": {"ShipStaticData": static_data or {}},
+        }
+        return json.dumps(msg)
+
+    @pytest.mark.asyncio
+    async def test_valid_static_data_published(self, service):
+        """Complete static data is published to ais.static.{mmsi}."""
+        static = {
+            "ImoNumber": 1234567,
+            "CallSign": "TEST1",
+            "Name": "MV TEST",
+            "Type": 70,
+            "Dimension": {"A": 100, "B": 50, "C": 10, "D": 10},
+            "Destination": "PORT",
+            "Eta": {"Month": 6, "Day": 15, "Hour": 12, "Minute": 0},
+            "MaximumStaticDraught": 8.5,
+        }
+        await service.process_message(self._make_static_message(static_data=static))
+        service.js.publish.assert_called_once()
+        subject = service.js.publish.call_args[0][0]
+        assert subject == "ais.static.123456789"
+
+    @pytest.mark.asyncio
+    async def test_empty_dimension_dict_produces_none_fields(self, service):
+        """When Dimension is an empty dict, all dimension fields are None."""
+        static = {
+            "ImoNumber": 1234567,
+            "CallSign": "TEST1",
+            "Name": "MV TEST",
+            "Type": 70,
+            "Dimension": {},  # Empty — no A/B/C/D keys
+            "Destination": "PORT",
+            "Eta": None,
+            "MaximumStaticDraught": 8.5,
+        }
+        await service.process_message(self._make_static_message(static_data=static))
+        service.js.publish.assert_called_once()
+        payload = json.loads(service.js.publish.call_args[0][1])
+        assert payload["dimension_a"] is None
+        assert payload["dimension_b"] is None
+        assert payload["dimension_c"] is None
+        assert payload["dimension_d"] is None
+
+    @pytest.mark.asyncio
+    async def test_missing_dimension_key_produces_none_fields(self, service):
+        """When Dimension key is absent, dimension fields are None."""
+        static = {
+            "ImoNumber": 1234567,
+            "CallSign": "TEST1",
+            "Name": "MV TEST",
+            "Type": 70,
+            # No "Dimension" key at all
+            "Destination": "PORT",
+            "Eta": None,
+            "MaximumStaticDraught": 8.5,
+        }
+        await service.process_message(self._make_static_message(static_data=static))
+        service.js.publish.assert_called_once()
+        payload = json.loads(service.js.publish.call_args[0][1])
+        assert payload["dimension_a"] is None
+        assert payload["dimension_b"] is None
+
+    @pytest.mark.asyncio
+    async def test_empty_static_data_skips_publish(self, service):
+        """When ShipStaticData value is an empty dict, publish is skipped."""
+        # _process_static_data returns early if `static` is falsy (empty dict)
+        msg = json.dumps(
+            {
+                "MessageType": "ShipStaticData",
+                "MetaData": {"MMSI": "123456789", "time_utc": "2024-01-15T10:00:00Z"},
+                "Message": {"ShipStaticData": {}},  # Empty → falsy check triggers
+            }
+        )
+        await service.process_message(msg)
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_name_falls_back_to_metadata_ship_name(self, service):
+        """When Name is empty in static data, falls back to MetaData.ShipName."""
+        static = {
+            "ImoNumber": 1234567,
+            "CallSign": "TEST1",
+            "Name": "",  # Empty → falls back to metadata
+            "Type": 70,
+            "Dimension": {},
+            "Destination": "PORT",
+            "Eta": None,
+            "MaximumStaticDraught": 8.5,
+        }
+        await service.process_message(
+            self._make_static_message(
+                static_data=static,
+                metadata={"ShipName": "FALLBACK NAME"},
+            )
+        )
+        service.js.publish.assert_called_once()
+        payload = json.loads(service.js.publish.call_args[0][1])
+        assert payload["name"] == "FALLBACK NAME"
+
+    @pytest.mark.asyncio
+    async def test_eta_included_in_payload(self, service):
+        """ETA is formatted and included in the published static payload."""
+        static = {
+            "ImoNumber": 1234567,
+            "CallSign": "TEST1",
+            "Name": "MV TEST",
+            "Type": 70,
+            "Dimension": {},
+            "Destination": "PORT",
+            "Eta": {"Month": 12, "Day": 25, "Hour": 10, "Minute": 0},
+            "MaximumStaticDraught": 8.5,
+        }
+        await service.process_message(self._make_static_message(static_data=static))
+        payload = json.loads(service.js.publish.call_args[0][1])
+        assert payload["eta"] is not None
+        assert "12-25T10:00:00Z" in payload["eta"]
+
+
+# ---------------------------------------------------------------------------
+# 7. publish_position() and publish_static() — NATS header and counter
+# ---------------------------------------------------------------------------
+
+
+class TestPublishPositionNATSDetails:
+    """Tests for publish_position NATS header format and counter tracking."""
+
+    @pytest.fixture
+    def service(self):
+        svc = AISIngestService()
+        svc.js = AsyncMock()
+        return svc
+
+    @pytest.mark.asyncio
+    async def test_publish_position_uses_msg_id_header(self, service):
+        """publish_position passes Nats-Msg-Id header to js.publish."""
+        data = {
+            "mmsi": "123456789",
+            "lat": 48.5,
+            "lon": -123.4,
+            "timestamp": "2024-01-15T10:00:00Z",
+        }
+        await service.publish_position("123456789", data)
+        call_kwargs = service.js.publish.call_args[1]
+        assert "headers" in call_kwargs
+        assert "Nats-Msg-Id" in call_kwargs["headers"]
+
+    @pytest.mark.asyncio
+    async def test_publish_position_msg_id_format_is_mmsi_timestamp(self, service):
+        """Nats-Msg-Id for positions is '{mmsi}-{timestamp}'."""
+        mmsi = "987654321"
+        ts = "2024-06-01T12:34:56Z"
+        data = {"mmsi": mmsi, "lat": 49.0, "lon": -124.0, "timestamp": ts}
+        await service.publish_position(mmsi, data)
+        headers = service.js.publish.call_args[1]["headers"]
+        assert headers["Nats-Msg-Id"] == f"{mmsi}-{ts}"
+
+    @pytest.mark.asyncio
+    async def test_publish_position_increments_counter(self, service):
+        """Each publish_position call increments messages_published by 1."""
+        data = {
+            "mmsi": "111",
+            "lat": 48.5,
+            "lon": -123.4,
+            "timestamp": "2024-01-15T10:00:00Z",
+        }
+        assert service.messages_published == 0
+        await service.publish_position("111", data)
+        assert service.messages_published == 1
+        await service.publish_position("111", {**data, "timestamp": "2024-01-15T10:01:00Z"})
+        assert service.messages_published == 2
+
+    @pytest.mark.asyncio
+    async def test_publish_position_updates_last_message_time(self, service):
+        """publish_position sets last_message_time to the data timestamp."""
+        ts = "2024-06-01T09:30:00Z"
+        data = {"mmsi": "222", "lat": 48.5, "lon": -123.4, "timestamp": ts}
+        await service.publish_position("222", data)
+        assert service.last_message_time == ts
+
+    @pytest.mark.asyncio
+    async def test_publish_position_last_message_time_tracks_latest(self, service):
+        """last_message_time always holds the most recent publish timestamp."""
+        for ts in ["T08:00:00Z", "T09:00:00Z", "T10:30:00Z"]:
+            full_ts = f"2024-06-01{ts}"
+            await service.publish_position(
+                "333", {"mmsi": "333", "lat": 48.5, "lon": -123.4, "timestamp": full_ts}
+            )
+        assert service.last_message_time == "2024-06-01T10:30:00Z"
+
+
+class TestPublishStaticNATSDetails:
+    """Tests for publish_static NATS header format and counter behaviour."""
+
+    @pytest.fixture
+    def service(self):
+        svc = AISIngestService()
+        svc.js = AsyncMock()
+        return svc
+
+    @pytest.mark.asyncio
+    async def test_publish_static_uses_static_prefix_in_msg_id(self, service):
+        """Nats-Msg-Id for static data is 'static-{mmsi}-{timestamp}'."""
+        mmsi = "123456789"
+        ts = "2024-06-01T12:00:00Z"
+        data = {"mmsi": mmsi, "name": "TEST", "timestamp": ts}
+        await service.publish_static(mmsi, data)
+        headers = service.js.publish.call_args[1]["headers"]
+        assert headers["Nats-Msg-Id"] == f"static-{mmsi}-{ts}"
+
+    @pytest.mark.asyncio
+    async def test_publish_static_does_not_increment_messages_published(self, service):
+        """publish_static does NOT increment messages_published (only position does)."""
+        data = {"mmsi": "111", "name": "TEST", "timestamp": "2024-06-01T12:00:00Z"}
+        await service.publish_static("111", data)
+        assert service.messages_published == 0
+
+    @pytest.mark.asyncio
+    async def test_publish_static_does_not_update_last_message_time(self, service):
+        """publish_static does NOT update last_message_time."""
+        data = {"mmsi": "111", "name": "TEST", "timestamp": "2024-06-01T12:00:00Z"}
+        await service.publish_static("111", data)
+        assert service.last_message_time is None
+
+    @pytest.mark.asyncio
+    async def test_publish_static_publishes_to_correct_subject(self, service):
+        """publish_static publishes to 'ais.static.{mmsi}'."""
+        mmsi = "555444333"
+        data = {"mmsi": mmsi, "name": "TEST", "timestamp": "2024-06-01T12:00:00Z"}
+        await service.publish_static(mmsi, data)
+        subject = service.js.publish.call_args[0][0]
+        assert subject == f"ais.static.{mmsi}"
+
+
+# ---------------------------------------------------------------------------
+# 8. process_message() — routing and error handling
+# ---------------------------------------------------------------------------
+
+
+class TestProcessMessageRouting:
+    """Tests for process_message routing between position/static handlers."""
+
+    @pytest.fixture
+    def service(self):
+        svc = AISIngestService()
+        svc.js = AsyncMock()
+        return svc
+
+    @pytest.mark.asyncio
+    async def test_unknown_message_type_does_not_publish(self, service):
+        """An unrecognised MessageType is silently ignored (no publish)."""
+        msg = json.dumps(
+            {
+                "MessageType": "UnknownType",
+                "MetaData": {"MMSI": "123456789", "time_utc": "2024-01-15T10:00:00Z"},
+                "Message": {"UnknownType": {}},
+            }
+        )
+        await service.process_message(msg)
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_json_does_not_raise(self, service):
+        """Malformed JSON is caught by json.JSONDecodeError handler, no exception."""
+        await service.process_message("this is not json at all {{{")
+        # No exception should propagate
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_position_report_routed_to_position_handler(self, service):
+        """PositionReport is routed to _process_position_report (publishes to ais.position.*)."""
+        msg = json.dumps(
+            {
+                "MessageType": "PositionReport",
+                "MetaData": {
+                    "MMSI": "111222333",
+                    "time_utc": "2024-01-15T10:00:00Z",
+                    "ShipName": "VESSEL",
+                },
+                "Message": {
+                    "PositionReport": {
+                        "Latitude": 48.5,
+                        "Longitude": -123.4,
+                        "Sog": 5.0,
+                        "Cog": 90.0,
+                        "TrueHeading": 88,
+                        "NavigationalStatus": 0,
+                        "RateOfTurn": 0,
+                        "PositionAccuracy": True,
+                    }
+                },
+            }
+        )
+        await service.process_message(msg)
+        service.js.publish.assert_called_once()
+        subject = service.js.publish.call_args[0][0]
+        assert subject.startswith("ais.position.")
+
+    @pytest.mark.asyncio
+    async def test_static_data_routed_to_static_handler(self, service):
+        """ShipStaticData is routed to _process_static_data (publishes to ais.static.*)."""
+        msg = json.dumps(
+            {
+                "MessageType": "ShipStaticData",
+                "MetaData": {
+                    "MMSI": "444555666",
+                    "time_utc": "2024-01-15T10:00:00Z",
+                    "ShipName": "VESSEL",
+                },
+                "Message": {
+                    "ShipStaticData": {
+                        "ImoNumber": 1234567,
+                        "CallSign": "TEST1",
+                        "Name": "MV TEST",
+                        "Type": 70,
+                        "Dimension": {"A": 100, "B": 50, "C": 10, "D": 10},
+                        "Destination": "PORT",
+                        "Eta": None,
+                        "MaximumStaticDraught": 8.5,
+                    }
+                },
+            }
+        )
+        await service.process_message(msg)
+        service.js.publish.assert_called_once()
+        subject = service.js.publish.call_args[0][0]
+        assert subject.startswith("ais.static.")
+
+    @pytest.mark.asyncio
+    async def test_missing_mmsi_in_metadata_does_not_publish(self, service):
+        """Message with no MMSI in MetaData is silently dropped."""
+        msg = json.dumps(
+            {
+                "MessageType": "PositionReport",
+                "MetaData": {"time_utc": "2024-01-15T10:00:00Z"},  # No MMSI
+                "Message": {
+                    "PositionReport": {
+                        "Latitude": 48.5,
+                        "Longitude": -123.4,
+                    }
+                },
+            }
+        )
+        await service.process_message(msg)
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_position_report_increments_counter(self, service):
+        """After routing a valid position report, messages_published is 1."""
+        msg = json.dumps(
+            {
+                "MessageType": "PositionReport",
+                "MetaData": {
+                    "MMSI": "999888777",
+                    "time_utc": "2024-01-15T10:00:00Z",
+                    "ShipName": "",
+                },
+                "Message": {
+                    "PositionReport": {
+                        "Latitude": 49.0,
+                        "Longitude": -124.0,
+                        "Sog": 10.0,
+                        "Cog": 180.0,
+                        "TrueHeading": 178,
+                        "NavigationalStatus": 0,
+                        "RateOfTurn": 0,
+                        "PositionAccuracy": True,
+                    }
+                },
+            }
+        )
+        await service.process_message(msg)
+        assert service.messages_published == 1

@@ -25,9 +25,12 @@ from projects.ships.backend.main import (
     CATCHUP_PENDING_THRESHOLD,
     DEDUP_DISTANCE_METERS,
     DEDUP_SPEED_THRESHOLD,
+    INDEXES,
     MOORED_RADIUS_METERS,
     CachedPosition,
     Database,
+    WebSocketManager,
+    haversine_distance,
 )
 
 
@@ -745,3 +748,502 @@ class TestShouldInsertPositionMissingCoordinates:
         assert should_insert is True
         # Still within moored radius → first_seen preserved from cache
         assert first_seen == "2024-06-01T09:00:00Z"
+
+
+# ---------------------------------------------------------------------------
+# 6. haversine_distance() — antipodal points and zero distance
+# ---------------------------------------------------------------------------
+
+
+class TestHaversineDistanceAdditionalCases:
+    """Edge cases for haversine_distance not covered by database_test.py."""
+
+    def test_antipodal_points_across_equator(self):
+        """Antipodal points (0°N 0°E) ↔ (0°N 180°E) ≈ half Earth's circumference.
+
+        Half circumference = π × R ≈ 20,015 km.
+        """
+        distance = haversine_distance(0.0, 0.0, 0.0, 180.0)
+        # Allow 0.1% tolerance for floating-point arithmetic
+        assert distance == pytest.approx(20_015_087, rel=0.001)
+
+    def test_antipodal_points_through_poles(self):
+        """Antipodal points at (90°N 0°E) ↔ (90°S 0°E) (north to south pole)."""
+        distance = haversine_distance(90.0, 0.0, -90.0, 0.0)
+        assert distance == pytest.approx(20_015_087, rel=0.001)
+
+    def test_zero_distance_at_prime_meridian_equator(self):
+        """Zero distance for identical points at origin."""
+        assert haversine_distance(0.0, 0.0, 0.0, 0.0) == pytest.approx(0, abs=0.01)
+
+    def test_zero_distance_at_high_latitude(self):
+        """Zero distance for identical points at high latitude."""
+        assert haversine_distance(
+            89.9999, -179.9999, 89.9999, -179.9999
+        ) == pytest.approx(0, abs=0.01)
+
+    def test_symmetry(self):
+        """Distance from A→B equals distance from B→A."""
+        lat1, lon1 = 48.5, -123.4
+        lat2, lon2 = 47.6, -122.3
+        assert haversine_distance(lat1, lon1, lat2, lon2) == pytest.approx(
+            haversine_distance(lat2, lon2, lat1, lon1), rel=1e-9
+        )
+
+
+# ---------------------------------------------------------------------------
+# 7. Database.drop_indexes() and create_indexes()
+# ---------------------------------------------------------------------------
+
+
+class TestDatabaseIndexOperations:
+    """Tests for Database.drop_indexes() and create_indexes()."""
+
+    @pytest.mark.asyncio
+    async def test_drop_indexes_calls_execute_for_each_drop_statement(self):
+        """drop_indexes executes four DROP INDEX statements and commits."""
+        db = Database.__new__(Database)
+        mock_conn = AsyncMock()
+        db.db = mock_conn
+
+        await db.drop_indexes()
+
+        # Four DROP statements: 2 current + 2 legacy
+        assert mock_conn.execute.call_count == 4
+        mock_conn.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drop_indexes_uses_if_exists_to_be_idempotent(self):
+        """All DROP statements use IF EXISTS so re-running is safe."""
+        db = Database.__new__(Database)
+        executed_sqls = []
+        mock_conn = AsyncMock()
+        mock_conn.execute = AsyncMock(side_effect=lambda sql: executed_sqls.append(sql))
+        mock_conn.commit = AsyncMock()
+        db.db = mock_conn
+
+        await db.drop_indexes()
+
+        for sql in executed_sqls:
+            assert "DROP INDEX IF EXISTS" in sql.upper()
+
+    @pytest.mark.asyncio
+    async def test_create_indexes_calls_execute_once_per_index(self):
+        """create_indexes executes one CREATE statement per entry in INDEXES."""
+        db = Database.__new__(Database)
+        mock_conn = AsyncMock()
+        db.db = mock_conn
+
+        await db.create_indexes()
+
+        assert mock_conn.execute.call_count == len(INDEXES)
+        mock_conn.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_indexes_uses_create_index_if_not_exists(self):
+        """All CREATE statements use CREATE INDEX IF NOT EXISTS."""
+        db = Database.__new__(Database)
+        executed_sqls = []
+        mock_conn = AsyncMock()
+        mock_conn.execute = AsyncMock(
+            side_effect=lambda sql: executed_sqls.append(sql)
+        )
+        mock_conn.commit = AsyncMock()
+        db.db = mock_conn
+
+        await db.create_indexes()
+
+        for sql in executed_sqls:
+            assert "CREATE INDEX IF NOT EXISTS" in sql.upper()
+
+    @pytest.mark.asyncio
+    async def test_drop_then_create_cycle_on_real_db(self):
+        """drop_indexes followed by create_indexes works on a real in-memory DB."""
+        import pytest_asyncio
+
+        db = Database(":memory:")
+        await db.connect()
+
+        try:
+            await db.drop_indexes()
+            await db.create_indexes()
+
+            # Verify required indexes exist after creation
+            cursor = await db.db.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='index' AND name LIKE 'idx_positions%'"
+            )
+            rows = await cursor.fetchall()
+            index_names = {r[0] for r in rows}
+
+            assert "idx_positions_mmsi_timestamp" in index_names
+            assert "idx_positions_timestamp" in index_names
+        finally:
+            await db.close()
+
+    @pytest.mark.asyncio
+    async def test_drop_indexes_removes_indexes_from_real_db(self):
+        """drop_indexes actually removes the position indexes from SQLite."""
+        db = Database(":memory:")
+        await db.connect()
+
+        try:
+            # Verify indexes exist after initial connect
+            cursor = await db.db.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='index' AND name LIKE 'idx_positions%'"
+            )
+            before = {r[0] for r in await cursor.fetchall()}
+            assert len(before) > 0  # indexes should exist initially
+
+            await db.drop_indexes()
+
+            cursor = await db.db.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='index' AND name LIKE 'idx_positions%'"
+            )
+            after = {r[0] for r in await cursor.fetchall()}
+            assert len(after) == 0
+        finally:
+            await db.close()
+
+
+# ---------------------------------------------------------------------------
+# 8. Database cache accessor methods
+# ---------------------------------------------------------------------------
+
+
+class TestDatabaseCacheAccessors:
+    """Tests for get_cached_position, get_vessel_count, get_position_count,
+    get_cache_size — all operate on the in-memory state, not the DB."""
+
+    # --- get_cached_position ---
+
+    def test_get_cached_position_returns_none_when_cache_empty(self):
+        """Returns None for unknown MMSI."""
+        db = _make_bare_db()
+        assert db.get_cached_position("123456789") is None
+
+    def test_get_cached_position_returns_none_for_missing_mmsi(self):
+        """Returns None for MMSI not in cache even when other entries exist."""
+        db = _make_bare_db()
+        db._position_cache["111111111"] = _cached(lat=48.5, lon=-123.4)
+        assert db.get_cached_position("999999999") is None
+
+    def test_get_cached_position_returns_cached_entry(self):
+        """Returns the exact CachedPosition object stored for a known MMSI."""
+        db = _make_bare_db()
+        entry = _cached(lat=48.5, lon=-123.4, speed=5.0)
+        db._position_cache["123456789"] = entry
+        result = db.get_cached_position("123456789")
+        assert result is entry  # identity check, not just equality
+
+    def test_get_cached_position_returns_correct_lat_lon(self):
+        """Returned entry has the correct lat/lon values."""
+        db = _make_bare_db()
+        db._position_cache["999"] = _cached(lat=49.123, lon=-124.567)
+        result = db.get_cached_position("999")
+        assert result is not None
+        assert result.lat == pytest.approx(49.123)
+        assert result.lon == pytest.approx(-124.567)
+
+    # --- get_vessel_count ---
+
+    def test_get_vessel_count_returns_zero_when_empty(self):
+        """Returns 0 when position cache is empty."""
+        db = _make_bare_db()
+        assert db.get_vessel_count() == 0
+
+    def test_get_vessel_count_returns_one_after_single_entry(self):
+        """Returns 1 after one MMSI is added to the cache."""
+        db = _make_bare_db()
+        db._position_cache["111111111"] = _cached(lat=48.5, lon=-123.4)
+        assert db.get_vessel_count() == 1
+
+    def test_get_vessel_count_returns_correct_count_for_multiple(self):
+        """Returns correct count for multiple distinct MMSIs."""
+        db = _make_bare_db()
+        for mmsi in ["111", "222", "333", "444"]:
+            db._position_cache[mmsi] = _cached(lat=48.5, lon=-123.4)
+        assert db.get_vessel_count() == 4
+
+    # --- get_position_count ---
+
+    def test_get_position_count_returns_zero_initially(self):
+        """Returns 0 when _position_count is not incremented."""
+        db = _make_bare_db()
+        assert db.get_position_count() == 0
+
+    def test_get_position_count_reflects_cached_counter(self):
+        """Returns the value of the _position_count field directly."""
+        db = _make_bare_db()
+        db._position_count = 1234
+        assert db.get_position_count() == 1234
+
+    def test_get_position_count_is_independent_of_cache_size(self):
+        """Position count is tracked separately from the in-memory cache size."""
+        db = _make_bare_db()
+        db._position_count = 100
+        # Cache has 2 entries, but position_count is 100
+        db._position_cache["111"] = _cached(lat=48.5, lon=-123.4)
+        db._position_cache["222"] = _cached(lat=49.0, lon=-124.0)
+        assert db.get_position_count() == 100
+        assert db.get_vessel_count() == 2  # cache size != position count
+
+    # --- get_cache_size ---
+
+    def test_get_cache_size_returns_zero_when_empty(self):
+        """Returns 0 when position cache is empty."""
+        db = _make_bare_db()
+        assert db.get_cache_size() == 0
+
+    def test_get_cache_size_equals_vessel_count(self):
+        """get_cache_size and get_vessel_count both count the cache dict."""
+        db = _make_bare_db()
+        for mmsi in ["111", "222", "333"]:
+            db._position_cache[mmsi] = _cached(lat=48.5, lon=-123.4)
+        assert db.get_cache_size() == 3
+        assert db.get_cache_size() == db.get_vessel_count()
+
+    def test_get_cache_size_after_update(self):
+        """Adding an entry to the cache is reflected in get_cache_size."""
+        db = _make_bare_db()
+        db._position_cache["111"] = _cached(lat=48.5, lon=-123.4)
+        assert db.get_cache_size() == 1
+        db._position_cache["222"] = _cached(lat=49.0, lon=-124.0)
+        assert db.get_cache_size() == 2
+
+
+# ---------------------------------------------------------------------------
+# 9. WebSocketManager.client_count()
+# ---------------------------------------------------------------------------
+
+
+class TestWebSocketManagerClientCount:
+    """Tests for WebSocketManager.client_count()."""
+
+    @pytest.mark.asyncio
+    async def test_client_count_zero_on_creation(self):
+        """Freshly created manager has 0 clients."""
+        mgr = WebSocketManager()
+        assert await mgr.client_count() == 0
+
+    @pytest.mark.asyncio
+    async def test_client_count_one_after_single_connect(self):
+        """After one connect, client_count() returns 1."""
+        mgr = WebSocketManager()
+        ws = AsyncMock()
+        ws.accept = AsyncMock()
+        await mgr.connect(ws)
+        assert await mgr.client_count() == 1
+
+    @pytest.mark.asyncio
+    async def test_client_count_reflects_multiple_connections(self):
+        """client_count returns the total number of connected clients."""
+        mgr = WebSocketManager()
+        sockets = []
+        for _ in range(5):
+            ws = AsyncMock()
+            ws.accept = AsyncMock()
+            await mgr.connect(ws)
+            sockets.append(ws)
+        assert await mgr.client_count() == 5
+
+    @pytest.mark.asyncio
+    async def test_client_count_decrements_after_disconnect(self):
+        """Disconnecting a client decrements the count."""
+        mgr = WebSocketManager()
+        ws = AsyncMock()
+        ws.accept = AsyncMock()
+        await mgr.connect(ws)
+        await mgr.disconnect(ws)
+        assert await mgr.client_count() == 0
+
+    @pytest.mark.asyncio
+    async def test_client_count_partial_disconnect(self):
+        """Disconnecting one of several clients decrements by exactly one."""
+        mgr = WebSocketManager()
+        ws1, ws2, ws3 = (AsyncMock() for _ in range(3))
+        for ws in (ws1, ws2, ws3):
+            ws.accept = AsyncMock()
+            await mgr.connect(ws)
+
+        await mgr.disconnect(ws2)
+        assert await mgr.client_count() == 2
+
+    @pytest.mark.asyncio
+    async def test_client_count_disconnect_nonexistent_does_not_raise(self):
+        """Disconnecting a websocket that was never connected is a no-op."""
+        mgr = WebSocketManager()
+        ws = AsyncMock()
+        # No connect call — should not raise
+        await mgr.disconnect(ws)
+        assert await mgr.client_count() == 0
+
+
+# ---------------------------------------------------------------------------
+# 10. HTTP endpoint: GET /api/stats
+# ---------------------------------------------------------------------------
+
+
+class TestGetStatsEndpoint:
+    """Integration tests for the GET /api/stats endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_stats_returns_200(self, test_client):
+        """Stats endpoint returns HTTP 200."""
+        response = await test_client.get("/api/stats")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_stats_response_has_all_required_fields(self, test_client):
+        """Stats response contains every expected field."""
+        response = await test_client.get("/api/stats")
+        data = response.json()
+        expected_fields = {
+            "vessel_count",
+            "position_count",
+            "cache_size",
+            "messages_received",
+            "messages_deduplicated",
+            "connected_clients",
+            "replay_complete",
+            "retention_days",
+        }
+        for field in expected_fields:
+            assert field in data, f"Missing field: {field}"
+
+    @pytest.mark.asyncio
+    async def test_stats_fields_have_correct_types(self, test_client):
+        """All numeric/boolean stats fields have the expected Python types."""
+        response = await test_client.get("/api/stats")
+        data = response.json()
+        assert isinstance(data["vessel_count"], int)
+        assert isinstance(data["position_count"], int)
+        assert isinstance(data["cache_size"], int)
+        assert isinstance(data["messages_received"], int)
+        assert isinstance(data["messages_deduplicated"], int)
+        assert isinstance(data["connected_clients"], int)
+        assert isinstance(data["replay_complete"], bool)
+        assert isinstance(data["retention_days"], int)
+
+    @pytest.mark.asyncio
+    async def test_stats_connected_clients_zero_when_no_ws(self, test_client):
+        """connected_clients is 0 when no WebSocket connections are active."""
+        response = await test_client.get("/api/stats")
+        data = response.json()
+        assert data["connected_clients"] == 0
+
+    @pytest.mark.asyncio
+    async def test_stats_replay_complete_true_when_ready(self, test_client):
+        """replay_complete mirrors service.replay_complete (True in test fixture)."""
+        from projects.ships.backend.main import service
+
+        # The test_client fixture sets replay_complete = True
+        assert service.replay_complete is True
+
+        response = await test_client.get("/api/stats")
+        data = response.json()
+        assert data["replay_complete"] is True
+
+    @pytest.mark.asyncio
+    async def test_stats_vessel_and_cache_count_match_with_data(
+        self, test_client_with_data
+    ):
+        """After inserting 3 vessels, vessel_count and cache_size both equal 3."""
+        response = await test_client_with_data.get("/api/stats")
+        data = response.json()
+        assert data["vessel_count"] == 3
+        assert data["cache_size"] == 3
+
+    @pytest.mark.asyncio
+    async def test_stats_retention_days_is_positive(self, test_client):
+        """retention_days reflects the POSITION_RETENTION_DAYS env variable (> 0)."""
+        from projects.ships.backend.main import POSITION_RETENTION_DAYS
+
+        response = await test_client.get("/api/stats")
+        data = response.json()
+        assert data["retention_days"] == POSITION_RETENTION_DAYS
+        assert data["retention_days"] > 0
+
+
+# ---------------------------------------------------------------------------
+# 11. HTTP endpoint: GET /api/vessels — structural checks
+# ---------------------------------------------------------------------------
+
+
+class TestListVesselsEndpointStructure:
+    """Additional structural tests for GET /api/vessels not in api_test.py."""
+
+    @pytest.mark.asyncio
+    async def test_list_vessels_count_equals_length_of_vessels_array(
+        self, test_client_with_data
+    ):
+        """The 'count' field always equals len(vessels)."""
+        response = await test_client_with_data.get("/api/vessels")
+        data = response.json()
+        assert data["count"] == len(data["vessels"])
+
+    @pytest.mark.asyncio
+    async def test_list_vessels_each_vessel_has_mmsi_lat_lon(
+        self, test_client_with_data
+    ):
+        """Each vessel in the list has at minimum mmsi, lat, and lon."""
+        response = await test_client_with_data.get("/api/vessels")
+        for vessel in response.json()["vessels"]:
+            assert "mmsi" in vessel
+            assert "lat" in vessel
+            assert "lon" in vessel
+
+
+# ---------------------------------------------------------------------------
+# 12. HTTP endpoint: GET /api/vessels/{mmsi} — analytics fields
+# ---------------------------------------------------------------------------
+
+
+class TestGetVesselEndpointAnalytics:
+    """Tests for mooring analytics fields returned by GET /api/vessels/{mmsi}."""
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_with_first_seen_has_time_at_location(
+        self, test_client_with_data
+    ):
+        """When first_seen_at_location is set, time_at_location_* fields are present."""
+        from projects.ships.backend.main import service
+
+        # Insert a vessel whose first_seen_at_location is set to a known time
+        ts = "2024-01-01T00:00:00+00:00"
+        await service.db.insert_positions_batch(
+            [
+                (
+                    {
+                        "mmsi": "777777777",
+                        "lat": 49.0,
+                        "lon": -124.0,
+                        "speed": 0.0,
+                        "timestamp": ts,
+                    },
+                    ts,  # first_seen_at_location = same as timestamp
+                )
+            ]
+        )
+        await service.db.commit()
+
+        response = await test_client_with_data.get("/api/vessels/777777777")
+        data = response.json()
+        assert data["mmsi"] == "777777777"
+        assert "time_at_location_seconds" in data
+        assert "time_at_location_hours" in data
+        assert "is_moored" in data
+        # The vessel has been "at location" for a long time → should be moored
+        assert data["is_moored"] is True
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_returns_lat_lon_speed(self, test_client_with_data):
+        """Found vessel includes lat, lon, speed, and timestamp fields."""
+        response = await test_client_with_data.get("/api/vessels/111111111")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mmsi"] == "111111111"
+        assert isinstance(data["lat"], float)
+        assert isinstance(data["lon"], float)
