@@ -3,7 +3,17 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from knowledge.raw_ingest import MovePhaseStats, move_phase
+import pytest
+from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel.pool import StaticPool
+
+from knowledge.models import Note, RawInput
+from knowledge.raw_ingest import (
+    MovePhaseStats,
+    ReconcileRawStats,
+    move_phase,
+    reconcile_raw_phase,
+)
 
 
 def _write(p: Path, content: str) -> None:
@@ -55,3 +65,69 @@ class TestMovePhase:
             now=datetime(2026, 4, 9, tzinfo=timezone.utc),
         )
         assert stats.moved == 1
+
+
+@pytest.fixture(name="session")
+def session_fixture():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    original_schemas = {}
+    for table in SQLModel.metadata.tables.values():
+        if table.schema is not None:
+            original_schemas[table.name] = table.schema
+            table.schema = None
+    try:
+        SQLModel.metadata.create_all(engine)
+        with Session(engine) as session:
+            yield session
+    finally:
+        for table in SQLModel.metadata.tables.values():
+            if table.name in original_schemas:
+                table.schema = original_schemas[table.name]
+
+
+class TestReconcileRawPhase:
+    def test_inserts_raw_input_and_mirror_note_row(self, tmp_path, session):
+        raw_file = tmp_path / "_raw" / "2026" / "04" / "09" / "abc1-my-note.md"
+        raw_file.parent.mkdir(parents=True)
+        raw_file.write_text(
+            "---\ntitle: My Note\nsource: vault-drop\n---\nBody.",
+            encoding="utf-8",
+        )
+
+        stats = reconcile_raw_phase(vault_root=tmp_path, session=session)
+        session.commit()
+
+        assert stats.inserted == 1
+        assert stats.skipped == 0
+
+        rows = session.exec(select(RawInput)).all()
+        assert len(rows) == 1
+        assert rows[0].path == "_raw/2026/04/09/abc1-my-note.md"
+        assert rows[0].source == "vault-drop"
+
+        notes = session.exec(select(Note).where(Note.type == "raw")).all()
+        assert len(notes) == 1
+        assert notes[0].note_id == rows[0].raw_id
+
+    def test_is_idempotent(self, tmp_path, session):
+        raw_file = tmp_path / "_raw" / "2026" / "04" / "09" / "abc1-my-note.md"
+        raw_file.parent.mkdir(parents=True)
+        raw_file.write_text("---\ntitle: N\n---\nBody.", encoding="utf-8")
+
+        reconcile_raw_phase(vault_root=tmp_path, session=session)
+        session.commit()
+        stats = reconcile_raw_phase(vault_root=tmp_path, session=session)
+        session.commit()
+
+        assert stats.inserted == 0
+        assert stats.skipped == 1
+        assert len(session.exec(select(RawInput)).all()) == 1
+
+    def test_missing_raw_dir_is_noop(self, tmp_path, session):
+        stats = reconcile_raw_phase(vault_root=tmp_path, session=session)
+        assert stats.inserted == 0
+        assert stats.skipped == 0
