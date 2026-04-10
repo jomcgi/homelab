@@ -194,6 +194,7 @@ class TestGardenHandler:
         kwargs = mock_gardener.call_args.kwargs
         assert kwargs["vault_root"] == tmp_path
         assert kwargs["max_files_per_run"] == 10
+        assert kwargs["session"] is session
         assert "anthropic_client" not in kwargs
         assert "store" not in kwargs
         assert "embed_client" not in kwargs
