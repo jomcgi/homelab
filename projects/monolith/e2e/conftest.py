@@ -650,3 +650,30 @@ def sveltekit_server(live_server):
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
+
+
+# ---------------------------------------------------------------------------
+# Session-scoped: live server with fake embedding client
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def live_server_with_fake_embedding(live_server):
+    """Override the knowledge router's embedding dependency for the live server.
+
+    The live FastAPI instance reads from the ``app`` module-level singleton
+    imported inside ``live_server``. Registering an override on that instance
+    is enough to route every ``/api/knowledge/search`` request through the
+    deterministic fake.
+    """
+    from unittest.mock import AsyncMock
+
+    from app.main import app  # noqa: E402
+    from knowledge.router import get_embedding_client  # noqa: E402
+
+    fake = AsyncMock()
+    fake.embed = AsyncMock(side_effect=deterministic_embedding)
+
+    app.dependency_overrides[get_embedding_client] = lambda: fake
+    yield live_server
+    app.dependency_overrides.pop(get_embedding_client, None)
