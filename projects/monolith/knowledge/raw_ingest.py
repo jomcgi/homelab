@@ -164,6 +164,7 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
             original_path=original_path,
             content=content,
             content_hash=raw_id,
+            created_at=datetime.now(timezone.utc),
         )
         note = Note(
             note_id=raw_id,
