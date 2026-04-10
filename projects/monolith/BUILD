@@ -2152,6 +2152,17 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_migrate_raw_bucketing_test",
+    srcs = ["knowledge/migrate_raw_bucketing_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "knowledge_router_test",
     srcs = ["knowledge/router_test.py"],
     imports = ["."],
