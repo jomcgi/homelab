@@ -2,6 +2,7 @@
 
 import logging
 import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -20,6 +21,80 @@ _DEFAULT_VAULT_ROOT = "/vault"
 # a job stale after ttl_secs).
 _INTERVAL_SECS = 300
 _TTL_SECS = 600
+_BACKUP_INTERVAL_SECS = 86400  # 24 hours
+_BACKUP_TTL_SECS = 3600  # 1 hour timeout
+
+
+async def clone_vault() -> None:
+    """Clone the vault repo to pre-seed the emptyDir volume.
+
+    Skips if VAULT_GIT_REMOTE is not set or if the vault already has a .git dir.
+    Embeds GITHUB_TOKEN in the clone URL for auth.
+    """
+    remote = os.environ.get("VAULT_GIT_REMOTE", "")
+    if not remote:
+        logger.info("VAULT_GIT_REMOTE not set, skipping clone")
+        return
+
+    vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
+    if (vault_root / ".git").exists():
+        logger.info("Vault at %s already initialised, skipping clone", vault_root)
+        return
+
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if token:
+        remote = remote.replace("https://", f"https://x-access-token:{token}@")
+
+    try:
+        subprocess.run(
+            ["git", "clone", "--depth=1", remote, str(vault_root)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        logger.info("Vault cloned from git to %s", vault_root)
+    except subprocess.CalledProcessError as exc:
+        logger.warning(
+            "Vault clone failed, proceeding without pre-seed: %s", exc.stderr
+        )
+
+
+def _git_in_vault(*args: str) -> subprocess.CompletedProcess:
+    vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
+    return subprocess.run(
+        ["git", *args],
+        cwd=vault_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+
+async def vault_backup_handler(session: Session) -> datetime | None:
+    """Scheduler handler: commit and push vault changes to GitHub."""
+    vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
+    if not (vault_root / ".git").exists():
+        logger.info("knowledge.vault-backup: no .git dir, skipping")
+        return None
+
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=vault_root,
+        capture_output=True,
+        text=True,
+    )
+    if not status.stdout.strip():
+        logger.info("knowledge.vault-backup: no changes to commit")
+        return None
+
+    try:
+        _git_in_vault("add", "-A")
+        _git_in_vault("commit", "-m", "sync: vault backup")
+        _git_in_vault("push")
+        logger.info("knowledge.vault-backup: committed and pushed")
+    except subprocess.CalledProcessError as exc:
+        logger.warning("knowledge.vault-backup: push failed: %s", exc.stderr)
+    return None
 
 
 async def garden_handler(session: Session) -> datetime | None:
@@ -102,4 +177,11 @@ def on_startup(session: Session) -> None:
         interval_secs=_INTERVAL_SECS,
         handler=reconcile_handler,
         ttl_secs=_TTL_SECS,
+    )
+    register_job(
+        session,
+        name="knowledge.vault-backup",
+        interval_secs=_BACKUP_INTERVAL_SECS,
+        handler=vault_backup_handler,
+        ttl_secs=_BACKUP_TTL_SECS,
     )

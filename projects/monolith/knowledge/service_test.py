@@ -1,6 +1,7 @@
 """Tests for knowledge service startup registration and handlers."""
 
 import logging
+import subprocess
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -14,13 +15,14 @@ from knowledge.service import garden_handler, on_startup
 
 class TestOnStartup:
     def test_registers_garden_and_reconcile_jobs(self):
-        """on_startup registers both knowledge.garden and knowledge.reconcile."""
+        """on_startup registers garden, reconcile, and vault-backup jobs."""
         session = MagicMock()
         with patch("shared.scheduler.register_job") as mock_register:
             on_startup(session)
         names = [call.kwargs["name"] for call in mock_register.call_args_list]
         assert "knowledge.garden" in names
         assert "knowledge.reconcile" in names
+        assert "knowledge.vault-backup" in names
 
     def test_garden_registered_before_reconcile(self):
         """Documentary convention: knowledge.garden is registered first.
@@ -254,3 +256,121 @@ class TestGardenHandler:
         ) as mock_gardener:
             await garden_handler(session)
         assert mock_gardener.call_args.kwargs["max_files_per_run"] == 10
+
+
+class TestCloneVault:
+    @pytest.mark.asyncio
+    async def test_skips_when_git_remote_unset(self, monkeypatch, caplog):
+        """clone_vault returns immediately when VAULT_GIT_REMOTE is empty."""
+        monkeypatch.delenv("VAULT_GIT_REMOTE", raising=False)
+        with caplog.at_level(logging.INFO, logger="knowledge.service"):
+            await service.clone_vault()
+        assert any("VAULT_GIT_REMOTE not set" in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_skips_when_already_cloned(self, monkeypatch, tmp_path, caplog):
+        """clone_vault skips clone when .git already exists in vault root."""
+        monkeypatch.setenv("VAULT_GIT_REMOTE", "https://github.com/test/repo.git")
+        monkeypatch.setenv("GITHUB_TOKEN", "ghp_test")
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        (tmp_path / ".git").mkdir()
+        with caplog.at_level(logging.INFO, logger="knowledge.service"):
+            await service.clone_vault()
+        assert any("already initialised" in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_clones_repo(self, monkeypatch, tmp_path):
+        """clone_vault runs git clone with depth=1 and token-embedded URL."""
+        monkeypatch.setenv("VAULT_GIT_REMOTE", "https://github.com/test/repo.git")
+        monkeypatch.setenv("GITHUB_TOKEN", "ghp_test")
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        with patch("knowledge.service.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            await service.clone_vault()
+        mock_run.assert_called_once()
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "git"
+        assert "clone" in cmd
+        assert "--depth=1" in cmd
+        assert "x-access-token:ghp_test@github.com" in cmd[3]
+        assert str(tmp_path) in cmd
+
+    @pytest.mark.asyncio
+    async def test_clone_failure_logs_warning_and_continues(
+        self, monkeypatch, tmp_path, caplog
+    ):
+        """clone_vault logs a warning but does not raise on clone failure."""
+        monkeypatch.setenv("VAULT_GIT_REMOTE", "https://github.com/test/repo.git")
+        monkeypatch.setenv("GITHUB_TOKEN", "ghp_test")
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        with patch(
+            "knowledge.service.subprocess.run",
+            side_effect=subprocess.CalledProcessError(1, "git"),
+        ):
+            with caplog.at_level(logging.WARNING, logger="knowledge.service"):
+                await service.clone_vault()
+        assert any("clone failed" in r.message.lower() for r in caplog.records)
+
+
+class TestVaultBackupHandler:
+    @pytest.mark.asyncio
+    async def test_skips_when_no_changes(self, monkeypatch, tmp_path):
+        """vault_backup_handler does nothing when git status is clean."""
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        (tmp_path / ".git").mkdir()
+        with patch("knowledge.service.subprocess.run") as mock_run:
+            # git status --porcelain returns empty
+            mock_run.return_value = MagicMock(stdout="", returncode=0)
+            result = await service.vault_backup_handler(MagicMock())
+        assert result is None
+        # Only git status was called, no commit/push
+        assert mock_run.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_commits_and_pushes_when_changes_exist(self, monkeypatch, tmp_path):
+        """vault_backup_handler commits and pushes when there are uncommitted changes."""
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        (tmp_path / ".git").mkdir()
+        calls = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append(cmd)
+            if "status" in cmd:
+                return MagicMock(stdout=" M file.md\n", returncode=0)
+            return MagicMock(returncode=0)
+
+        with patch("knowledge.service.subprocess.run", side_effect=fake_run):
+            result = await service.vault_backup_handler(MagicMock())
+        assert result is None
+        cmds = [" ".join(c) for c in calls]
+        assert any("git add -A" in c for c in cmds)
+        assert any("git commit" in c for c in cmds)
+        assert any("git push" in c for c in cmds)
+
+    @pytest.mark.asyncio
+    async def test_skips_when_no_git_dir(self, monkeypatch, tmp_path):
+        """vault_backup_handler skips when vault has no .git directory."""
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        # No .git dir
+        result = await service.vault_backup_handler(MagicMock())
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_push_failure_logs_warning(self, monkeypatch, tmp_path, caplog):
+        """vault_backup_handler logs a warning when push fails."""
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        (tmp_path / ".git").mkdir()
+        call_count = [0]
+
+        def fake_run(cmd, **kwargs):
+            call_count[0] += 1
+            if "status" in cmd:
+                return MagicMock(stdout=" M file.md\n", returncode=0)
+            if "push" in cmd:
+                raise subprocess.CalledProcessError(1, "git push", stderr="rejected")
+            return MagicMock(returncode=0)
+
+        with patch("knowledge.service.subprocess.run", side_effect=fake_run):
+            with caplog.at_level(logging.WARNING, logger="knowledge.service"):
+                await service.vault_backup_handler(MagicMock())
+        assert any("push failed" in r.message.lower() for r in caplog.records)
