@@ -1,4 +1,6 @@
 <script>
+  import { tick } from "svelte";
+
   let { data } = $props();
 
   // ── Capture ──────────────────────────────────
@@ -11,6 +13,49 @@
   });
 
   let error = $state(false);
+
+  // ── Knowledge search overlay ─────────────────
+  let searchOpen = $state(false);
+  let searchQuery = $state("");
+  let searchResults = $state([]);
+  let selectedNote = $state(null);
+  let activeIndex = $state(-1);
+  let searching = $state(false);
+  let searchType = $state("all");
+  let savedCapture = $state("");
+  let searchInputRef = $state(null);
+
+  function openSearch() {
+    savedCapture = note;
+    searchOpen = true;
+    tick().then(() => searchInputRef?.focus());
+  }
+
+  function closeSearch() {
+    searchOpen = false;
+    note = savedCapture;
+    searchQuery = "";
+    searchResults = [];
+    selectedNote = null;
+    activeIndex = -1;
+    searching = false;
+    tick().then(() => captureRef?.focus());
+  }
+
+  $effect(() => {
+    function handleGlobalKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (!searchOpen) openSearch();
+      }
+      if (e.key === "Escape" && searchOpen) {
+        e.preventDefault();
+        closeSearch();
+      }
+    }
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  });
 
   async function submitCapture() {
     if (!note.trim()) return;
@@ -348,6 +393,20 @@
   </aside>
 </div>
 
+{#if searchOpen}
+  <div class="search-overlay">
+    <div class="search-container">
+      <input
+        type="text"
+        class="search-input"
+        placeholder="search knowledge..."
+        bind:value={searchQuery}
+        bind:this={searchInputRef}
+      />
+    </div>
+  </div>
+{/if}
+
 <style>
   /* ── Layout ────────────────────────────────── */
 
@@ -628,5 +687,37 @@
 
   .todo-dash--empty {
     color: var(--danger);
+  }
+
+  /* ── Knowledge search overlay ───────────────── */
+
+  .search-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    overflow-y: auto;
+  }
+
+  .search-container {
+    max-width: 72ch;
+    margin: 0 auto;
+    padding: 2.5rem;
+  }
+
+  .search-input {
+    width: 100%;
+    font-family: var(--font);
+    font-size: 1.1rem;
+    background: transparent;
+    border: none;
+    border-bottom: 0.06rem solid var(--border);
+    padding: 0.5rem 0;
+    color: var(--fg);
+    outline: none;
+  }
+
+  .search-input::placeholder {
+    color: var(--fg-tertiary);
   }
 </style>
