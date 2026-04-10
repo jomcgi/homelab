@@ -39,31 +39,6 @@ async def _wait_for_sidecar() -> None:
             await asyncio.sleep(2)
 
 
-async def _wait_for_vault_sync() -> None:
-    """Block until the Obsidian vault volume contains at least one markdown file.
-
-    The vault is an emptyDir populated asynchronously by the headless-sync
-    sidecar. The sidecar's /tmp/ready signal is in its own container filesystem
-    and cannot be read here; instead we poll the shared volume directly.
-
-    Returns immediately if VAULT_ROOT does not exist (knowledge not configured).
-    Times out after 5 minutes and proceeds with a warning so a sync failure
-    does not permanently stall the app.
-    """
-    vault_root = Path(os.environ.get("VAULT_ROOT", "/vault"))
-    if not vault_root.exists():
-        return
-    logger.info("Waiting for Obsidian vault sync at %s", vault_root)
-    for _ in range(60):  # 60 × 5 s = 5-minute cap
-        if any(vault_root.rglob("*.md")):
-            logger.info("Vault sync ready")
-            return
-        await asyncio.sleep(5)
-    logger.warning(
-        "Vault sync wait timed out after 5 minutes; proceeding with empty vault"
-    )
-
-
 def _log_task_exception(task: "asyncio.Task[object]") -> None:
     """Log unhandled exceptions from background tasks instead of silently dropping them."""
     if not task.cancelled() and task.exception():
@@ -114,9 +89,11 @@ async def lifespan(app: FastAPI):
         bot_task.add_done_callback(_log_task_exception)
         logger.info("Discord bot starting")
 
-    # Wait for Obsidian vault sync before starting the scheduler so the
-    # reconciler never sees an empty vault and prunes the DB on pod restart.
-    await _wait_for_vault_sync()
+    # Pre-seed the vault with a fast git clone so the reconciler never sees
+    # an empty vault and prunes the DB on pod restart.
+    from knowledge.service import clone_vault
+
+    await clone_vault()
 
     # Start the shared scheduler loop (replaces 4 separate asyncio tasks)
     scheduler_task = asyncio.create_task(run_scheduler_loop())
