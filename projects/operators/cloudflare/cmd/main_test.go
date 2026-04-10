@@ -165,18 +165,18 @@ var _ = Describe("Flag defaults", func() {
 	// that the documented defaults are tested without executing main().
 
 	var (
-		fs                  *flag.FlagSet
-		metricsAddr         string
-		metricsCertPath     string
-		metricsCertName     string
-		metricsCertKey      string
-		webhookCertPath     string
-		webhookCertName     string
-		webhookCertKey      string
-		enableLeaderElect   bool
-		probeAddr           string
-		secureMetrics       bool
-		enableHTTP2         bool
+		fs                *flag.FlagSet
+		metricsAddr       string
+		metricsCertPath   string
+		metricsCertName   string
+		metricsCertKey    string
+		webhookCertPath   string
+		webhookCertName   string
+		webhookCertKey    string
+		enableLeaderElect bool
+		probeAddr         string
+		secureMetrics     bool
+		enableHTTP2       bool
 	)
 
 	BeforeEach(func() {
@@ -324,8 +324,8 @@ var _ = Describe("CertWatcher creation", func() {
 		It("returns an error when the cert file contains garbage", func() {
 			badCert := filepath.Join(tmpDir, "bad.crt")
 			badKey := filepath.Join(tmpDir, "bad.key")
-			Expect(os.WriteFile(badCert, []byte("not a certificate"), 0600)).To(Succeed())
-			Expect(os.WriteFile(badKey, []byte("not a key"), 0600)).To(Succeed())
+			Expect(os.WriteFile(badCert, []byte("not a certificate"), 0o600)).To(Succeed())
+			Expect(os.WriteFile(badKey, []byte("not a key"), 0o600)).To(Succeed())
 
 			_, err := certwatcher.New(badCert, badKey)
 			Expect(err).To(HaveOccurred())
