@@ -34,7 +34,7 @@ async def clone_vault() -> None:
     Skips if VAULT_GIT_REMOTE is not set or if the vault already has a .git dir.
     Always writes a .git-ready sentinel so the obsidian sidecar can start.
     """
-    vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
     try:
         remote = os.environ.get("VAULT_GIT_REMOTE", "")
         if not remote:
@@ -74,7 +74,7 @@ def _has_changes(vault_root: Path) -> bool:
 
 async def vault_backup_handler(session: Session) -> datetime | None:
     """Scheduler handler: commit and push vault changes to GitHub."""
-    vault_root = Path(os.environ.get(_VAULT_ROOT_ENV, _DEFAULT_VAULT_ROOT))
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
     if not (vault_root / ".git").exists():
         logger.info("knowledge.vault-backup: no .git dir, skipping")
         return None
