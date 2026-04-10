@@ -175,7 +175,7 @@ class Gardener:
                 processed_root=self.processed_root,
                 title=title,
             )
-            + body
+            + raw
         )
 
         before = (
