@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.log import configure_logging
 from home.router import router as home_router
+from knowledge.router import router as knowledge_router
 from notes.router import router as notes_router
 from chat.router import router as chat_router
 from shared.router import router as schedule_router
@@ -158,6 +159,7 @@ app.include_router(home_router)
 app.include_router(schedule_router)
 app.include_router(notes_router)
 app.include_router(chat_router)
+app.include_router(knowledge_router)
 
 
 @app.get("/healthz")
