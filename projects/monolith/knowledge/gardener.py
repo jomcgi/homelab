@@ -126,6 +126,7 @@ class Gardener:
         self.max_files_per_run = max_files_per_run
         self.claude_bin = claude_bin
         self.session = session
+        self._last_stdout: bytes = b""
         self.processed_root = self.vault_root / "_processed"
 
     def _raws_needing_decomposition(self) -> list[RawInput]:
