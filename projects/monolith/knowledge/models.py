@@ -1,7 +1,7 @@
 """SQLModel definitions for the knowledge schema."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal, NewType
 
 NoteId = NewType("NoteId", str)
@@ -49,10 +49,10 @@ class Note(SQLModel, table=True):
     source: str | None = None
     tags: list[str] = Field(default_factory=list, sa_column=Column(_STRING_ARRAY))
     aliases: list[str] = Field(default_factory=list, sa_column=Column(_STRING_ARRAY))
-    created_at: datetime | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime | None = None
     extra: dict[str, Any] = Field(default_factory=dict, sa_column=Column(_JSONB))
-    indexed_at: datetime | None = None
+    indexed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Chunk(SQLModel, table=True):
@@ -118,7 +118,7 @@ class RawInput(SQLModel, table=True):
     original_path: str | None = None
     content: str
     content_hash: str
-    created_at: datetime | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     extra: dict[str, Any] = Field(default_factory=dict, sa_column=Column(_JSONB))
 
 
@@ -131,7 +131,7 @@ class AtomRawProvenance(SQLModel, table=True):
     raw_fk: int | None = Field(default=None, foreign_key="knowledge.raw_inputs.id")
     derived_note_id: str | None = None
     gardener_version: str
-    created_at: datetime | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __init__(self, **data: Any) -> None:
         # Mirror the SQL CHECK (atom_fk IS NOT NULL OR raw_fk IS NOT NULL).

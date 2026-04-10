@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from sqlmodel import Session, select
@@ -127,6 +127,7 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
     skipped = 0
 
     existing_paths = set(session.exec(select(RawInput.path)).all())
+    existing_raw_ids = set(session.exec(select(RawInput.raw_id)).all())
 
     for file_path in sorted(raw_root.rglob("*.md")):
         rel = file_path.relative_to(vault_root).as_posix()
@@ -148,6 +149,10 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
             meta = None
 
         raw_id = compute_raw_id(content)
+        if raw_id in existing_raw_ids:
+            skipped += 1
+            continue
+
         title = meta.title if meta and meta.title else file_path.stem
         source = _infer_source(
             meta.source if meta else None,
@@ -164,7 +169,6 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
             original_path=original_path,
             content=content,
             content_hash=raw_id,
-            created_at=datetime.now(timezone.utc),
         )
         note = Note(
             note_id=raw_id,
@@ -173,7 +177,6 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
             content_hash=raw_id,
             type="raw",
             source=source,
-            indexed_at=datetime.now(timezone.utc),
         )
         try:
             with session.begin_nested():
