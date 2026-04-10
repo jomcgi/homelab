@@ -96,13 +96,24 @@ Look up the note row to get `path`, then read the raw file from `Path(VAULT_ROOT
 ### Frontend: search overlay state machine
 
 ```
-closed ──⌘K──► open (idle, no results)
-open   ──type──► open (searching → results)
-open   ──↑↓──► open (activeIndex changes)
-open   ──Enter──► preview (selectedNote set)
-preview ──Esc──► open (back to results)
-open   ──Esc──► closed
+closed  ──⌘K──────────► open (idle, no results)
+open    ──type (≥2)──► open (searching → results)
+open    ──clear──────► open (idle, silent)
+open    ──↑↓─────────► open (activeIndex changes)
+open    ──Enter──────► preview (selectedNote set)
+open    ──Esc────────► closed
+preview ──Esc────────► closed
+preview ──← back─────► open (results restored)
 ```
+
+Resolved edge cases:
+
+- **⌘K from anywhere, including the capture textarea** — always opens the overlay. The textarea value is preserved in state and restored when the overlay closes. ⌘K does nothing if the overlay is already open — Esc is the only exit.
+- **Empty query** — overlay stays open at idle (just input + filter pills, no results list). Does not close automatically.
+- **Minimum query length** — debounce fires only when `q.length >= 2`. Single characters produce low-signal embeddings and unnecessary API calls.
+- **First search (no previous results to ghost)** — show `searching...` in `--fg-tertiary` below the input while the first result set loads. Subsequent searches use ghost results at 50% opacity.
+- **Zero results** — show `no results` in `--fg-tertiary` below the filter pills. Silence would be ambiguous (did the search run?).
+- **activeIndex** — initialises at `-1` (nothing pre-selected) on overlay open. Arrow-down from `-1` moves to index `0`.
 
 ### Markdown rendering — heading-only parse
 
@@ -132,11 +143,15 @@ This gives:
 ### Phase 2: Frontend overlay
 
 - [ ] Add `searchOpen`, `searchQuery`, `searchResults`, `selectedNote`, `activeIndex`, `searching` state to `+page.svelte`
-- [ ] Add `⌘K` global keydown handler; do NOT intercept `Tab` (breaks standard focus movement)
-- [ ] Implement debounced fetch to `/api/knowledge/search` (300ms)
-- [ ] Empty query idle state: show nothing — just the input and filter pills. No "recently indexed" list (recently indexed ≠ recently relevant)
-- [ ] Implement result keyboard navigation (`↑`/`↓`/`Enter`/`Esc`)
-- [ ] Implement overlay close on `Esc` (from results) and back-to-results on `Esc` (from preview)
+- [ ] Add `⌘K` global keydown handler on `document`; suppress if overlay already open; preserve textarea value in state on open, restore on close
+- [ ] Implement debounced fetch (300ms); fire only when `q.length >= 2`; empty query → idle state (no fetch)
+- [ ] Idle state: input + filter pills only, no results list, no placeholder results
+- [ ] Loading state: first search shows `searching...` in `--fg-tertiary`; subsequent searches ghost previous results at `opacity: 0.5`
+- [ ] Zero results: show `no results` in `--fg-tertiary` below filter pills
+- [ ] Type filter: persists across open/close; initialises to `all` on first page load
+- [ ] Implement result keyboard navigation (`↑`/`↓` from `activeIndex = -1`; `Enter` to open; `Esc` to close overlay)
+- [ ] `← back` in preview returns to results (restores query + results); `Esc` closes overlay entirely from preview
+- [ ] Content constrained to `max-width: 72ch; margin: 0 auto; padding: 2.5rem` inside the full-viewport overlay
 - [ ] Add `⌘K` hint to capture textarea footer (same style as existing `⌘ enter` hint)
 
 ### Phase 3: Note preview
@@ -153,9 +168,9 @@ This gives:
 
 ## Design Decisions
 
-### Search trigger: ⌘K only (not Tab)
+### Search trigger: ⌘K, always (including from textarea)
 
-`Tab` intercept was considered but rejected — it conflicts with standard browser focus movement and would surprise users tabbing to the right panel. `⌘K` is the established convention for command palettes (Linear, Raycast, Notion) and requires no user education.
+`⌘K` opens the overlay from anywhere on the page, including when the capture textarea is focused mid-sentence. The textarea value is preserved in component state and restored when the overlay closes — no input is lost. `Tab` intercept was rejected as it conflicts with standard browser focus movement. `⌘K` does nothing when the overlay is already open; `Esc` is the sole exit.
 
 ### Overlay: mode shift, not modal
 
@@ -163,7 +178,19 @@ The overlay uses `position: fixed; inset: 0; background: var(--bg); z-index: 100
 
 ### Idle state: empty, not "recent"
 
-When the search query is empty, the overlay shows only the input and type filter pills — no pre-populated list. "Recently indexed" notes surface fleeting captures (lowest-value content), not the most relevant notes. Silence signals "waiting for your query" and avoids false affordances.
+When the search query is empty (on open, or after clearing), the overlay shows only the input and type filter pills — no pre-populated list. "Recently indexed" notes surface fleeting captures (lowest-value content), not the most relevant notes. Silence signals "waiting for your query." The overlay does not auto-close on empty query — that would make it annoying to correct a typo by selecting-all and retyping.
+
+### Overlay content width
+
+Content is constrained to `max-width: 72ch; margin: 0 auto; padding: 2.5rem` — same horizontal padding as the existing left pane, keeps Space Mono lines readable on wide screens, and prevents the search input from stretching uncomfortably across the full viewport.
+
+### Type filter persistence
+
+The type filter persists across overlay open/close cycles within the same session. It is scoped to the user's current working context — if you filtered to `paper` for a research task, you likely want that filter next time you open search. Reset happens only on explicit user action (clicking `all`).
+
+### Zero results
+
+Show `no results` in `--fg-tertiary` below the filter pills. Silence is appropriate for the idle state but ambiguous after a search runs — the user needs to know the query executed and returned nothing, not that something is broken.
 
 ### Loading state: ghost results
 
@@ -198,9 +225,9 @@ No new secrets or external network calls. The `/api/knowledge/` endpoints are in
 
 ## Open Questions
 
-1. Should the overlay remember the last search query when reopened within the same session? (Probably yes — same UX as browser search history)
-2. Should `type` filter state persist across overlay open/close cycles, or reset each time?
-3. Future: "open in Obsidian" button using `obsidian://open?vault=jomcgi&file=<path>` deep link — worth adding as a minor enhancement in Phase 3.
+1. ~~Should the overlay remember the last search query?~~ — Resolved: yes, session-scoped.
+2. ~~Should type filter persist across open/close?~~ — Resolved: yes, persists until explicitly reset to `all`.
+3. Future: "open in Obsidian" button using `obsidian://open?vault=jomcgi&file=<path>` deep link — Phase 3 optional enhancement, add to implementation checklist when ready.
 
 ---
 
