@@ -54,6 +54,7 @@ onepassword:
 
 knowledge:
   enabled: false
+  gitRemote: ""
   headlessSync:
     image:
       repository: ghcr.io/jomcgi/homelab/projects/monolith/obsidian-image
