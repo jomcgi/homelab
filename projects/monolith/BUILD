@@ -2168,7 +2168,6 @@ semgrep_target_test(
     exclude_rules = [
         # keep
         "avoid-sqlalchemy-text",
-        "generic-sql-fastapi",
         "tainted-fastapi-http-request-httpx",
     ],
     rules = ["//bazel/semgrep/rules:python_rules"],
