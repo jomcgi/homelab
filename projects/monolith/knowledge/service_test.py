@@ -387,7 +387,10 @@ class TestVaultBackupHandler:
         assert result is None
         mock_add.assert_called_once_with(str(tmp_path))
         mock_commit.assert_called_once_with(
-            str(tmp_path), message=b"sync: vault backup"
+            str(tmp_path),
+            message=b"sync: vault backup",
+            author=b"vault-backup <vault-backup@monolith.local>",
+            committer=b"vault-backup <vault-backup@monolith.local>",
         )
         mock_push.assert_called_once_with(
             path=str(tmp_path), username="x-access-token", password="ghp_test"

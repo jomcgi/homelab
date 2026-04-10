@@ -25,6 +25,7 @@ _TTL_SECS = 600
 _BACKUP_INTERVAL_SECS = 86400  # 24 hours
 _BACKUP_TTL_SECS = 3600  # 1 hour timeout
 _GIT_READY_SENTINEL = ".git-ready"
+_GIT_AUTHOR = b"vault-backup <vault-backup@monolith.local>"
 
 
 async def clone_vault() -> None:
@@ -84,7 +85,12 @@ async def vault_backup_handler(session: Session) -> datetime | None:
 
     try:
         porcelain.add(str(vault_root))
-        porcelain.commit(str(vault_root), message=b"sync: vault backup")
+        porcelain.commit(
+            str(vault_root),
+            message=b"sync: vault backup",
+            author=_GIT_AUTHOR,
+            committer=_GIT_AUTHOR,
+        )
         token = os.environ.get("GITHUB_TOKEN", "")
         push_kwargs: dict = {"path": str(vault_root)}
         if token:
