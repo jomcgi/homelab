@@ -11,7 +11,9 @@ from chat.bot import _has_embeddable_content, ChatBot
 # ---------------------------------------------------------------------------
 
 
-def _make_attachment(content_type: str | None = "image/jpeg", filename: str = "img.jpg"):
+def _make_attachment(
+    content_type: str | None = "image/jpeg", filename: str = "img.jpg"
+):
     att = MagicMock()
     att.content_type = content_type
     att.filename = filename
@@ -94,7 +96,9 @@ class TestHasEmbeddableContent:
 
     def test_multiple_non_image_attachments_returns_false(self):
         """Multiple non-image attachments do not make the message embeddable."""
-        zip_att = _make_attachment(content_type="application/zip", filename="archive.zip")
+        zip_att = _make_attachment(
+            content_type="application/zip", filename="archive.zip"
+        )
         txt_att = _make_attachment(content_type="text/plain", filename="notes.txt")
         msg = _make_message(content="", attachments=[zip_att, txt_att])
         assert _has_embeddable_content(msg) is False
