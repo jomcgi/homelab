@@ -178,12 +178,22 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
         try:
             with session.begin_nested():
                 session.add(ri)
-                session.add(note)
         except Exception:
             logger.warning(
-                "reconcile_raw_phase: failed to insert %s", rel, exc_info=True
+                "reconcile_raw_phase: failed to insert raw_input %s",
+                rel,
+                exc_info=True,
             )
             continue
+
+        try:
+            with session.begin_nested():
+                session.add(note)
+        except Exception:
+            # Note may already exist from the decomposition pipeline —
+            # that's fine, the RawInput is what tracks reconciliation.
+            logger.debug("reconcile_raw_phase: mirror note already exists for %s", rel)
+
         inserted += 1
 
     return ReconcileRawStats(inserted=inserted, skipped=skipped)

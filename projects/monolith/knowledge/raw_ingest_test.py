@@ -9,7 +9,6 @@ from sqlmodel.pool import StaticPool
 
 from knowledge.models import Note, RawInput
 from knowledge.raw_ingest import (
-    MovePhaseStats,
     ReconcileRawStats,
     move_phase,
     reconcile_raw_phase,
@@ -125,6 +124,37 @@ class TestReconcileRawPhase:
         assert stats.inserted == 0
         assert stats.skipped == 1
         assert len(session.exec(select(RawInput)).all()) == 1
+
+    def test_inserts_raw_input_when_note_already_exists(self, tmp_path, session):
+        """RawInput must be recorded even if a Note with the same note_id
+        already exists (e.g. from the decomposition pipeline)."""
+        content = "---\ntitle: Pre-existing\n---\nBody."
+        raw_file = tmp_path / "_raw" / "2026" / "04" / "09" / "abc1-pre.md"
+        raw_file.parent.mkdir(parents=True)
+        raw_file.write_text(content, encoding="utf-8")
+
+        from knowledge.raw_paths import compute_raw_id
+
+        note_id = compute_raw_id(content)
+        existing_note = Note(
+            note_id=note_id,
+            path="_processed/atoms/pre.md",
+            title="Pre-existing",
+            content_hash=note_id,
+            type="atom",
+            source="decomposition",
+            indexed_at=datetime.now(timezone.utc),
+        )
+        session.add(existing_note)
+        session.commit()
+
+        stats = reconcile_raw_phase(vault_root=tmp_path, session=session)
+        session.commit()
+
+        assert stats.inserted == 1
+        rows = session.exec(select(RawInput)).all()
+        assert len(rows) == 1
+        assert rows[0].raw_id == note_id
 
     def test_missing_raw_dir_is_noop(self, tmp_path, session):
         stats = reconcile_raw_phase(vault_root=tmp_path, session=session)
