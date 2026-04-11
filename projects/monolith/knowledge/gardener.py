@@ -29,17 +29,18 @@ GARDENER_VERSION = "claude-sonnet-4-6@v1"
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 _CLAUDE_PROMPT_HEADER = """\
-You are a knowledge gardener. Decompose the raw note below into atomic knowledge artifacts.
+You are a knowledge gardener. Decompose a raw note into atomic knowledge artifacts.
 
 Source raw_id: {raw_id}
 Include `derived_from_raw: {raw_id}` as a frontmatter field in every note you create.
 
 Steps:
-1. Run `knowledge-search "<topic>"` (Bash) to find related existing notes.
-2. Read related notes from {processed_root}/ using the Read tool.
-3. Create each atomic note as a new file in {processed_root}/ using the Write tool.
+1. Read the raw note from {raw_file_path} using the Read tool.
+2. Run `knowledge-search "<topic>"` (Bash) to find related existing notes.
+3. Read related notes from {processed_root}/ using the Read tool.
+4. Create each atomic note as a new file in {processed_root}/ using the Write tool.
    Allowed types: atom (concept/principle), fact (verifiable claim), active (journal/TODO).
-4. Each file must start with YAML frontmatter:
+5. Each file must start with YAML frontmatter:
 ---
 id: <slug-of-title>
 title: "<concise title — MUST be quoted if it contains a colon>"
@@ -56,8 +57,8 @@ edges:
    The `type` field already captures the category. The title should be the concept itself.
    IMPORTANT: The filename MUST be `<id>.md` — i.e. the slugified title. If the id is
    `staff-engineers-path`, the file must be `{processed_root}/staff-engineers-path.md`.
-5. Patch edges on related existing notes using the Edit tool.
-6. Each note covers exactly one concept. Prefer many small notes over one large note.
+6. Patch edges on related existing notes using the Edit tool.
+7. Each note covers exactly one concept. Prefer many small notes over one large note.
 
 Title: {title}
 
@@ -390,13 +391,11 @@ class Gardener:
             if raw_row is not None:
                 raw_id = raw_row.raw_id
 
-        prompt = (
-            _CLAUDE_PROMPT_HEADER.format(
-                processed_root=self.processed_root,
-                title=title,
-                raw_id=raw_id,
-            )
-            + raw_text
+        prompt = _CLAUDE_PROMPT_HEADER.format(
+            processed_root=self.processed_root,
+            title=title,
+            raw_id=raw_id,
+            raw_file_path=path,
         )
 
         before = (
