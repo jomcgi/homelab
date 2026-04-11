@@ -311,7 +311,7 @@ class TestResolveEdgeTargets:
         _upsert(store, note_id="linked", path="linked.md", title="Linked")
 
         rows = [
-            _make_row("link", "linked"),   # kind='link' — must be ignored
+            _make_row("link", "linked"),  # kind='link' — must be ignored
             _make_row("edge", "missing"),  # kind='edge' but target absent
         ]
         result = _resolve_edge_targets(session, rows)
