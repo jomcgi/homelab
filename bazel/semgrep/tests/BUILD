@@ -13,6 +13,7 @@ filegroup(
             "fixtures/no-create-extension-sql.yaml",
             "fixtures/no-discarded-json-marshal.yaml",
             "fixtures/no-shared-preload-libraries-cnpg.yaml",
+            "fixtures/python-shadow-module-import.yaml",
             "fixtures/require-cnpg-cluster-resources.yaml",
             "fixtures/unsafe-json-field-access.yaml",
         ],
