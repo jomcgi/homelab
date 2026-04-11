@@ -506,3 +506,49 @@ class TestVaultSyncGate:
         assert not _real_vault_sync_ready()
         (tmp_path / ".sync-ready").touch()
         assert _real_vault_sync_ready()
+
+
+class TestHasChanges:
+    """Unit tests for the _has_changes(vault_root) helper.
+
+    The function delegates to dulwich porcelain.status() and returns True if
+    any staged, unstaged, or untracked changes are present.
+    """
+
+    def test_staged_add_returns_true(self, tmp_path):
+        """Staged (added) files are detected as changes."""
+        with patch(
+            "knowledge.service.porcelain.status",
+            return_value=_dirty_status(staged_add=[b"new-note.md"]),
+        ):
+            assert service._has_changes(tmp_path) is True
+
+    def test_unstaged_changes_returns_true(self, tmp_path):
+        """Unstaged modifications are detected as changes."""
+        with patch(
+            "knowledge.service.porcelain.status",
+            return_value=_dirty_status(unstaged=[b"modified-note.md"]),
+        ):
+            assert service._has_changes(tmp_path) is True
+
+    def test_untracked_files_returns_true(self, tmp_path):
+        """Untracked files are detected as changes."""
+        with patch(
+            "knowledge.service.porcelain.status",
+            return_value=_dirty_status(untracked=["untracked-note.md"]),
+        ):
+            assert service._has_changes(tmp_path) is True
+
+    def test_clean_tree_returns_false(self, tmp_path):
+        """A clean working tree with no staged, unstaged, or untracked changes returns False."""
+        with patch(
+            "knowledge.service.porcelain.status",
+            return_value=_empty_status(),
+        ):
+            assert service._has_changes(tmp_path) is False
+
+    def test_passes_vault_root_as_string_to_porcelain(self, tmp_path):
+        """porcelain.status() is called with the vault_root as a string."""
+        with patch("knowledge.service.porcelain.status", return_value=_empty_status()) as mock_status:
+            service._has_changes(tmp_path)
+        mock_status.assert_called_once_with(str(tmp_path))

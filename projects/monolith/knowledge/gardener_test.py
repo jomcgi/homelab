@@ -778,6 +778,63 @@ class TestGardenerRunPhases:
         assert stats.ingested == 1
 
 
+class TestGardenerInit:
+    """Verify that Gardener.__init__() stores all constructor parameters correctly."""
+
+    def test_stores_vault_root_as_path(self, tmp_path):
+        """vault_root is stored as a Path object."""
+        gardener = Gardener(vault_root=tmp_path)
+        assert gardener.vault_root == Path(tmp_path)
+
+    def test_vault_root_string_is_coerced_to_path(self, tmp_path):
+        """A string vault_root is coerced to a Path by the constructor."""
+        gardener = Gardener(vault_root=str(tmp_path))
+        assert isinstance(gardener.vault_root, Path)
+        assert gardener.vault_root == Path(tmp_path)
+
+    def test_stores_max_files_per_run(self, tmp_path):
+        """max_files_per_run is stored as provided."""
+        gardener = Gardener(vault_root=tmp_path, max_files_per_run=5)
+        assert gardener.max_files_per_run == 5
+
+    def test_default_max_files_per_run(self, tmp_path):
+        """max_files_per_run defaults to 10 when not provided."""
+        gardener = Gardener(vault_root=tmp_path)
+        assert gardener.max_files_per_run == 10
+
+    def test_stores_claude_bin(self, tmp_path):
+        """claude_bin is stored as provided."""
+        gardener = Gardener(vault_root=tmp_path, claude_bin="/usr/local/bin/claude")
+        assert gardener.claude_bin == "/usr/local/bin/claude"
+
+    def test_default_claude_bin(self, tmp_path):
+        """claude_bin defaults to 'claude' when not provided."""
+        gardener = Gardener(vault_root=tmp_path)
+        assert gardener.claude_bin == "claude"
+
+    def test_stores_session(self, tmp_path, session):
+        """session is stored as provided."""
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        assert gardener.session is session
+
+    def test_default_session_is_none(self, tmp_path):
+        """session defaults to None when not provided."""
+        gardener = Gardener(vault_root=tmp_path)
+        assert gardener.session is None
+
+    def test_processed_root_derived_from_vault_root(self, tmp_path):
+        """processed_root is derived as vault_root/_processed."""
+        gardener = Gardener(vault_root=tmp_path)
+        assert gardener.processed_root == tmp_path / "_processed"
+
+    def test_processed_root_uses_resolved_vault_root(self, tmp_path):
+        """processed_root is always relative to the stored vault_root Path."""
+        vault = tmp_path / "my-vault"
+        vault.mkdir()
+        gardener = Gardener(vault_root=vault)
+        assert gardener.processed_root == vault / "_processed"
+
+
 class TestResolvePendingProvenance:
     def test_resolves_note_id_to_atom_fk(self, tmp_path, session):
         from knowledge.gardener import GARDENER_VERSION
