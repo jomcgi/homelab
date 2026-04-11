@@ -139,6 +139,7 @@
   let selected = $state(null);
   let hovered = $state(null);
   let drawing = $state(true);
+  let drawStartTime = 0; // set when animation begins (performance.now())
   let mapSvg = $state(null);
   let roughEdges = $state(null);
   let roughNodes = $state(null);
@@ -194,7 +195,15 @@
     );
   }
 
+  function nodeDrawn(id) {
+    if (!drawing) return true;
+    if (!drawStartTime) return false;
+    const elapsed = (performance.now() - drawStartTime) / 1000;
+    return elapsed >= animDelay.node[id].box;
+  }
+
   function selectNode(id) {
+    if (!nodeDrawn(id)) return;
     selected = selected === id ? null : id;
   }
 
@@ -431,15 +440,16 @@
   })();
 
   // ── Draw topology ──────────────────────────
+  // This effect draws all Rough.js elements once (and on dark mode change).
+  // It does NOT track `active` — highlighting is handled by a separate effect
+  // that updates opacity on existing elements, allowing CSS transitions to work.
   let hasAnimated = false;
   $effect(() => {
     if (!mapSvg || !roughEdges || !roughNodes) return;
-    const _active = active;
     const _dark = isDark;
-    const _drawing = drawing;
 
-    // During animation, skip redraws from hover/select changes
-    if (_drawing && hasAnimated) return;
+    // Skip dark-mode redraws while the initial animation is still running
+    if (hasAnimated && drawStartTime && (performance.now() - drawStartTime) / 1000 < animDelay.totalDur) return;
 
     const c = colors();
     const rc = rough.svg(mapSvg);
@@ -450,8 +460,6 @@
     edges.forEach((e) => {
       const from = nodeById[e.from];
       const to = nodeById[e.to];
-      const highlighted = _active && (e.from === _active || e.to === _active);
-      const dimmed = _active && !highlighted;
       const p1 = boxExit(from.x, from.y, from.hw + 6, HH + 4, to.x, to.y);
       const p2 = boxExit(to.x, to.y, to.hw + 6, HH + 4, from.x, from.y);
 
@@ -459,32 +467,32 @@
       const fwd = animDelay.edgeDir[e.from + "-" + e.to];
       const startPt = fwd ? p1 : p2;
       const endPt = fwd ? p2 : p1;
-
-      const edgeStroke = dimmed ? c.surface : highlighted ? c.fgSec : c.border;
-      const edgeInk = dimmed ? c.surface : highlighted ? c.fgSec : c.fgTer;
       const edgeSeed = seed(e.from + e.to);
+
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.dataset.edge = e.from + "-" + e.to;
+      g.style.transition = "opacity 0.25s ease";
 
       // Pencil sketch (light guide)
       const pencil = rc.line(startPt.x, startPt.y, endPt.x, endPt.y, {
         stroke: c.border,
         roughness: 1.5,
         bowing: 1.2,
-        strokeWidth: highlighted ? 1.4 : 0.8,
+        strokeWidth: 0.8,
         seed: edgeSeed,
       });
-      pencil.style.transition = "opacity 0.2s ease";
-      pencil.style.opacity = dimmed ? "0.15" : "0.6";
+      pencil.style.opacity = "0.6";
+      pencil.dataset.layer = "pencil";
 
       // Ink overlay — darker final color
       const ink = rc.line(startPt.x, startPt.y, endPt.x, endPt.y, {
-        stroke: edgeInk,
+        stroke: c.fgTer,
         roughness: 1.5,
         bowing: 1.2,
-        strokeWidth: highlighted ? 1.8 : 1,
+        strokeWidth: 1,
         seed: edgeSeed + 7,
       });
-      ink.style.transition = "opacity 0.2s ease";
-      ink.style.opacity = dimmed ? "0.3" : "1";
+      ink.dataset.layer = "ink";
 
       if (shouldAnimate) {
         const anim = animDelay.edge[e.from + "-" + e.to];
@@ -515,39 +523,31 @@
           }
         });
       }
-      roughEdges.appendChild(pencil);
-      roughEdges.appendChild(ink);
+      g.appendChild(pencil);
+      g.appendChild(ink);
+      roughEdges.appendChild(g);
     });
 
     nodes.forEach((n) => {
       const w = n.hw * 2 + 12;
       const h = HH * 2 + 6;
-      const isActive = _active === n.id;
-      const isConn = connectedTo(n.id);
-      const dimmed = _active && !isConn;
-
-      const strokeCol = dimmed ? c.surface : n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : isActive ? c.fg : c.border;
-      // Ink color: always the strong/final color (pencil uses --border)
-      const inkCol = dimmed ? c.surface : n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.fg;
-      const strokeW = isActive ? 1.8 : 1;
+      const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.fg;
       const r = nodeRoughness(n.status);
       const bow = n.status === "warning" ? 1.2 : 0.5;
 
-      // Fill rectangle (no stroke — just background)
-      if (isActive) {
-        const fillEl = rc.rectangle(n.x - w / 2, n.y - h / 2, w, h, {
-          stroke: "none", fill: c.surface, fillStyle: "solid",
-          roughness: r, seed: seed(n.id + "fill"),
-        });
-        fillEl.style.transition = "opacity 0.2s ease";
-        fillEl.style.opacity = dimmed ? "0.3" : "1";
-        if (shouldAnimate) {
-          fillEl.style.opacity = "0";
-          const anim = animDelay.node[n.id];
-          fillEl.style.animation = `nodeIn 0.15s ease ${anim.inkBox.toFixed(3)}s forwards`;
-        }
-        roughNodes.appendChild(fillEl);
-      }
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.dataset.node = n.id;
+      g.style.transition = "opacity 0.25s ease";
+
+      // Fill rectangle (hidden by default, shown when active via highlight effect)
+      const fillEl = rc.rectangle(n.x - w / 2, n.y - h / 2, w, h, {
+        stroke: "none", fill: c.surface, fillStyle: "solid",
+        roughness: r, seed: seed(n.id + "fill"),
+      });
+      fillEl.style.opacity = "0";
+      fillEl.style.transition = "opacity 0.2s ease";
+      fillEl.dataset.layer = "fill";
+      g.appendChild(fillEl);
 
       // 4 sequential strokes, rotated to start from the nearest corner to the incoming edge
       const x1 = n.x - w / 2, y1 = n.y - h / 2;
@@ -586,22 +586,21 @@
           stroke: c.border,
           roughness: r,
           bowing: bow,
-          strokeWidth: strokeW * 0.7,
+          strokeWidth: 0.7,
           seed: sideSeed,
         });
-        pencil.style.transition = "opacity 0.2s ease";
-        pencil.style.opacity = dimmed ? "0.15" : "0.5";
+        pencil.style.opacity = "0.5";
+        pencil.dataset.layer = "pencil";
 
         // Ink overlay — always the strong/final color
         const ink = rc.line(side.from[0], side.from[1], side.to[0], side.to[1], {
           stroke: inkCol,
           roughness: r,
           bowing: bow,
-          strokeWidth: strokeW,
+          strokeWidth: 1,
           seed: sideSeed + 7,
         });
-        ink.style.transition = "opacity 0.2s ease";
-        ink.style.opacity = dimmed ? "0.3" : "1";
+        ink.dataset.layer = "ink";
 
         if (anim) {
           // Pencil: sequential sides starting at anim.box
@@ -636,15 +635,48 @@
           });
           inkOffset += iDur;
         }
-        roughNodes.appendChild(pencil);
-        roughNodes.appendChild(ink);
+        g.appendChild(pencil);
+        g.appendChild(ink);
       });
+      roughNodes.appendChild(g);
     });
 
     if (shouldAnimate) {
       hasAnimated = true;
+      drawStartTime = performance.now();
       setTimeout(() => { drawing = false; }, animDelay.totalDur * 1000);
     }
+  });
+
+  // ── Highlight effect ──────────────────────────
+  // Updates opacity on existing Rough.js elements when active changes.
+  // Separated from draw effect so selection/hover doesn't trigger a full redraw,
+  // allowing CSS transitions to produce smooth fades.
+  $effect(() => {
+    if (!roughEdges || !roughNodes) return;
+    const _active = active;
+
+    // Edges: dim unrelated, full opacity for connected
+    roughEdges.querySelectorAll("[data-edge]").forEach((g) => {
+      const key = g.dataset.edge;
+      const [from, to] = key.split("-");
+      const connected = !_active || from === _active || to === _active;
+      g.style.opacity = connected ? "1" : "0.15";
+    });
+
+    // Nodes: dim unrelated, show fill on active
+    roughNodes.querySelectorAll("[data-node]").forEach((g) => {
+      const id = g.dataset.node;
+      const connected = !_active || connectedTo(id);
+      const isActive = id === _active;
+
+      // Dim pencil/ink layers for unrelated nodes
+      g.style.opacity = connected ? "1" : "0.25";
+
+      // Show fill rectangle only on the active node
+      const fill = g.querySelector("[data-layer='fill']");
+      if (fill) fill.style.opacity = isActive ? "0.5" : "0";
+    });
   });
 
   // ── Hover tooltip ──────────────────────────
@@ -819,7 +851,7 @@
       {@const n = nodeById[hovered]}
       {@const s = svc[hovered]}
       {#if s?.brief}
-        <text x={n.x} y={n.y - HH - 18} class="tooltip-text">{s.brief}</text>
+        <text x={n.x} y={n.y - HH - 24} class="tooltip-text" dominant-baseline="central">{s.brief}</text>
       {/if}
     {/if}
 
@@ -832,6 +864,7 @@
         height={HH * 2 + 6}
         fill="transparent"
         class="hit-area"
+        style:cursor={!drawing || nodeDrawn(n.id) ? "pointer" : "default"}
         role="button"
         tabindex="0"
         aria-label="{n.label} — {svc[n.id]?.brief ?? ''}"
@@ -839,10 +872,10 @@
         onkeydown={(ev) => {
           if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectNode(n.id); }
         }}
-        onmouseenter={() => { if (!drawing) hovered = n.id; }}
-        onmouseleave={() => { if (!drawing) hovered = null; }}
-        onfocus={() => { if (!drawing) hovered = n.id; }}
-        onblur={() => { if (!drawing) hovered = null; }}
+        onmouseenter={() => { if (nodeDrawn(n.id)) hovered = n.id; }}
+        onmouseleave={() => { hovered = null; }}
+        onfocus={() => { if (nodeDrawn(n.id)) hovered = n.id; }}
+        onblur={() => { hovered = null; }}
       />
     {/each}
   </svg>
@@ -1023,7 +1056,6 @@
   }
 
   .hit-area {
-    cursor: pointer;
     outline: none;
   }
 
@@ -1036,7 +1068,7 @@
     background: var(--bg);
     opacity: 0.4;
     z-index: 10;
-    cursor: pointer;
+    cursor: default;
   }
 
   .drawer {
