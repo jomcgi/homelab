@@ -24,6 +24,8 @@ _INTERVAL_SECS = 300
 _TTL_SECS = 600
 _BACKUP_INTERVAL_SECS = 86400  # 24 hours
 _BACKUP_TTL_SECS = 3600  # 1 hour timeout
+_INGEST_INTERVAL_SECS = 300
+_INGEST_TTL_SECS = 600
 _GIT_READY_SENTINEL = ".git-ready"
 _SYNC_READY_SENTINEL = ".sync-ready"
 _GIT_AUTHOR = b"vault-backup <vault-backup@monolith.local>"
@@ -210,4 +212,14 @@ def on_startup(session: Session) -> None:
         interval_secs=_BACKUP_INTERVAL_SECS,
         handler=vault_backup_handler,
         ttl_secs=_BACKUP_TTL_SECS,
+    )
+
+    from knowledge.ingest_queue import ingest_handler
+
+    register_job(
+        session,
+        name="knowledge.ingest",
+        interval_secs=_INGEST_INTERVAL_SECS,
+        handler=ingest_handler,
+        ttl_secs=_INGEST_TTL_SECS,
     )

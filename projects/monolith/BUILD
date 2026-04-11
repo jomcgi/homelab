@@ -2227,6 +2227,19 @@ py_test(
     ],
 )
 
+py_test(
+    name = "knowledge_ingest_queue_router_test",
+    srcs = ["knowledge/ingest_queue_router_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     exclude_rules = [

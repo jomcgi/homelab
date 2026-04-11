@@ -16,11 +16,14 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlmodel import Session
 
 from app.db import get_session
+from knowledge.ingest_queue import IngestQueueItem
 from knowledge.service import DEFAULT_VAULT_ROOT, VAULT_ROOT_ENV
 from knowledge.store import KnowledgeStore
 from shared.embedding import EmbeddingClient
@@ -82,3 +85,21 @@ def get_knowledge_note(
         raise HTTPException(status_code=404, detail="vault file missing")
 
     return {**note, "content": resolved.read_text()}
+
+
+class IngestRequest(BaseModel):
+    url: str
+    source_type: Literal["youtube", "webpage"]
+
+
+@router.post("/ingest", status_code=201)
+def queue_ingest(
+    data: IngestRequest,
+    session: Session = Depends(get_session),
+) -> dict:
+    if not data.url.strip():
+        raise HTTPException(status_code=400, detail="url is required")
+    item = IngestQueueItem(url=data.url.strip(), source_type=data.source_type)
+    session.add(item)
+    session.commit()
+    return {"queued": True}
