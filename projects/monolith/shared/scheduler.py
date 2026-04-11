@@ -22,10 +22,10 @@ class ScheduledJob(SQLModel, table=True):
     name: str = Field(primary_key=True)
     interval_secs: int
     next_run_at: datetime
-    last_run_at: datetime | None = None
+    last_run_at: datetime | None = None  # nosemgrep: sqlmodel-datetime-without-factory
     last_status: str | None = None
     locked_by: str | None = None
-    locked_at: datetime | None = None
+    locked_at: datetime | None = None  # nosemgrep: sqlmodel-datetime-without-factory
     ttl_secs: int = Field(default=300)
 
 
