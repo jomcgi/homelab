@@ -15,17 +15,17 @@ logger = logging.getLogger("monolith.scheduler")
 _HOSTNAME = platform.node()
 
 
-class ScheduledJob(SQLModel, table=True):
+class ScheduledJob(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factory
     __tablename__ = "scheduled_jobs"
     __table_args__ = {"schema": "scheduler", "extend_existing": True}
 
     name: str = Field(primary_key=True)
     interval_secs: int
     next_run_at: datetime
-    last_run_at: datetime | None = None  # nosemgrep: sqlmodel-datetime-without-factory
+    last_run_at: datetime | None = None
     last_status: str | None = None
     locked_by: str | None = None
-    locked_at: datetime | None = None  # nosemgrep: sqlmodel-datetime-without-factory
+    locked_at: datetime | None = None
     ttl_secs: int = Field(default=300)
 
 
