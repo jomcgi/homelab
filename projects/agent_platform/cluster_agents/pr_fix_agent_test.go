@@ -372,8 +372,6 @@ func TestPRFixAgent_CollectMultiplePRsProducesMultipleFindings(t *testing.T) {
 // numbers produce distinct fingerprints so the escalator dedup tag is unique
 // per PR and multiple PRs can be tracked independently.
 func TestPRFixAgent_FingerprintUniquenessAcrossPRs(t *testing.T) {
-	agent := NewPRFixAgent(nil, nil, time.Hour, 30*time.Minute)
-
 	findings := []Finding{
 		{Data: map[string]any{"pr_number": 1, "branch": "a"}},
 		{Data: map[string]any{"pr_number": 2, "branch": "b"}},
