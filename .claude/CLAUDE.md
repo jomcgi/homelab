@@ -42,6 +42,8 @@ bazel run //projects/<service>/image:push  # Push container images
 
 Bazel runs **remotely via BuildBuddy** — not locally. Shell aliases route `bazel`/`bazelisk` to the BuildBuddy CLI (`bb`). **Use `bb remote test` to iterate on test fixes** — it sends your local working tree to BuildBuddy's remote execution cluster without requiring a commit or push. Only push when tests are passing.
 
+**Cross-platform remote execution:** `bb remote` defaults to your local OS/arch (darwin/arm64 on Mac). When darwin runners are unavailable, use `bb remote --os=linux --arch=amd64` to run on linux runners instead. This matches CI's execution environment (`ubuntu-24.04`). Example: `bb remote --os=linux --arch=amd64 test //projects/<service>/... --config=ci`
+
 **Vendored tools** (available via `./bootstrap.sh` + `direnv allow`): `format`, `helm`, `crane`, `kind`, `go`, `python`, `pnpm`, `node`, `buildifier`, `buildozer`, `ruff`, `gofumpt`, `shfmt`, `prettier`, `gazelle`
 
 ## Development Workflow
