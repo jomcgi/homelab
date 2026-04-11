@@ -316,6 +316,31 @@ func TestRulesAgent_AnalyzeMultipleFindingsProducesOneAction(t *testing.T) {
 	}
 }
 
+// TestRulesAgent_ExecuteEscalatorTransportError verifies that when the
+// orchestrator is unreachable (transport-level failure), Execute returns nil —
+// the escalator logs errors and continues, so the agent's Execute contract is
+// always nil on return.
+func TestRulesAgent_ExecuteEscalatorTransportError(t *testing.T) {
+	// Port 0 refuses connections, causing a transport-level error in client.Do.
+	escalator := NewEscalator(NewOrchestratorClient("http://127.0.0.1:0"))
+	agent := NewRulesAgent(nil, escalator, time.Hour)
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: rulesTag,
+			Source:      rulesTag,
+			Title:       "Rules improvement",
+		},
+		Payload: map[string]any{"task": "Review semgrep rules for new patterns"},
+	}}
+
+	err := agent.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: expected nil when escalator encounters transport error, got: %v", err)
+	}
+}
+
 // TestRulesAgent_AnalyzeMissingCommitRangeFallsBackToEmpty verifies that when
 // the finding's Data map has no "commit_range" key (or the value is not a
 // string), the task is still well-formed and does not contain a placeholder or

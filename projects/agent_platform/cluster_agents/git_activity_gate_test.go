@@ -332,6 +332,50 @@ func TestGitActivityGate_OrchestratorNon200(t *testing.T) {
 	}
 }
 
+// TestGitActivityGate_OrchestratorTransportError verifies that when the
+// orchestrator is completely unreachable (transport-level failure, not a
+// non-200 HTTP status), lastProcessedCommit returns an error and Check wraps
+// it with "fetching last processed commit". This is distinct from
+// TestGitActivityGate_OrchestratorNon200 which tests the HTTP-level error path.
+func TestGitActivityGate_OrchestratorTransportError(t *testing.T) {
+	// Use a valid GitHub server so LatestNonBotCommit succeeds.
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		commits := []ghCommit{
+			{
+				SHA: "abc999",
+				Commit: ghCommitDetail{
+					Author:  ghAuthor{Name: "jomcgi", Date: time.Now()},
+					Message: "feat: something",
+				},
+			},
+		}
+		json.NewEncoder(w).Encode(commits)
+	}))
+	defer githubServer.Close()
+
+	// Point orchestrator at port 0 which refuses connections — this triggers
+	// a transport-level error (client.Do fails) rather than a non-200 response.
+	gate := &GitActivityGate{
+		github:       NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		orchestrator: NewOrchestratorClient("http://127.0.0.1:0"),
+		botAuthors:   []string{"ci-format-bot"},
+		branch:       "main",
+	}
+
+	_, _, hasActivity, err := gate.Check(context.Background(), "ci:main")
+	if err == nil {
+		t.Fatal("expected error when orchestrator is unreachable at transport level, got nil")
+	}
+	if hasActivity {
+		t.Error("expected hasActivity=false on transport error")
+	}
+	const wantPrefix = "fetching last processed commit"
+	errStr := err.Error()
+	if len(errStr) < len(wantPrefix) || errStr[:len(wantPrefix)] != wantPrefix {
+		t.Errorf("expected error to start with %q, got: %v", wantPrefix, err)
+	}
+}
+
 // TestGitActivityGate_OrchestratorMalformedJSON verifies that when the
 // orchestrator returns 200 OK with invalid JSON, lastProcessedCommit returns an
 // error and Check wraps it with "fetching last processed commit".

@@ -290,6 +290,31 @@ func TestReadmeFreshnessAgent_AnalyzeTaskContentMentionsREADME(t *testing.T) {
 	}
 }
 
+// TestReadmeFreshnessAgent_ExecuteEscalatorTransportError verifies that when
+// the orchestrator is unreachable (transport-level failure), Execute returns
+// nil — the escalator logs errors and continues, so the agent's Execute
+// contract is always nil on return.
+func TestReadmeFreshnessAgent_ExecuteEscalatorTransportError(t *testing.T) {
+	// Port 0 refuses connections, causing a transport-level error in client.Do.
+	escalator := NewEscalator(NewOrchestratorClient("http://127.0.0.1:0"))
+	agent := NewReadmeFreshnessAgent(nil, escalator, time.Hour)
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: readmeFreshnessTag,
+			Source:      readmeFreshnessTag,
+			Title:       "README freshness check",
+		},
+		Payload: map[string]any{"task": "Audit README files for accuracy"},
+	}}
+
+	err := agent.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: expected nil when escalator encounters transport error, got: %v", err)
+	}
+}
+
 // TestReadmeFreshnessAgent_CollectFindingContainsLatestSHA verifies that
 // Collect stores "latest_sha" in the finding's Data map so the escalator can
 // attach a sha: tag for deduplication on the next cycle (mirrors
