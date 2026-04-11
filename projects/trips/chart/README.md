@@ -12,7 +12,7 @@ flowchart LR
     Nginx -->|/trips/full/| SeaweedFS[SeaweedFS\nS3 Storage]
     Nginx -->|/trips/thumb/\n/trips/display/\n/trips/gallery/| Imgproxy[imgproxy\nImage Resizer]
     Imgproxy --> SeaweedFS
-    Nginx -->|/trips/api/| API[Go/Python API]
+    Nginx -->|/trips/api/| API[Python API]
     Nginx -->|/trips/ws/| API
     API --> SeaweedFS
     API --> NATS[NATS\nEvent Bus]
