@@ -31,13 +31,17 @@ class BadItemOptionalFieldNoFactory(SQLModel, table=True):
 # ok: sqlmodel-datetime-without-factory
 class OkItemWithFactory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime | None = Field(default=None, default_factory=lambda: datetime.utcnow())
+    created_at: datetime | None = Field(
+        default=None, default_factory=lambda: datetime.utcnow()
+    )
 
 
 # ok: sqlmodel-datetime-without-factory
 class OkItemOptionalWithFactory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: Optional[datetime] = Field(default=None, default_factory=lambda: datetime.now(timezone.utc))
+    created_at: Optional[datetime] = Field(
+        default=None, default_factory=lambda: datetime.now(timezone.utc)
+    )
 
 
 # ok: sqlmodel-datetime-without-factory
