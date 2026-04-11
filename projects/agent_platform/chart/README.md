@@ -104,9 +104,9 @@ Client → agent-orchestrator REST API
 | `agent-sandbox`              | SandboxTemplate CRDs (`sandboxes.agents.x-k8s.io`) + controller   | ✅      |
 | `nats`                       | NATS JetStream (upstream chart)                                   | ✅      |
 
-> **Not in this chart:** Context Forge and MCP OAuth Proxy are deployed
-> separately in the `mcp` namespace. See `projects/mcp/` for their ArgoCD
-> Applications.
+> **Not in this chart:** Context Forge is deployed separately in the `mcp`
+> namespace. See `projects/mcp/context-forge-gateway/` for its ArgoCD
+> Application.
 
 ---
 
@@ -307,8 +307,8 @@ by CI on every merge to `main`. The ArgoCD Application in
 registry and overlays environment-specific values from
 `projects/agent_platform/deploy/values.yaml`.
 
-**ArgoCD Image Updater** watches the chart OCI artifact and automatically bumps
-`targetRevision` in the Application when a new chart version is pushed.
+The **chart-version-bot** automatically bumps `targetRevision` in the
+Application when a new chart version is pushed to the OCI registry.
 
 To change cluster configuration, edit `deploy/values.yaml` and push — ArgoCD
 auto-syncs within ~5–10 seconds. **Never use `kubectl apply` or `helm install`
