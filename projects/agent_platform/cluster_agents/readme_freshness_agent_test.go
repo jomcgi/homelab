@@ -289,3 +289,51 @@ func TestReadmeFreshnessAgent_AnalyzeTaskContentMentionsREADME(t *testing.T) {
 		t.Errorf("expected task to mention README, got:\n%s", task)
 	}
 }
+
+// TestReadmeFreshnessAgent_CollectFindingContainsLatestSHA verifies that
+// Collect stores "latest_sha" in the finding's Data map so the escalator can
+// attach a sha: tag for deduplication on the next cycle (mirrors
+// TestTestCoverageAgent_CollectWithActivity).
+func TestReadmeFreshnessAgent_CollectFindingContainsLatestSHA(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		commits := []ghCommit{
+			{
+				SHA: "readme555sha",
+				Commit: ghCommitDetail{
+					Author:  ghAuthor{Name: "jomcgi", Date: time.Now()},
+					Message: "feat: restructure service configs",
+				},
+			},
+		}
+		json.NewEncoder(w).Encode(commits)
+	}))
+	defer githubServer.Close()
+
+	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+	}))
+	defer orchestratorServer.Close()
+
+	gate := NewGitActivityGate(
+		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		NewOrchestratorClient(orchestratorServer.URL),
+		[]string{"ci-format-bot"},
+		"main",
+	)
+
+	agent := NewReadmeFreshnessAgent(gate, nil, time.Hour)
+	findings, err := agent.Collect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %d", len(findings))
+	}
+	latestSHA, ok := findings[0].Data["latest_sha"].(string)
+	if !ok || latestSHA == "" {
+		t.Errorf("expected findings[0].Data[latest_sha] to be set, got %v", findings[0].Data["latest_sha"])
+	}
+	if latestSHA != "readme555sha" {
+		t.Errorf("expected latest_sha=readme555sha, got %s", latestSHA)
+	}
+}

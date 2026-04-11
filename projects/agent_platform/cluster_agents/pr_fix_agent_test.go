@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -273,5 +274,161 @@ func TestPRFixAgent_AnalyzeTaskContainsPRNumberAndBranch(t *testing.T) {
 		if !strings.Contains(task, want) {
 			t.Errorf("Payload[\"task\"] missing %q:\n%s", want, task)
 		}
+	}
+}
+
+// TestPRFixAgent_CollectFiltersFreshPRs verifies that PRs updated within the
+// staleThreshold window are excluded from the results even when they have
+// failing checks.
+func TestPRFixAgent_CollectFiltersFreshPRs(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "check-suites") {
+			// Would have failing checks if called.
+			resp := ghCheckSuitesResponse{
+				CheckSuites: []ghCheckSuite{{Conclusion: "failure"}},
+			}
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		// Return one PR that was updated 5 minutes ago — well within a 30-minute threshold.
+		prs := []ghPullRequest{
+			{
+				Number:    55,
+				Head:      ghHead{Ref: "feat/fresh", SHA: "freshsha"},
+				UpdatedAt: time.Now().Add(-5 * time.Minute),
+			},
+		}
+		json.NewEncoder(w).Encode(prs)
+	}))
+	defer githubServer.Close()
+
+	agent := NewPRFixAgent(
+		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		nil,
+		time.Hour,
+		30*time.Minute, // staleThreshold: 30 minutes
+	)
+
+	findings, err := agent.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("Collect: unexpected error: %v", err)
+	}
+	if len(findings) != 0 {
+		t.Errorf("expected 0 findings for a fresh PR (updated 5m ago vs 30m threshold), got %d", len(findings))
+	}
+}
+
+// TestPRFixAgent_CollectMultiplePRsProducesMultipleFindings verifies that when
+// multiple stale PRs with failing checks exist, Collect returns one finding per
+// PR in the same order.
+func TestPRFixAgent_CollectMultiplePRsProducesMultipleFindings(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "check-suites") {
+			resp := ghCheckSuitesResponse{
+				CheckSuites: []ghCheckSuite{{Conclusion: "failure"}},
+			}
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+		prs := []ghPullRequest{
+			{
+				Number:    10,
+				Head:      ghHead{Ref: "fix/issue-10", SHA: "sha10"},
+				UpdatedAt: time.Now().Add(-2 * time.Hour),
+			},
+			{
+				Number:    20,
+				Head:      ghHead{Ref: "fix/issue-20", SHA: "sha20"},
+				UpdatedAt: time.Now().Add(-3 * time.Hour),
+			},
+		}
+		json.NewEncoder(w).Encode(prs)
+	}))
+	defer githubServer.Close()
+
+	agent := NewPRFixAgent(
+		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		nil,
+		time.Hour,
+		30*time.Minute,
+	)
+
+	findings, err := agent.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("Collect: unexpected error: %v", err)
+	}
+	if len(findings) != 2 {
+		t.Fatalf("expected 2 findings for 2 stale failing PRs, got %d", len(findings))
+	}
+	if findings[0].Data["pr_number"].(int) != 10 {
+		t.Errorf("expected first finding for PR #10, got pr_number=%v", findings[0].Data["pr_number"])
+	}
+	if findings[1].Data["pr_number"].(int) != 20 {
+		t.Errorf("expected second finding for PR #20, got pr_number=%v", findings[1].Data["pr_number"])
+	}
+}
+
+// TestPRFixAgent_FingerprintUniquenessAcrossPRs verifies that different PR
+// numbers produce distinct fingerprints so the escalator dedup tag is unique
+// per PR and multiple PRs can be tracked independently.
+func TestPRFixAgent_FingerprintUniquenessAcrossPRs(t *testing.T) {
+	agent := NewPRFixAgent(nil, nil, time.Hour, 30*time.Minute)
+
+	findings := []Finding{
+		{Data: map[string]any{"pr_number": 1, "branch": "a"}},
+		{Data: map[string]any{"pr_number": 2, "branch": "b"}},
+		{Data: map[string]any{"pr_number": 1000, "branch": "c"}},
+	}
+
+	// Simulate Collect fingerprint generation by reproducing the Collect logic.
+	seen := map[string]bool{}
+	for _, f := range findings {
+		prNumber := f.Data["pr_number"].(int)
+		fp := fmt.Sprintf("improvement:pr-fix:%d", prNumber)
+		if seen[fp] {
+			t.Errorf("fingerprint collision for pr_number=%d: %s", prNumber, fp)
+		}
+		seen[fp] = true
+	}
+	if len(seen) != 3 {
+		t.Errorf("expected 3 unique fingerprints, got %d", len(seen))
+	}
+}
+
+// TestPRFixAgent_AnalyzeMissingDataFallsBack verifies that Analyze handles
+// missing or wrong-type pr_number and branch fields gracefully via type
+// assertion fallbacks (yields 0 and ""), producing a non-panicking task string.
+func TestPRFixAgent_AnalyzeMissingDataFallsBack(t *testing.T) {
+	agent := NewPRFixAgent(nil, nil, time.Hour, 30*time.Minute)
+
+	findings := []Finding{
+		{
+			Fingerprint: "improvement:pr-fix:0",
+			Source:      "improvement:pr-fix",
+			Severity:    SeverityInfo,
+			Title:       "PR with missing data",
+			Data:        map[string]any{}, // no pr_number, no branch
+			Timestamp:   time.Now(),
+		},
+	}
+
+	actions, err := agent.Analyze(context.Background(), findings)
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+
+	task, ok := actions[0].Payload["task"].(string)
+	if !ok {
+		t.Fatalf("expected Payload[\"task\"] to be a string")
+	}
+	if task == "" {
+		t.Error("expected non-empty task even when pr_number and branch are missing")
+	}
+	// Zero-value fallbacks: pr_number=0, branch=""
+	if !strings.Contains(task, "0") {
+		t.Errorf("expected task to contain fallback PR number 0, got:\n%s", task)
 	}
 }

@@ -258,3 +258,121 @@ func TestGitActivityGate_JobWithoutSHATag_TreatedAsFirstRun(t *testing.T) {
 		t.Errorf("expected commitRange=5ef12dd3 (first-run), got %s", commitRange)
 	}
 }
+
+// TestGitActivityGate_GitHubAPIError verifies that when the GitHub commits
+// endpoint returns a non-200 response, Check propagates the error with a
+// "fetching latest commit" wrapper.
+func TestGitActivityGate_GitHubAPIError(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}))
+	defer githubServer.Close()
+
+	gate := &GitActivityGate{
+		github:       NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		orchestrator: NewOrchestratorClient("http://should-not-be-called"),
+		botAuthors:   []string{"ci-format-bot"},
+		branch:       "main",
+	}
+
+	_, _, hasActivity, err := gate.Check(context.Background(), "ci:main")
+	if err == nil {
+		t.Fatal("expected error when GitHub API fails, got nil")
+	}
+	if hasActivity {
+		t.Error("expected hasActivity=false on error")
+	}
+	errStr := err.Error()
+	if len(errStr) == 0 || errStr[:len("fetching latest commit")] != "fetching latest commit" {
+		t.Errorf("expected error to start with 'fetching latest commit', got: %v", err)
+	}
+}
+
+// TestGitActivityGate_OrchestratorNon200 verifies that when the orchestrator
+// returns a non-200 status from the jobs endpoint, lastProcessedCommit returns
+// an error and Check wraps it with "fetching last processed commit".
+func TestGitActivityGate_OrchestratorNon200(t *testing.T) {
+	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+	}))
+	defer orchestratorServer.Close()
+
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		commits := []ghCommit{
+			{
+				SHA: "abc999",
+				Commit: ghCommitDetail{
+					Author:  ghAuthor{Name: "jomcgi", Date: time.Now()},
+					Message: "feat: something",
+				},
+			},
+		}
+		json.NewEncoder(w).Encode(commits)
+	}))
+	defer githubServer.Close()
+
+	gate := &GitActivityGate{
+		github:       NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		orchestrator: NewOrchestratorClient(orchestratorServer.URL),
+		botAuthors:   []string{"ci-format-bot"},
+		branch:       "main",
+	}
+
+	_, _, hasActivity, err := gate.Check(context.Background(), "ci:main")
+	if err == nil {
+		t.Fatal("expected error when orchestrator returns non-200, got nil")
+	}
+	if hasActivity {
+		t.Error("expected hasActivity=false on error")
+	}
+	errStr := err.Error()
+	const wantPrefix = "fetching last processed commit"
+	if len(errStr) < len(wantPrefix) || errStr[:len(wantPrefix)] != wantPrefix {
+		t.Errorf("expected error to start with %q, got: %v", wantPrefix, err)
+	}
+}
+
+// TestGitActivityGate_OrchestratorMalformedJSON verifies that when the
+// orchestrator returns 200 OK with invalid JSON, lastProcessedCommit returns an
+// error and Check wraps it with "fetching last processed commit".
+func TestGitActivityGate_OrchestratorMalformedJSON(t *testing.T) {
+	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("not-valid-json{{{"))
+	}))
+	defer orchestratorServer.Close()
+
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		commits := []ghCommit{
+			{
+				SHA: "def777",
+				Commit: ghCommitDetail{
+					Author:  ghAuthor{Name: "jomcgi", Date: time.Now()},
+					Message: "fix: another fix",
+				},
+			},
+		}
+		json.NewEncoder(w).Encode(commits)
+	}))
+	defer githubServer.Close()
+
+	gate := &GitActivityGate{
+		github:       NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		orchestrator: NewOrchestratorClient(orchestratorServer.URL),
+		botAuthors:   []string{"ci-format-bot"},
+		branch:       "main",
+	}
+
+	_, _, hasActivity, err := gate.Check(context.Background(), "ci:main")
+	if err == nil {
+		t.Fatal("expected error when orchestrator returns malformed JSON, got nil")
+	}
+	if hasActivity {
+		t.Error("expected hasActivity=false on error")
+	}
+	const wantPrefix = "fetching last processed commit"
+	errStr := err.Error()
+	if len(errStr) < len(wantPrefix) || errStr[:len(wantPrefix)] != wantPrefix {
+		t.Errorf("expected error to start with %q, got: %v", wantPrefix, err)
+	}
+}
