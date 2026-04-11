@@ -10,7 +10,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from knowledge.gardener import Gardener
-from knowledge.models import RawInput
+from knowledge.models import AtomRawProvenance, RawInput
 
 
 def _write(tmp_path: Path, rel: str, content: str) -> None:
@@ -67,6 +67,16 @@ class TestIngestOneFileIOError:
         )
         session.add(raw)
         session.commit()
+        # Add outdated provenance so _grandfather_untracked_raws skips this
+        # raw but _raws_needing_decomposition still picks it up.
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                derived_note_id="outdated",
+                gardener_version="v0-outdated",
+            )
+        )
+        session.commit()
 
         gardener = Gardener(vault_root=tmp_path, session=session)
         stats = await gardener.run()
@@ -94,6 +104,16 @@ class TestIngestOneSubprocessFailure:
             content_hash="abc1",
         )
         session.add(raw)
+        session.commit()
+        # Add outdated provenance so _grandfather_untracked_raws skips this
+        # raw but _raws_needing_decomposition still picks it up.
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                derived_note_id="outdated",
+                gardener_version="v0-outdated",
+            )
+        )
         session.commit()
 
         proc_mock = AsyncMock()
