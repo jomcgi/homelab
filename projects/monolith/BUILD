@@ -2203,6 +2203,29 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_store_note_links_test",
+    srcs = ["knowledge/store_note_links_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "knowledge_ingest_queue_extra_test",
+    srcs = ["knowledge/ingest_queue_extra_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "notes_router_whitespace_test",
     srcs = ["notes/router_whitespace_test.py"],
     imports = ["."],
