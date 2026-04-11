@@ -224,6 +224,10 @@ class Gardener:
         if resolved_count and self.session is not None:
             self.session.commit()
 
+        # Grandfather pre-existing raws BEFORE move/reconcile so that newly
+        # reconciled raws are still eligible for decomposition.
+        self._grandfather_untracked_raws()
+
         now = datetime.now(timezone.utc)
         move_stats = move_phase(vault_root=self.vault_root, now=now)
 
@@ -233,8 +237,6 @@ class Gardener:
                 vault_root=self.vault_root, session=self.session
             )
             self.session.commit()
-
-        self._grandfather_untracked_raws()
 
         raws = self._raws_needing_decomposition()
         if self.max_files_per_run > 0 and len(raws) > self.max_files_per_run:
