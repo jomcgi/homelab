@@ -75,7 +75,8 @@ def get_knowledge_note(
     note_id: str,
     session: Session = Depends(get_session),
 ) -> dict:
-    note = KnowledgeStore(session).get_note_by_id(note_id)
+    store = KnowledgeStore(session)
+    note = store.get_note_by_id(note_id)
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
 
@@ -84,7 +85,8 @@ def get_knowledge_note(
     if not resolved.is_relative_to(vault_root) or not resolved.is_file():
         raise HTTPException(status_code=404, detail="vault file missing")
 
-    return {**note, "content": resolved.read_text()}
+    edges = store.get_note_links(note_id)
+    return {**note, "content": resolved.read_text(), "edges": edges}
 
 
 class IngestRequest(BaseModel):

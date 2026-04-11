@@ -244,6 +244,27 @@ class KnowledgeStore:
             row.note_fk: (row.section_header, row.chunk_text) for row in chunk_rows
         }
 
+        # 3. Batch-fetch edges for top-N notes.
+        edge_rows = self.session.execute(
+            select(
+                NoteLink.src_note_fk,
+                NoteLink.target_id,
+                NoteLink.target_title,
+                NoteLink.kind,
+                NoteLink.edge_type,
+            ).where(NoteLink.src_note_fk.in_(top_ids))
+        ).all()
+        edges_by_note: dict[int, list[dict]] = {}
+        for row in edge_rows:
+            edges_by_note.setdefault(row.src_note_fk, []).append(
+                {
+                    "target_id": row.target_id,
+                    "target_title": row.target_title,
+                    "kind": row.kind,
+                    "edge_type": row.edge_type,
+                }
+            )
+
         results: list[dict] = []
         for row in note_rows:
             section, chunk_text = best_chunk_by_note.get(row.id, ("", ""))
@@ -257,6 +278,7 @@ class KnowledgeStore:
                     "score": float(row.score),
                     "section": section,
                     "snippet": (chunk_text or "")[:240],
+                    "edges": edges_by_note.get(row.id, []),
                 }
             )
         return results
@@ -288,6 +310,31 @@ class KnowledgeStore:
             "type": row.type,
             "tags": list(row.tags or []),
         }
+
+    def get_note_links(self, note_id: str) -> list[dict]:
+        """Fetch all outgoing links/edges for a note by its stable note_id."""
+        note_fk = self.session.execute(
+            select(Note.id).where(Note.note_id == note_id)
+        ).scalar_one_or_none()
+        if note_fk is None:
+            return []
+        rows = self.session.execute(
+            select(
+                NoteLink.target_id,
+                NoteLink.target_title,
+                NoteLink.kind,
+                NoteLink.edge_type,
+            ).where(NoteLink.src_note_fk == note_fk)
+        ).all()
+        return [
+            {
+                "target_id": row.target_id,
+                "target_title": row.target_title,
+                "kind": row.kind,
+                "edge_type": row.edge_type,
+            }
+            for row in rows
+        ]
 
     def delete_note(self, path: str) -> None:
         existing = self.session.execute(

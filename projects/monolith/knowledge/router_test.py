@@ -144,6 +144,34 @@ class TestSearchEndpoint:
                 type_filter=None,
             )
 
+    def test_search_results_include_edges(self, client, fake_embed_client):
+        """Search results include edges from NoteLink table."""
+        results_with_edges = [
+            {
+                **CANNED_RESULTS[0],
+                "edges": [
+                    {
+                        "target_id": "n2",
+                        "kind": "edge",
+                        "edge_type": "refines",
+                        "target_title": None,
+                    },
+                ],
+            },
+        ]
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.search_notes_with_context.return_value = (
+                results_with_edges
+            )
+            r = client.get("/api/knowledge/search?q=attention")
+
+        assert r.status_code == 200
+        body = r.json()
+        result = body["results"][0]
+        assert "edges" in result
+        assert result["edges"][0]["target_id"] == "n2"
+        assert result["edges"][0]["edge_type"] == "refines"
+
 
 SAMPLE_NOTE = {
     "note_id": "n1",
@@ -225,6 +253,38 @@ class TestGetNoteEndpoint:
         assert r.status_code == 404
         body = r.json()
         assert body.get("detail") == "vault file missing"
+
+    def test_note_includes_edges(self, tmp_path, fake_session, monkeypatch):
+        """Note detail response includes edges."""
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        note_file = vault_dir / "papers" / "attention.md"
+        note_file.parent.mkdir(parents=True)
+        note_file.write_text("# Attention\n\nContent.")
+
+        monkeypatch.setenv(VAULT_ROOT_ENV, str(vault_dir))
+        app.dependency_overrides[get_session] = lambda: fake_session
+        try:
+            c = TestClient(app, raise_server_exceptions=False)
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.get_note_by_id.return_value = SAMPLE_NOTE
+                MockStore.return_value.get_note_links.return_value = [
+                    {
+                        "target_id": "n2",
+                        "kind": "link",
+                        "edge_type": None,
+                        "target_title": "Related Note",
+                    },
+                ]
+                r = c.get("/api/knowledge/notes/n1")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert r.status_code == 200
+        body = r.json()
+        assert "edges" in body
+        assert body["edges"][0]["target_id"] == "n2"
+        assert body["edges"][0]["target_title"] == "Related Note"
 
     def test_path_traversal_returns_404(self, tmp_path, fake_session, monkeypatch):
         """Path traversal is caught by is_relative_to guard."""
