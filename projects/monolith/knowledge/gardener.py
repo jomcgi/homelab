@@ -357,7 +357,7 @@ class Gardener:
         ).first()
         if existing is not None:
             existing.retry_count += 1
-            existing.error = str(exc)
+            existing.error = str(exc)[:500]
             existing.gardener_version = GARDENER_VERSION
             self.session.add(existing)
         else:
@@ -366,7 +366,7 @@ class Gardener:
                     raw_fk=raw_row.id,
                     derived_note_id="failed",
                     gardener_version=GARDENER_VERSION,
-                    error=str(exc),
+                    error=str(exc)[:500],
                     retry_count=1,
                 )
             )
