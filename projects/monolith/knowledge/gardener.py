@@ -159,44 +159,6 @@ class Gardener:
             resolved += 1
         return resolved
 
-    def _grandfather_untracked_raws(self) -> int:
-        """Mark all raws without provenance as pre-migration.
-
-        All existing raws predate the provenance system — they were already
-        decomposed before tracking was added.  Inserting pre-migration
-        sentinels prevents the gardener from sending them to Claude.
-        """
-        if self.session is None:
-            return 0
-
-        has_prov = (
-            select(AtomRawProvenance.raw_fk)
-            .where(AtomRawProvenance.raw_fk.is_not(None))
-            .subquery()
-        )
-        unhandled = list(
-            self.session.exec(
-                select(RawInput).where(not_(RawInput.id.in_(select(has_prov.c.raw_fk))))
-            ).all()
-        )
-
-        for raw in unhandled:
-            self.session.add(
-                AtomRawProvenance(
-                    raw_fk=raw.id,
-                    derived_note_id="pre-migration",
-                    gardener_version="pre-migration",
-                )
-            )
-
-        if unhandled:
-            self.session.commit()
-            logger.info(
-                "gardener: grandfathered %d pre-migration raws",
-                len(unhandled),
-            )
-        return len(unhandled)
-
     def _raws_needing_decomposition(self) -> list[RawInput]:
         """Return raws that have no current-version provenance and no sentinel."""
         if self.session is None:
@@ -227,10 +189,6 @@ class Gardener:
         resolved_count = self._resolve_pending_provenance()
         if resolved_count and self.session is not None:
             self.session.commit()
-
-        # Grandfather pre-existing raws BEFORE move/reconcile so that newly
-        # reconciled raws are still eligible for decomposition.
-        self._grandfather_untracked_raws()
 
         now = datetime.now(timezone.utc)
         move_stats = move_phase(vault_root=self.vault_root, now=now)
