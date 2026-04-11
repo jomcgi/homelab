@@ -1132,3 +1132,714 @@ class TestConfigurationConstants:
         combined = " ".join(INDEXES)
         assert "idx_positions_mmsi_timestamp" in combined
         assert "idx_positions_timestamp" in combined
+
+
+# ---------------------------------------------------------------------------
+# Database._load_position_cache with non-empty DB
+# ---------------------------------------------------------------------------
+
+
+class TestDatabaseLoadPositionCacheNonEmpty:
+    """Tests for _load_position_cache() when the DB already has rows."""
+
+    @pytest.mark.asyncio
+    async def test_cache_rebuilt_from_existing_rows_on_reconnect(self, mem_db):
+        """Inserting rows, closing, and reconnecting repopulates the in-memory cache.
+
+        Uses the in-memory DB fixture (same connection for read/write) to verify
+        that _load_position_cache reads all rows from latest_positions.
+        """
+        now = "2024-03-01T10:00:00+00:00"
+        positions = [
+            (
+                {
+                    "mmsi": "111111111",
+                    "lat": 51.5,
+                    "lon": -0.1,
+                    "speed": 5.0,
+                    "timestamp": now,
+                },
+                now,
+            ),
+            (
+                {
+                    "mmsi": "222222222",
+                    "lat": 52.0,
+                    "lon": 1.0,
+                    "speed": 0.0,
+                    "timestamp": now,
+                },
+                now,
+            ),
+        ]
+        await mem_db.insert_positions_batch(positions)
+        await mem_db.commit()
+
+        # Manually clear the cache and reload it to simulate a reconnect
+        mem_db._position_cache.clear()
+        assert mem_db.get_cache_size() == 0
+
+        await mem_db._load_position_cache()
+
+        assert mem_db.get_cache_size() == 2
+        cached = mem_db.get_cached_position("111111111")
+        assert cached is not None
+        assert cached.lat == pytest.approx(51.5)
+        assert cached.lon == pytest.approx(-0.1)
+
+    @pytest.mark.asyncio
+    async def test_cache_preserves_first_seen_at_location(self, mem_db):
+        """_load_position_cache copies first_seen_at_location from the DB row."""
+        first_seen = "2024-01-01T08:00:00+00:00"
+        now = "2024-01-01T10:00:00+00:00"
+        await mem_db.insert_positions_batch(
+            [
+                (
+                    {
+                        "mmsi": "999888777",
+                        "lat": 48.5,
+                        "lon": -123.4,
+                        "speed": 0.0,
+                        "timestamp": now,
+                    },
+                    first_seen,
+                )
+            ]
+        )
+        await mem_db.commit()
+
+        mem_db._position_cache.clear()
+        await mem_db._load_position_cache()
+
+        cached = mem_db.get_cached_position("999888777")
+        assert cached is not None
+        assert cached.first_seen_at_location == first_seen
+
+    @pytest.mark.asyncio
+    async def test_cache_empty_on_empty_latest_positions_table(self, mem_db):
+        """_load_position_cache on an empty latest_positions table leaves cache empty."""
+        mem_db._position_cache.clear()
+        await mem_db._load_position_cache()
+        assert mem_db.get_cache_size() == 0
+
+
+# ---------------------------------------------------------------------------
+# Database.cleanup_old_positions multi-batch loop
+# ---------------------------------------------------------------------------
+
+
+class TestDatabaseCleanupOldPositionsMultiBatch:
+    """Tests for the batched while-True loop in cleanup_old_positions()."""
+
+    def _bare_db_with_mock_conn(self, rowcounts: list[int]):
+        """Return a Database with a mock connection that returns rowcounts in order."""
+        from projects.ships.backend.main import Database
+
+        db = Database.__new__(Database)
+        db._position_cache = {}
+        db._position_count = sum(rowcounts)
+
+        call_count = [0]
+
+        async def fake_execute(sql, params=None):
+            cursor = MagicMock()
+            idx = min(call_count[0], len(rowcounts) - 1)
+            cursor.rowcount = rowcounts[idx]
+            call_count[0] += 1
+            return cursor
+
+        async def fake_commit():
+            pass
+
+        mock_conn = MagicMock()
+        mock_conn.execute = fake_execute
+        mock_conn.commit = fake_commit
+        db.db = mock_conn
+        db._call_count = call_count
+        return db
+
+    @pytest.mark.asyncio
+    async def test_loop_continues_when_full_batch_deleted(self):
+        """Loop iterates twice when first batch fills 10000 rows, second is partial."""
+        db = self._bare_db_with_mock_conn([10000, 5])
+
+        with patch("projects.ships.backend.main.asyncio.sleep", AsyncMock()):
+            total_deleted = await db.cleanup_old_positions()
+
+        assert total_deleted == 10005
+        assert db._call_count[0] == 2
+
+    @pytest.mark.asyncio
+    async def test_loop_exits_on_partial_first_batch(self):
+        """Loop exits after first iteration when deleted < batch_size."""
+        db = self._bare_db_with_mock_conn([42])
+
+        with patch("projects.ships.backend.main.asyncio.sleep", AsyncMock()):
+            total_deleted = await db.cleanup_old_positions()
+
+        assert total_deleted == 42
+        assert db._call_count[0] == 1
+
+    @pytest.mark.asyncio
+    async def test_position_count_decremented_by_total_deleted(self):
+        """_position_count is reduced by the total number of deleted rows."""
+        initial_count = 10050
+        db = self._bare_db_with_mock_conn([10000, 50])
+        db._position_count = initial_count
+
+        with patch("projects.ships.backend.main.asyncio.sleep", AsyncMock()):
+            await db.cleanup_old_positions()
+
+        assert db._position_count == initial_count - 10050
+
+    @pytest.mark.asyncio
+    async def test_zero_deleted_returns_zero_and_no_position_count_change(self, mem_db):
+        """When nothing is old enough to delete, return 0 and leave count unchanged."""
+        # Insert a fresh position — timestamp is now, well within retention window
+        now = "2024-03-01T10:00:00+00:00"
+        await mem_db.insert_positions_batch(
+            [
+                (
+                    {
+                        "mmsi": "123",
+                        "lat": 0.0,
+                        "lon": 0.0,
+                        "speed": 0.0,
+                        "timestamp": now,
+                    },
+                    now,
+                )
+            ]
+        )
+        await mem_db.commit()
+        count_before = mem_db.get_position_count()
+
+        deleted = await mem_db.cleanup_old_positions()
+
+        assert deleted == 0
+        assert mem_db.get_position_count() == count_before
+
+
+# ---------------------------------------------------------------------------
+# get_vessel error branches
+# ---------------------------------------------------------------------------
+
+
+class TestGetVesselErrorBranches:
+    """Tests for Database.get_vessel() analytics error branches."""
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_returns_none_when_no_latest_position(self, mem_db):
+        """get_vessel returns None when MMSI has no entry in latest_positions."""
+        result = await mem_db.get_vessel("000000000")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_sets_time_at_location_when_first_seen_valid(self, mem_db):
+        """get_vessel populates time_at_location_seconds when first_seen is valid ISO."""
+        first_seen = "2000-01-01T00:00:00+00:00"  # very old, so duration is large
+        now_ts = "2000-01-01T01:00:00+00:00"
+        await mem_db.insert_positions_batch(
+            [
+                (
+                    {
+                        "mmsi": "111",
+                        "lat": 0.0,
+                        "lon": 0.0,
+                        "speed": 0.0,
+                        "timestamp": now_ts,
+                    },
+                    first_seen,
+                )
+            ]
+        )
+        await mem_db.commit()
+        result = await mem_db.get_vessel("111")
+        assert result is not None
+        assert result.get("time_at_location_seconds") is not None
+        assert isinstance(result["time_at_location_seconds"], int)
+        assert result.get("time_at_location_hours") is not None
+        assert "is_moored" in result
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_handles_invalid_first_seen_timestamp(self, mem_db):
+        """get_vessel sets time fields to None when first_seen_at_location is malformed."""
+        # Insert position then manually corrupt first_seen in latest_positions
+        now_ts = "2024-06-01T10:00:00+00:00"
+        await mem_db.insert_positions_batch(
+            [
+                (
+                    {
+                        "mmsi": "222",
+                        "lat": 1.0,
+                        "lon": 1.0,
+                        "speed": 0.0,
+                        "timestamp": now_ts,
+                    },
+                    "not-a-valid-timestamp",
+                )
+            ]
+        )
+        await mem_db.commit()
+
+        result = await mem_db.get_vessel("222")
+        assert result is not None
+        # ValueError path: time fields should be None
+        assert result.get("time_at_location_seconds") is None
+        assert result.get("time_at_location_hours") is None
+        assert result.get("is_moored") is None
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_no_first_seen_skips_time_calculation(self, mem_db):
+        """get_vessel skips time_at_location fields when first_seen_at_location is NULL."""
+        now_ts = "2024-06-01T10:00:00+00:00"
+        await mem_db.insert_positions_batch(
+            [
+                (
+                    {
+                        "mmsi": "333",
+                        "lat": 2.0,
+                        "lon": 2.0,
+                        "speed": 0.0,
+                        "timestamp": now_ts,
+                    },
+                    None,  # no first_seen
+                )
+            ]
+        )
+        await mem_db.commit()
+
+        result = await mem_db.get_vessel("333")
+        assert result is not None
+        # time_at_location keys should not be present when first_seen is None
+        assert "time_at_location_seconds" not in result
+        assert "time_at_location_hours" not in result
+        assert "is_moored" not in result
+
+
+# ---------------------------------------------------------------------------
+# subscribe_ais_stream unit tests
+# ---------------------------------------------------------------------------
+
+
+def _make_mock_msg(subject: str, data_dict: dict) -> MagicMock:
+    """Return a mock NATS message with .subject, .data, and async .ack()."""
+    msg = MagicMock()
+    msg.subject = subject
+    msg.data = json.dumps(data_dict).encode()
+    msg.ack = AsyncMock()
+    return msg
+
+
+def _make_consumer_info(num_pending: int = 0) -> MagicMock:
+    """Return a mock consumer_info object with num_pending set."""
+    info = MagicMock()
+    info.num_pending = num_pending
+    return info
+
+
+def _make_service_for_stream(replay_complete: bool = True):
+    """Create a ShipsAPIService with DB and ws_manager mocked out."""
+    from projects.ships.backend.main import ShipsAPIService
+
+    svc = ShipsAPIService()
+    svc.running = True
+    svc.replay_complete = replay_complete
+    svc.ready = replay_complete
+
+    svc.db = MagicMock()
+    svc.db.should_insert_position = MagicMock(
+        return_value=(True, "2024-01-15T10:00:00Z")
+    )
+    svc.db.insert_positions_batch = AsyncMock()
+    svc.db.upsert_vessels_batch = AsyncMock()
+    svc.db.commit = AsyncMock()
+    svc.db.get_vessel_count = MagicMock(return_value=100)
+    svc.db.get_position_count = MagicMock(return_value=1000)
+
+    svc.ws_manager = MagicMock()
+    svc.ws_manager.broadcast = AsyncMock()
+
+    return svc
+
+
+def _attach_js(svc, mock_psub: AsyncMock) -> None:
+    """Wire a mock JetStream + pull subscriber onto the service."""
+    svc.js = MagicMock()
+    svc.js.pull_subscribe = AsyncMock(return_value=mock_psub)
+
+
+class TestSubscribeAisStreamUnit:
+    """Unit tests for ShipsAPIService.subscribe_ais_stream().
+
+    All external I/O is mocked — no real NATS or SQLite required.
+    """
+
+    def _one_shot_psub(self, service, msgs: list) -> AsyncMock:
+        """Return a mock psub that delivers msgs once then stops the loop."""
+
+        async def fake_fetch(batch, timeout):
+            service.running = False
+            return msgs
+
+        mock_psub = AsyncMock()
+        mock_psub.consumer_info = AsyncMock(return_value=_make_consumer_info(0))
+        mock_psub.fetch = AsyncMock(side_effect=fake_fetch)
+        _attach_js(service, mock_psub)
+        return mock_psub
+
+    @pytest.mark.asyncio
+    async def test_running_false_skips_fetch(self):
+        """With running=False before the loop, fetch is never called."""
+        service = _make_service_for_stream()
+        service.running = False
+
+        mock_psub = AsyncMock()
+        mock_psub.consumer_info = AsyncMock(return_value=_make_consumer_info(0))
+        mock_psub.fetch = AsyncMock(return_value=[])
+        _attach_js(service, mock_psub)
+
+        await service.subscribe_ais_stream()
+
+        mock_psub.fetch.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_zero_pending_sets_replay_complete_and_ready(self):
+        """num_pending==0 before the loop sets replay_complete=True and ready=True."""
+        service = _make_service_for_stream(replay_complete=False)
+        service.running = False
+
+        mock_psub = AsyncMock()
+        mock_psub.consumer_info = AsyncMock(return_value=_make_consumer_info(0))
+        _attach_js(service, mock_psub)
+
+        await service.subscribe_ais_stream()
+
+        assert service.replay_complete is True
+        assert service.ready is True
+
+    @pytest.mark.asyncio
+    async def test_position_message_calls_insert_positions_batch(self):
+        """A position message triggers insert_positions_batch with the payload."""
+        service = _make_service_for_stream(replay_complete=True)
+        msg = _make_mock_msg(
+            "ais.position.123456789",
+            {
+                "mmsi": "123456789",
+                "lat": 48.5,
+                "lon": -123.4,
+                "timestamp": "2024-01-15T10:00:00Z",
+            },
+        )
+        self._one_shot_psub(service, [msg])
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        service.db.insert_positions_batch.assert_called_once()
+        batch_arg = service.db.insert_positions_batch.call_args[0][0]
+        assert len(batch_arg) == 1
+        assert batch_arg[0][0]["mmsi"] == "123456789"
+
+    @pytest.mark.asyncio
+    async def test_vessel_message_calls_upsert_vessels_batch(self):
+        """A static AIS message triggers upsert_vessels_batch with the payload."""
+        service = _make_service_for_stream(replay_complete=True)
+        msg = _make_mock_msg(
+            "ais.static.123456789",
+            {"mmsi": "123456789", "name": "MV Test"},
+        )
+        self._one_shot_psub(service, [msg])
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        service.db.upsert_vessels_batch.assert_called_once()
+        batch_arg = service.db.upsert_vessels_batch.call_args[0][0]
+        assert batch_arg[0]["mmsi"] == "123456789"
+
+    @pytest.mark.asyncio
+    async def test_deduplicated_message_increments_counter(self):
+        """Positions filtered by dedup logic increment messages_deduplicated."""
+        service = _make_service_for_stream(replay_complete=True)
+        service.db.should_insert_position = MagicMock(return_value=(False, None))
+        msg = _make_mock_msg(
+            "ais.position.123456789",
+            {
+                "mmsi": "123456789",
+                "lat": 48.5,
+                "lon": -123.4,
+                "timestamp": "2024-01-15T10:00:00Z",
+            },
+        )
+        self._one_shot_psub(service, [msg])
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        assert service.messages_deduplicated == 1
+
+    @pytest.mark.asyncio
+    async def test_messages_received_incremented_per_message(self):
+        """messages_received is incremented once for each message in the batch."""
+        service = _make_service_for_stream(replay_complete=True)
+        msgs = [
+            _make_mock_msg(
+                "ais.position.111",
+                {"mmsi": "111", "lat": 0.0, "lon": 0.0, "timestamp": "2024-01-01T00:00:00Z"},
+            ),
+            _make_mock_msg(
+                "ais.static.222",
+                {"mmsi": "222", "name": "Ship B"},
+            ),
+        ]
+        self._one_shot_psub(service, msgs)
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        assert service.messages_received == 2
+
+    @pytest.mark.asyncio
+    async def test_commit_called_after_batch(self):
+        """db.commit() is called after processing each batch."""
+        service = _make_service_for_stream(replay_complete=True)
+        msg = _make_mock_msg("ais.static.123", {"mmsi": "123", "name": "T"})
+        self._one_shot_psub(service, [msg])
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        service.db.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_all_messages_acked_after_commit(self):
+        """Every message in a batch receives an ack after the DB commit."""
+        service = _make_service_for_stream(replay_complete=True)
+        msg1 = _make_mock_msg(
+            "ais.position.111",
+            {"mmsi": "111", "lat": 0.0, "lon": 0.0, "timestamp": "2024-01-01T00:00:00Z"},
+        )
+        msg2 = _make_mock_msg("ais.static.222", {"mmsi": "222", "name": "Ship"})
+        self._one_shot_psub(service, [msg1, msg2])
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        msg1.ack.assert_called_once()
+        msg2.ack.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_broadcast_sent_in_live_mode(self):
+        """Position messages are broadcast to WebSocket clients when replay_complete."""
+        service = _make_service_for_stream(replay_complete=True)
+        msg = _make_mock_msg(
+            "ais.position.123456789",
+            {
+                "mmsi": "123456789",
+                "lat": 48.5,
+                "lon": -123.4,
+                "timestamp": "2024-01-15T10:00:00Z",
+            },
+        )
+        self._one_shot_psub(service, [msg])
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        service.ws_manager.broadcast.assert_called_once()
+        payload = service.ws_manager.broadcast.call_args[0][0]
+        assert payload["type"] == "positions"
+        assert payload["positions"][0]["mmsi"] == "123456789"
+
+    @pytest.mark.asyncio
+    async def test_broadcast_not_sent_during_catchup(self):
+        """Position messages are NOT broadcast when replay_complete=False."""
+        service = _make_service_for_stream(replay_complete=False)
+        msg = _make_mock_msg(
+            "ais.position.123456789",
+            {
+                "mmsi": "123456789",
+                "lat": 48.5,
+                "lon": -123.4,
+                "timestamp": "2024-01-15T10:00:00Z",
+            },
+        )
+
+        mock_psub = AsyncMock()
+        mock_psub.consumer_info = AsyncMock(
+            side_effect=[
+                _make_consumer_info(50_000),  # initial — still catching up
+                _make_consumer_info(49_000),  # post-batch — still above threshold
+            ]
+        )
+
+        async def fake_fetch(batch, timeout):
+            service.running = False
+            return [msg]
+
+        mock_psub.fetch = AsyncMock(side_effect=fake_fetch)
+        _attach_js(service, mock_psub)
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        service.ws_manager.broadcast.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_catchup_complete_after_batch_below_threshold(self):
+        """replay_complete and ready are set after a batch brings pending below threshold."""
+        service = _make_service_for_stream(replay_complete=False)
+
+        mock_psub = AsyncMock()
+        # consumer_info: initial(50k), progress-log(5k, 0%10000==0), post-batch(5k)
+        mock_psub.consumer_info = AsyncMock(
+            side_effect=[
+                _make_consumer_info(50_000),
+                _make_consumer_info(5_000),
+                _make_consumer_info(5_000),
+            ]
+        )
+
+        async def fake_fetch(batch, timeout):
+            service.running = False
+            return []
+
+        mock_psub.fetch = AsyncMock(side_effect=fake_fetch)
+        _attach_js(service, mock_psub)
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        assert service.replay_complete is True
+        assert service.ready is True
+
+    @pytest.mark.asyncio
+    async def test_timeout_during_catchup_marks_complete_below_threshold(self):
+        """TimeoutError during catchup sets replay_complete when pending is low."""
+        service = _make_service_for_stream(replay_complete=False)
+
+        mock_psub = AsyncMock()
+        mock_psub.consumer_info = AsyncMock(
+            side_effect=[
+                _make_consumer_info(50_000),  # initial
+                _make_consumer_info(100),     # timeout check — below threshold
+            ]
+        )
+
+        async def fake_fetch(batch, timeout):
+            service.running = False
+            raise asyncio.TimeoutError()
+
+        mock_psub.fetch = AsyncMock(side_effect=fake_fetch)
+        _attach_js(service, mock_psub)
+
+        await service.subscribe_ais_stream()
+
+        assert service.replay_complete is True
+        assert service.ready is True
+
+    @pytest.mark.asyncio
+    async def test_transient_exception_inside_loop_swallowed(self):
+        """A transient exception inside the main loop is swallowed and the loop retries."""
+        service = _make_service_for_stream(replay_complete=True)
+        call_count = 0
+
+        async def fake_fetch(batch, timeout):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("Transient NATS error")
+            service.running = False
+            return []
+
+        mock_psub = AsyncMock()
+        mock_psub.consumer_info = AsyncMock(return_value=_make_consumer_info(0))
+        mock_psub.fetch = AsyncMock(side_effect=fake_fetch)
+        _attach_js(service, mock_psub)
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()  # must not raise
+
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_subscription_failure_propagates(self):
+        """pull_subscribe failure propagates out of subscribe_ais_stream."""
+        service = _make_service_for_stream(replay_complete=True)
+        service.js = MagicMock()
+        service.js.pull_subscribe = AsyncMock(side_effect=RuntimeError("stream not found"))
+
+        with pytest.raises(RuntimeError, match="stream not found"):
+            await service.subscribe_ais_stream()
+
+    @pytest.mark.asyncio
+    async def test_catchup_mode_uses_large_batch_size(self):
+        """During catchup, fetch is called with batch=10000."""
+        service = _make_service_for_stream(replay_complete=False)
+        captured: list[int] = []
+
+        async def fake_fetch(batch, timeout):
+            captured.append(batch)
+            service.running = False
+            return []
+
+        mock_psub = AsyncMock()
+        mock_psub.consumer_info = AsyncMock(
+            side_effect=[
+                _make_consumer_info(50_000),
+                _make_consumer_info(50_000),
+            ]
+        )
+        mock_psub.fetch = AsyncMock(side_effect=fake_fetch)
+        _attach_js(service, mock_psub)
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        assert captured == [10_000]
+
+    @pytest.mark.asyncio
+    async def test_live_mode_uses_small_batch_size(self):
+        """During live mode, fetch is called with batch=100."""
+        service = _make_service_for_stream(replay_complete=True)
+        captured: list[int] = []
+
+        async def fake_fetch(batch, timeout):
+            captured.append(batch)
+            service.running = False
+            return []
+
+        mock_psub = AsyncMock()
+        mock_psub.consumer_info = AsyncMock(return_value=_make_consumer_info(0))
+        mock_psub.fetch = AsyncMock(side_effect=fake_fetch)
+        _attach_js(service, mock_psub)
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        assert captured == [100]
+
+    @pytest.mark.asyncio
+    async def test_broadcast_deduplicates_by_mmsi_keeps_latest(self):
+        """Multiple positions for same MMSI: only the last one is broadcast."""
+        service = _make_service_for_stream(replay_complete=True)
+        msgs = [
+            _make_mock_msg(
+                "ais.position.123456789",
+                {"mmsi": "123456789", "lat": 48.5, "lon": -123.4, "timestamp": "2024-01-15T10:00:00Z"},
+            ),
+            _make_mock_msg(
+                "ais.position.123456789",
+                {"mmsi": "123456789", "lat": 48.6, "lon": -123.5, "timestamp": "2024-01-15T10:01:00Z"},
+            ),
+        ]
+        self._one_shot_psub(service, msgs)
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        service.ws_manager.broadcast.assert_called_once()
+        payload = service.ws_manager.broadcast.call_args[0][0]
+        assert len(payload["positions"]) == 1
+        assert payload["positions"][0]["lat"] == 48.6
