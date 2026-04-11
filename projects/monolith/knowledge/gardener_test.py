@@ -525,6 +525,77 @@ class TestGardenerSkipsAlreadyProcessedRaws:
         assert [r.raw_id for r in surfaced] == ["r3"]
 
 
+class TestPrioritizedDecomposition:
+    def test_fresh_raws_before_retriable_failed(self, tmp_path, session):
+        """Fresh raws appear before retriable failed raws in the returned list."""
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        # A failed raw with retry_count=1 (retriable)
+        failed_raw = RawInput(
+            raw_id="r-failed",
+            path="_raw/2026/04/09/r-failed.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="rf",
+        )
+        session.add(failed_raw)
+        session.flush()
+        session.add(
+            AtomRawProvenance(
+                raw_fk=failed_raw.id,
+                derived_note_id="failed",
+                gardener_version=GARDENER_VERSION,
+                error="timeout",
+                retry_count=1,
+            )
+        )
+        # A fresh raw with no provenance
+        fresh_raw = RawInput(
+            raw_id="r-fresh",
+            path="_raw/2026/04/09/r-fresh.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="rfr",
+        )
+        session.add(fresh_raw)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._raws_needing_decomposition()
+        ids = [r.raw_id for r in result]
+        assert ids == ["r-fresh", "r-failed"]
+
+    def test_exhausted_raws_excluded(self, tmp_path, session):
+        """A raw with retry_count >= _MAX_RETRIES is not returned."""
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        raw = RawInput(
+            raw_id="r-exhausted",
+            path="_raw/2026/04/09/r-exhausted.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="re",
+        )
+        session.add(raw)
+        session.flush()
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                derived_note_id="failed",
+                gardener_version=GARDENER_VERSION,
+                error="timeout",
+                retry_count=3,
+            )
+        )
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._raws_needing_decomposition()
+        assert [r.raw_id for r in result] == []
+
+
 class TestIngestOneRecordsPendingProvenance:
     @pytest.mark.asyncio
     async def test_inserts_pending_provenance_for_new_files(self, tmp_path, session):
