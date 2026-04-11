@@ -28,10 +28,6 @@ def _semgrep_target_test_impl(ctx):
             ",".join(ctx.attr.exclude_rules),
         ))
 
-    # Upload script path
-    upload = ctx.attr._upload[DefaultInfo].files_to_run.executable
-    env_lines.append("export UPLOAD_SCRIPT=\"{}\"".format(upload.short_path))
-
     # Build args: <rule-files> <sca-rule-files> -- <source-files> [-- <lockfile-files>]
     test_runner = ctx.file._test_runner
 
@@ -69,7 +65,6 @@ def _semgrep_target_test_impl(ctx):
     runfiles = ctx.runfiles(files = all_files)
 
     runfiles = runfiles.merge(ctx.attr._engine[DefaultInfo].default_runfiles)
-    runfiles = runfiles.merge(ctx.attr._upload[DefaultInfo].default_runfiles)
     if ctx.attr.pro_engine:
         runfiles = runfiles.merge(ctx.attr.pro_engine[DefaultInfo].default_runfiles)
 
@@ -108,7 +103,6 @@ _semgrep_target_test = rule(
             allow_single_file = True,
         ),
         "_engine": attr.label(default = "//bazel/semgrep/third_party/semgrep:engine"),
-        "_upload": attr.label(default = "//bazel/tools/semgrep:upload"),
     },
 )
 
@@ -129,10 +123,6 @@ def semgrep_target_test(name, target, rules, lockfiles = [], sca_rules = [], exc
         pro_engine: Optional label for semgrep-core-proprietary binary.
         **kwargs: Additional arguments passed to the test rule.
     """
-    tags = kwargs.pop("tags", [])
-    if "no-sandbox" not in tags:
-        tags = tags + ["no-sandbox"]
-
     _semgrep_target_test(
         name = name,
         target = target,
@@ -141,6 +131,6 @@ def semgrep_target_test(name, target, rules, lockfiles = [], sca_rules = [], exc
         sca_rules = sca_rules,
         exclude_rules = exclude_rules,
         pro_engine = pro_engine,
-        tags = tags,
+        tags = kwargs.pop("tags", []),
         **kwargs
     )

@@ -13,7 +13,6 @@
 #      1. Matched against YAML filename (basename without .yaml) to exclude entire config files
 #      2. Matched as a suffix against semgrep check_ids to exclude individual rule findings
 # Env: SEMGREP_TEST_MODE — if "1", emits warning and exits 0 (test mode requires pysemgrep)
-#      UPLOAD_SCRIPT     — path to upload binary; uploads results to Semgrep App
 
 set -euo pipefail
 
@@ -520,10 +519,9 @@ PYEOF
 	fi
 fi
 
-# Best-effort upload (never affects exit code)
-if [[ -n "${SEMGREP_APP_TOKEN:-}" && -n "${UPLOAD_SCRIPT:-}" && -f "$MERGED_FILE" ]]; then
-	"$UPLOAD_SCRIPT" "$MERGED_FILE" "$SCAN_EXIT" 2>&1 || true
-fi
+# Upload disabled — semgrep-core scan results are not uploaded to Semgrep App.
+# The upload required network access and git CLI, which broke sandbox hermeticity.
+# Re-enable when Semgrep App integration is set up.
 
 # When rule-ID exclusions are set, post-filter the JSON results.
 # semgrep-core check_ids may or may not be prefixed — suffix matching handles both.
