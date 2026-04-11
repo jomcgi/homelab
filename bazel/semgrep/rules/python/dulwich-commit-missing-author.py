@@ -16,3 +16,10 @@ porcelain.commit(
     author=b"Bot <bot@example.com>",
     committer=b"Bot <bot@example.com>",
 )
+
+# ok: dulwich-commit-missing-author
+porcelain.commit(
+    repo,
+    message=b"fix: update config",
+    author=b"Bot <bot@example.com>",
+)
