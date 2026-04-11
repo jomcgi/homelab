@@ -35,6 +35,7 @@ postgres:
 
 service:
   port: 3000
+  apiPort: 8000
 
 podSecurityContext:
   seccompProfile:
