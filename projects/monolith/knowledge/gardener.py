@@ -52,6 +52,10 @@ edges:
 <markdown body>
    IMPORTANT: Always wrap the title value in double quotes to avoid YAML parse errors
    (e.g. `title: "Atomic Note: One Concept"`, NOT `title: Atomic Note: One Concept`).
+   IMPORTANT: Do NOT prefix titles with category labels like "(Book)", "(Concept)", etc.
+   The `type` field already captures the category. The title should be the concept itself.
+   IMPORTANT: The filename MUST be `<id>.md` — i.e. the slugified title. If the id is
+   `staff-engineers-path`, the file must be `{processed_root}/staff-engineers-path.md`.
 5. Patch edges on related existing notes using the Edit tool.
 6. Each note covers exactly one concept. Prefer many small notes over one large note.
 
