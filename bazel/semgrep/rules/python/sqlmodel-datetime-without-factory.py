@@ -50,3 +50,16 @@ class OkItemBaseNotTable(SQLModel):
 # ok: sqlmodel-datetime-without-factory
 class OkItemBaseOptionalNotTable(SQLModel):
     indexed_at: Optional[datetime] = None
+
+
+# ruleid: sqlmodel-datetime-without-factory
+class BadItemMultipleDatetimeFields(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime | None = None
+    updated_at: Optional[datetime] = None
+
+
+# ok: sqlmodel-datetime-without-factory
+class OkItemNosemgrep(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime | None = None  # nosemgrep: sqlmodel-datetime-without-factory
