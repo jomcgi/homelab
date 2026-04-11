@@ -39,9 +39,9 @@ Traffic is routed through Cloudflare Tunnel: static assets go to the frontend, `
 
 | Value                                 | Description                               | Default                                             |
 | ------------------------------------- | ----------------------------------------- | --------------------------------------------------- |
-| `frontend.replicaCount`               | Number of frontend replicas               | `1`                                                 |
+| `frontend.replicas`                   | Number of frontend replicas               | `1`                                                 |
 | `frontend.image.repository`           | Frontend container image                  | `ghcr.io/jomcgi/homelab/projects/grimoire/frontend` |
-| `wsGateway.replicaCount`              | Number of WebSocket gateway replicas      | `1`                                                 |
+| `wsGateway.replicas`                  | Number of WebSocket gateway replicas      | `1`                                                 |
 | `wsGateway.cfAccessTeam`              | Cloudflare Access team name               | `""`                                                |
 | `redis.image.tag`                     | Redis image tag                           | `7-alpine`                                          |
 | `grimoireSecret.onepassword.itemPath` | 1Password item for API keys and passwords | `vaults/k8s-homelab/items/grimoire`                 |
