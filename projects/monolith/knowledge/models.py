@@ -33,7 +33,7 @@ _STRING_ARRAY = PG_ARRAY(String).with_variant(JSON(), "sqlite")
 _JSONB = JSONB().with_variant(JSON(), "sqlite")
 
 
-class Note(SQLModel, table=True):
+class Note(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factory
     __tablename__ = "notes"
     __table_args__ = {"schema": "knowledge", "extend_existing": True}
 
@@ -50,7 +50,7 @@ class Note(SQLModel, table=True):
     tags: list[str] = Field(default_factory=list, sa_column=Column(_STRING_ARRAY))
     aliases: list[str] = Field(default_factory=list, sa_column=Column(_STRING_ARRAY))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime | None = None  # nosemgrep: sqlmodel-datetime-without-factory
+    updated_at: datetime | None = None
     extra: dict[str, Any] = Field(default_factory=dict, sa_column=Column(_JSONB))
     indexed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
