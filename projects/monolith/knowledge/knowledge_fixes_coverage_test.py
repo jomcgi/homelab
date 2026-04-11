@@ -14,6 +14,10 @@ gardener.py
   - _raws_needing_decomposition: returns [] when session is None
   - _resolve_pending_provenance: returns 0 when session is None
   - run(): skips reconcile_raw_phase when session is None
+  - _backfill_provenance_from_notes: returns 0 when session is None
+  - _backfill_provenance_from_notes: inserts sentinel for unhandled raws
+  - _backfill_provenance_from_notes: skips raws with existing provenance
+  - _backfill_provenance_from_notes: returns 0 when no derived_from_raw notes
 
 raw_ingest.py
   - reconcile_raw_phase: indexed_at auto-populated on mirror Note rows
@@ -28,6 +32,11 @@ migrate_raw_bucketing.py
   - _strip_frontmatter_keys: no frontmatter returns content unchanged
   - _strip_frontmatter_keys: stripping all keys returns just the body
   - _grandfather_raws: bad frontmatter logs warning and uses defaults
+  - _grandfather_atoms: returns 0 when no atom notes in DB
+  - _grandfather_atoms: inserts pre-migration sentinel for each atom
+  - _grandfather_atoms: idempotent — skips atoms that already have a sentinel
+  - _grandfather_atoms: handles fact and active note types
+  - _write_back_id (reconciler): no-frontmatter else branch uses LF and prepends block
 """
 
 from __future__ import annotations
@@ -665,3 +674,327 @@ class TestGrandfatherRawsBadFrontmatter:
         rows = session.exec(select(RawInput)).all()
         assert len(rows) == 1
         assert rows[0].source == "grandfathered"
+
+
+# ---------------------------------------------------------------------------
+# gardener.py – _backfill_provenance_from_notes
+# ---------------------------------------------------------------------------
+
+
+class TestBackfillProvenanceFromNotes:
+    """_backfill_provenance_from_notes inserts sentinel provenance rows for
+    raws that are referenced by existing atom notes via derived_from_raw but
+    have no provenance row yet."""
+
+    def test_returns_zero_when_session_is_none(self, tmp_path):
+        """Returns 0 immediately when session is None."""
+        from knowledge.gardener import Gardener
+
+        gardener = Gardener(vault_root=tmp_path, session=None)
+        result = gardener._backfill_provenance_from_notes()
+        assert result == 0
+
+    def test_returns_zero_when_no_derived_from_raw_notes(self, tmp_path, session):
+        """Returns 0 when no notes have a derived_from_raw extra field."""
+        from knowledge.gardener import Gardener
+
+        # Add an atom note without derived_from_raw
+        note = Note(
+            note_id="no-derived",
+            path="_processed/no-derived.md",
+            title="No Derived",
+            content_hash="h1",
+            type="atom",
+        )
+        session.add(note)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._backfill_provenance_from_notes()
+        assert result == 0
+
+    def test_inserts_sentinel_for_raw_referenced_by_note(self, tmp_path, session):
+        """When an atom note references a raw_id via derived_from_raw and that
+        raw has no provenance row, a sentinel provenance row is inserted."""
+        from knowledge.gardener import Gardener, GARDENER_VERSION
+
+        # Create a raw input row
+        raw = RawInput(
+            raw_id="my-raw-id",
+            path="_raw/2026/04/10/abc1-test.md",
+            source="vault-drop",
+            content="---\ntitle: Test\n---\nBody.",
+            content_hash="h1",
+        )
+        session.add(raw)
+        session.commit()
+
+        # Create an atom note that references the raw_id
+        note = Note(
+            note_id="my-atom",
+            path="_processed/my-atom.md",
+            title="My Atom",
+            content_hash="h2",
+            type="atom",
+            extra={"derived_from_raw": "my-raw-id"},
+        )
+        session.add(note)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._backfill_provenance_from_notes()
+
+        assert result == 1
+
+        # A sentinel provenance row should now exist
+        prov_rows = session.exec(
+            select(AtomRawProvenance).where(AtomRawProvenance.raw_fk == raw.id)
+        ).all()
+        assert len(prov_rows) == 1
+        assert prov_rows[0].derived_note_id == "backfill-from-notes"
+        assert prov_rows[0].gardener_version == GARDENER_VERSION
+
+    def test_skips_raws_that_already_have_provenance(self, tmp_path, session):
+        """Does not insert a duplicate sentinel if the raw already has a
+        provenance row (regardless of derived_note_id value)."""
+        from knowledge.gardener import Gardener, GARDENER_VERSION
+
+        raw = RawInput(
+            raw_id="handled-raw",
+            path="_raw/2026/04/10/abc2-handled.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="h3",
+        )
+        session.add(raw)
+        session.commit()
+
+        # Pre-existing provenance row for this raw
+        prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            derived_note_id="already-done",
+            gardener_version=GARDENER_VERSION,
+        )
+        session.add(prov)
+        session.commit()
+
+        # An atom note that references this raw_id
+        note = Note(
+            note_id="another-atom",
+            path="_processed/another-atom.md",
+            title="Another Atom",
+            content_hash="h4",
+            type="atom",
+            extra={"derived_from_raw": "handled-raw"},
+        )
+        session.add(note)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._backfill_provenance_from_notes()
+
+        # Should be 0 — the raw already has provenance, nothing to backfill
+        assert result == 0
+
+        # Confirm no additional provenance rows were added
+        prov_rows = session.exec(
+            select(AtomRawProvenance).where(AtomRawProvenance.raw_fk == raw.id)
+        ).all()
+        assert len(prov_rows) == 1
+
+    def test_returns_zero_when_no_raw_inputs_in_db(self, tmp_path, session):
+        """Returns 0 when derived_from_raw notes exist but no matching RawInput rows."""
+        from knowledge.gardener import Gardener
+
+        # Note references a raw_id that doesn't exist in raw_inputs
+        note = Note(
+            note_id="orphan-atom",
+            path="_processed/orphan.md",
+            title="Orphan",
+            content_hash="h5",
+            type="atom",
+            extra={"derived_from_raw": "nonexistent-raw-id"},
+        )
+        session.add(note)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._backfill_provenance_from_notes()
+        # No RawInput row with raw_id "nonexistent-raw-id" → nothing to backfill
+        assert result == 0
+
+
+# ---------------------------------------------------------------------------
+# migrate_raw_bucketing.py – _grandfather_atoms
+# ---------------------------------------------------------------------------
+
+
+class TestGrandfatherAtoms:
+    """_grandfather_atoms creates pre-migration sentinel provenance rows for
+    atom, fact, and active notes that do not already have one."""
+
+    def test_returns_zero_when_no_atoms_in_db(self, session):
+        """Returns 0 when the notes table has no atom/fact/active rows."""
+        from knowledge.migrate_raw_bucketing import _grandfather_atoms
+
+        result = _grandfather_atoms(session)
+        assert result == 0
+
+    def test_inserts_sentinel_for_each_atom_note(self, session):
+        """Creates one pre-migration provenance row per atom note."""
+        from knowledge.migrate_raw_bucketing import _grandfather_atoms
+
+        for i in range(3):
+            note = Note(
+                note_id=f"atom-{i}",
+                path=f"_processed/atom-{i}.md",
+                title=f"Atom {i}",
+                content_hash=f"h{i}",
+                type="atom",
+            )
+            session.add(note)
+        session.commit()
+
+        result = _grandfather_atoms(session)
+        assert result == 3
+
+        sentinels = session.exec(
+            select(AtomRawProvenance).where(
+                AtomRawProvenance.gardener_version == "pre-migration"
+            )
+        ).all()
+        assert len(sentinels) == 3
+        # All sentinels have atom_fk set and raw_fk unset
+        for s in sentinels:
+            assert s.atom_fk is not None
+            assert s.raw_fk is None
+
+    def test_is_idempotent_for_atoms_with_existing_sentinel(self, session):
+        """Atoms that already have a pre-migration sentinel are not re-processed."""
+        from knowledge.migrate_raw_bucketing import _grandfather_atoms
+
+        note = Note(
+            note_id="already-done",
+            path="_processed/already-done.md",
+            title="Already Done",
+            content_hash="h1",
+            type="atom",
+        )
+        session.add(note)
+        session.commit()
+
+        # First call inserts the sentinel
+        count1 = _grandfather_atoms(session)
+        assert count1 == 1
+
+        # Second call finds the existing sentinel and skips
+        count2 = _grandfather_atoms(session)
+        assert count2 == 0
+
+        # Only one sentinel exists
+        sentinels = session.exec(
+            select(AtomRawProvenance).where(
+                AtomRawProvenance.atom_fk == note.id,
+                AtomRawProvenance.gardener_version == "pre-migration",
+            )
+        ).all()
+        assert len(sentinels) == 1
+
+    def test_handles_fact_and_active_note_types(self, session):
+        """fact and active note types are included alongside atom notes."""
+        from knowledge.migrate_raw_bucketing import _grandfather_atoms
+
+        for note_type in ("fact", "active"):
+            note = Note(
+                note_id=f"typed-{note_type}",
+                path=f"_processed/{note_type}.md",
+                title=f"Typed {note_type}",
+                content_hash=f"h-{note_type}",
+                type=note_type,
+            )
+            session.add(note)
+        session.commit()
+
+        result = _grandfather_atoms(session)
+        assert result == 2
+
+        sentinels = session.exec(
+            select(AtomRawProvenance).where(
+                AtomRawProvenance.gardener_version == "pre-migration"
+            )
+        ).all()
+        assert len(sentinels) == 2
+
+    def test_ignores_raw_and_other_note_types(self, session):
+        """Notes with type 'raw' or other non-atom types are not grandfathered."""
+        from knowledge.migrate_raw_bucketing import _grandfather_atoms
+
+        for note_type in ("raw", "note"):
+            note = Note(
+                note_id=f"skip-{note_type}",
+                path=f"_processed/skip-{note_type}.md",
+                title=f"Skip {note_type}",
+                content_hash=f"h-skip-{note_type}",
+                type=note_type,
+            )
+            session.add(note)
+        session.commit()
+
+        result = _grandfather_atoms(session)
+        assert result == 0
+
+
+# ---------------------------------------------------------------------------
+# reconciler.py – _write_back_id: no-frontmatter else branch
+# ---------------------------------------------------------------------------
+
+
+class TestWriteBackIdNoBranch:
+    """_write_back_id prepends a new YAML frontmatter block when the file has
+    no existing frontmatter (the else branch).  This complements the CRLF
+    branch tested in TestWriteBackIdCRLF."""
+
+    def test_no_frontmatter_prepends_yaml_block(self, tmp_path):
+        """When raw does not start with '---', a new frontmatter block is
+        prepended using LF line endings."""
+        from unittest.mock import MagicMock
+        from knowledge.reconciler import Reconciler
+        import hashlib
+
+        rec = Reconciler(
+            store=MagicMock(),
+            embed_client=MagicMock(),
+            vault_root=tmp_path,
+        )
+        note_file = tmp_path / "bare.md"
+        raw = "Just plain text.\nNo frontmatter at all.\n"
+        note_file.write_text(raw, encoding="utf-8")
+
+        new_raw, new_hash = rec._write_back_id(note_file, raw, "my-note-id")
+
+        assert new_raw.startswith("---\nid: my-note-id\n---\n")
+        assert "Just plain text." in new_raw
+        # Hash must match the new content
+        expected_hash = hashlib.sha256(new_raw.encode("utf-8")).hexdigest()
+        assert new_hash == expected_hash
+        # File on disk updated
+        assert note_file.read_text(encoding="utf-8") == new_raw
+
+    def test_no_frontmatter_uses_lf_not_crlf(self, tmp_path):
+        """The else branch defaults to LF, not CRLF."""
+        from unittest.mock import MagicMock
+        from knowledge.reconciler import Reconciler
+
+        rec = Reconciler(
+            store=MagicMock(),
+            embed_client=MagicMock(),
+            vault_root=tmp_path,
+        )
+        note_file = tmp_path / "plain.md"
+        raw = "Plain content."
+        note_file.write_text(raw, encoding="utf-8")
+
+        new_raw, _ = rec._write_back_id(note_file, raw, "plain-id")
+
+        assert "\r\n" not in new_raw
+        assert new_raw.startswith("---\n")
