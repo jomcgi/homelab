@@ -12,45 +12,104 @@ We have a growing collection of D&D sourcebooks parsed via [Marker](https://gith
 
 The monolith knowledge service (`projects/monolith/knowledge/`) currently handles personal Obsidian notes — Markdown files with frontmatter, processed by the gardener into typed atoms/facts. It has no concept of structured document ingestion at the scale of a 196-page sourcebook with 2,600+ text blocks, 1,100+ section headers, and 350+ tables.
 
-Grimoire (`projects/grimoire/`) has a [detailed data architecture](../../../projects/grimoire/data-architecture.md) for this exact problem, but it runs on GCP (Firestore, Gemini API, Cloud Storage) — a separate stack from the homelab knowledge graph. Maintaining two knowledge stores, two embedding pipelines, and a bridge between them adds complexity without clear benefit.
+Grimoire (`projects/grimoire/`) has a [detailed data architecture](../../../projects/grimoire/data-architecture.md) for D&D content, but it runs on GCP — a separate stack from the homelab knowledge graph. Maintaining two knowledge stores, two embedding pipelines, and a bridge between them adds complexity without clear benefit.
 
-The question: how do we ingest D&D sourcebook content into the knowledge graph without duplicating infrastructure or over-engineering the initial pass?
+The question: how do we get D&D sourcebook content into the unified knowledge graph with minimal new infrastructure?
 
 ---
 
 ## Proposal
 
-Add a **sourcebook ingestion pipeline** within the existing monolith knowledge service. New tables in the `knowledge` schema store raw blocks and extracted entities alongside the existing notes/chunks tables. Gemma4 handles entity extraction (free, local, consistent with [ADR 013](../../decisions/agents/013-knowledge-gardener-gemma4-only.md)). Voyage-4-nano embeds everything into the same pgvector store.
+Ingest D&D sourcebooks as **fact notes** in the existing knowledge schema, using a dedicated folder (`_processed/grimoire/`) and a new endpoint in the monolith knowledge service. No new tables — sourcebook content becomes regular notes with `type: fact` and `source: grimoire`, processed by Gemma4 and embedded by the existing reconciler.
 
-The key constraint: **build the raw entity graph first, defer atom/fact decomposition.** The gardener can learn to process sourcebook entities into the same typed notes it produces from personal content — but that's a later concern. The initial pipeline just needs to get structured, searchable D&D content into the knowledge graph.
+The key constraints:
 
-| Aspect           | Today (personal notes)                                       | Proposed (sourcebooks)                                                                                           |
-| ---------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| Input format     | Markdown + YAML frontmatter                                  | Marker JSON (page trees, typed blocks)                                                                           |
-| Storage          | `knowledge.notes`, `knowledge.chunks`                        | New: `knowledge.source_books`, `knowledge.source_blocks`, `knowledge.entities`, `knowledge.entity_relationships` |
-| Extraction model | Gemma4 gardener (atom/fact decomposition)                    | Gemma4 (entity/relationship extraction)                                                                          |
-| Embeddings       | voyage-4-nano (1024-dim)                                     | Same                                                                                                             |
-| Search surface   | `⌘K` overlay, MCP tools, Claude Code skill                   | Same — unified search across personal notes and sourcebook entities                                              |
-| API              | `GET /api/knowledge/search`, `GET /api/knowledge/notes/{id}` | New: `POST /api/knowledge/sourcebooks`, `GET /api/knowledge/entities`                                            |
+1. **Facts, not entities.** D&D sourcebook content is reference material — facts structured hierarchically like the books themselves. Not atoms (those are personal insights that come later).
+2. **Folder separation.** `_processed/grimoire/` keeps sourcebook content out of the gardener's path. The current Sonnet-based gardener skips `_processed/` entirely, avoiding expensive processing of thousands of D&D pages.
+3. **Same schema, same search.** Fact notes use the existing `knowledge.notes`/`knowledge.chunks` tables, frontmatter format, and edge types. They appear in `⌘K` search, MCP tools, and the Claude Code skill without changes.
+4. **Images ignored.** Base64 payloads (16.8 MB of 24 MB for Xanathar's) are discarded at parse time. Alt-text descriptions are preserved in the fact note body where useful.
 
-### Why unified in monolith?
+| Aspect         | Personal notes                         | D&D sourcebook facts                    |
+| -------------- | -------------------------------------- | --------------------------------------- |
+| Input          | Markdown + YAML frontmatter            | Marker JSON → Gemma4 → fact notes       |
+| Vault location | `_processed/` (gardener output)        | `_processed/grimoire/{book-slug}/`      |
+| Type           | `atom`, `fact`, `active`               | `fact`                                  |
+| Source         | `obsidian`                             | `grimoire`                              |
+| Processing     | Gardener (Sonnet → Gemma4 per ADR 013) | Dedicated ingest endpoint (Gemma4 only) |
+| Embeddings     | voyage-4-nano (1024-dim)               | Same                                    |
+| Search         | `⌘K`, MCP, Claude Code skill           | Same — unified results                  |
 
-- **One embedding space**: personal notes and D&D entities live in the same pgvector index. A search for "magic resistance" returns both your session prep notes and the Aeorian Absorber stat block.
-- **One model pipeline**: Gemma4 for extraction, voyage-4-nano for embeddings. No Gemini Flash, no GCP costs, no cross-cloud bridge.
-- **One search surface**: `⌘K`, MCP tools, and the Claude Code skill work without changes — they already query the knowledge schema.
-- **Fewer components**: no bridge sync, no GCP dependency for knowledge data, no second Postgres instance.
+### Hierarchical fact structure
+
+Sourcebook content is organized hierarchically, mirroring the book's section structure. Each section becomes a fact note. The hierarchy is expressed through two edge types:
+
+- **`derives_from`** → the source book. Provenance: "this fact comes from Xanathar's Guide."
+- **`related`** → the immediate parent section. Context: "this fact sits under Barbarian."
+
+```
+xanathars (book-level fact)
+├── xanathars-character-options (chapter)        derives_from: xanathars, related: xanathars
+│   ├── xanathars-barbarian (class section)      derives_from: xanathars, related: xanathars-character-options
+│   │   ├── xanathars-path-ancestral-guardian    derives_from: xanathars, related: xanathars-barbarian
+│   │   ├── xanathars-path-storm-herald          derives_from: xanathars, related: xanathars-barbarian
+│   │   └── xanathars-path-zealot               derives_from: xanathars, related: xanathars-barbarian
+│   ├── xanathars-bard                           derives_from: xanathars, related: xanathars-character-options
+│   │   └── ...
+```
+
+Every fact has exactly two structural edges. No chains — `derives_from` always points to the book root. Navigation works: follow `related` to the parent, then find all facts `related` to the same parent to see siblings.
+
+### Example fact note
+
+```yaml
+---
+id: xanathars-path-ancestral-guardian
+title: "Path of the Ancestral Guardian"
+type: fact
+source: grimoire
+tags: [dnd, xanathars, barbarian, subclass]
+edges:
+  derives_from: [xanathars]
+  related: [xanathars-barbarian]
+---
+Path of the Ancestral Guardian. A Barbarian Primal Path from Xanathar's Guide
+to Everything. Barbarians who follow this path revere their ancestors and draw
+on ancestral spirits to shield allies in battle.
+
+At 3rd level, the Spirit Shield feature allows the barbarian to use a reaction
+to reduce damage dealt to an ally within 30 feet. The spectral warriors
+interpose themselves between the ally and the attack.
+
+At 6th level, Consult the Spirits lets the barbarian cast Augury or Clairoyance
+as rituals using the ancestral spirits as intermediaries.
+
+At 10th level, Vengeful Ancestors causes the Spirit Shield to deal force damage
+back to the attacker equal to the damage prevented.
+
+At 14th level, the damage reduced by Spirit Shield increases to 4d6.
+```
 
 ### What Grimoire's role becomes
 
-Grimoire remains the **campaign manager** — sessions, KnowledgeGrants, player-facing query filtering, voice transcription. It _reads_ from the knowledge graph (via the monolith API) rather than owning its own extraction pipeline. The Grimoire data architecture doc's Pipeline 1-3 designs inform this ADR but are implemented in monolith, not in Grimoire's Go backend.
+Grimoire remains the **campaign manager** — sessions, KnowledgeGrants, player-facing query filtering, voice transcription. It reads D&D content from the monolith knowledge API rather than owning its own extraction pipeline. The Grimoire data architecture's entity type taxonomy and extraction prompt guidelines inform the Gemma4 prompts here.
 
-### Deferred: atom/fact decomposition
+### Future: personal atoms
 
-Sourcebook entities initially live as `type: "entity"` in the knowledge graph — richer than raw text but not yet decomposed into the gardener's atom/fact/active taxonomy. This is intentional:
+Once sourcebook facts exist in the graph, personal atoms can reference them:
 
-- The raw entity graph is immediately useful for search and campaign prep
-- The gardener's structured output schema ([`frontmatter.py`](../../../projects/monolith/knowledge/frontmatter.py)) would need D&D-specific type extensions before it can meaningfully process sourcebook content
-- Decomposition can happen incrementally — the gardener's rolling reprocess window (ADR 013) can learn to refine entities into atoms over time
+```yaml
+---
+id: ancestral-guardian-tanking-insight
+type: atom
+edges:
+  refines: [xanathars-path-ancestral-guardian]
+---
+Path of the Ancestral Guardian is the strongest "tanking" subclass in 5e
+because Spirit Shield doesn't require the barbarian to be adjacent — 30ft
+range means you can protect the backline while still engaging in melee.
+```
+
+The atom `refines` the fact. The fact `derives_from` the book. The provenance chain is clean.
 
 ---
 
@@ -59,28 +118,21 @@ Sourcebook entities initially live as `type: "entity"` in the knowledge graph �
 ```mermaid
 graph TD
     subgraph Input
-        MJ[/"Marker JSON files<br>(Google Drive links)"/]
+        MJ[/"Marker JSON<br>(Google Drive links)"/]
     end
 
     subgraph Ingest["POST /api/knowledge/sourcebooks"]
-        MJ --> Parse["Parse Marker JSON<br>stream blocks,<br>strip base64 images"]
-        Parse --> SB[("knowledge.source_books<br>─────────<br>id, title, system,<br>publisher, total_pages")]
-        Parse --> Blocks[("knowledge.source_blocks<br>─────────<br>id, source_book_fk,<br>block_id, block_type, page,<br>html, section_hierarchy")]
+        MJ --> Parse["Parse Marker JSON<br>─────────<br>Stream blocks,<br>discard base64 images,<br>group by section hierarchy"]
+        Parse --> Gemma["Gemma4 structured output<br>─────────<br>Section → fact note<br>with frontmatter + body"]
     end
 
-    subgraph Extract["Entity Extraction (async)"]
-        Blocks --> Group["Section-hierarchy<br>grouping"]
-        Group --> Gemma["Gemma4 structured output<br>─────────<br>entities, relationships,<br>embedding_text"]
-        Gemma --> Ent[("knowledge.entities<br>─────────<br>id, source_book_fk,<br>entity_type, name, aliases,<br>properties, embedding_text,<br>source_pages")]
-        Gemma --> Rel[("knowledge.entity_relationships<br>─────────<br>id, source_entity_fk,<br>target_entity_fk,<br>rel_type")]
+    subgraph Vault["Obsidian Vault"]
+        Gemma --> Facts[/"_processed/grimoire/<br>{book-slug}/<br>{section-path}/<br>fact-notes.md"/]
     end
 
-    subgraph Embed["Reconciler (existing)"]
-        Ent --> Voyage["voyage-4-nano<br>(1024-dim)"]
-        Voyage --> PGV[("knowledge.chunks<br>(entity embeddings)")]
-    end
-
-    subgraph Query["Existing Search Surface"]
+    subgraph Existing["Existing Pipeline (no changes)"]
+        Facts --> Reconciler["Reconciler<br>embed (voyage-4-nano)<br>+ upsert to pgvector"]
+        Reconciler --> PGV[("knowledge.notes<br>knowledge.chunks")]
         PGV --> Search["GET /api/knowledge/search"]
         Search --> CmdK["⌘K overlay"]
         Search --> MCP["MCP tools"]
@@ -88,103 +140,101 @@ graph TD
     end
 ```
 
-### Marker JSON schema
+### Marker JSON parsing
 
-Analysis of Xanathar's Guide (representative file):
+The parser streams through the Marker JSON block tree, grouping blocks by section hierarchy:
 
-| Marker field           | Storage                    | Notes                                                                            |
-| ---------------------- | -------------------------- | -------------------------------------------------------------------------------- |
-| Top-level `children[]` | One `source_books` row     | `total_pages` = 196                                                              |
-| Nested blocks          | `source_blocks` rows       | `block_id`, `block_type`, `page`, `html`, `bbox`, `section_hierarchy`            |
-| `images` dict          | Stripped at parse time     | Alt-text preserved in `html`; base64 payloads discarded (16.8 MB of 24 MB total) |
-| `metadata.page_stats`  | `source_books.extra` jsonb | Page-level block counts                                                          |
+| Block type                  | Count (Xanathar's) | Handling                                               |
+| --------------------------- | ------------------ | ------------------------------------------------------ |
+| `Text`                      | 2,627              | Content for fact notes                                 |
+| `SectionHeader`             | 1,128              | Defines hierarchy levels and fact note boundaries      |
+| `Table`                     | 359                | Included in fact note body (stat blocks, spell tables) |
+| `Page`                      | 196                | Container only, skipped                                |
+| `PageFooter` / `PageHeader` | 357                | Ignored                                                |
+| `Picture`                   | 137                | Discarded (alt-text already in `html` if useful)       |
+| `ListGroup`                 | 81                 | Included in fact note body                             |
+| `Caption`                   | 29                 | Discarded with associated pictures                     |
+| `TableOfContents`           | 1                  | Skipped                                                |
 
-### Block types and extraction roles
+### Gemma4 extraction
 
-| Block type                  | Count (Xanathar's) | Role                                             |
-| --------------------------- | ------------------ | ------------------------------------------------ |
-| `Text`                      | 2,627              | Primary extraction target                        |
-| `SectionHeader`             | 1,128              | Chunking boundaries                              |
-| `Table`                     | 359                | Stat blocks, spell lists → structured properties |
-| `PageFooter` / `PageHeader` | 357                | Ignored                                          |
-| `Page`                      | 196                | Container only                                   |
-| `Picture`                   | 137                | Alt-text as supplementary context                |
-| `ListGroup`                 | 81                 | Feature/equipment lists → entity properties      |
-| `Caption`                   | 29                 | Associated with adjacent Pictures                |
-| `TableOfContents`           | 1                  | Section structure validation                     |
+Each section group (a SectionHeader + its child Text/Table/ListGroup blocks) is sent to Gemma4 with a prompt that produces:
 
-### Entity extraction with Gemma4
+- **Title**: section heading
+- **Body**: natural language description of the section content — readable, searchable, embedding-friendly
+- **Tags**: D&D-relevant classification (book name, chapter, content type)
+- **Section path metadata**: for `extra` jsonb, enabling breadcrumb display
 
-Blocks are grouped by section hierarchy (consecutive blocks under the same section → one extraction chunk). Each chunk is sent to Gemma4 with structured output enforcing the entity/relationship schema. This follows the same PydanticAI + `OpenAIChatModel` pattern used by the gardener ([ADR 013](../../decisions/agents/013-knowledge-gardener-gemma4-only.md)) and the chat agent ([`projects/monolith/chat/agent.py`](../../../projects/monolith/chat/agent.py)).
+This follows the same PydanticAI + `OpenAIChatModel` pattern used by the gardener ([ADR 013](../../decisions/agents/013-knowledge-gardener-gemma4-only.md)) and chat agent ([`projects/monolith/chat/agent.py`](../../../projects/monolith/chat/agent.py)).
 
-The extraction prompt produces:
+### Folder structure
 
-- **Entities**: name, type, aliases, properties (jsonb), embedding_text (natural language description for search)
-- **Relationships**: source entity → target entity, typed (LOCATED_IN, MEMBER_OF, etc.)
-- **Embedding text**: LLM-generated natural language description per Grimoire's [data architecture guidelines](../../../projects/grimoire/data-architecture.md#embedding-text-generation-pipeline-2-prompt-instructions)
+```
+_processed/grimoire/
+├── xanathars/
+│   ├── xanathars.md                          (book-level fact)
+│   ├── character-options/
+│   │   ├── character-options.md              (chapter fact)
+│   │   ├── barbarian/
+│   │   │   ├── barbarian.md                  (class section fact)
+│   │   │   ├── path-of-the-ancestral-guardian.md
+│   │   │   ├── path-of-the-storm-herald.md
+│   │   │   └── path-of-the-zealot.md
+│   │   ├── bard/
+│   │   │   └── ...
+│   │   └── ...
+│   ├── dungeon-masters-tools/
+│   │   └── ...
+│   └── spells/
+│       └── ...
+├── wildemount/
+│   └── ...
+└── monster-manual/
+    └── ...
+```
 
-Entity types follow the Grimoire data architecture: `creature`, `spell`, `location`, `npc`, `faction`, `deity`, `item`, `class_feature`, `subclass`, `race`, `background`, `feat`.
-
-### Search integration
-
-Extracted entities are embedded by the existing reconciler into `knowledge.chunks` with a reference back to the entity. This means:
-
-- `GET /api/knowledge/search?q=magic+resistance` returns both personal notes about magic resistance AND the Aeorian Absorber entity
-- Results include a `source` field (`"obsidian"` vs `"sourcebook"`) so the UI can distinguish them
-- No changes needed to the `⌘K` overlay, MCP tools, or Claude Code skill — they already query the search endpoint
+The gardener never touches `_processed/` — the `_EXCLUDED_TOP_LEVEL` set in [`raw_ingest.py`](../../../projects/monolith/knowledge/raw_ingest.py) already excludes it. Sonnet costs stay at zero for sourcebook content.
 
 ---
 
 ## Implementation
 
-### Phase 1: Schema + ingestion endpoint
+### Phase 1: Marker JSON parsing + fact generation
 
-- [ ] Migration: `knowledge.source_books` table (id, title, system, publisher, total_pages, extra jsonb)
-- [ ] Migration: `knowledge.source_blocks` table (id, source_book_fk, block_id, block_type, page, html, bbox, section_hierarchy jsonb, images_meta jsonb)
-- [ ] Marker JSON parser in `knowledge/sourcebook_ingest.py` — stream blocks, strip base64 images, preserve alt-text in html
-- [ ] `POST /api/knowledge/sourcebooks` endpoint accepting Marker JSON upload
-- [ ] Ingest Xanathar's Guide as validation
+- [ ] `knowledge/sourcebook_ingest.py` — Marker JSON parser that streams blocks and groups by section hierarchy
+- [ ] Gemma4 prompt for section → fact note conversion (PydanticAI structured output)
+- [ ] Write fact notes to `_processed/grimoire/{book-slug}/` with proper frontmatter (id, title, type, source, tags, edges)
+- [ ] `POST /api/knowledge/sourcebooks` endpoint accepting Marker JSON upload (async processing, returns job ID)
+- [ ] Ingest Xanathar's Guide as validation — verify fact notes have correct hierarchy and edges
 
-### Phase 2: Entity extraction
+### Phase 2: Search integration
 
-- [ ] Migration: `knowledge.entities` table (id, source_book_fk, entity_type, name, aliases text[], properties jsonb, embedding_text, source_pages int[])
-- [ ] Migration: `knowledge.entity_relationships` table (id, source_entity_fk, target_entity_fk, rel_type, source_book_fk)
-- [ ] Section-hierarchy grouping logic (consecutive blocks under same section → chunks)
-- [ ] Gemma4 extraction via PydanticAI structured output (entity/relationship/embedding_text schema)
-- [ ] Pydantic models for extraction output, matching entity types from Grimoire data architecture
-- [ ] Adjacent image alt-text injection as supplementary context
-- [ ] Async extraction triggered after ingestion completes
+- [ ] Verify existing reconciler picks up `_processed/grimoire/` notes and embeds them
+- [ ] Add `source` field to search results to distinguish `grimoire` from `obsidian`
+- [ ] Verify facts appear in `⌘K` vault search with correct edges
+- [ ] `GET /api/knowledge/entities/{id}` for full fact detail (or reuse existing `GET /api/knowledge/notes/{id}`)
 
-### Phase 3: Embedding + search
+### Phase 3: Multi-book ingestion
 
-- [ ] Extend reconciler to embed `knowledge.entities` → `knowledge.chunks` (voyage-4-nano, 1024-dim)
-- [ ] Add `source` field to search results to distinguish personal notes from sourcebook entities
-- [ ] `GET /api/knowledge/entities/{id}` endpoint for full entity detail (properties, relationships, source pages)
-- [ ] Verify entities appear in `⌘K` vault search
+- [ ] Cross-book `related` edges for shared concepts (e.g., Barbarian class referenced in both PHB and Xanathar's)
+- [ ] Deduplication: if two books describe the same section, keep the more detailed one
+- [ ] Batch ingest endpoint for multiple Marker JSON files
 
-### Phase 4: Cross-book entity resolution
+### Future: gardener integration
 
-- [ ] Trigram-based candidate blocking within entity types
-- [ ] Pairwise similarity scoring (name fuzzy match + shared relationships)
-- [ ] Gemma4 tiebreaker for ambiguous matches
-- [ ] Merge strategy: canonical name, alias union, property union, relationship union
-- [ ] Run after each new book ingestion against all existing entities
-
-### Future: Gardener integration
-
-- [ ] Extend gardener to process `type: "entity"` records into atoms/facts
-- [ ] D&D-specific type extensions in frontmatter schema
-- [ ] Cross-link personal session notes with sourcebook entities via edges
+- [ ] Extend gardener to generate personal atoms that `refines` sourcebook facts
+- [ ] D&D-specific type extensions in frontmatter schema if needed
+- [ ] Campaign-scoped search filtering (when Grimoire consumes the API)
 
 ---
 
 ## Security
 
 - Marker JSON files are sourced from personal Google Drive links — no untrusted input
-- Base64 image payloads are discarded at parse time — never stored or rendered
+- Base64 image payloads are discarded at parse time — never stored
 - Gemma4 extraction is internal cluster traffic (monolith → llama.cpp endpoint)
-- No new secrets required — uses existing monolith Postgres credentials and Gemma4 endpoint
-- New API endpoints are behind existing Cloudflare Access authentication
+- No new secrets required
+- New API endpoint is behind existing Cloudflare Access authentication
 
 See [`docs/security.md`](../../../docs/security.md) for baseline. No deviations.
 
@@ -192,31 +242,32 @@ See [`docs/security.md`](../../../docs/security.md) for baseline. No deviations.
 
 ## Risks
 
-| Risk                                                              | Likelihood | Impact                            | Mitigation                                                                                               |
-| ----------------------------------------------------------------- | ---------- | --------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Gemma4 extraction quality lower than Gemini Flash for D&D content | Medium     | Missed entities, wrong properties | Structured output mode constrains output; self-critique pass (ADR 013 pattern); manual sampling per book |
-| Sourcebook entities dilute personal note search results           | Medium     | Personal notes harder to find     | `source` field in search results; UI type filter; consider score boosting for personal notes             |
-| Single Marker JSON upload blocks the API (24 MB, 196 pages)       | Low        | Request timeout                   | Async processing: endpoint accepts upload, returns job ID, extraction runs in background                 |
-| Entity extraction prompt too large for Gemma4 context window      | Medium     | Truncated/failed extraction       | Section-level chunking keeps prompts manageable; split oversized sections                                |
-| Cross-book entity resolution false positives                      | Low        | Corrupted entity data             | Conservative thresholds; Gemma4 tiebreaker; defer to Phase 4 after initial ingestion proves value        |
+| Risk                                                                                    | Likelihood | Impact                                     | Mitigation                                                                                     |
+| --------------------------------------------------------------------------------------- | ---------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Gemma4 produces low-quality fact descriptions for complex content (stat blocks, tables) | Medium     | Poor search results for mechanical content | Structured output constraints; include raw table HTML as fallback; manual review of first book |
+| Thousands of fact notes dilute personal note search results                             | Medium     | Personal notes harder to find              | `source` field filter in search UI; consider score boosting for personal notes                 |
+| Section hierarchy grouping misaligns with Marker's block structure                      | Medium     | Facts at wrong granularity                 | Validate against Xanathar's table of contents; tune grouping heuristics per book               |
+| Marker JSON schema changes between versions                                             | Low        | Parser breaks                              | Pin Marker version; schema validation on ingest                                                |
+| Gemma4 context window too small for large sections                                      | Medium     | Truncated facts                            | Split oversized sections; most D&D sections are short (1-3 paragraphs)                         |
 
 ---
 
 ## Open Questions
 
-1. **Image storage**: discard base64 entirely (as proposed), or store in a volume for future multimodal use (maps, diagrams)?
-2. **Entity granularity**: extract every creature stat block, or focus on named/notable entities first?
-3. **Grimoire consumption**: how does Grimoire (campaign manager, KnowledgeGrants) query the monolith knowledge API? Direct HTTP, or shared Postgres read replica?
+1. **Fact granularity**: one fact per section heading, or finer (e.g., one fact per spell, per creature)?
+2. **Cross-book references**: how to link the Barbarian section in Xanathar's to the Barbarian class in the PHB?
+3. **Grimoire consumption**: how does Grimoire (campaign manager) query the monolith knowledge API for campaign-scoped filtering?
 
 ---
 
 ## References
 
-| Resource                                                                                      | Relevance                                                                                          |
-| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Grimoire data architecture](../../../projects/grimoire/data-architecture.md)                 | Entity types, extraction prompts, embedding text guidelines — informs the Gemma4 extraction schema |
-| [ADR 013: Gemma4-only gardener](../../decisions/agents/013-knowledge-gardener-gemma4-only.md) | Same model pipeline pattern (PydanticAI + structured output + self-critique)                       |
-| [Monolith knowledge models](../../../projects/monolith/knowledge/models.py)                   | Existing schema this extends (Note, Chunk, NoteLink)                                               |
-| [Monolith frontmatter schema](../../../projects/monolith/knowledge/frontmatter.py)            | Future gardener integration target for entity → atom decomposition                                 |
-| [Marker](https://github.com/VikParuchuri/marker)                                              | PDF-to-structured-JSON tool producing the input files                                              |
-| [ADR 003: Knowledge search overlay](003-knowledge-search-overlay.md)                          | `⌘K` search UI — sourcebook entities must be discoverable here                                     |
+| Resource                                                                                      | Relevance                                                                 |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [Grimoire data architecture](../../../projects/grimoire/data-architecture.md)                 | Entity types, extraction prompt guidelines — informs Gemma4 prompt design |
+| [ADR 013: Gemma4-only gardener](../../decisions/agents/013-knowledge-gardener-gemma4-only.md) | Same model pipeline pattern (PydanticAI + structured output)              |
+| [Monolith knowledge models](../../../projects/monolith/knowledge/models.py)                   | Schema: Note, Chunk, NoteLink — fact notes use these directly             |
+| [Monolith frontmatter schema](../../../projects/monolith/knowledge/frontmatter.py)            | Frontmatter format fact notes must conform to                             |
+| [Monolith raw_ingest.py](../../../projects/monolith/knowledge/raw_ingest.py)                  | `_EXCLUDED_TOP_LEVEL` set that keeps gardener away from `_processed/`     |
+| [Marker](https://github.com/VikParuchuri/marker)                                              | PDF-to-structured-JSON tool producing the input files                     |
+| [ADR 003: Knowledge search overlay](003-knowledge-search-overlay.md)                          | `⌘K` search UI — facts must be discoverable here                          |
