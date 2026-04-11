@@ -67,6 +67,7 @@ py_library(
         "@pip//fastapi",
         "@pip//httpx",
         "@pip//icalendar",
+        "@pip//lxml_html_clean",  # explicit: overrides.txt strips lxml[html-clean] extra
         "@pip//opentelemetry_exporter_otlp_proto_http",
         "@pip//opentelemetry_instrumentation_fastapi",
         "@pip//opentelemetry_sdk",
@@ -78,7 +79,6 @@ py_library(
         "@pip//pyyaml",
         "@pip//sqlalchemy",
         "@pip//sqlmodel",
-        "@pip//lxml_html_clean",  # explicit: overrides.txt strips lxml[html-clean] extra
         "@pip//trafilatura",
         "@pip//tzdata",
         "@pip//uvicorn",
