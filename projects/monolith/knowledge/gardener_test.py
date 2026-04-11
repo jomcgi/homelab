@@ -94,10 +94,11 @@ class TestIngestOneClaude:
     async def test_prompt_includes_full_raw_content_for_frontmatter_only_note(
         self, tmp_path
     ):
-        """Frontmatter-only notes (e.g. book refs) must include the raw YAML in the prompt.
+        """The prompt references the raw file by path so Claude reads it via the Read tool.
 
-        If only `body` is passed, Claude receives an empty string and has nothing
-        to decompose, causing timeouts and producing no notes.
+        Previously the raw content was inlined in the prompt, but large files
+        (e.g. YouTube transcripts) exceed Linux ARG_MAX. Now the prompt just
+        contains the file path.
         """
         vault = tmp_path / "vault"
         vault.mkdir()
@@ -134,11 +135,8 @@ class TestIngestOneClaude:
         # The prompt is passed via the -p flag as the last positional arg
         p_idx = list(args).index("-p")
         prompt = args[p_idx + 1]
-        assert "Tanya Reilly" in prompt, "frontmatter author must appear in prompt"
-        assert "9781098118709" in prompt, "frontmatter isbn must appear in prompt"
-        assert "A book about staff engineering." in prompt, (
-            "description must appear in prompt"
-        )
+        assert str(note) in prompt, "raw file path must appear in prompt"
+        assert "Tanya Reilly" not in prompt, "raw content must not be inlined"
 
     @pytest.mark.asyncio
     async def test_spawns_claude_with_correct_flags(self, tmp_path):
