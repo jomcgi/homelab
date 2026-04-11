@@ -850,4 +850,3 @@ class TestPromptTemplateInstructions:
         ensures the instruction is never accidentally removed.
         """
         assert "filename MUST be" in _CLAUDE_PROMPT_HEADER
-        assert row.derived_note_id == "ghost"
