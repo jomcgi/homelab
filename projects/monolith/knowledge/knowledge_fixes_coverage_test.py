@@ -253,9 +253,7 @@ class TestPreSyncLinksException:
     method is best-effort and must never prevent reconcile from running."""
 
     @pytest.mark.asyncio
-    async def test_pre_sync_links_exception_does_not_abort_run(
-        self, session, tmp_path
-    ):
+    async def test_pre_sync_links_exception_does_not_abort_run(self, session, tmp_path):
         """Even when _pre_sync_links raises on every file, run() completes
         normally and ingests the file on the next pass.
 
@@ -334,9 +332,7 @@ class TestResolvePendingProvenanceNoSession:
 
 class TestGardenerRunNoSession:
     @pytest.mark.asyncio
-    async def test_run_skips_reconcile_raw_phase_when_session_is_none(
-        self, tmp_path
-    ):
+    async def test_run_skips_reconcile_raw_phase_when_session_is_none(self, tmp_path):
         """When session=None, run() must not call reconcile_raw_phase (which
         requires a Session). move_phase is still executed."""
         from knowledge.gardener import Gardener
@@ -346,9 +342,7 @@ class TestGardenerRunNoSession:
 
         gardener = Gardener(vault_root=tmp_path, session=None)
         # No session → _ingest_one would need a DB; no raws in the DB either.
-        with patch(
-            "knowledge.raw_ingest.reconcile_raw_phase"
-        ) as mock_reconcile:
+        with patch("knowledge.raw_ingest.reconcile_raw_phase") as mock_reconcile:
             stats = await gardener.run()
 
         # reconcile_raw_phase must NOT have been called.
@@ -415,9 +409,7 @@ class TestReconcileRawPhaseOriginalPath:
     """When a raw file's frontmatter contains original_path in extra fields,
     reconcile_raw_phase stores it on the RawInput row."""
 
-    def test_original_path_extracted_from_frontmatter_extra(
-        self, tmp_path, session
-    ):
+    def test_original_path_extracted_from_frontmatter_extra(self, tmp_path, session):
         from knowledge.raw_ingest import reconcile_raw_phase
 
         raw_file = tmp_path / "_raw" / "grandfathered" / "abc1-orig.md"
@@ -457,9 +449,7 @@ class TestReconcileRawPhaseReadError:
     """An OSError while reading a raw file is logged as a warning and the
     file is skipped — reconcile_raw_phase continues with the remaining files."""
 
-    def test_oserror_on_read_skips_file_and_continues(
-        self, tmp_path, session, caplog
-    ):
+    def test_oserror_on_read_skips_file_and_continues(self, tmp_path, session, caplog):
         from knowledge.raw_ingest import reconcile_raw_phase
 
         bad = tmp_path / "_raw" / "2026" / "04" / "10" / "abc1-bad.md"
