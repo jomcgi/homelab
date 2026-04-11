@@ -252,7 +252,7 @@
   }
 
   // ── Schedule ─────────────────────────────────
-  let events = $state(data.schedule);
+  let events = $derived(data.schedule);
   let eventListRef = $state(null);
 
   const LINKS = [
