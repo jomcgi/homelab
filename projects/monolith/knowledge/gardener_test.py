@@ -331,7 +331,9 @@ class TestIngestOneClaude:
         assert str(note) in prompt
         # Sanity: relative path ("exact.md") alone being present does NOT
         # satisfy the requirement — only str(note) (absolute) counts.
-        assert str(vault) in prompt, "vault parent must be present confirming absolute path"
+        assert str(vault) in prompt, (
+            "vault parent must be present confirming absolute path"
+        )
 
     @pytest.mark.asyncio
     async def test_spawns_claude_with_correct_flags(self, tmp_path):
