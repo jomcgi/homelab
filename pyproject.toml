@@ -84,6 +84,9 @@ dependencies = [
     "tzdata",
     # Knowledge vault git sync (pure Python, no system git binary)
     "dulwich",
+    # URL ingest queue — YouTube transcripts and webpage extraction
+    "youtube-transcript-api",
+    "trafilatura",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
