@@ -180,9 +180,9 @@ class TestReconcile:
         """run() processes new, changed, and deleted files in one cycle."""
         note1_hash = _hash((vault_dir / "note1.md").read_text())
         mock_qdrant.get_indexed_sources.return_value = {
-            "vault://note1.md": note1_hash,    # unchanged
+            "vault://note1.md": note1_hash,  # unchanged
             "vault://note2.md": "stale_hash",  # changed
-            "vault://ghost.md": "old_hash",    # deleted (not on disk)
+            "vault://ghost.md": "old_hash",  # deleted (not on disk)
         }
         reconciler = VaultReconciler(
             vault_path=str(vault_dir), embedder=mock_embedder, qdrant=mock_qdrant
