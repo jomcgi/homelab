@@ -231,7 +231,7 @@
   // ── Animation constants (shared between timeline + draw effects) ──
   const BOX_PEN_SPEED = 332; // SVG units per second (box outlines)
   const EDGE_PEN_SPEED = 349; // SVG units per second (connecting lines)
-  const MIN_SIDE_DUR = 0.14; // seconds — minimum per box side (prevents tiny boxes feeling rushed)
+  const MIN_SIDE_DUR = 0.22; // seconds — minimum per box side (must be perceptibly sequential)
   const MIN_EDGE_DUR = 0.2; // seconds — minimum per edge line
   const TRAVEL_PAUSE = 0.12; // seconds — hand repositioning between elements
   const CHAR_MS = 0.03; // seconds per character (quick jot, non-blocking)
@@ -303,7 +303,7 @@
     // 2. Pencil box done → simultaneously: text jots, ink retraces box, pencil line to next node
     // 3. Ink box done → ink line chases the pencil line
     // Pencil cursor drives the flow; ink/text are non-blocking overlays.
-    const INK_SPEED = 0.6; // ink pass is 60% the duration of pencil (faster, confident)
+    const INK_SPEED = 0.85; // ink pass is 85% the duration of pencil (pencil sketches ahead, ink follows)
 
     const visited = new Set(["cloudflare"]);
     const nd = {};
@@ -344,7 +344,7 @@
       // Ink line waits for: parent's ink box + stagger, AND pencil line to complete + pause
       const parent = nd[parentId];
       const parentInkDone = parent ? parent.inkBox + parent.inkBoxDur : pencilStart;
-      const inkStagger = (siblingIdx || 0) * CASCADE_STAGGER;
+      const inkStagger = (siblingIdx || 0) * CASCADE_STAGGER * jitter(key + "ink-stg");
       const pencilDone = pencilStart + eDur + TRAVEL_PAUSE;
 
       ed[key] = {
@@ -388,14 +388,14 @@
         nextBatch.push(...collectChildren(batch[0]));
       } else {
         const numCursors = Math.min(MAX_CURSORS, batch.length);
-        const cursors = Array.from({ length: numCursors }, (_, i) => cursor + i * CASCADE_STAGGER);
+        const cursors = Array.from({ length: numCursors }, (_, i) => cursor + i * CASCADE_STAGGER * jitter("cursor" + i));
         let lastLineStart = -Infinity;
 
         batch.forEach((item, i) => {
           const ci = i % numCursors;
           // Ensure no two pencil lines start within MIN_LINE_STAGGER of each other
           if (item.viaEdge) {
-            cursors[ci] = Math.max(cursors[ci], lastLineStart + MIN_LINE_STAGGER);
+            cursors[ci] = Math.max(cursors[ci], lastLineStart + MIN_LINE_STAGGER * jitter(item.id + "line-stg"));
             lastLineStart = cursors[ci];
           }
           cursors[ci] = scheduleItem(cursors[ci], item);
