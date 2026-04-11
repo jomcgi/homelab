@@ -78,7 +78,9 @@ py_library(
         "@pip//pyyaml",
         "@pip//sqlalchemy",
         "@pip//sqlmodel",
+        "@pip//trafilatura",
         "@pip//tzdata",
+        "@pip//youtube_transcript_api",
         "@pip//uvicorn",
     ],
 )
