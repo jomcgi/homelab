@@ -1586,7 +1586,12 @@ class TestSubscribeAisStreamUnit:
         msgs = [
             _make_mock_msg(
                 "ais.position.111",
-                {"mmsi": "111", "lat": 0.0, "lon": 0.0, "timestamp": "2024-01-01T00:00:00Z"},
+                {
+                    "mmsi": "111",
+                    "lat": 0.0,
+                    "lon": 0.0,
+                    "timestamp": "2024-01-01T00:00:00Z",
+                },
             ),
             _make_mock_msg(
                 "ais.static.222",
@@ -1618,7 +1623,12 @@ class TestSubscribeAisStreamUnit:
         service = _make_service_for_stream(replay_complete=True)
         msg1 = _make_mock_msg(
             "ais.position.111",
-            {"mmsi": "111", "lat": 0.0, "lon": 0.0, "timestamp": "2024-01-01T00:00:00Z"},
+            {
+                "mmsi": "111",
+                "lat": 0.0,
+                "lon": 0.0,
+                "timestamp": "2024-01-01T00:00:00Z",
+            },
         )
         msg2 = _make_mock_msg("ais.static.222", {"mmsi": "222", "name": "Ship"})
         self._one_shot_psub(service, [msg1, msg2])
@@ -1723,7 +1733,7 @@ class TestSubscribeAisStreamUnit:
         mock_psub.consumer_info = AsyncMock(
             side_effect=[
                 _make_consumer_info(50_000),  # initial
-                _make_consumer_info(100),     # timeout check — below threshold
+                _make_consumer_info(100),  # timeout check — below threshold
             ]
         )
 
@@ -1768,7 +1778,9 @@ class TestSubscribeAisStreamUnit:
         """pull_subscribe failure propagates out of subscribe_ais_stream."""
         service = _make_service_for_stream(replay_complete=True)
         service.js = MagicMock()
-        service.js.pull_subscribe = AsyncMock(side_effect=RuntimeError("stream not found"))
+        service.js.pull_subscribe = AsyncMock(
+            side_effect=RuntimeError("stream not found")
+        )
 
         with pytest.raises(RuntimeError, match="stream not found"):
             await service.subscribe_ais_stream()
@@ -1827,11 +1839,21 @@ class TestSubscribeAisStreamUnit:
         msgs = [
             _make_mock_msg(
                 "ais.position.123456789",
-                {"mmsi": "123456789", "lat": 48.5, "lon": -123.4, "timestamp": "2024-01-15T10:00:00Z"},
+                {
+                    "mmsi": "123456789",
+                    "lat": 48.5,
+                    "lon": -123.4,
+                    "timestamp": "2024-01-15T10:00:00Z",
+                },
             ),
             _make_mock_msg(
                 "ais.position.123456789",
-                {"mmsi": "123456789", "lat": 48.6, "lon": -123.5, "timestamp": "2024-01-15T10:01:00Z"},
+                {
+                    "mmsi": "123456789",
+                    "lat": 48.6,
+                    "lon": -123.5,
+                    "timestamp": "2024-01-15T10:01:00Z",
+                },
             ),
         ]
         self._one_shot_psub(service, msgs)
