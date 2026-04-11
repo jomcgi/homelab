@@ -203,3 +203,22 @@ semgrep_test(
     srcs = ["new_coverage_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "unit_test",
+    srcs = ["unit_test.py"],
+    imports = [".."],
+    deps = [
+        ":conftest",
+        "//projects/ships/backend:ships-api",
+        "@pip//nats_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "unit_test_semgrep_test",
+    srcs = ["unit_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
