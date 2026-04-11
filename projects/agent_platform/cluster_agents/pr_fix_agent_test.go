@@ -393,6 +393,34 @@ func TestPRFixAgent_FingerprintUniquenessAcrossPRs(t *testing.T) {
 	}
 }
 
+// TestPRFixAgent_ExecuteEscalatorTransportError verifies that when the
+// orchestrator is unreachable (transport-level failure), Execute returns nil
+// rather than propagating the network error — the escalator logs errors and
+// continues, so the agent's Execute contract is always nil on return.
+func TestPRFixAgent_ExecuteEscalatorTransportError(t *testing.T) {
+	// Point the orchestrator client at an address that refuses connections so
+	// the HTTP client.Do call itself fails (transport error, not a non-200 status).
+	escalator := NewEscalator(NewOrchestratorClient("http://127.0.0.1:0"))
+	agent := NewPRFixAgent(nil, escalator, time.Hour, 30*time.Minute)
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: "improvement:pr-fix:42",
+			Source:      "improvement:pr-fix",
+			Title:       "PR #42 has failing CI checks",
+		},
+		Payload: map[string]any{"task": "Fix CI failure for PR #42"},
+	}}
+
+	// Execute must return nil even when the underlying orchestrator call fails
+	// at the transport level — errors are swallowed inside Escalator.Execute.
+	err := agent.Execute(context.Background(), actions)
+	if err != nil {
+		t.Fatalf("Execute: expected nil when escalator encounters transport error, got: %v", err)
+	}
+}
+
 // TestPRFixAgent_AnalyzeMissingDataFallsBack verifies that Analyze handles
 // missing or wrong-type pr_number and branch fields gracefully via type
 // assertion fallbacks (yields 0 and ""), producing a non-panicking task string.
