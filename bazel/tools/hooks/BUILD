@@ -129,3 +129,9 @@ sh_test(
     srcs = ["check-npm-apko-transitive-deps_test.sh"],
     data = [":check-npm-apko-transitive-deps.sh"],
 )
+
+sh_test(
+    name = "check_batch_session_add_test",
+    srcs = ["check-batch-session-add_test.sh"],
+    data = [":check-batch-session-add.sh"],
+)
