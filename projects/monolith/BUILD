@@ -2191,6 +2191,17 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_ingest_queue_test",
+    srcs = ["knowledge/ingest_queue_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "notes_router_whitespace_test",
     srcs = ["notes/router_whitespace_test.py"],
     imports = ["."],
