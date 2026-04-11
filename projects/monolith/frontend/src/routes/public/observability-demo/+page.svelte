@@ -850,15 +850,13 @@
 
   <!-- ── Detail drawer ────────────────────── -->
   {#if selected && svc[selected]}
-    <div
+    <button
       class="backdrop"
-      role="button"
       tabindex="-1"
       aria-label="Close detail panel"
       transition:fade={{ duration: 200 }}
       onclick={() => (selected = null)}
-      onkeydown={() => {}}
-    ></div>
+    ></button>
     <aside class="drawer" transition:fly={{ x: 340, duration: 280, easing: cubicOut }}>
       <svg
         bind:this={drawerBorderSvg}
@@ -1032,11 +1030,13 @@
   /* ── Backdrop + Drawer ───────────────────── */
 
   .backdrop {
+    all: unset;
     position: fixed;
     inset: 0;
     background: var(--bg);
     opacity: 0.4;
     z-index: 10;
+    cursor: pointer;
   }
 
   .drawer {

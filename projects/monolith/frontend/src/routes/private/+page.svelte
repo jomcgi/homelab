@@ -636,6 +636,13 @@
                   activeIndex = i;
                   selectResult(result);
                 }}
+                onkeydown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    activeIndex = i;
+                    selectResult(result);
+                  }
+                }}
               >
                 <div class="search-result-title">
                   {result.title}
