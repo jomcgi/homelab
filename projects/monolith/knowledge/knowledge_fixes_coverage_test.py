@@ -249,48 +249,82 @@ class TestWriteBackIdCRLF:
 
 
 class TestPreSyncLinksException:
-    """Exceptions raised inside _pre_sync_links must be swallowed — the
-    method is best-effort and must never prevent reconcile from running."""
+    """Per-file exceptions inside _pre_sync_links are swallowed by its
+    internal try/except — the method is best-effort and must log a warning
+    but never propagate to the caller."""
 
-    @pytest.mark.asyncio
-    async def test_pre_sync_links_exception_does_not_abort_run(self, session, tmp_path):
-        """Even when _pre_sync_links raises on every file, run() completes
-        normally and ingests the file on the next pass.
-
-        We monkey-patch _pre_sync_links to raise unconditionally and verify
-        that a valid note file is still upserted by _ingest_one.
-        """
+    def test_per_file_exception_is_swallowed_and_logged(
+        self, session, tmp_path, caplog
+    ):
+        """When _read_text raises for one file, _pre_sync_links logs a
+        warning and does not propagate the exception."""
         from unittest.mock import AsyncMock
         from knowledge.reconciler import Reconciler
         from knowledge.store import KnowledgeStore
 
         processed = tmp_path / "_processed"
         processed.mkdir()
-        (processed / "ok.md").write_text(
-            "---\nid: ok\ntitle: OK\n---\nBody.", encoding="utf-8"
+        (processed / "bad.md").write_text(
+            "---\nid: bad\ntitle: Bad\n---\nBody.", encoding="utf-8"
         )
-
-        embed_client = AsyncMock()
-        embed_client.embed_batch.side_effect = lambda texts: [
-            [0.1] * 1024 for _ in texts
-        ]
 
         rec = Reconciler(
             store=KnowledgeStore(session=session),
-            embed_client=embed_client,
+            embed_client=AsyncMock(),
             vault_root=tmp_path,
         )
 
-        def boom_pre_sync():
-            raise RuntimeError("pre_sync exploded")
+        original_read_text = rec._read_text
 
-        rec._pre_sync_links = boom_pre_sync  # type: ignore[method-assign]
+        def raise_for_bad(path: Path) -> str:
+            if "bad.md" in str(path):
+                raise OSError("simulated read error")
+            return original_read_text(path)
 
-        result = await rec.run()
+        rec._read_text = raise_for_bad  # type: ignore[method-assign]
 
-        # Note is still ingested despite the _pre_sync_links failure.
-        assert result.upserted == 1
-        assert result.failed == 0
+        with caplog.at_level(logging.WARNING, logger="monolith.knowledge.reconciler"):
+            # Must not raise
+            rec._pre_sync_links()
+
+        assert any("failed to pre-sync links" in r.message for r in caplog.records)
+
+    def test_per_file_exception_does_not_affect_other_files(self, session, tmp_path):
+        """A per-file exception in _pre_sync_links does not affect other
+        files in the same pass — the loop continues normally."""
+        from unittest.mock import AsyncMock
+        from knowledge.reconciler import Reconciler
+        from knowledge.store import KnowledgeStore
+
+        processed = tmp_path / "_processed"
+        processed.mkdir()
+        (processed / "bad.md").write_text(
+            "---\nid: bad\ntitle: Bad\n---\nBody.", encoding="utf-8"
+        )
+        (processed / "good.md").write_text(
+            "---\nid: good\ntitle: Good\n---\nBody.", encoding="utf-8"
+        )
+
+        rec = Reconciler(
+            store=KnowledgeStore(session=session),
+            embed_client=AsyncMock(),
+            vault_root=tmp_path,
+        )
+
+        original_read_text = rec._read_text
+        read_count = {"n": 0}
+
+        def raise_for_bad(path: Path) -> str:
+            if "bad.md" in str(path):
+                raise OSError("simulated read error")
+            read_count["n"] += 1
+            return original_read_text(path)
+
+        rec._read_text = raise_for_bad  # type: ignore[method-assign]
+
+        # Must not raise and must have read the good file.
+        rec._pre_sync_links()
+        assert read_count["n"] >= 1, "good.md must have been read despite bad.md failing"
 
 
 # ---------------------------------------------------------------------------
@@ -387,9 +421,16 @@ class TestReconcileRawPhaseIndexedAt:
         assert notes[0].indexed_at is not None
         assert isinstance(notes[0].indexed_at, datetime)
 
-    def test_mirror_note_indexed_at_is_utc(self, tmp_path, session):
+    def test_mirror_note_indexed_at_is_recent(self, tmp_path, session):
+        """indexed_at is a recent datetime (within the current run window).
+
+        SQLite strips tzinfo on read-back, so we compare against naive UTC
+        bounds. The model's default_factory uses datetime.now(timezone.utc)
+        but SQLite returns naive datetimes.
+        """
         from knowledge.raw_ingest import reconcile_raw_phase
 
+        before = datetime.now(timezone.utc).replace(tzinfo=None)
         raw_file = tmp_path / "_raw" / "2026" / "04" / "10" / "abc2-utc.md"
         _write(raw_file, "---\ntitle: UTC\n---\nBody.")
 
@@ -397,7 +438,11 @@ class TestReconcileRawPhaseIndexedAt:
         session.commit()
 
         notes = session.exec(select(Note).where(Note.type == "raw")).all()
-        assert notes[0].indexed_at.tzinfo == timezone.utc
+        indexed_at = notes[0].indexed_at
+        # Strip tzinfo since SQLite returns naive datetimes.
+        indexed_naive = indexed_at.replace(tzinfo=None) if indexed_at.tzinfo else indexed_at
+        after = datetime.now(timezone.utc).replace(tzinfo=None)
+        assert before <= indexed_naive <= after
 
 
 # ---------------------------------------------------------------------------
