@@ -85,3 +85,53 @@ class TestChunkMarkdown:
             title="hello.md",
         )
         assert chunks[0]["title"] == "hello.md"
+
+    def test_h4_header_not_a_split_boundary(self):
+        """H4+ headers are NOT section boundaries — they stay in the parent body."""
+        content = "# Main\n\nIntro body.\n\n#### Detail\n\nDetail body."
+        chunks = chunk_markdown(
+            content=content,
+            content_hash="h4test",
+            source_url="vault://h4.md",
+            title="h4.md",
+        )
+        # h4 never splits; everything under "# Main" is one section
+        assert len(chunks) == 1
+        assert chunks[0]["section_header"] == "# Main"
+        assert "#### Detail" in chunks[0]["chunk_text"]
+        assert "Detail body." in chunks[0]["chunk_text"]
+
+    def test_chunk_indices_are_sequential_starting_at_zero(self):
+        """chunk_index is sequential, starting at 0, across all output chunks."""
+        content = "# A\n\nSection A.\n\n## B\n\nSection B.\n\n### C\n\nSection C."
+        chunks = chunk_markdown(
+            content=content,
+            content_hash="seq",
+            source_url="vault://seq.md",
+            title="seq.md",
+        )
+        indices = [c["chunk_index"] for c in chunks]
+        assert indices == list(range(len(chunks)))
+
+    def test_whitespace_only_content_returns_empty(self):
+        """Content that is only whitespace/newlines returns an empty list."""
+        chunks = chunk_markdown(
+            content="   \n\n\t  \n",
+            content_hash="ws",
+            source_url="vault://ws.md",
+            title="ws.md",
+        )
+        assert chunks == []
+
+    def test_all_chunk_payload_keys_present(self):
+        """Every returned chunk contains all six required ChunkPayload keys."""
+        chunks = chunk_markdown(
+            content="# Key Test\n\nBody text for key coverage.",
+            content_hash="keys",
+            source_url="vault://keys.md",
+            title="keys.md",
+        )
+        assert len(chunks) >= 1
+        required = {"content_hash", "chunk_index", "chunk_text", "section_header", "source_url", "title"}
+        for chunk in chunks:
+            assert required == set(chunk.keys())

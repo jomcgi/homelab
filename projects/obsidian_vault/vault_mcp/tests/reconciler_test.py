@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -70,6 +71,27 @@ class TestWalkVault:
         files = reconciler._walk_vault()
         assert "vault://_archive/old.md" in files
 
+    def test_hash_values_are_sha256_hex(self, vault_dir, mock_qdrant, mock_embedder):
+        """_walk_vault produces 64-character lowercase hex SHA-256 digests."""
+        reconciler = VaultReconciler(
+            vault_path=str(vault_dir), embedder=mock_embedder, qdrant=mock_qdrant
+        )
+        files = reconciler._walk_vault()
+        sha256_pattern = re.compile(r"^[0-9a-f]{64}$")
+        for source_url, content_hash in files.items():
+            assert sha256_pattern.match(content_hash), (
+                f"Hash for {source_url!r} is not a 64-char hex string: {content_hash!r}"
+            )
+
+    def test_source_urls_use_vault_scheme(self, vault_dir, mock_qdrant, mock_embedder):
+        """All source URLs returned by _walk_vault use the vault:// scheme."""
+        reconciler = VaultReconciler(
+            vault_path=str(vault_dir), embedder=mock_embedder, qdrant=mock_qdrant
+        )
+        files = reconciler._walk_vault()
+        for key in files:
+            assert key.startswith("vault://"), f"Key {key!r} missing vault:// prefix"
+
 
 class TestReconcile:
     async def test_embeds_new_files(self, vault_dir, mock_qdrant, mock_embedder):
@@ -126,3 +148,46 @@ class TestReconcile:
         )
         await reconciler.run()
         assert mock_qdrant.upsert_chunks.call_count == 0
+
+    async def test_delete_called_before_upsert_for_changed_file(
+        self, vault_dir, mock_qdrant, mock_embedder
+    ):
+        """For a changed file, delete must be called before upsert."""
+        call_order: list[str] = []
+
+        async def track_delete(*a, **kw):
+            call_order.append("delete")
+
+        async def track_upsert(*a, **kw):
+            call_order.append("upsert")
+
+        mock_qdrant.delete_by_source_url.side_effect = track_delete
+        mock_qdrant.upsert_chunks.side_effect = track_upsert
+        mock_qdrant.get_indexed_sources.return_value = {
+            "vault://note1.md": "stale_hash",
+        }
+        reconciler = VaultReconciler(
+            vault_path=str(vault_dir), embedder=mock_embedder, qdrant=mock_qdrant
+        )
+        await reconciler.run()
+        assert "delete" in call_order
+        assert "upsert" in call_order
+        assert call_order.index("delete") < call_order.index("upsert")
+
+    async def test_run_handles_mixed_new_changed_deleted(
+        self, vault_dir, mock_qdrant, mock_embedder
+    ):
+        """run() processes new, changed, and deleted files in one cycle."""
+        note1_hash = _hash((vault_dir / "note1.md").read_text())
+        mock_qdrant.get_indexed_sources.return_value = {
+            "vault://note1.md": note1_hash,    # unchanged
+            "vault://note2.md": "stale_hash",  # changed
+            "vault://ghost.md": "old_hash",    # deleted (not on disk)
+        }
+        reconciler = VaultReconciler(
+            vault_path=str(vault_dir), embedder=mock_embedder, qdrant=mock_qdrant
+        )
+        await reconciler.run()
+        # note2 changed → delete + upsert; ghost deleted → delete only; note1 unchanged
+        assert mock_qdrant.delete_by_source_url.call_count == 2
+        assert mock_qdrant.upsert_chunks.call_count == 1
