@@ -2254,6 +2254,10 @@ semgrep_target_test(
         # suppression is available in the core engine.
         "sqlmodel-datetime-without-factory",  # keep
         "tainted-fastapi-http-request-httpx",
+        # note_id → DB lookup → note["path"] → file read is guarded by
+        # is_relative_to(vault_root) but Semgrep Pro can't trace through
+        # the DB as a sanitizer.
+        "tainted-path-traversal-stdlib-fastapi",
     ],
     rules = ["//bazel/semgrep/rules:python_rules"],
     target = ":main",
