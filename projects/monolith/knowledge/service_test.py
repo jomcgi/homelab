@@ -549,6 +549,8 @@ class TestHasChanges:
 
     def test_passes_vault_root_as_string_to_porcelain(self, tmp_path):
         """porcelain.status() is called with the vault_root as a string."""
-        with patch("knowledge.service.porcelain.status", return_value=_empty_status()) as mock_status:
+        with patch(
+            "knowledge.service.porcelain.status", return_value=_empty_status()
+        ) as mock_status:
             service._has_changes(tmp_path)
         mock_status.assert_called_once_with(str(tmp_path))
