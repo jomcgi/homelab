@@ -78,6 +78,7 @@ py_library(
         "@pip//pyyaml",
         "@pip//sqlalchemy",
         "@pip//sqlmodel",
+        "@pip//lxml_html_clean",  # explicit: overrides.txt strips lxml[html-clean] extra
         "@pip//trafilatura",
         "@pip//tzdata",
         "@pip//uvicorn",

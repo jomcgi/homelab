@@ -87,6 +87,7 @@ dependencies = [
     # URL ingest queue — YouTube transcripts and webpage extraction
     "youtube-transcript-api",
     "trafilatura",
+    "lxml-html-clean",  # explicit: overrides.txt strips lxml[html-clean] to break Bazel cycle
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
