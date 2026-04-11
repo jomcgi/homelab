@@ -221,6 +221,101 @@ func TestRulesAgent_NameAndInterval(t *testing.T) {
 	}
 }
 
+// TestRulesAgent_CollectFindingContainsLatestSHA verifies that Collect stores
+// "latest_sha" in the finding's Data map so the escalator can attach a sha:
+// tag and gate re-entry on the next cycle (mirrors TestTestCoverageAgent_CollectWithActivity).
+func TestRulesAgent_CollectFindingContainsLatestSHA(t *testing.T) {
+	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		commits := []ghCommit{
+			{
+				SHA: "sha999abc",
+				Commit: ghCommitDetail{
+					Author:  ghAuthor{Name: "jomcgi", Date: time.Now()},
+					Message: "feat: something new",
+				},
+			},
+		}
+		json.NewEncoder(w).Encode(commits)
+	}))
+	defer githubServer.Close()
+
+	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+	}))
+	defer orchestratorServer.Close()
+
+	gate := NewGitActivityGate(
+		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
+		NewOrchestratorClient(orchestratorServer.URL),
+		[]string{"ci-format-bot"},
+		"main",
+	)
+
+	agent := NewRulesAgent(gate, nil, time.Hour)
+	findings, err := agent.Collect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %d", len(findings))
+	}
+	latestSHA, ok := findings[0].Data["latest_sha"].(string)
+	if !ok || latestSHA == "" {
+		t.Errorf("expected findings[0].Data[latest_sha] to be set, got %v", findings[0].Data["latest_sha"])
+	}
+	if latestSHA != "sha999abc" {
+		t.Errorf("expected latest_sha=sha999abc, got %s", latestSHA)
+	}
+}
+
+// TestRulesAgent_AnalyzeMultipleFindingsProducesOneAction verifies that Analyze
+// emits exactly one action regardless of how many findings are passed — only
+// findings[0] is used (the gate produces at most one finding, but the contract
+// should be explicit).
+func TestRulesAgent_AnalyzeMultipleFindingsProducesOneAction(t *testing.T) {
+	agent := NewRulesAgent(nil, nil, time.Hour)
+
+	findings := []Finding{
+		{
+			Fingerprint: rulesTag,
+			Source:      rulesTag,
+			Severity:    SeverityInfo,
+			Title:       "Rules improvement opportunity",
+			Data:        map[string]any{"commit_range": "aaa..bbb", "latest_sha": "bbb"},
+			Timestamp:   time.Now(),
+		},
+		{
+			Fingerprint: rulesTag + "-extra",
+			Source:      rulesTag,
+			Severity:    SeverityInfo,
+			Title:       "Rules improvement opportunity extra",
+			Data:        map[string]any{"commit_range": "ccc..ddd", "latest_sha": "ddd"},
+			Timestamp:   time.Now(),
+		},
+	}
+
+	actions, err := agent.Analyze(context.Background(), findings)
+	if err != nil {
+		t.Fatalf("Analyze: unexpected error: %v", err)
+	}
+	// Analyze only uses findings[0]; the second finding is intentionally ignored.
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action even with multiple findings, got %d", len(actions))
+	}
+	if actions[0].Finding.Fingerprint != rulesTag {
+		t.Errorf("expected action to use first finding fingerprint %q, got %q",
+			rulesTag, actions[0].Finding.Fingerprint)
+	}
+	// The task should contain the first finding's commit range, not the second.
+	task, ok := actions[0].Payload["task"].(string)
+	if !ok {
+		t.Fatalf("expected Payload[\"task\"] to be a string")
+	}
+	if !strings.Contains(task, "aaa..bbb") {
+		t.Errorf("expected task to reference first finding's commit range aaa..bbb, got:\n%s", task)
+	}
+}
+
 // TestRulesAgent_AnalyzeMissingCommitRangeFallsBackToEmpty verifies that when
 // the finding's Data map has no "commit_range" key (or the value is not a
 // string), the task is still well-formed and does not contain a placeholder or
