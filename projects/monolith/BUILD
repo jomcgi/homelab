@@ -6,7 +6,7 @@
 # gazelle:exclude notes
 # gazelle:exclude scripts
 # gazelle:exclude shared
-# gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,sqlmodel-datetime-without-factory,tainted-fastapi-http-request-httpx
+# gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,sqlmodel-datetime-without-factory,tainted-fastapi-http-request-httpx,tainted-path-traversal-stdlib-fastapi
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
@@ -2254,6 +2254,10 @@ semgrep_target_test(
         # suppression is available in the core engine.
         "sqlmodel-datetime-without-factory",  # keep
         "tainted-fastapi-http-request-httpx",
+        # note_id → DB lookup → note["path"] → file read is guarded by
+        # is_relative_to(vault_root) but Semgrep Pro can't trace through
+        # the DB as a sanitizer.
+        "tainted-path-traversal-stdlib-fastapi",  # keep
     ],
     rules = ["//bazel/semgrep/rules:python_rules"],
     target = ":main",
