@@ -93,25 +93,29 @@ A Helm post-install hook will automatically register the server with the gateway
 | `gitSidecar.remote`                  | `""`                             | GitHub repo URL for audit trail                       |
 | `gitSidecar.branch`                  | `main`                           | Git branch to push to                                 |
 | `gitSidecar.debounceSeconds`         | `10`                             | Seconds to wait before committing changes             |
+| `vaultMcp.image`                     | `ghcr.io/jomcgi/homelab/…:latest` | vault-mcp container image                            |
 | `vaultMcp.port`                      | `8000`                           | MCP server listen port                                |
 | `persistence.size`                   | `5Gi`                            | PVC size for vault storage                            |
 | `persistence.storageClass`           | `""`                             | Storage class (empty = cluster default)               |
 | `embedding.qdrantCollection`         | `obsidian_vault`                 | Qdrant collection name                                |
 | `embedding.model`                    | `nomic-ai/nomic-embed-text-v1.5` | Embedding model                                       |
+| `embedding.cacheDir`                 | `/vault/.cache/fastembed`        | FastEmbed model cache directory                       |
 | `embedding.reconcileIntervalSeconds` | `300`                            | How often to re-index changed notes                   |
 | `qdrant.replicaCount`                | `1`                              | Qdrant replicas                                       |
 | `qdrant.persistence.size`            | `2Gi`                            | Qdrant storage size                                   |
 | `gateway.url`                        | `""`                             | Context Forge gateway URL (empty = skip registration) |
+| `gateway.image`                      | `ghcr.io/ibm/mcp-context-forge:v1.0.0-RC1` | Gateway registration init container image  |
+| `gateway.secret.name`                | `context-forge-gateway`          | Secret name for gateway credentials                   |
 | `secrets.obsidian.itemPath`          | `""`                             | 1Password item path for Obsidian/GitHub credentials   |
 
 ### Resource Defaults
 
-| Container     | Memory Request | Memory Limit | CPU Request |
-| ------------- | -------------- | ------------ | ----------- |
-| headless-sync | 128Mi          | 384Mi        | 50m         |
-| git-sidecar   | 128Mi          | 1Gi          | 10m         |
-| vault-mcp     | 8Gi            | 16Gi         | 100m        |
-| qdrant        | 256Mi          | 512Mi        | 100m        |
+| Container     | Memory Request | Memory Limit | CPU Request | CPU Limit |
+| ------------- | -------------- | ------------ | ----------- | --------- |
+| headless-sync | 128Mi          | 384Mi        | 50m         | —         |
+| git-sidecar   | 128Mi          | 1Gi          | 10m         | —         |
+| vault-mcp     | 8Gi            | 16Gi         | 100m        | —         |
+| qdrant        | 256Mi          | 512Mi        | 100m        | —         |
 
 The vault-mcp container needs significant memory because it loads the embedding model (~1.5GB) into memory for local inference.
 
