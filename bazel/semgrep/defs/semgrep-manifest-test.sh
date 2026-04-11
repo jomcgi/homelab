@@ -13,7 +13,6 @@
 # Env: SEMGREP_EXCLUDE_RULES — comma-separated items to skip. Each item is used in two ways:
 #      1. Matched against YAML filename (basename without .yaml) to exclude entire config files
 #      2. Matched as a suffix against semgrep check_ids to exclude individual rule findings
-#      UPLOAD_SCRIPT          — path to upload binary; uploads results to Semgrep App
 
 set -euo pipefail
 
@@ -185,10 +184,7 @@ if merged["results"]:
     sys.exit(1)
 PYEOF
 
-# Best-effort upload (never affects exit code)
-if [[ -n "${SEMGREP_APP_TOKEN:-}" && -n "${UPLOAD_SCRIPT:-}" && -f "$MERGED_FILE" ]]; then
-	"$UPLOAD_SCRIPT" "$MERGED_FILE" "$SCAN_EXIT" 2>&1 || true
-fi
+# Upload disabled — see semgrep-test.sh comment for rationale.
 
 # When rule-ID exclusions are set, post-filter the JSON results.
 if [[ "$SCAN_EXIT" -ne 0 && ${#EXCLUDE_IDS[@]} -gt 0 ]]; then
