@@ -22,8 +22,8 @@ DEFAULT_VAULT_ROOT = "/vault"
 # a job stale after ttl_secs).
 _INTERVAL_SECS = 300
 _TTL_SECS = 600
-_BACKUP_INTERVAL_SECS = 86400  # 24 hours
-_BACKUP_TTL_SECS = 3600  # 1 hour timeout
+_BACKUP_INTERVAL_SECS = 900  # 15 minutes
+_BACKUP_TTL_SECS = 600  # 10 minute timeout
 _INGEST_INTERVAL_SECS = 300
 _INGEST_TTL_SECS = 600
 _GIT_READY_SENTINEL = ".git-ready"
