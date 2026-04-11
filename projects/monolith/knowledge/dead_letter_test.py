@@ -132,3 +132,56 @@ class TestReplayDeadLetter:
         # Raw exists but has no dead-letter provenance
         resp = client.post(f"/api/knowledge/dead-letter/{raw.id}/replay")
         assert resp.status_code == 404
+
+
+class TestReplayDeadLetterIntegration:
+    """After replaying a dead-lettered raw via the API, the raw must become
+    eligible for decomposition again (appear in _raws_needing_decomposition)."""
+
+    def test_replayed_raw_appears_in_raws_needing_decomposition(
+        self, client, session, tmp_path
+    ):
+        """Replaying a dead-lettered raw removes the 'failed' provenance row,
+        so the raw has no handled provenance and becomes eligible for
+        decomposition in the next gardener cycle."""
+        from knowledge.gardener import Gardener
+
+        raw = _make_raw(session)
+        # Make it a dead letter (exhausted retries)
+        _make_dead_letter(session, raw, retry_count=Gardener._MAX_RETRIES)
+
+        # Verify it is NOT eligible before replay (retry_count >= _MAX_RETRIES).
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        before = [r.id for r in gardener._raws_needing_decomposition()]
+        assert raw.id not in before, (
+            "exhausted raw must not appear in decomposition queue before replay"
+        )
+
+        # Replay via the API.
+        resp = client.post(f"/api/knowledge/dead-letter/{raw.id}/replay")
+        assert resp.status_code == 200
+        assert resp.json() == {"replayed": True}
+
+        # Now the raw has no provenance at all — it should reappear as fresh.
+        after = [r.id for r in gardener._raws_needing_decomposition()]
+        assert raw.id in after, (
+            "replayed raw must appear in decomposition queue after replay"
+        )
+
+    def test_replay_endpoint_returns_404_then_raw_stays_absent(
+        self, client, session, tmp_path
+    ):
+        """Replaying a non-dead-lettered raw leaves nothing changed — the raw
+        (which has no provenance at all) is still eligible for decomposition."""
+        from knowledge.gardener import Gardener
+
+        raw = _make_raw(session)
+
+        # No dead-letter provenance → replay returns 404.
+        resp = client.post(f"/api/knowledge/dead-letter/{raw.id}/replay")
+        assert resp.status_code == 404
+
+        # The raw has no provenance so it's still a fresh decomposition candidate.
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = [r.id for r in gardener._raws_needing_decomposition()]
+        assert raw.id in result

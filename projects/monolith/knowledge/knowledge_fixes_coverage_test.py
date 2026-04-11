@@ -851,3 +851,323 @@ class TestWriteBackIdNoBranch:
 
         assert "\r\n" not in new_raw
         assert new_raw.startswith("---\n")
+
+
+# ---------------------------------------------------------------------------
+# gardener.py – _record_failed_provenance: session=None returns early
+# ---------------------------------------------------------------------------
+
+
+class TestRecordFailedProvenanceNoSession:
+    """_record_failed_provenance returns immediately when session is None,
+    without raising or attempting any database access."""
+
+    def test_returns_none_when_session_is_none(self, tmp_path):
+        """Calling _record_failed_provenance with session=None must not raise."""
+        from knowledge.gardener import Gardener
+        from knowledge.models import RawInput
+
+        gardener = Gardener(vault_root=tmp_path, session=None)
+
+        # A raw row with a fake id — session is None so no DB call happens.
+        fake_raw = RawInput(
+            raw_id="test-raw",
+            path="_raw/2026/04/10/abc1-test.md",
+            source="vault-drop",
+            content="body",
+            content_hash="h1",
+        )
+        # Assign a fake integer id so the method doesn't blow up trying to
+        # query by id.
+        fake_raw.id = 42
+
+        exc = RuntimeError("subprocess failed")
+        # Must return without raising.
+        result = gardener._record_failed_provenance(fake_raw, exc)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# gardener.py – _record_failed_provenance: error truncated to 500 chars
+# ---------------------------------------------------------------------------
+
+
+class TestRecordFailedProvenanceErrorTruncation:
+    """Errors longer than 500 characters must be truncated to exactly 500 chars
+    when stored in the provenance row."""
+
+    def test_long_error_is_truncated_on_first_failure(self, tmp_path, session):
+        """A 600-char error is stored as 500 chars when creating a new row."""
+        from knowledge.gardener import Gardener, GARDENER_VERSION
+
+        raw = RawInput(
+            raw_id="trunc-raw",
+            path="_raw/2026/04/10/abc1-trunc.md",
+            source="vault-drop",
+            content="body",
+            content_hash="h1",
+        )
+        session.add(raw)
+        session.commit()
+        session.refresh(raw)
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        long_error = "x" * 600
+        gardener._record_failed_provenance(raw, RuntimeError(long_error))
+
+        prov = session.exec(
+            select(AtomRawProvenance).where(AtomRawProvenance.raw_fk == raw.id)
+        ).first()
+        assert prov is not None
+        assert len(prov.error) == 500
+        assert prov.error == "x" * 500
+
+    def test_long_error_is_truncated_on_retry(self, tmp_path, session):
+        """When updating an existing 'failed' row, the error is truncated too."""
+        from knowledge.gardener import Gardener, GARDENER_VERSION
+
+        raw = RawInput(
+            raw_id="trunc-retry-raw",
+            path="_raw/2026/04/10/abc2-trunc.md",
+            source="vault-drop",
+            content="body",
+            content_hash="h2",
+        )
+        session.add(raw)
+        session.commit()
+        session.refresh(raw)
+
+        # Pre-insert an existing failed provenance row.
+        prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            derived_note_id="failed",
+            gardener_version=GARDENER_VERSION,
+            error="short error",
+            retry_count=1,
+        )
+        session.add(prov)
+        session.commit()
+        session.refresh(prov)
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        long_error = "y" * 700
+        gardener._record_failed_provenance(raw, RuntimeError(long_error))
+
+        session.refresh(prov)
+        assert len(prov.error) == 500
+        assert prov.error == "y" * 500
+        assert prov.retry_count == 2
+
+    def test_short_error_is_stored_as_is(self, tmp_path, session):
+        """Errors shorter than 500 chars are stored verbatim."""
+        from knowledge.gardener import Gardener
+
+        raw = RawInput(
+            raw_id="short-err-raw",
+            path="_raw/2026/04/10/abc3-short.md",
+            source="vault-drop",
+            content="body",
+            content_hash="h3",
+        )
+        session.add(raw)
+        session.commit()
+        session.refresh(raw)
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        gardener._record_failed_provenance(raw, RuntimeError("short"))
+
+        prov = session.exec(
+            select(AtomRawProvenance).where(AtomRawProvenance.raw_fk == raw.id)
+        ).first()
+        assert prov is not None
+        assert prov.error == "short"
+
+
+# ---------------------------------------------------------------------------
+# gardener.py – _raws_needing_decomposition: exhausted retries are excluded
+# ---------------------------------------------------------------------------
+
+
+class TestRawsNeedingDecompositionExhaustedRetries:
+    """A raw with retry_count >= Gardener._MAX_RETRIES must NOT appear in
+    _raws_needing_decomposition() — it belongs in the dead letter queue."""
+
+    def test_exhausted_raw_is_excluded(self, tmp_path, session):
+        """Raw with retry_count == _MAX_RETRIES is excluded."""
+        from knowledge.gardener import Gardener, GARDENER_VERSION
+
+        raw = RawInput(
+            raw_id="exhausted-raw",
+            path="_raw/2026/04/10/abc1-exhausted.md",
+            source="vault-drop",
+            content="body",
+            content_hash="h1",
+        )
+        session.add(raw)
+        session.commit()
+        session.refresh(raw)
+
+        prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            derived_note_id="failed",
+            gardener_version=GARDENER_VERSION,
+            error="too many retries",
+            retry_count=Gardener._MAX_RETRIES,
+        )
+        session.add(prov)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._raws_needing_decomposition()
+
+        ids = [r.id for r in result]
+        assert raw.id not in ids
+
+    def test_over_limit_raw_is_excluded(self, tmp_path, session):
+        """Raw with retry_count > _MAX_RETRIES is also excluded."""
+        from knowledge.gardener import Gardener, GARDENER_VERSION
+
+        raw = RawInput(
+            raw_id="over-limit-raw",
+            path="_raw/2026/04/10/abc2-over.md",
+            source="vault-drop",
+            content="body",
+            content_hash="h2",
+        )
+        session.add(raw)
+        session.commit()
+        session.refresh(raw)
+
+        prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            derived_note_id="failed",
+            gardener_version=GARDENER_VERSION,
+            error="over limit",
+            retry_count=Gardener._MAX_RETRIES + 5,
+        )
+        session.add(prov)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._raws_needing_decomposition()
+
+        ids = [r.id for r in result]
+        assert raw.id not in ids
+
+    def test_under_limit_raw_is_included(self, tmp_path, session):
+        """Raw with retry_count < _MAX_RETRIES IS included (retriable tier)."""
+        from knowledge.gardener import Gardener, GARDENER_VERSION
+
+        raw = RawInput(
+            raw_id="retriable-raw",
+            path="_raw/2026/04/10/abc3-retriable.md",
+            source="vault-drop",
+            content="body",
+            content_hash="h3",
+        )
+        session.add(raw)
+        session.commit()
+        session.refresh(raw)
+
+        prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            derived_note_id="failed",
+            gardener_version=GARDENER_VERSION,
+            error="transient error",
+            retry_count=Gardener._MAX_RETRIES - 1,
+        )
+        session.add(prov)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._raws_needing_decomposition()
+
+        ids = [r.id for r in result]
+        assert raw.id in ids
+
+
+# ---------------------------------------------------------------------------
+# gardener.py – _raws_needing_decomposition: successful provenance wins over failed
+# ---------------------------------------------------------------------------
+
+
+class TestRawsNeedingDecompositionSuccessfulProvenanceWins:
+    """When a raw has BOTH a 'failed' provenance row AND a successful
+    current-version provenance row, the successful one wins — the raw must
+    NOT appear in _raws_needing_decomposition()."""
+
+    def test_successful_provenance_excludes_raw_despite_failed_row(
+        self, tmp_path, session
+    ):
+        """Raw with both a 'failed' row and a current-version success row is
+        excluded from decomposition (success wins)."""
+        from knowledge.gardener import Gardener, GARDENER_VERSION
+
+        raw = RawInput(
+            raw_id="mixed-prov-raw",
+            path="_raw/2026/04/10/abc1-mixed.md",
+            source="vault-drop",
+            content="body",
+            content_hash="h1",
+        )
+        session.add(raw)
+        session.commit()
+        session.refresh(raw)
+
+        # A failed provenance row — under the retry limit so it would normally
+        # be retriable.
+        failed_prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            derived_note_id="failed",
+            gardener_version=GARDENER_VERSION,
+            error="transient error",
+            retry_count=1,
+        )
+        session.add(failed_prov)
+
+        # A successful current-version provenance row.
+        success_prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            derived_note_id="my-derived-note",
+            gardener_version=GARDENER_VERSION,
+        )
+        session.add(success_prov)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._raws_needing_decomposition()
+
+        ids = [r.id for r in result]
+        assert raw.id not in ids
+
+    def test_only_failed_row_without_success_is_retriable(self, tmp_path, session):
+        """Control: same raw with only a failed row (no success) IS returned
+        when retry_count is below the limit."""
+        from knowledge.gardener import Gardener, GARDENER_VERSION
+
+        raw = RawInput(
+            raw_id="only-failed-raw",
+            path="_raw/2026/04/10/abc2-only-failed.md",
+            source="vault-drop",
+            content="body",
+            content_hash="h2",
+        )
+        session.add(raw)
+        session.commit()
+        session.refresh(raw)
+
+        failed_prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            derived_note_id="failed",
+            gardener_version=GARDENER_VERSION,
+            error="transient error",
+            retry_count=1,
+        )
+        session.add(failed_prov)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        result = gardener._raws_needing_decomposition()
+
+        ids = [r.id for r in result]
+        assert raw.id in ids
