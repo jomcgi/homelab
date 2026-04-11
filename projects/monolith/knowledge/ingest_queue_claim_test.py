@@ -222,15 +222,37 @@ class TestClaimOneSqlContent:
 
 
 # ---------------------------------------------------------------------------
-# Concurrent claim safety (simulated)
+# Session behaviour — commit must NOT be called
 # ---------------------------------------------------------------------------
 
 
-class TestClaimOneConcurrentSafety:
-    def test_second_concurrent_claim_returns_none_when_queue_exhausted(self):
-        """Simulate two workers: first claims the only item, second gets None."""
+class TestClaimOneSessionBehaviour:
+    def test_does_not_commit_session_on_successful_claim(self):
+        """_claim_one() must not commit — ingest_handler owns the transaction."""
+        session = _mock_session(_mock_row())
+        _claim_one(session)
+        session.commit.assert_not_called()
+
+    def test_does_not_commit_session_on_empty_queue(self):
+        """No commit even when the queue is empty."""
+        session = _mock_session(None)
+        _claim_one(session)
+        session.commit.assert_not_called()
+
+    def test_each_call_issues_its_own_execute(self):
+        """Each _claim_one() call issues exactly one session.execute() call."""
+        session = _mock_session(None)
+        _claim_one(session)
+        _claim_one(session)
+        assert session.execute.call_count == 2
+
+    def test_two_independent_sessions_reflect_independent_db_states(self):
+        """Two sessions with different fetchone() returns model two separate DB states.
+
+        This verifies the per-session mock wiring — not concurrent thread safety,
+        which is enforced at the DB level by FOR UPDATE SKIP LOCKED.
+        """
         row = _mock_row(id=1)
-        # First call returns a row; subsequent calls return None (row is locked).
         session1 = _mock_session(row)
         session2 = _mock_session(None)
 
@@ -240,10 +262,3 @@ class TestClaimOneConcurrentSafety:
         assert result1 is not None
         assert result1.id == 1
         assert result2 is None
-
-    def test_each_call_issues_its_own_execute(self):
-        """Each _claim_one() call issues exactly one session.execute() call."""
-        session = _mock_session(None)
-        _claim_one(session)
-        _claim_one(session)
-        assert session.execute.call_count == 2

@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 
 from knowledge.raw_ingest import _discover_vault_root_drops
+from knowledge.raw_paths import RAW_ROOT_NAME
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +142,7 @@ class TestDiscoverVaultRootDropsIgnoresNonMarkdown:
 class TestDiscoverVaultRootDropsExcludesManaged:
     def test_ignores_raw_directory(self, tmp_path):
         """Files under _raw/ are already managed and must not be re-discovered."""
-        _write(tmp_path / "_raw" / "2026" / "04" / "09" / "abc-note.md", "raw")
+        _write(tmp_path / RAW_ROOT_NAME / "2026" / "04" / "09" / "abc-note.md", "raw")
         result = _discover_vault_root_drops(tmp_path)
         assert result == []
 
@@ -165,7 +166,7 @@ class TestDiscoverVaultRootDropsExcludesManaged:
 
     def test_discovers_user_dirs_alongside_excluded_dirs(self, tmp_path):
         """Non-excluded dirs alongside managed dirs are still crawled."""
-        _write(tmp_path / "_raw" / "2026" / "04" / "09" / "old.md", "raw")
+        _write(tmp_path / RAW_ROOT_NAME / "2026" / "04" / "09" / "old.md", "raw")
         _write(tmp_path / "inbox" / "new.md", "new content")
         result = _discover_vault_root_drops(tmp_path)
         assert len(result) == 1
