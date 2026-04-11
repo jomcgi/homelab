@@ -50,7 +50,9 @@ class Note(SQLModel, table=True):
     tags: list[str] = Field(default_factory=list, sa_column=Column(_STRING_ARRAY))
     aliases: list[str] = Field(default_factory=list, sa_column=Column(_STRING_ARRAY))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime | None = None
+    updated_at: datetime | None = Field(
+        default=None, default_factory=lambda: datetime.now(timezone.utc)
+    )
     extra: dict[str, Any] = Field(default_factory=dict, sa_column=Column(_JSONB))
     indexed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
