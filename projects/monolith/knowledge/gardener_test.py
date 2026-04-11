@@ -820,6 +820,7 @@ class TestResolvePendingProvenance:
         assert gardener._resolve_pending_provenance() == 0
         row = session.exec(select(AtomRawProvenance)).first()
         assert row.atom_fk is None
+        assert row.derived_note_id == "ghost"
 
 
 class TestPromptTemplateInstructions:
@@ -848,3 +849,92 @@ class TestPromptTemplateInstructions:
         ensures the instruction is never accidentally removed.
         """
         assert "filename MUST be" in _CLAUDE_PROMPT_HEADER
+
+
+class TestRecordFailedProvenance:
+    @pytest.mark.asyncio
+    async def test_records_failed_provenance_on_exception(self, tmp_path, session):
+        """When _run_claude_subprocess raises, a provenance row is created
+        with derived_note_id='failed', retry_count=1, and error populated."""
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        (tmp_path / "_raw" / "2026" / "04" / "09").mkdir(parents=True)
+        raw_rel_path = "_raw/2026/04/09/r1-n.md"
+        (tmp_path / raw_rel_path).write_text("Body.", encoding="utf-8")
+
+        raw = RawInput(
+            raw_id="r1",
+            path=raw_rel_path,
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        session.add(raw)
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+
+        async def failing_subprocess(prompt: str) -> None:
+            raise RuntimeError("claude exited 1: auth error")
+
+        gardener._run_claude_subprocess = failing_subprocess  # type: ignore[method-assign]
+
+        with pytest.raises(RuntimeError, match="auth error"):
+            await gardener._ingest_one(tmp_path / raw_rel_path)
+
+        rows = session.exec(select(AtomRawProvenance)).all()
+        assert len(rows) == 1
+        assert rows[0].raw_fk == raw.id
+        assert rows[0].derived_note_id == "failed"
+        assert rows[0].retry_count == 1
+        assert "auth error" in rows[0].error
+        assert rows[0].gardener_version == GARDENER_VERSION
+
+    @pytest.mark.asyncio
+    async def test_increments_retry_count_on_repeated_failure(self, tmp_path, session):
+        """Pre-existing failed provenance with retry_count=1 becomes
+        retry_count=2 after another failure."""
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        (tmp_path / "_raw" / "2026" / "04" / "09").mkdir(parents=True)
+        raw_rel_path = "_raw/2026/04/09/r1-n.md"
+        (tmp_path / raw_rel_path).write_text("Body.", encoding="utf-8")
+
+        raw = RawInput(
+            raw_id="r1",
+            path=raw_rel_path,
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        session.add(raw)
+        session.flush()
+        # Pre-existing failed provenance row
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                derived_note_id="failed",
+                gardener_version=GARDENER_VERSION,
+                error="previous error",
+                retry_count=1,
+            )
+        )
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+
+        async def failing_subprocess(prompt: str) -> None:
+            raise RuntimeError("timeout after 300s")
+
+        gardener._run_claude_subprocess = failing_subprocess  # type: ignore[method-assign]
+
+        with pytest.raises(RuntimeError, match="timeout"):
+            await gardener._ingest_one(tmp_path / raw_rel_path)
+
+        rows = session.exec(select(AtomRawProvenance)).all()
+        assert len(rows) == 1
+        assert rows[0].retry_count == 2
+        assert "timeout" in rows[0].error
+        assert rows[0].gardener_version == GARDENER_VERSION
