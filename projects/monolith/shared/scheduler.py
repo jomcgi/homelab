@@ -15,9 +15,7 @@ logger = logging.getLogger("monolith.scheduler")
 _HOSTNAME = platform.node()
 
 
-class ScheduledJob(
-    SQLModel, table=True
-):  # nosemgrep: sqlmodel-datetime-without-factory
+class ScheduledJob(SQLModel, table=True):
     __tablename__ = "scheduled_jobs"
     __table_args__ = {"schema": "scheduler", "extend_existing": True}
 
