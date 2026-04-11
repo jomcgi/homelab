@@ -155,29 +155,16 @@ class Gardener:
             resolved += 1
         return resolved
 
-    def _backfill_provenance_from_notes(self) -> int:
-        """Bulk-insert sentinel provenance for raws already linked to notes.
+    def _grandfather_untracked_raws(self) -> int:
+        """Mark all raws without provenance as pre-migration.
 
-        Queries the notes table for derived_from_raw JSONB values and creates
-        provenance rows for any matching raws that lack them.  This is
-        deterministic (DB-only, no disk scan) and avoids sending
-        already-decomposed raws to Claude.
+        All existing raws predate the provenance system — they were already
+        decomposed before tracking was added.  Inserting pre-migration
+        sentinels prevents the gardener from sending them to Claude.
         """
         if self.session is None:
             return 0
 
-        # Collect raw_ids referenced by existing atom notes in the DB.
-        processed_raw_ids: set[str] = set(
-            self.session.exec(
-                select(Note.extra["derived_from_raw"].as_string()).where(
-                    Note.extra["derived_from_raw"].as_string().is_not(None)
-                )
-            ).all()
-        )
-        if not processed_raw_ids:
-            return 0
-
-        # Find raws that have no provenance at all.
         has_prov = (
             select(AtomRawProvenance.raw_fk)
             .where(AtomRawProvenance.raw_fk.is_not(None))
@@ -189,25 +176,22 @@ class Gardener:
             ).all()
         )
 
-        backfilled = 0
         for raw in unhandled:
-            if raw.raw_id in processed_raw_ids:
-                self.session.add(
-                    AtomRawProvenance(
-                        raw_fk=raw.id,
-                        derived_note_id="backfill-from-notes",
-                        gardener_version=GARDENER_VERSION,
-                    )
+            self.session.add(
+                AtomRawProvenance(
+                    raw_fk=raw.id,
+                    derived_note_id="pre-migration",
+                    gardener_version="pre-migration",
                 )
-                backfilled += 1
+            )
 
-        if backfilled:
+        if unhandled:
             self.session.commit()
             logger.info(
-                "gardener: backfilled provenance for %d already-processed raws",
-                backfilled,
+                "gardener: grandfathered %d pre-migration raws",
+                len(unhandled),
             )
-        return backfilled
+        return len(unhandled)
 
     def _raws_needing_decomposition(self) -> list[RawInput]:
         """Return raws that have no current-version provenance and no sentinel."""
@@ -250,7 +234,7 @@ class Gardener:
             )
             self.session.commit()
 
-        self._backfill_provenance_from_notes()
+        self._grandfather_untracked_raws()
 
         raws = self._raws_needing_decomposition()
         if self.max_files_per_run > 0 and len(raws) > self.max_files_per_run:
