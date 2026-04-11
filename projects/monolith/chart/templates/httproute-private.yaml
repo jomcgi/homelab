@@ -20,6 +20,21 @@ spec:
       backendRefs:
         - name: {{ include "monolith.fullname" . }}
           port: {{ .Values.cfIngress.private.servicePort | int }}
+    # Knowledge API — pass through to backend without rewriting
+    - matches:
+        - path:
+            type: Exact
+            value: /api/knowledge/search
+      backendRefs:
+        - name: {{ include "monolith.fullname" . }}
+          port: {{ .Values.service.apiPort | int }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/knowledge/notes
+      backendRefs:
+        - name: {{ include "monolith.fullname" . }}
+          port: {{ .Values.service.apiPort | int }}
     # Everything else — rewrite to /private/
     - matches:
         - path:
