@@ -1,4 +1,4 @@
-# ADR 005: Repo Docs Knowledge Graph Sync via OCI Volume
+# ADR 005: Repo Markdown Knowledge Graph Sync via OCI Volume
 
 **Author:** jomcgi
 **Status:** Draft
@@ -8,23 +8,26 @@
 
 ## Problem
 
-The homelab repo contains ~30 ADRs, ~30 design plans, and operational docs (`security.md`, `observability.md`, `contributing.md`, etc.) that capture architectural decisions, design rationale, and operational knowledge. None of this is visible to the knowledge graph.
+The homelab repo contains markdown files spread across the entire tree — ADRs in `docs/decisions/`, design plans in `docs/plans/`, operational docs (`security.md`, `observability.md`), service-level READMEs, operator best practices (`projects/operators/best-practices.md`), `CLAUDE.md` files, and more. None of this is visible to the knowledge graph.
 
 This means:
 
 1. **Semantic search misses repo context** — asking "what decisions have we made about auth?" only surfaces personal vault notes, not the ADR that drove the middleware rewrite
-2. **No cross-linking** — ADR-derived knowledge can't form `derives_from` or `related` edges with personal knowledge atoms
-3. **Stale knowledge persists** — when an ADR is superseded or a design plan is abandoned, the knowledge graph has no mechanism to detect or remove outdated artifacts
+2. **No cross-linking** — repo-derived knowledge can't form `derives_from` or `related` edges with personal knowledge atoms
+3. **Stale knowledge persists** — when an ADR is superseded, a design plan is abandoned, or a service doc is removed, the knowledge graph has no mechanism to detect or remove outdated artifacts
+4. **Scattered context** — service-specific docs, operator guides, and project instructions live alongside code but aren't discoverable via the knowledge API
 
-The gardener already decomposes raw vault notes into typed knowledge artifacts (atoms, facts, active items). The gap is getting repo docs into its input pipeline — and cleaning up when docs are removed or superseded.
+The gardener already decomposes raw vault notes into typed knowledge artifacts (atoms, facts, active items). The gap is getting all repo markdown into its input pipeline — and cleaning up when files are removed or superseded.
 
 ---
 
 ## Proposal
 
-Build repo markdown files into a lightweight OCI artifact at CI time. Mount it as an init container volume in the monolith pod. The gardener treats the mount path as a second input directory alongside the vault, processing docs into the knowledge graph with full decomposition, edge creation, and embedding.
+Collect **all markdown files in the repo** into a lightweight OCI artifact at CI time via a top-level Bazel `filegroup` glob. Mount it as an init container volume in the monolith pod. The gardener treats the mount path as a second input directory alongside the vault, processing markdown into the knowledge graph with full decomposition, edge creation, and embedding.
 
-A **manifest file** (`manifest.json`) in the OCI artifact lists all included files. On startup, the monolith compares the manifest against previously-processed repo docs and deletes `_processed/` artifacts whose source files no longer exist.
+A top-level `filegroup` in the root `BUILD` file (`repo_markdown`) globs all `**/*.md` files, excluding vendored/generated content. This single source of truth feeds both the OCI artifact build and any future tooling that needs repo-wide markdown access.
+
+A **manifest file** (`manifest.json`) in the OCI artifact lists all included files with content hashes. On startup, the monolith compares the manifest against previously-processed repo docs and deletes `_processed/` artifacts whose source files no longer exist — solving the stale knowledge problem.
 
 | Aspect                | Today            | Proposed                                                |
 | --------------------- | ---------------- | ------------------------------------------------------- |
@@ -49,23 +52,48 @@ graph LR
     E --> F[Gardener processes<br/>new/changed docs]
 ```
 
+### Bazel Filegroup
+
+A top-level `filegroup` in the root `BUILD` file provides the canonical set of repo markdown:
+
+```starlark
+filegroup(
+    name = "repo_markdown",
+    srcs = glob(
+        ["**/*.md"],
+        exclude = [
+            "node_modules/**",
+            "bazel-*/**",
+            "**/testdata/**",
+        ],
+    ),
+    visibility = ["//visibility:public"],
+)
+```
+
+This feeds the OCI artifact build and can be reused by other targets (linting, search indexing, etc.).
+
 ### OCI Artifact Contents
 
+The artifact preserves the repo's directory structure so file paths in the knowledge graph match repo paths:
+
 ```
-/repo-docs/
-├── manifest.json          # {"files": ["decisions/agents/001-background-agents.md", ...], "built_at": "..."}
-├── decisions/
-│   ├── agents/
-│   │   ├── 001-background-agents.md
+/repo-markdown/
+├── manifest.json                    # {"files": {"docs/security.md": "sha256:...", ...}, "built_at": "..."}
+├── docs/
+│   ├── decisions/
+│   │   ├── agents/001-background-agents.md
+│   │   └── services/005-repo-docs-knowledge-sync.md
+│   ├── plans/
 │   │   └── ...
-│   ├── services/
-│   │   └── ...
+│   ├── observability.md
+│   └── security.md
+├── projects/
+│   ├── monolith/CLAUDE.md
+│   ├── operators/best-practices.md
 │   └── ...
-├── plans/
-│   └── ...
-├── observability.md
-├── security.md
-└── ...
+├── .claude/CLAUDE.md
+└── CLAUDE.md
 ```
 
 ### Pod Integration
@@ -73,15 +101,15 @@ graph LR
 ```mermaid
 graph TB
     subgraph "Monolith Pod"
-        IC[init: repo-docs<br/>copies to emptyDir] -->|"/repo-docs"| MO[monolith<br/>FastAPI + gardener]
+        IC[init: repo-markdown<br/>copies to emptyDir] -->|"/repo-markdown"| MO[monolith<br/>FastAPI + gardener]
         MO -->|scans| VR["/vault<br/>(Obsidian notes)"]
-        MO -->|scans| RD["/repo-docs<br/>(OCI volume)"]
+        MO -->|scans| RD["/repo-markdown<br/>(OCI volume)"]
     end
 
     MO -->|"_processed/ artifacts"| PG[(PostgreSQL<br/>embeddings + edges)]
 ```
 
-The init container uses the OCI artifact image and copies its contents to a shared `emptyDir` volume at `/repo-docs`. The gardener scans this path as a second raw input source.
+The init container uses the OCI artifact image and copies its contents to a shared `emptyDir` volume at `/repo-markdown`. The gardener scans this path as a second raw input source.
 
 ### Deletion Flow
 
@@ -119,24 +147,25 @@ The only new logic is the manifest-based deletion — everything else rides on e
 
 ## Implementation
 
-### Phase 1: OCI Artifact Build
+### Phase 1: Bazel Filegroup + OCI Artifact Build
 
-- [ ] Create `bazel/images/repo-docs/` with an apko config (minimal busybox image + `/repo-docs` directory)
-- [ ] Add Bazel rule to copy `docs/**/*.md` into the image at `/repo-docs/`
-- [ ] Generate `manifest.json` at build time listing all included files with content hashes
-- [ ] Add `oci_push` target pushing to `ghcr.io/jomcgi/homelab/repo-docs`
+- [ ] Add `repo_markdown` filegroup to root `BUILD` file (glob `**/*.md`, exclude vendored/generated)
+- [ ] Create `bazel/images/repo-markdown/` with an apko config (minimal busybox image + `/repo-markdown` directory)
+- [ ] Add Bazel rule to copy `repo_markdown` filegroup into the image preserving directory structure
+- [ ] Add genrule to generate `manifest.json` at build time with file paths and content hashes
+- [ ] Add `oci_push` target pushing to `ghcr.io/jomcgi/homelab/repo-markdown`
 - [ ] Wire into CI (`buildbuddy.yaml`) to build + push on main branch
 
 ### Phase 2: Monolith Integration
 
-- [ ] Add init container to monolith deployment template using the repo-docs image
-- [ ] Add `emptyDir` volume mounted at `/repo-docs` shared between init container and monolith
-- [ ] Add `REPO_DOCS_ROOT` env var to monolith container (default: `/repo-docs`)
-- [ ] Add ArgoCD Image Updater annotation for the repo-docs image (digest tracking)
+- [ ] Add init container to monolith deployment template using the repo-markdown image
+- [ ] Add `emptyDir` volume mounted at `/repo-markdown` shared between init container and monolith
+- [ ] Add `REPO_MARKDOWN_ROOT` env var to monolith container (default: `/repo-markdown`)
+- [ ] Add ArgoCD Image Updater annotation for the repo-markdown image (digest tracking)
 
 ### Phase 3: Gardener Multi-Source
 
-- [ ] Extend `_ensure_raw_inputs` in `gardener.py` to scan `REPO_DOCS_ROOT` in addition to vault
+- [ ] Extend `_ensure_raw_inputs` in `gardener.py` to scan `REPO_MARKDOWN_ROOT` in addition to vault
 - [ ] Tag repo-doc `RawInput` rows with `source='repo'` to distinguish from vault notes
 - [ ] Add `repo_doc_state` table (or reuse existing config table) to store the previous manifest
 - [ ] Implement manifest diff on startup: compare current `manifest.json` vs stored state
@@ -173,8 +202,8 @@ The OCI artifact contains only markdown files already public in the GitHub repo.
 
 ## Open Questions
 
-1. **Scope of docs to include** — should we sync all of `docs/` (including plans) or only `docs/decisions/` and top-level operational docs? Plans are often ephemeral and may not warrant knowledge graph persistence.
-2. **Superseded ADR handling** — when an ADR status changes to "Superseded by NNN", should the gardener emit a `supersedes` edge and mark old artifacts, or just let the natural decomposition handle it?
+1. **Superseded ADR handling** — when an ADR status changes to "Superseded by NNN", should the gardener emit a `supersedes` edge and mark old artifacts, or just let the natural decomposition handle it?
+2. **Exclude patterns** — beyond `node_modules/`, `bazel-*/`, and `testdata/`, are there other markdown files that should be excluded from the filegroup (e.g., vendored dependency docs, generated changelogs)?
 
 ---
 
