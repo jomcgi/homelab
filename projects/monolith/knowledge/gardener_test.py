@@ -567,70 +567,65 @@ class TestIngestOneRecordsPendingProvenance:
         assert rows[0].gardener_version == GARDENER_VERSION
 
 
-class TestBackfillProvenanceFromNotes:
-    def test_backfills_provenance_for_raws_linked_to_notes(self, tmp_path, session):
-        """Raws whose atoms exist in the notes table get sentinel provenance
-        without calling Claude."""
-        from knowledge.gardener import GARDENER_VERSION
-        from knowledge.models import AtomRawProvenance, Note, RawInput
+class TestGrandfatherUntrackedRaws:
+    def test_grandfathers_all_raws_without_provenance(self, tmp_path, session):
+        """All raws without provenance get pre-migration sentinels."""
+        from knowledge.models import AtomRawProvenance, RawInput
 
-        raw = RawInput(
+        r1 = RawInput(
             raw_id="r1",
-            path="_raw/2026/04/09/r1-n.md",
+            path="_raw/r1.md",
             source="vault-drop",
-            content="Body.",
+            content="A.",
             content_hash="r1",
         )
-        atom = Note(
-            note_id="atom-1",
-            path="_processed/atom.md",
-            title="Atom",
-            content_hash="abc",
-            type="atom",
-            extra={"derived_from_raw": "r1"},
+        r2 = RawInput(
+            raw_id="r2",
+            path="_raw/r2.md",
+            source="vault-drop",
+            content="B.",
+            content_hash="r2",
         )
-        session.add(raw)
-        session.add(atom)
+        session.add(r1)
+        session.add(r2)
         session.commit()
 
         gardener = Gardener(vault_root=tmp_path, session=session)
-        count = gardener._backfill_provenance_from_notes()
+        count = gardener._grandfather_untracked_raws()
 
-        assert count == 1
+        assert count == 2
         rows = session.exec(select(AtomRawProvenance)).all()
-        assert len(rows) == 1
-        assert rows[0].raw_fk == raw.id
-        assert rows[0].derived_note_id == "backfill-from-notes"
-        assert rows[0].gardener_version == GARDENER_VERSION
+        assert len(rows) == 2
+        assert all(r.gardener_version == "pre-migration" for r in rows)
+        assert all(r.derived_note_id == "pre-migration" for r in rows)
 
-    def test_skips_raws_without_matching_notes(self, tmp_path, session):
-        """Raws with no matching notes in the DB are left for Claude."""
-        from knowledge.models import AtomRawProvenance, Note, RawInput
+    def test_skips_raws_that_already_have_provenance(self, tmp_path, session):
+        """Raws with existing provenance are not grandfathered."""
+        from knowledge.gardener import GARDENER_VERSION
+        from knowledge.models import AtomRawProvenance, RawInput
 
         raw = RawInput(
             raw_id="r1",
-            path="_raw/2026/04/09/r1-n.md",
+            path="_raw/r1.md",
             source="vault-drop",
-            content="Body.",
+            content="A.",
             content_hash="r1",
         )
-        atom = Note(
-            note_id="other",
-            path="_processed/other.md",
-            title="Other",
-            content_hash="xyz",
-            type="atom",
-            extra={"derived_from_raw": "r999"},
-        )
         session.add(raw)
-        session.add(atom)
+        session.commit()
+        session.add(
+            AtomRawProvenance(
+                raw_fk=raw.id,
+                derived_note_id="some-note",
+                gardener_version=GARDENER_VERSION,
+            )
+        )
         session.commit()
 
         gardener = Gardener(vault_root=tmp_path, session=session)
-        count = gardener._backfill_provenance_from_notes()
+        count = gardener._grandfather_untracked_raws()
 
         assert count == 0
-        assert session.exec(select(AtomRawProvenance)).all() == []
 
     def test_returns_zero_when_session_is_none(self, tmp_path):
         """Gardener with session=None returns 0 without touching the DB."""
