@@ -11,6 +11,7 @@ from sqlmodel.pool import StaticPool
 
 from knowledge.gardener import (
     Gardener,
+    _CLAUDE_PROMPT_HEADER,
     _slugify,
     _split_frontmatter,
 )
@@ -821,4 +822,32 @@ class TestResolvePendingProvenance:
         assert gardener._resolve_pending_provenance() == 0
         row = session.exec(select(AtomRawProvenance)).first()
         assert row.atom_fk is None
+
+
+class TestPromptTemplateInstructions:
+    """Regression guards for critical instructions in _CLAUDE_PROMPT_HEADER.
+
+    Each test pins a specific instruction keyword so that accidental deletions
+    or edits are caught immediately by CI rather than surfacing as silent
+    model-behaviour regressions.
+    """
+
+    def test_prompt_includes_no_title_prefix_instruction(self):
+        """Guard against regression where category-label prefixes reappear in titles.
+
+        Commit 7e6b7a20 added the instruction 'Do NOT prefix titles with
+        category labels' to prevent Claude from emitting titles like
+        '(Book) Staff Engineer's Path'. This assertion ensures the instruction
+        is never accidentally removed.
+        """
+        assert "Do NOT prefix titles with category labels" in _CLAUDE_PROMPT_HEADER
+
+    def test_prompt_includes_filename_must_match_id_instruction(self):
+        """Guard against regression where filenames diverge from their note id.
+
+        Commit 7e6b7a20 added the instruction 'filename MUST be' to enforce
+        that each written file is named exactly '<id>.md'. This assertion
+        ensures the instruction is never accidentally removed.
+        """
+        assert "filename MUST be" in _CLAUDE_PROMPT_HEADER
         assert row.derived_note_id == "ghost"
