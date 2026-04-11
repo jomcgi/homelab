@@ -33,7 +33,7 @@ _STRING_ARRAY = PG_ARRAY(String).with_variant(JSON(), "sqlite")
 _JSONB = JSONB().with_variant(JSON(), "sqlite")
 
 
-class Note(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factory
+class Note(SQLModel, table=True):
     __tablename__ = "notes"
     __table_args__ = {"schema": "knowledge", "extend_existing": True}
 

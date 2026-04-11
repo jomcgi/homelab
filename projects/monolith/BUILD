@@ -6,7 +6,7 @@
 # gazelle:exclude notes
 # gazelle:exclude scripts
 # gazelle:exclude shared
-# gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,tainted-fastapi-http-request-httpx
+# gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,sqlmodel-datetime-without-factory,tainted-fastapi-http-request-httpx
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
@@ -2220,6 +2220,12 @@ semgrep_target_test(
         # keep
         "avoid-sqlalchemy-text",
         "generic-sql-fastapi",  # keep
+        # The monolith uses datetime | None = None for intentional NULL state
+        # fields (e.g. last_run_at, locked_at, updated_at). semgrep-core
+        # invokes the rule engine directly without pysemgrep, so # nosemgrep
+        # inline comments are not honoured. Exclude until per-finding
+        # suppression is available in the core engine.
+        "sqlmodel-datetime-without-factory",  # keep
         "tainted-fastapi-http-request-httpx",
     ],
     rules = ["//bazel/semgrep/rules:python_rules"],
