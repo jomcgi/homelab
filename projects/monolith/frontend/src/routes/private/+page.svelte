@@ -8,6 +8,7 @@
   let note = $state("");
   let sent = $state(false);
   let captureRef = $state(null);
+  let ingestMode = $state(false);
 
   $effect(() => {
     captureRef?.focus();
@@ -89,6 +90,13 @@
 
   $effect(() => {
     function handleGlobalKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "i") {
+        e.preventDefault();
+        ingestMode = !ingestMode;
+        note = "";
+        tick().then(() => captureRef?.focus());
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         if (!searchOpen) openSearch();
@@ -204,10 +212,42 @@
     }
   }
 
+  async function submitIngest() {
+    if (!note.trim()) return;
+    try {
+      const formData = new FormData();
+      formData.append("url", note.trim());
+      formData.append("source_type", detectSourceType(note.trim()));
+      const res = await fetch("?/ingest", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error();
+      sent = true;
+      setTimeout(() => {
+        note = "";
+        sent = false;
+        ingestMode = false;
+        captureRef?.focus();
+      }, 500);
+    } catch {
+      error = true;
+      setTimeout(() => {
+        error = false;
+        captureRef?.focus();
+      }, 2000);
+    }
+  }
+
+  function detectSourceType(url) {
+    if (/youtube\.com|youtu\.be/.test(url)) return "youtube";
+    return "webpage";
+  }
+
   function captureKeyDown(e) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
-      submitCapture();
+      ingestMode ? submitIngest() : submitCapture();
     }
   }
 
@@ -377,7 +417,7 @@
       value={note}
       oninput={(e) => (note = e.target.value)}
       onkeydown={captureKeyDown}
-      placeholder="write something..."
+      placeholder={ingestMode ? "paste url..." : "write something..."}
       spellcheck="false"
       aria-label="Quick note"
     ></textarea>
@@ -388,15 +428,19 @@
             failed
           {:else if sent}
             sent
+          {:else if ingestMode && note.trim()}
+            {detectSourceType(note.trim())} · ⌘ enter
           {:else if note.trim()}
             ⌘ enter
           {:else}
             &nbsp;
           {/if}
         </span>
-        <span class="capture-hint">⌘K</span>
+        <span class="capture-hint">{ingestMode ? "⌘I" : "⌘K"}</span>
       </span>
-      {#if note.length > 0}
+      {#if ingestMode}
+        <span class="capture-mode">ingest</span>
+      {:else if note.length > 0}
         <span class="capture-count">{note.length}</span>
       {/if}
     </footer>
@@ -706,6 +750,14 @@
     color: var(--fg-tertiary);
     opacity: 0.6;
     font-variant-numeric: tabular-nums;
+  }
+
+  .capture-mode {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--fg-tertiary);
   }
 
   /* ── Right panel ───────────────────────────── */
