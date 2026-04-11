@@ -1295,8 +1295,9 @@ class TestDatabaseCleanupOldPositionsMultiBatch:
     @pytest.mark.asyncio
     async def test_zero_deleted_returns_zero_and_no_position_count_change(self, mem_db):
         """When nothing is old enough to delete, return 0 and leave count unchanged."""
-        # Insert a fresh position — timestamp is now, well within retention window
-        now = "2024-03-01T10:00:00+00:00"
+        # Insert a fresh position — timestamp is within the last minute, well inside
+        # the retention window regardless of POSITION_RETENTION_DAYS setting.
+        now = datetime.now(timezone.utc).isoformat()
         await mem_db.insert_positions_batch(
             [
                 (
