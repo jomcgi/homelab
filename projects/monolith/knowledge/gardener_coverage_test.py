@@ -67,8 +67,8 @@ class TestIngestOneFileIOError:
         )
         session.add(raw)
         session.commit()
-        # Add outdated provenance so _grandfather_untracked_raws skips this
-        # raw but _raws_needing_decomposition still picks it up.
+        # Add outdated provenance so _raws_needing_decomposition still
+        # picks up this raw (version mismatch with current GARDENER_VERSION).
         session.add(
             AtomRawProvenance(
                 raw_fk=raw.id,
@@ -105,8 +105,8 @@ class TestIngestOneSubprocessFailure:
         )
         session.add(raw)
         session.commit()
-        # Add outdated provenance so _grandfather_untracked_raws skips this
-        # raw but _raws_needing_decomposition still picks it up.
+        # Add outdated provenance so _raws_needing_decomposition still
+        # picks up this raw (version mismatch with current GARDENER_VERSION).
         session.add(
             AtomRawProvenance(
                 raw_fk=raw.id,
