@@ -63,7 +63,7 @@ Title: {title}
 
 """
 
-_CLAUDE_TIMEOUT_SECS = 300
+_CLAUDE_TIMEOUT_SECS = 900
 
 
 def _slugify(text_in: str) -> str:
