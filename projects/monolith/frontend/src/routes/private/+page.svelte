@@ -315,12 +315,14 @@
   });
 
   // ── Todo ─────────────────────────────────────
-  // Intentional snapshot: todo state is mutated locally, then synced back via saveTodo()
-  const initTodo = data.todo;
-  let goal = $state(initTodo.weekly.task);
-  let goalDone = $state(initTodo.weekly.done);
-  let daily = $state(initTodo.daily.map((d) => d.task));
-  let dailyDone = $state(initTodo.daily.map((d) => d.done));
+  // svelte-ignore state_referenced_locally
+  let goal = $state(data.todo.weekly.task);
+  // svelte-ignore state_referenced_locally
+  let goalDone = $state(data.todo.weekly.done);
+  // svelte-ignore state_referenced_locally
+  let daily = $state(data.todo.daily.map((d) => d.task));
+  // svelte-ignore state_referenced_locally
+  let dailyDone = $state(data.todo.daily.map((d) => d.done));
   let editing = $state(false);
 
   let goalRef = $state(null);
