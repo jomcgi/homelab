@@ -132,6 +132,13 @@ class TestChunkMarkdown:
             title="keys.md",
         )
         assert len(chunks) >= 1
-        required = {"content_hash", "chunk_index", "chunk_text", "section_header", "source_url", "title"}
+        required = {
+            "content_hash",
+            "chunk_index",
+            "chunk_text",
+            "section_header",
+            "source_url",
+            "title",
+        }
         for chunk in chunks:
             assert required == set(chunk.keys())
