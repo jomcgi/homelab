@@ -490,20 +490,12 @@
 
     <!-- Todo -->
     <section class="panel-section">
-      <h2
+      <button
         class="section-label section-label--interactive"
-        role="button"
-        tabindex="0"
         onclick={() => (editing ? (editing = false) : startEditing())}
-        onkeydown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            editing ? (editing = false) : startEditing();
-          }
-        }}
       >
         {editing ? "done" : "todo"}
-      </h2>
+      </button>
 
       <!-- Weekly goal -->
       <input
@@ -908,7 +900,16 @@
 
   /* ── Todos ─────────────────────────────────── */
 
-  .section-label--interactive {
+  button.section-label--interactive {
+    all: unset;
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
     cursor: pointer;
     transition: color 0.15s ease;
   }
