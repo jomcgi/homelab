@@ -51,7 +51,10 @@ class TestExtractVideoId:
 
     def test_embed_url(self):
         """youtube.com/embed/<id> is matched by the regex pattern."""
-        assert _extract_video_id("https://www.youtube.com/embed/dQw4w9WgXcQ") == "dQw4w9WgXcQ"
+        assert (
+            _extract_video_id("https://www.youtube.com/embed/dQw4w9WgXcQ")
+            == "dQw4w9WgXcQ"
+        )
 
     def test_watch_url_with_extra_query_params_regex(self):
         """v= in a URL where other params precede it — regex still matches."""
@@ -202,7 +205,9 @@ class TestIngestHandler:
         with (
             patch("knowledge.ingest_queue._claim_one", return_value=item),
             patch("knowledge.ingest_queue.fetch_youtube_transcript", mock_fetch),
-            patch("knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"),
+            patch(
+                "knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"
+            ),
             patch.dict("os.environ", {"VAULT_ROOT": str(tmp_path)}),
         ):
             await ingest_handler(session)
@@ -219,7 +224,9 @@ class TestIngestHandler:
                 "knowledge.ingest_queue.fetch_youtube_transcript",
                 AsyncMock(return_value=("Title", "body")),
             ),
-            patch("knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"),
+            patch(
+                "knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"
+            ),
             patch.dict("os.environ", {"VAULT_ROOT": str(tmp_path)}),
         ):
             result = await ingest_handler(session)
@@ -238,7 +245,9 @@ class TestIngestHandler:
                 "knowledge.ingest_queue.fetch_youtube_transcript",
                 AsyncMock(return_value=("Title", "body")),
             ),
-            patch("knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"),
+            patch(
+                "knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"
+            ),
             patch.dict("os.environ", {"VAULT_ROOT": str(tmp_path)}),
         ):
             await ingest_handler(session)
@@ -255,7 +264,9 @@ class TestIngestHandler:
         with (
             patch("knowledge.ingest_queue._claim_one", return_value=item),
             patch("knowledge.ingest_queue.fetch_webpage", mock_fetch),
-            patch("knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"),
+            patch(
+                "knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"
+            ),
             patch.dict("os.environ", {"VAULT_ROOT": str(tmp_path)}),
         ):
             await ingest_handler(session)
@@ -272,7 +283,9 @@ class TestIngestHandler:
                 "knowledge.ingest_queue.fetch_webpage",
                 AsyncMock(return_value=("Title", "body")),
             ),
-            patch("knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"),
+            patch(
+                "knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"
+            ),
             patch.dict("os.environ", {"VAULT_ROOT": str(tmp_path)}),
         ):
             result = await ingest_handler(session)
@@ -360,7 +373,9 @@ class TestIngestHandler:
                 "knowledge.ingest_queue.fetch_webpage",
                 AsyncMock(return_value=("Title", "body")),
             ),
-            patch("knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"),
+            patch(
+                "knowledge.ingest_queue._write_raw_md", return_value=tmp_path / "out.md"
+            ),
             patch.dict("os.environ", {"VAULT_ROOT": str(tmp_path)}),
         ):
             result = await ingest_handler(session)
