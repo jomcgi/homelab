@@ -756,6 +756,71 @@ class TestGardenerInit:
         assert gardener.processed_root == vault / "_processed"
 
 
+class TestAtomRawProvenanceDeadLetterFields:
+    def test_error_field_defaults_to_none(self, session):
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        raw = RawInput(
+            raw_id="r1",
+            path="_raw/r1.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="r1",
+        )
+        session.add(raw)
+        session.flush()
+        prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            gardener_version="v1",
+        )
+        session.add(prov)
+        session.commit()
+        assert prov.error is None
+
+    def test_retry_count_defaults_to_zero(self, session):
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        raw = RawInput(
+            raw_id="r2",
+            path="_raw/r2.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="r2",
+        )
+        session.add(raw)
+        session.flush()
+        prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            gardener_version="v1",
+        )
+        session.add(prov)
+        session.commit()
+        assert prov.retry_count == 0
+
+    def test_accepts_error_and_retry_count(self, session):
+        from knowledge.models import AtomRawProvenance, RawInput
+
+        raw = RawInput(
+            raw_id="r3",
+            path="_raw/r3.md",
+            source="vault-drop",
+            content="Body.",
+            content_hash="r3",
+        )
+        session.add(raw)
+        session.flush()
+        prov = AtomRawProvenance(
+            raw_fk=raw.id,
+            gardener_version="v1",
+            error="timeout after 300s",
+            retry_count=2,
+        )
+        session.add(prov)
+        session.commit()
+        assert prov.error == "timeout after 300s"
+        assert prov.retry_count == 2
+
+
 class TestResolvePendingProvenance:
     def test_resolves_note_id_to_atom_fk(self, tmp_path, session):
         from knowledge.gardener import GARDENER_VERSION
