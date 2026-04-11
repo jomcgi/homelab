@@ -139,6 +139,201 @@ class TestIngestOneClaude:
         assert "Tanya Reilly" not in prompt, "raw content must not be inlined"
 
     @pytest.mark.asyncio
+    async def test_prompt_contains_absolute_path_not_just_filename(self, tmp_path):
+        """The prompt must embed the full absolute path, not just the basename.
+
+        Claude's Read tool requires an absolute path to locate the file. If
+        only the filename is embedded, Claude cannot open the file and will
+        either error or decompose nothing.
+        """
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "my-note.md"
+        note.write_text("# My Note\nsome body content")
+        processed = vault / "_processed"
+        processed.mkdir()
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+
+        async def fake_communicate():
+            (processed / "my-note.md").write_text(
+                "---\nid: my-note\ntitle: My Note\ntype: atom\n---\nbody"
+            )
+            return b"", b""
+
+        proc_mock.communicate = fake_communicate
+
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=proc_mock
+        ) as mock_exec:
+            await Gardener(vault_root=vault)._ingest_one(note)
+
+        args = mock_exec.call_args[0]
+        p_idx = list(args).index("-p")
+        prompt = args[p_idx + 1]
+        # Full absolute path must be present
+        assert str(note) in prompt, "absolute file path must be in prompt"
+        # Basename alone is not sufficient — path must include parent dir
+        assert str(note.parent) in prompt, "parent directory must be in prompt path"
+
+    @pytest.mark.asyncio
+    async def test_prompt_does_not_contain_body_text_for_plain_note(self, tmp_path):
+        """A note with only a markdown body must not have its body inlined in the prompt.
+
+        Commit 856d785 removed the raw_text concatenation. This test verifies
+        body-only notes (no frontmatter) are handled the same way — the body
+        content must not appear in the prompt string sent to claude.
+        """
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "plain.md"
+        note.write_text("This is the unique body content that must not appear.")
+        processed = vault / "_processed"
+        processed.mkdir()
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+
+        async def fake_communicate():
+            (processed / "plain.md").write_text(
+                "---\nid: plain\ntitle: Plain\ntype: atom\n---\nbody"
+            )
+            return b"", b""
+
+        proc_mock.communicate = fake_communicate
+
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=proc_mock
+        ) as mock_exec:
+            await Gardener(vault_root=vault)._ingest_one(note)
+
+        args = mock_exec.call_args[0]
+        p_idx = list(args).index("-p")
+        prompt = args[p_idx + 1]
+        assert "unique body content that must not appear" not in prompt
+
+    @pytest.mark.asyncio
+    async def test_prompt_does_not_contain_frontmatter_or_body_for_mixed_note(
+        self, tmp_path
+    ):
+        """A note with both frontmatter and body must have neither inlined in the prompt.
+
+        Previously both the frontmatter YAML and the body were appended. After
+        856d785 neither should appear — only the file path is embedded.
+        """
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "mixed.md"
+        note.write_text(
+            "---\n"
+            "title: Mixed Note\n"
+            "author: SecretAuthor\n"
+            "---\n"
+            "This is the distinctive body text.\n"
+        )
+        processed = vault / "_processed"
+        processed.mkdir()
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+
+        async def fake_communicate():
+            (processed / "mixed.md").write_text(
+                "---\nid: mixed\ntitle: Mixed\ntype: atom\n---\nbody"
+            )
+            return b"", b""
+
+        proc_mock.communicate = fake_communicate
+
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=proc_mock
+        ) as mock_exec:
+            await Gardener(vault_root=vault)._ingest_one(note)
+
+        args = mock_exec.call_args[0]
+        p_idx = list(args).index("-p")
+        prompt = args[p_idx + 1]
+        assert "SecretAuthor" not in prompt, "frontmatter fields must not be in prompt"
+        assert "distinctive body text" not in prompt, "body must not be in prompt"
+        assert str(note) in prompt, "file path must still appear in prompt"
+
+    @pytest.mark.asyncio
+    async def test_prompt_handles_path_with_spaces(self, tmp_path):
+        """A vault path that contains spaces must be passed verbatim into the prompt.
+
+        Paths with spaces are valid on Linux. The prompt must preserve the full
+        path including spaces so Claude's Read tool can open it.
+        """
+        vault = tmp_path / "my vault"
+        vault.mkdir()
+        note = vault / "a note with spaces.md"
+        note.write_text("---\ntitle: Spaced\n---\nbody")
+        processed = vault / "_processed"
+        processed.mkdir()
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+
+        async def fake_communicate():
+            (processed / "spaced.md").write_text(
+                "---\nid: spaced\ntitle: Spaced\ntype: atom\n---\nbody"
+            )
+            return b"", b""
+
+        proc_mock.communicate = fake_communicate
+
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=proc_mock
+        ) as mock_exec:
+            await Gardener(vault_root=vault)._ingest_one(note)
+
+        args = mock_exec.call_args[0]
+        p_idx = list(args).index("-p")
+        prompt = args[p_idx + 1]
+        assert str(note) in prompt, "path with spaces must appear verbatim in prompt"
+
+    @pytest.mark.asyncio
+    async def test_prompt_raw_file_path_matches_exact_path_argument(self, tmp_path):
+        """The raw_file_path embedded in the prompt must be str(path) exactly.
+
+        _ingest_one() is called with an absolute Path object. The prompt must
+        contain exactly str(path) — not a relative path, not path.stem, not
+        something derived from the RawInput row.
+        """
+        vault = tmp_path / "vault"
+        vault.mkdir()
+        note = vault / "exact.md"
+        note.write_text("---\ntitle: Exact\n---\nbody")
+        processed = vault / "_processed"
+        processed.mkdir()
+
+        proc_mock = AsyncMock()
+        proc_mock.returncode = 0
+
+        async def fake_communicate():
+            (processed / "exact.md").write_text(
+                "---\nid: exact\ntitle: Exact\ntype: atom\n---\nbody"
+            )
+            return b"", b""
+
+        proc_mock.communicate = fake_communicate
+
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=proc_mock
+        ) as mock_exec:
+            await Gardener(vault_root=vault)._ingest_one(note)
+
+        args = mock_exec.call_args[0]
+        p_idx = list(args).index("-p")
+        prompt = args[p_idx + 1]
+        # str(note) is the exact absolute path passed to _ingest_one
+        assert str(note) in prompt
+        # Sanity: relative path ("exact.md") alone being present does NOT
+        # satisfy the requirement — only str(note) (absolute) counts.
+        assert str(vault) in prompt, "vault parent must be present confirming absolute path"
+
+    @pytest.mark.asyncio
     async def test_spawns_claude_with_correct_flags(self, tmp_path):
         """_ingest_one spawns claude with --dangerously-skip-permissions and cwd=vault_root."""
         vault = tmp_path / "vault"
@@ -918,6 +1113,36 @@ class TestPromptTemplateInstructions:
         ensures the instruction is never accidentally removed.
         """
         assert "filename MUST be" in _CLAUDE_PROMPT_HEADER
+
+    def test_prompt_header_says_a_raw_note_not_below(self):
+        """Guard against reintroducing 'the raw note below' wording.
+
+        Commit 856d785 changed the preamble from 'Decompose the raw note below'
+        to 'Decompose a raw note' because the raw content is no longer inlined
+        in the prompt. If someone reverts the wording, Claude will receive an
+        instruction that contradicts how the prompt is now structured.
+        """
+        assert "Decompose a raw note" in _CLAUDE_PROMPT_HEADER
+        assert "Decompose the raw note below" not in _CLAUDE_PROMPT_HEADER
+
+    def test_prompt_step_1_instructs_read_tool_for_file_path(self):
+        """Guard against step 1 regressing to the old keyword-search first step.
+
+        Commit 856d785 made step 1 'Read the raw note from {raw_file_path}
+        using the Read tool.' so Claude reads the file before searching. If the
+        step is removed or reordered, Claude has no content to decompose.
+        """
+        assert "Read the raw note from" in _CLAUDE_PROMPT_HEADER
+        assert "using the Read tool" in _CLAUDE_PROMPT_HEADER
+
+    def test_prompt_header_contains_raw_file_path_placeholder(self):
+        """Guard against the {raw_file_path} format placeholder being removed.
+
+        _ingest_one() calls _CLAUDE_PROMPT_HEADER.format(raw_file_path=path, ...)
+        so the placeholder must be present in the template or .format() will
+        silently drop the path and Claude will have no file to read.
+        """
+        assert "{raw_file_path}" in _CLAUDE_PROMPT_HEADER
 
 
 class TestRecordFailedProvenance:
