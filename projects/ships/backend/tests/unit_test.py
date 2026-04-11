@@ -219,7 +219,12 @@ class TestDatabaseCacheOperations:
         from projects.ships.backend.main import CachedPosition
 
         db = self._bare()
-        data = {"lat": 51.5, "lon": -0.1, "speed": 5.0, "timestamp": "2024-01-01T00:00:00Z"}
+        data = {
+            "lat": 51.5,
+            "lon": -0.1,
+            "speed": 5.0,
+            "timestamp": "2024-01-01T00:00:00Z",
+        }
         db.update_cache("123456789", data, "2024-01-01T00:00:00Z")
         cached = db.get_cached_position("123456789")
         assert isinstance(cached, CachedPosition)
@@ -228,14 +233,32 @@ class TestDatabaseCacheOperations:
 
     def test_update_cache_stores_first_seen(self):
         db = self._bare()
-        data = {"lat": 0.0, "lon": 0.0, "speed": 0.0, "timestamp": "2024-01-01T10:00:00Z"}
+        data = {
+            "lat": 0.0,
+            "lon": 0.0,
+            "speed": 0.0,
+            "timestamp": "2024-01-01T10:00:00Z",
+        }
         db.update_cache("111", data, "2024-01-01T08:00:00Z")
-        assert db.get_cached_position("111").first_seen_at_location == "2024-01-01T08:00:00Z"
+        assert (
+            db.get_cached_position("111").first_seen_at_location
+            == "2024-01-01T08:00:00Z"
+        )
 
     def test_update_cache_overwrites_existing_entry(self):
         db = self._bare()
-        data1 = {"lat": 1.0, "lon": 1.0, "speed": 0.0, "timestamp": "2024-01-01T10:00:00Z"}
-        data2 = {"lat": 2.0, "lon": 2.0, "speed": 5.0, "timestamp": "2024-01-01T10:05:00Z"}
+        data1 = {
+            "lat": 1.0,
+            "lon": 1.0,
+            "speed": 0.0,
+            "timestamp": "2024-01-01T10:00:00Z",
+        }
+        data2 = {
+            "lat": 2.0,
+            "lon": 2.0,
+            "speed": 5.0,
+            "timestamp": "2024-01-01T10:05:00Z",
+        }
         db.update_cache("111", data1, None)
         db.update_cache("111", data2, None)
         cached = db.get_cached_position("111")
@@ -250,7 +273,12 @@ class TestDatabaseCacheOperations:
         for i in range(3):
             db.update_cache(
                 str(i),
-                {"lat": float(i), "lon": 0.0, "speed": 0.0, "timestamp": "2024-01-01T00:00:00Z"},
+                {
+                    "lat": float(i),
+                    "lon": 0.0,
+                    "speed": 0.0,
+                    "timestamp": "2024-01-01T00:00:00Z",
+                },
                 None,
             )
         assert db.get_cache_size() == 3
@@ -260,7 +288,12 @@ class TestDatabaseCacheOperations:
         for i in range(5):
             db.update_cache(
                 str(i),
-                {"lat": float(i), "lon": 0.0, "speed": 0.0, "timestamp": "2024-01-01T00:00:00Z"},
+                {
+                    "lat": float(i),
+                    "lon": 0.0,
+                    "speed": 0.0,
+                    "timestamp": "2024-01-01T00:00:00Z",
+                },
                 None,
             )
         assert db.get_vessel_count() == db.get_cache_size()
@@ -290,7 +323,10 @@ class TestDatabaseShouldInsertPosition:
         from projects.ships.backend.main import CachedPosition
 
         return CachedPosition(
-            lat=lat, lon=lon, speed=speed, timestamp=ts,
+            lat=lat,
+            lon=lon,
+            speed=speed,
+            timestamp=ts,
             first_seen_at_location=first_seen or ts,
         )
 
@@ -370,7 +406,7 @@ class TestDatabaseShouldInsertPosition:
         db._position_cache["123"] = self._cache(lat=51.5, lon=-0.1)
         data = {
             "mmsi": "123",
-            "lat": 51.509,   # ~1 km north
+            "lat": 51.509,  # ~1 km north
             "lon": -0.1,
             "speed": 0.0,
             "timestamp": "2024-01-01T10:01:00Z",
@@ -495,7 +531,9 @@ class TestDatabaseAsyncMethods:
         }
         await mem_db.upsert_vessels_batch([vessel])
         await mem_db.commit()
-        cursor = await mem_db.db.execute("SELECT name FROM vessels WHERE mmsi=?", ("123456789",))
+        cursor = await mem_db.db.execute(
+            "SELECT name FROM vessels WHERE mmsi=?", ("123456789",)
+        )
         row = await cursor.fetchone()
         assert row is not None
         assert row[0] == "MV Test"
@@ -509,7 +547,9 @@ class TestDatabaseAsyncMethods:
         # Upsert again with name=None — COALESCE should preserve "Original Name"
         await mem_db.upsert_vessels_batch([{"mmsi": "111", "name": None}])
         await mem_db.commit()
-        cursor = await mem_db.db.execute("SELECT name FROM vessels WHERE mmsi=?", ("111",))
+        cursor = await mem_db.db.execute(
+            "SELECT name FROM vessels WHERE mmsi=?", ("111",)
+        )
         row = await cursor.fetchone()
         assert row[0] == "Original Name"
 
@@ -546,10 +586,18 @@ class TestDatabaseAsyncMethods:
         positions = []
         for i in range(3):
             ts = (base + timedelta(minutes=i * 10)).isoformat()
-            positions.append((
-                {"mmsi": "555", "lat": 51.0 + i * 0.01, "lon": -0.1, "speed": 5.0, "timestamp": ts},
-                ts,
-            ))
+            positions.append(
+                (
+                    {
+                        "mmsi": "555",
+                        "lat": 51.0 + i * 0.01,
+                        "lon": -0.1,
+                        "speed": 5.0,
+                        "timestamp": ts,
+                    },
+                    ts,
+                )
+            )
         await mem_db.insert_positions_batch(positions)
         await mem_db.commit()
         track = await mem_db.get_vessel_track("555")
@@ -563,10 +611,18 @@ class TestDatabaseAsyncMethods:
         positions = []
         for i in range(10):
             ts = (base + timedelta(minutes=i)).isoformat()
-            positions.append((
-                {"mmsi": "666", "lat": 51.0, "lon": -0.1, "speed": 5.0, "timestamp": ts},
-                ts,
-            ))
+            positions.append(
+                (
+                    {
+                        "mmsi": "666",
+                        "lat": 51.0,
+                        "lon": -0.1,
+                        "speed": 5.0,
+                        "timestamp": ts,
+                    },
+                    ts,
+                )
+            )
         await mem_db.insert_positions_batch(positions)
         await mem_db.commit()
         track = await mem_db.get_vessel_track("666", limit=3)
@@ -616,10 +672,14 @@ class TestDatabaseAsyncMethods:
     @pytest.mark.asyncio
     async def test_cleanup_old_positions_deletes_old_records(self, mem_db):
         """Positions older than retention window are removed."""
-        old_ts = (
-            datetime.now(timezone.utc) - timedelta(days=30)
-        ).isoformat()
-        data = {"mmsi": "777", "lat": 0.0, "lon": 0.0, "speed": 0.0, "timestamp": old_ts}
+        old_ts = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        data = {
+            "mmsi": "777",
+            "lat": 0.0,
+            "lon": 0.0,
+            "speed": 0.0,
+            "timestamp": old_ts,
+        }
         await mem_db.insert_positions_batch([(data, old_ts)])
         await mem_db.commit()
         deleted = await mem_db.cleanup_old_positions()
@@ -797,10 +857,15 @@ class TestShipsAPIServiceProcessMessageSync:
 
         return ShipsAPIService()
 
-    def _pos(self, mmsi="123456789", lat=51.5, lon=-0.1, speed=5.0,
-             ts="2024-01-01T10:00:00Z"):
+    def _pos(
+        self, mmsi="123456789", lat=51.5, lon=-0.1, speed=5.0, ts="2024-01-01T10:00:00Z"
+    ):
         return {
-            "mmsi": mmsi, "lat": lat, "lon": lon, "speed": speed, "timestamp": ts,
+            "mmsi": mmsi,
+            "lat": lat,
+            "lon": lon,
+            "speed": speed,
+            "timestamp": ts,
         }
 
     def test_position_subject_returns_position_tuple(self, service):
@@ -815,7 +880,11 @@ class TestShipsAPIServiceProcessMessageSync:
         assert first_seen is not None
 
     def test_static_subject_returns_vessel_tuple(self, service):
-        data = {"mmsi": "123456789", "name": "MV Test", "timestamp": "2024-01-01T10:00:00Z"}
+        data = {
+            "mmsi": "123456789",
+            "name": "MV Test",
+            "timestamp": "2024-01-01T10:00:00Z",
+        }
         result = service._process_message_sync(
             "ais.static.123456789", json.dumps(data).encode()
         )
@@ -857,14 +926,18 @@ class TestShipsAPIServiceProcessMessageSync:
             "timestamp": "2024-01-01T10:00:00Z",
         }
         # First call → position
-        r1 = service._process_message_sync("ais.position.999", json.dumps(data).encode())
+        r1 = service._process_message_sync(
+            "ais.position.999", json.dumps(data).encode()
+        )
         assert r1 is not None
         _, _, first_seen = r1
         service.db.update_cache("999", data, first_seen)
 
         # Second call 1 min later — same spot, stationary
         data2 = {**data, "timestamp": "2024-01-01T10:01:00Z"}
-        r2 = service._process_message_sync("ais.position.999", json.dumps(data2).encode())
+        r2 = service._process_message_sync(
+            "ais.position.999", json.dumps(data2).encode()
+        )
         assert r2 is not None
         assert r2[0] == "deduplicated"
 
