@@ -184,7 +184,12 @@ class TestGetNoteLinks:
         )
         links = store.get_note_links("a-id")
         assert len(links) == 1
-        assert set(links[0].keys()) == {"target_id", "target_title", "kind", "edge_type"}
+        assert set(links[0].keys()) == {
+            "target_id",
+            "target_title",
+            "kind",
+            "edge_type",
+        }
 
     def test_mixed_links_and_edges(self, store):
         """A note with both wikilinks and frontmatter edges returns all of them."""
