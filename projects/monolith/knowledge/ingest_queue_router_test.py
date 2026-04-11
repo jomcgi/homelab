@@ -10,10 +10,26 @@ from knowledge.ingest_queue import IngestQueueItem
 
 @pytest.fixture
 def session():
-    engine = create_engine("sqlite://", echo=False)
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as s:
-        yield s
+    from sqlmodel.pool import StaticPool
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    original_schemas = {}
+    for table in SQLModel.metadata.tables.values():
+        if table.schema is not None:
+            original_schemas[table.name] = table.schema
+            table.schema = None
+    try:
+        SQLModel.metadata.create_all(engine)
+        with Session(engine) as s:
+            yield s
+    finally:
+        for table in SQLModel.metadata.tables.values():
+            if table.name in original_schemas:
+                table.schema = original_schemas[table.name]
 
 
 @pytest.fixture
