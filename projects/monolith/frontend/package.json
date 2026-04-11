@@ -15,7 +15,8 @@
     "@opentelemetry/instrumentation-fetch": "^0.57.0",
     "@opentelemetry/resources": "^1.30.0",
     "@opentelemetry/sdk-trace-web": "^1.30.0",
-    "@opentelemetry/semantic-conventions": "^1.28.0"
+    "@opentelemetry/semantic-conventions": "^1.28.0",
+    "roughjs": "^4.6.6"
   },
   "devDependencies": {
     "@esbuild/linux-x64": "^0.27.0",
