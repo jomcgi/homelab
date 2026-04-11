@@ -5,7 +5,9 @@ from dulwich import porcelain
 porcelain.commit(repo, message=b"fix: update config")
 
 # ruleid: dulwich-commit-missing-author
-porcelain.commit(repo, message=b"chore: bump version", committer=b"Bot <bot@example.com>")
+porcelain.commit(
+    repo, message=b"chore: bump version", committer=b"Bot <bot@example.com>"
+)
 
 # ok: dulwich-commit-missing-author
 porcelain.commit(
