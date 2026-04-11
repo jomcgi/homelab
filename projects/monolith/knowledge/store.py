@@ -23,6 +23,18 @@ MIN_SEARCH_SCORE = 0.4
 _CHUNK_LEN_RAMP = 100  # chars at which the length penalty reaches 1.0
 
 
+def _resolve_edge_targets(session: Session, rows: list) -> set[str]:
+    """Return the set of target_id values (for kind='edge' rows) that exist as notes."""
+    edge_ids = {r.target_id for r in rows if r.kind == "edge"}
+    if not edge_ids:
+        return set()
+    return set(
+        session.execute(select(Note.note_id).where(Note.note_id.in_(edge_ids)))
+        .scalars()
+        .all()
+    )
+
+
 class KnowledgeStore:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -254,16 +266,24 @@ class KnowledgeStore:
                 NoteLink.edge_type,
             ).where(NoteLink.src_note_fk.in_(top_ids))
         ).all()
+
+        # Resolve typed edges: check which target note_ids exist so
+        # consumers know which edges are navigable.
+        resolved = _resolve_edge_targets(self.session, edge_rows)
+
         edges_by_note: dict[int, list[dict]] = {}
         for row in edge_rows:
-            edges_by_note.setdefault(row.src_note_fk, []).append(
-                {
-                    "target_id": row.target_id,
-                    "target_title": row.target_title,
-                    "kind": row.kind,
-                    "edge_type": row.edge_type,
-                }
-            )
+            edge: dict = {
+                "target_id": row.target_id,
+                "target_title": row.target_title,
+                "kind": row.kind,
+                "edge_type": row.edge_type,
+            }
+            if row.kind == "edge":
+                edge["resolved_note_id"] = (
+                    row.target_id if row.target_id in resolved else None
+                )
+            edges_by_note.setdefault(row.src_note_fk, []).append(edge)
 
         results: list[dict] = []
         for row in note_rows:
@@ -326,15 +346,23 @@ class KnowledgeStore:
                 NoteLink.edge_type,
             ).where(NoteLink.src_note_fk == note_fk)
         ).all()
-        return [
-            {
+
+        resolved = _resolve_edge_targets(self.session, rows)
+
+        results: list[dict] = []
+        for row in rows:
+            edge: dict = {
                 "target_id": row.target_id,
                 "target_title": row.target_title,
                 "kind": row.kind,
                 "edge_type": row.edge_type,
             }
-            for row in rows
-        ]
+            if row.kind == "edge":
+                edge["resolved_note_id"] = (
+                    row.target_id if row.target_id in resolved else None
+                )
+            results.append(edge)
+        return results
 
     def delete_note(self, path: str) -> None:
         existing = self.session.execute(

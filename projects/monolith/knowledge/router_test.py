@@ -145,7 +145,7 @@ class TestSearchEndpoint:
             )
 
     def test_search_results_include_edges(self, client, fake_embed_client):
-        """Search results include edges from NoteLink table."""
+        """Search results include edges with resolved_note_id for typed edges."""
         results_with_edges = [
             {
                 **CANNED_RESULTS[0],
@@ -155,6 +155,7 @@ class TestSearchEndpoint:
                         "kind": "edge",
                         "edge_type": "refines",
                         "target_title": None,
+                        "resolved_note_id": "n2",
                     },
                 ],
             },
@@ -171,6 +172,7 @@ class TestSearchEndpoint:
         assert "edges" in result
         assert result["edges"][0]["target_id"] == "n2"
         assert result["edges"][0]["edge_type"] == "refines"
+        assert result["edges"][0]["resolved_note_id"] == "n2"
 
 
 SAMPLE_NOTE = {

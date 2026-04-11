@@ -69,10 +69,18 @@ Returns:
           "target_id": "def",
           "kind": "edge",
           "edge_type": "refines",
-          "target_title": null
+          "target_title": null,
+          "resolved_note_id": "def"
         },
         {
-          "target_id": "ghi",
+          "target_id": "ghost-note",
+          "kind": "edge",
+          "edge_type": "related",
+          "target_title": null,
+          "resolved_note_id": null
+        },
+        {
+          "target_id": "Linked Note Title",
           "kind": "link",
           "edge_type": null,
           "target_title": "Linked Note"
@@ -82,6 +90,12 @@ Returns:
   ]
 }
 ```
+
+**Edge resolution:**
+
+- Typed edges (`kind: "edge"`) include `resolved_note_id` — if non-null, you can fetch that note via `/notes/{resolved_note_id}`
+- `resolved_note_id: null` means the target note doesn't exist in the vault (yet)
+- Body wikilinks (`kind: "link"`) do not include `resolved_note_id` — they are visible inline when you read the note content
 
 ### Read note: `GET /api/knowledge/notes/{note_id}`
 
@@ -100,6 +114,30 @@ Returns full note content + edges.
    Do NOT auto-fetch all results. Use the snippet and metadata to decide.
 4. **Read selectively** — fetch full content for relevant notes via the notes endpoint
 5. **Use the context** — reference it, quote it, or let it inform your reasoning
+
+## Graph Traversal
+
+When a search result has edges with `resolved_note_id`, you can follow them to build deeper context. Prioritize `derives_from` and `refines` edges — they indicate direct conceptual lineage.
+
+**Example:** User asks "what's the basis for the SLO work?"
+
+1. Search for "SLO" → find `benchsci-slo-shortlist` (score 0.62)
+2. Check edges → `derives_from: ["benchsci-observability-implementation"]` with `resolved_note_id: "benchsci-observability-implementation"`
+3. Fetch `/notes/benchsci-observability-implementation` → find further `derives_from: ["benchsci-observability-problem-brief"]`
+4. Fetch the problem brief → now you have the full chain: problem → strategy → SLO shortlist
+
+**When to traverse:**
+
+- User asks "why" or "what led to" something — follow `derives_from` edges upstream
+- User asks for detail — follow `refines` edges downstream
+- User asks for related work — follow `related` edges laterally
+- Stop after 2-3 hops or when `resolved_note_id` is null (target doesn't exist)
+
+**When NOT to traverse:**
+
+- The search snippet already answers the question
+- You have enough context from the initial results
+- The edges are all `related` with low relevance to the query
 
 ## Tips
 
