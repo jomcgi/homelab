@@ -20,17 +20,11 @@ spec:
       backendRefs:
         - name: {{ include "monolith.fullname" . }}
           port: {{ .Values.cfIngress.public.servicePort | int }}
-    # Everything else — rewrite to /public/
+    # Everything else — SvelteKit reroute hook maps to /public/ internally
     - matches:
         - path:
             type: PathPrefix
             value: /
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: /public/
       backendRefs:
         - name: {{ include "monolith.fullname" . }}
           port: {{ .Values.cfIngress.public.servicePort | int }}
