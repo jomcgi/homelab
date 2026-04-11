@@ -33,7 +33,7 @@ _STRING_ARRAY = PG_ARRAY(String).with_variant(JSON(), "sqlite")
 _JSONB = JSONB().with_variant(JSON(), "sqlite")
 
 
-class Note(SQLModel, table=True):
+class Note(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factory
     __tablename__ = "notes"
     __table_args__ = {"schema": "knowledge", "extend_existing": True}
 
@@ -132,6 +132,8 @@ class AtomRawProvenance(SQLModel, table=True):
     derived_note_id: str | None = None
     gardener_version: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    error: str | None = None
+    retry_count: int = Field(default=0)
 
     def __init__(self, **data: Any) -> None:
         # Mirror the SQL CHECK (atom_fk IS NOT NULL OR raw_fk IS NOT NULL).
