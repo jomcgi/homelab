@@ -677,48 +677,34 @@ class TestGrandfatherRawsBadFrontmatter:
 
 
 # ---------------------------------------------------------------------------
-# gardener.py – _backfill_provenance_from_notes
+# gardener.py – _grandfather_untracked_raws
 # ---------------------------------------------------------------------------
 
 
-class TestBackfillProvenanceFromNotes:
-    """_backfill_provenance_from_notes inserts sentinel provenance rows for
-    raws that are referenced by existing atom notes via derived_from_raw but
-    have no provenance row yet."""
+class TestGrandfatherUntrackedRawsCoverage:
+    """_grandfather_untracked_raws marks all raws without provenance as
+    pre-migration so they are not sent to Claude for decomposition."""
 
     def test_returns_zero_when_session_is_none(self, tmp_path):
         """Returns 0 immediately when session is None."""
         from knowledge.gardener import Gardener
 
         gardener = Gardener(vault_root=tmp_path, session=None)
-        result = gardener._backfill_provenance_from_notes()
+        result = gardener._grandfather_untracked_raws()
         assert result == 0
 
-    def test_returns_zero_when_no_derived_from_raw_notes(self, tmp_path, session):
-        """Returns 0 when no notes have a derived_from_raw extra field."""
+    def test_returns_zero_when_no_raws_in_db(self, tmp_path, session):
+        """Returns 0 when no RawInput rows exist."""
         from knowledge.gardener import Gardener
 
-        # Add an atom note without derived_from_raw
-        note = Note(
-            note_id="no-derived",
-            path="_processed/no-derived.md",
-            title="No Derived",
-            content_hash="h1",
-            type="atom",
-        )
-        session.add(note)
-        session.commit()
-
         gardener = Gardener(vault_root=tmp_path, session=session)
-        result = gardener._backfill_provenance_from_notes()
+        result = gardener._grandfather_untracked_raws()
         assert result == 0
 
-    def test_inserts_sentinel_for_raw_referenced_by_note(self, tmp_path, session):
-        """When an atom note references a raw_id via derived_from_raw and that
-        raw has no provenance row, a sentinel provenance row is inserted."""
-        from knowledge.gardener import Gardener, GARDENER_VERSION
+    def test_grandfathers_raw_without_provenance(self, tmp_path, session):
+        """A raw with no provenance gets a pre-migration sentinel."""
+        from knowledge.gardener import Gardener
 
-        # Create a raw input row
         raw = RawInput(
             raw_id="my-raw-id",
             path="_raw/2026/04/10/abc1-test.md",
@@ -729,34 +715,21 @@ class TestBackfillProvenanceFromNotes:
         session.add(raw)
         session.commit()
 
-        # Create an atom note that references the raw_id
-        note = Note(
-            note_id="my-atom",
-            path="_processed/my-atom.md",
-            title="My Atom",
-            content_hash="h2",
-            type="atom",
-            extra={"derived_from_raw": "my-raw-id"},
-        )
-        session.add(note)
-        session.commit()
-
         gardener = Gardener(vault_root=tmp_path, session=session)
-        result = gardener._backfill_provenance_from_notes()
+        result = gardener._grandfather_untracked_raws()
 
         assert result == 1
 
-        # A sentinel provenance row should now exist
         prov_rows = session.exec(
             select(AtomRawProvenance).where(AtomRawProvenance.raw_fk == raw.id)
         ).all()
         assert len(prov_rows) == 1
-        assert prov_rows[0].derived_note_id == "backfill-from-notes"
-        assert prov_rows[0].gardener_version == GARDENER_VERSION
+        assert prov_rows[0].derived_note_id == "pre-migration"
+        assert prov_rows[0].gardener_version == "pre-migration"
 
     def test_skips_raws_that_already_have_provenance(self, tmp_path, session):
         """Does not insert a duplicate sentinel if the raw already has a
-        provenance row (regardless of derived_note_id value)."""
+        provenance row."""
         from knowledge.gardener import Gardener, GARDENER_VERSION
 
         raw = RawInput(
@@ -769,7 +742,6 @@ class TestBackfillProvenanceFromNotes:
         session.add(raw)
         session.commit()
 
-        # Pre-existing provenance row for this raw
         prov = AtomRawProvenance(
             raw_fk=raw.id,
             derived_note_id="already-done",
@@ -778,50 +750,15 @@ class TestBackfillProvenanceFromNotes:
         session.add(prov)
         session.commit()
 
-        # An atom note that references this raw_id
-        note = Note(
-            note_id="another-atom",
-            path="_processed/another-atom.md",
-            title="Another Atom",
-            content_hash="h4",
-            type="atom",
-            extra={"derived_from_raw": "handled-raw"},
-        )
-        session.add(note)
-        session.commit()
-
         gardener = Gardener(vault_root=tmp_path, session=session)
-        result = gardener._backfill_provenance_from_notes()
+        result = gardener._grandfather_untracked_raws()
 
-        # Should be 0 — the raw already has provenance, nothing to backfill
         assert result == 0
 
-        # Confirm no additional provenance rows were added
         prov_rows = session.exec(
             select(AtomRawProvenance).where(AtomRawProvenance.raw_fk == raw.id)
         ).all()
         assert len(prov_rows) == 1
-
-    def test_returns_zero_when_no_raw_inputs_in_db(self, tmp_path, session):
-        """Returns 0 when derived_from_raw notes exist but no matching RawInput rows."""
-        from knowledge.gardener import Gardener
-
-        # Note references a raw_id that doesn't exist in raw_inputs
-        note = Note(
-            note_id="orphan-atom",
-            path="_processed/orphan.md",
-            title="Orphan",
-            content_hash="h5",
-            type="atom",
-            extra={"derived_from_raw": "nonexistent-raw-id"},
-        )
-        session.add(note)
-        session.commit()
-
-        gardener = Gardener(vault_root=tmp_path, session=session)
-        result = gardener._backfill_provenance_from_notes()
-        # No RawInput row with raw_id "nonexistent-raw-id" → nothing to backfill
-        assert result == 0
 
 
 # ---------------------------------------------------------------------------
