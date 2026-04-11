@@ -2163,6 +2163,20 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_fixes_coverage_test",
+    srcs = ["knowledge/knowledge_fixes_coverage_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//pyyaml",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "knowledge_router_test",
     srcs = ["knowledge/router_test.py"],
     imports = ["."],
