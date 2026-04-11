@@ -29,6 +29,8 @@ js_library(
         ":node_modules/mdsvex",
         ":node_modules/svelte",
         ":node_modules/vite",
+        # Hand-drawn SVG rendering
+        ":node_modules/roughjs",
         # OpenTelemetry browser tracing
         ":node_modules/@opentelemetry/api",
         ":node_modules/@opentelemetry/sdk-trace-web",
