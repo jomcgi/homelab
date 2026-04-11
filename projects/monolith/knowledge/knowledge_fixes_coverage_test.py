@@ -324,7 +324,9 @@ class TestPreSyncLinksException:
 
         # Must not raise and must have read the good file.
         rec._pre_sync_links()
-        assert read_count["n"] >= 1, "good.md must have been read despite bad.md failing"
+        assert read_count["n"] >= 1, (
+            "good.md must have been read despite bad.md failing"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -440,7 +442,9 @@ class TestReconcileRawPhaseIndexedAt:
         notes = session.exec(select(Note).where(Note.type == "raw")).all()
         indexed_at = notes[0].indexed_at
         # Strip tzinfo since SQLite returns naive datetimes.
-        indexed_naive = indexed_at.replace(tzinfo=None) if indexed_at.tzinfo else indexed_at
+        indexed_naive = (
+            indexed_at.replace(tzinfo=None) if indexed_at.tzinfo else indexed_at
+        )
         after = datetime.now(timezone.utc).replace(tzinfo=None)
         assert before <= indexed_naive <= after
 
