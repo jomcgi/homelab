@@ -80,8 +80,8 @@ py_library(
         "@pip//sqlmodel",
         "@pip//trafilatura",
         "@pip//tzdata",
-        "@pip//youtube_transcript_api",
         "@pip//uvicorn",
+        "@pip//youtube_transcript_api",
     ],
 )
 
