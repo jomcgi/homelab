@@ -36,9 +36,8 @@ All write operations require a `reason` parameter which becomes part of the git 
 ## Installation
 
 ```bash
-helm repo add oci://ghcr.io/jomcgi/homelab/charts
 helm install obsidian-vault oci://ghcr.io/jomcgi/homelab/charts/obsidian-vault \
-  --version 0.5.16 \
+  --version 0.5.19 \
   --namespace obsidian --create-namespace \
   -f my-values.yaml
 ```
