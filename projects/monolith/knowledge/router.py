@@ -20,10 +20,12 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.db import get_session
+from knowledge.gardener import Gardener
 from knowledge.ingest_queue import IngestQueueItem
+from knowledge.models import AtomRawProvenance, RawInput
 from knowledge.service import DEFAULT_VAULT_ROOT, VAULT_ROOT_ENV
 from knowledge.store import KnowledgeStore
 from shared.embedding import EmbeddingClient
@@ -105,3 +107,54 @@ def queue_ingest(
     session.add(item)
     session.commit()
     return {"queued": True}
+
+
+@router.get("/dead-letter")
+def list_dead_letters(
+    session: Session = Depends(get_session),
+) -> dict:
+    """List raws that have exhausted all retry attempts."""
+    stmt = (
+        select(RawInput, AtomRawProvenance)
+        .join(AtomRawProvenance, AtomRawProvenance.raw_fk == RawInput.id)
+        .where(AtomRawProvenance.derived_note_id == "failed")
+        .where(AtomRawProvenance.retry_count >= Gardener._MAX_RETRIES)
+    )
+    results = session.exec(stmt).all()
+    items = [
+        {
+            "id": raw.id,
+            "path": raw.path,
+            "source": raw.source,
+            "error": prov.error,
+            "retry_count": prov.retry_count,
+            "last_failed_at": prov.created_at.isoformat(),
+        }
+        for raw, prov in results
+    ]
+    return {"items": items}
+
+
+@router.post("/dead-letter/{raw_id}/replay")
+def replay_dead_letter(
+    raw_id: int,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Replay a dead-lettered raw by removing its failed provenance row."""
+    raw = session.get(RawInput, raw_id)
+    if raw is None:
+        raise HTTPException(status_code=404, detail="raw not found")
+
+    prov = session.exec(
+        select(AtomRawProvenance).where(
+            AtomRawProvenance.raw_fk == raw_id,
+            AtomRawProvenance.derived_note_id == "failed",
+            AtomRawProvenance.retry_count >= Gardener._MAX_RETRIES,
+        )
+    ).first()
+    if prov is None:
+        raise HTTPException(status_code=404, detail="raw is not dead-lettered")
+
+    session.delete(prov)
+    session.commit()
+    return {"replayed": True}

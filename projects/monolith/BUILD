@@ -2284,6 +2284,19 @@ py_test(
     ],
 )
 
+py_test(
+    name = "knowledge_dead_letter_test",
+    srcs = ["knowledge/dead_letter_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     exclude_rules = [
