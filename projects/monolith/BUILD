@@ -2226,6 +2226,26 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_ingest_queue_claim_test",
+    srcs = ["knowledge/ingest_queue_claim_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "knowledge_raw_ingest_discover_test",
+    srcs = ["knowledge/raw_ingest_discover_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "notes_router_whitespace_test",
     srcs = ["notes/router_whitespace_test.py"],
     imports = ["."],
