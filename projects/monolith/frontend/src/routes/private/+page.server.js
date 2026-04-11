@@ -35,6 +35,19 @@ export const actions = {
     });
     if (!res.ok) return { error: true };
   },
+  ingest: async ({ request, fetch }) => {
+    const data = await request.formData();
+    const url = data.get("url");
+    const sourceType = data.get("source_type");
+    if (!url) return { error: true };
+    const res = await fetch(`${API_BASE}/api/knowledge/ingest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, source_type: sourceType }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { error: true };
+  },
   search: async ({ request, fetch }) => {
     const data = await request.formData();
     const q = data.get("q");
