@@ -295,6 +295,35 @@ class Gardener:
 
         self._last_stdout = stdout
 
+    def _record_failed_provenance(self, raw_row: RawInput, exc: Exception) -> None:
+        """Record or update a failed provenance row for a raw that failed decomposition."""
+        if self.session is None:
+            return
+        existing = self.session.exec(
+            select(AtomRawProvenance).where(
+                and_(
+                    AtomRawProvenance.raw_fk == raw_row.id,
+                    AtomRawProvenance.derived_note_id == "failed",
+                )
+            )
+        ).first()
+        if existing is not None:
+            existing.retry_count += 1
+            existing.error = str(exc)
+            existing.gardener_version = GARDENER_VERSION
+            self.session.add(existing)
+        else:
+            self.session.add(
+                AtomRawProvenance(
+                    raw_fk=raw_row.id,
+                    derived_note_id="failed",
+                    gardener_version=GARDENER_VERSION,
+                    error=str(exc),
+                    retry_count=1,
+                )
+            )
+        self.session.commit()
+
     async def _ingest_one(self, path: Path) -> None:
         """Decompose a single raw note by spawning a claude Code subprocess."""
         raw_text = path.read_text(encoding="utf-8")
@@ -329,7 +358,12 @@ class Gardener:
         )
 
         self._last_stdout = b""
-        await self._run_claude_subprocess(prompt)
+        try:
+            await self._run_claude_subprocess(prompt)
+        except Exception as exc:
+            if raw_row is not None:
+                self._record_failed_provenance(raw_row, exc)
+            raise
 
         after = (
             set(self.processed_root.glob("*.md"))
