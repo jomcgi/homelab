@@ -1,20 +1,19 @@
 rules:
   - id: sqlmodel-datetime-without-factory
-    patterns:
-      - pattern-either:
-        - patterns:
+    pattern-either:
+      - patterns:
           - pattern: |
               class $MODEL(SQLModel, table=True):
                   ...
                   $FIELD: datetime | None = None
                   ...
-        - patterns:
+      - patterns:
           - pattern: |
               class $MODEL(SQLModel, table=True):
                   ...
                   $FIELD: Optional[datetime] = None
                   ...
-        - patterns:
+      - patterns:
           - pattern: |
               class $MODEL(SQLModel, table=True):
                   ...
@@ -25,7 +24,7 @@ rules:
                   ...
                   $FIELD: datetime | None = Field(..., default_factory=..., ...)
                   ...
-        - patterns:
+      - patterns:
           - pattern: |
               class $MODEL(SQLModel, table=True):
                   ...
