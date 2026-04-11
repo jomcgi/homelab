@@ -116,6 +116,8 @@ _DEFAULT_MAX_FILES_PER_RUN = 10
 
 
 class Gardener:
+    _MAX_RETRIES = 3
+
     def __init__(
         self,
         *,
@@ -160,10 +162,19 @@ class Gardener:
         return resolved
 
     def _raws_needing_decomposition(self) -> list[RawInput]:
-        """Return raws that have no current-version provenance and no sentinel."""
+        """Return fresh raws followed by retriable failed raws.
+
+        Tier 1 — fresh: no current-version or pre-migration provenance at all.
+        Tier 2 — retriable: have a ``derived_note_id='failed'`` provenance row
+        with ``retry_count < _MAX_RETRIES``.
+
+        Returns ``fresh + retriable``.
+        """
         if self.session is None:
             return []
 
+        # Subquery: raw_fk values that have current-version or pre-migration
+        # provenance (i.e. successfully handled or grandfathered).
         handled_subq = (
             select(AtomRawProvenance.raw_fk)
             .where(AtomRawProvenance.raw_fk.is_not(None))
@@ -173,14 +184,51 @@ class Gardener:
                     AtomRawProvenance.gardener_version == "pre-migration",
                 )
             )
+            .where(
+                or_(
+                    AtomRawProvenance.derived_note_id.is_(None),
+                    AtomRawProvenance.derived_note_id != "failed",
+                )
+            )
             .subquery()
         )
-        stmt = (
+
+        # Subquery: raw_fk values that have a "failed" provenance row
+        # (regardless of retry_count — we filter retry_count in tier 2).
+        failed_subq = (
+            select(AtomRawProvenance.raw_fk)
+            .where(AtomRawProvenance.raw_fk.is_not(None))
+            .where(AtomRawProvenance.derived_note_id == "failed")
+            .subquery()
+        )
+
+        # Tier 1: fresh raws — not handled AND not failed.
+        fresh_stmt = (
             select(RawInput)
+            .where(not_(RawInput.id.in_(select(handled_subq.c.raw_fk))))
+            .where(not_(RawInput.id.in_(select(failed_subq.c.raw_fk))))
+            .order_by(RawInput.created_at.asc().nullslast(), RawInput.id.asc())
+        )
+        fresh = list(self.session.exec(fresh_stmt).all())
+
+        # Tier 2: retriable failed raws — have a "failed" row with
+        # retry_count < _MAX_RETRIES and no successful current-version prov.
+        retriable_subq = (
+            select(AtomRawProvenance.raw_fk)
+            .where(AtomRawProvenance.raw_fk.is_not(None))
+            .where(AtomRawProvenance.derived_note_id == "failed")
+            .where(AtomRawProvenance.retry_count < self._MAX_RETRIES)
+            .subquery()
+        )
+        retriable_stmt = (
+            select(RawInput)
+            .where(RawInput.id.in_(select(retriable_subq.c.raw_fk)))
             .where(not_(RawInput.id.in_(select(handled_subq.c.raw_fk))))
             .order_by(RawInput.created_at.asc().nullslast(), RawInput.id.asc())
         )
-        return list(self.session.exec(stmt).all())
+        retriable = list(self.session.exec(retriable_stmt).all())
+
+        return fresh + retriable
 
     async def run(self) -> GardenStats:
         """Run one gardening cycle: resolve pending → move → reconcile → decompose."""
