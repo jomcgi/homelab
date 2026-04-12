@@ -210,9 +210,7 @@ class TestWebsocketLiveAdditionalCases:
 
         mock_ws = AsyncMock()
         # First receive: a non-ping message; second: disconnect
-        mock_ws.receive_text = AsyncMock(
-            side_effect=["hello", WebSocketDisconnect()]
-        )
+        mock_ws.receive_text = AsyncMock(side_effect=["hello", WebSocketDisconnect()])
 
         mock_db = MagicMock()
         mock_db.get_latest_positions = AsyncMock(return_value=[])
@@ -250,7 +248,9 @@ class TestWebsocketLiveAdditionalCases:
 
         try:
             service.db = mock_db
-            with patch.object(service.ws_manager, "disconnect", side_effect=spy_disconnect):
+            with patch.object(
+                service.ws_manager, "disconnect", side_effect=spy_disconnect
+            ):
                 await websocket_live(mock_ws)
         finally:
             service.db = original_db

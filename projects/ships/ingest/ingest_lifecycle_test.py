@@ -154,7 +154,9 @@ class TestAISIngestServiceStart:
 
         # Give the event loop a moment to start the background task
         await asyncio.sleep(0.01)
-        assert subscribe_called.is_set(), "subscribe_to_aisstream should have been called"
+        assert subscribe_called.is_set(), (
+            "subscribe_to_aisstream should have been called"
+        )
 
         service.running = False
         if service.ws_task:
@@ -242,7 +244,9 @@ class TestSubscribeToAisstreamMessageHandling:
             service.running = False
 
         with (
-            patch("projects.ships.ingest.main.websockets.connect", return_value=mock_ws),
+            patch(
+                "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
+            ),
             patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
@@ -259,7 +263,9 @@ class TestSubscribeToAisstreamMessageHandling:
             service.running = False
 
         with (
-            patch("projects.ships.ingest.main.websockets.connect", return_value=mock_ws),
+            patch(
+                "projects.ships.ingest.main.websockets.connect", return_value=mock_ws
+            ),
             patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
@@ -296,7 +302,9 @@ class TestSubscribeToAisstreamMessageHandling:
             service.running = False
 
         with (
-            patch("projects.ships.ingest.main.websockets.connect", return_value=_SpyWS()),
+            patch(
+                "projects.ships.ingest.main.websockets.connect", return_value=_SpyWS()
+            ),
             patch("projects.ships.ingest.main.asyncio.sleep", side_effect=fake_sleep),
         ):
             await service.subscribe_to_aisstream()
