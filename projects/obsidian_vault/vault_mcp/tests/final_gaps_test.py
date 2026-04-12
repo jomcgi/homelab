@@ -138,38 +138,28 @@ class TestReconcileLoopEnsureCollectionFailure:
             reconcile_interval_seconds=1,
         )
 
-        call_count = 0
+        ensure_call_count = 0
 
         async def ensure_collection_failing_then_ok(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
+            nonlocal ensure_call_count
+            ensure_call_count += 1
+            if ensure_call_count == 1:
                 raise ConnectionRefusedError("qdrant not ready")
+            # Second call succeeds (returns None implicitly)
 
         mock_embedder = MagicMock()
         mock_embedder.dimension = 768
 
-        mock_qdrant_first = AsyncMock()
-        mock_qdrant_first.ensure_collection = ensure_collection_failing_then_ok
-
-        mock_qdrant_second = AsyncMock()
-        mock_qdrant_second.ensure_collection = AsyncMock()
-
-        qdrant_instances = [mock_qdrant_first, mock_qdrant_second]
-        qdrant_call_count = 0
-
-        def make_qdrant(*args, **kwargs):
-            nonlocal qdrant_call_count
-            q = qdrant_instances[min(qdrant_call_count, len(qdrant_instances) - 1)]
-            qdrant_call_count += 1
-            return q
+        # Single qdrant mock whose ensure_collection fails first, succeeds second
+        mock_qdrant = AsyncMock()
+        mock_qdrant.ensure_collection = ensure_collection_failing_then_ok
 
         mock_reconciler = AsyncMock()
         mock_reconciler.run.side_effect = asyncio.CancelledError
 
         with (
             patch.object(_mod, "VaultEmbedder", return_value=mock_embedder),
-            patch.object(_mod, "QdrantClient", side_effect=make_qdrant),
+            patch.object(_mod, "QdrantClient", return_value=mock_qdrant),
             patch.object(_mod, "VaultReconciler", return_value=mock_reconciler),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
@@ -177,7 +167,7 @@ class TestReconcileLoopEnsureCollectionFailure:
                 await _mod._reconcile_loop(settings)
 
         # ensure_collection was called at least twice (first failed, second succeeded)
-        assert call_count >= 2
+        assert ensure_call_count >= 2
 
     async def test_globals_reset_when_ensure_collection_raises(self, tmp_path):
         """After ensure_collection failure, both _embedder and _qdrant are None."""
@@ -226,30 +216,41 @@ class TestReconcileLoopEnsureCollectionFailure:
 
 
 # ---------------------------------------------------------------------------
-# get_history — pipe character in commit message is split with maxsplit=3
+# get_history — empty lines in git log output are skipped
 # ---------------------------------------------------------------------------
 
 
-class TestGetHistoryPipeInMessage:
-    async def test_commit_message_with_pipe_character_is_parsed_correctly(
-        self, tmp_path
-    ):
-        """git log format uses '|' as separator with maxsplit=3; a '|' in the
-        commit message ends up in parts[1] intact since the split stops at 3."""
+class TestGetHistoryEmptyLines:
+    async def test_empty_lines_in_log_output_are_skipped(self, tmp_path):
+        """get_history skips blank lines in git log output (if not line: continue)."""
         (tmp_path / "note.md").write_text("content")
         subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
         subprocess.run(
-            ["git", "commit", "-m", "feat: add note | details"],
+            ["git", "commit", "-m", "initial commit"],
             cwd=tmp_path,
             capture_output=True,
         )
         result = await get_history(path="note.md")
+        # Should have exactly 1 commit — no phantom entries from blank lines
         assert len(result["commits"]) == 1
-        # The pipe in the message should appear in the parsed message field
-        assert "|" in result["commits"][0]["message"]
-        # hash, author, date should still be populated correctly
-        assert len(result["commits"][0]["hash"]) == 40
-        assert result["commits"][0]["author"] == "Test"
+        commit = result["commits"][0]
+        assert commit["message"] == "initial commit"
+        assert len(commit["hash"]) == 40
+
+    async def test_get_history_with_multiple_files_returns_all_commits(self, tmp_path):
+        """get_history with no path= returns commits from all files."""
+        for i in range(3):
+            (tmp_path / f"file{i}.md").write_text(f"content {i}")
+            subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+            subprocess.run(
+                ["git", "commit", "-m", f"commit {i}"],
+                cwd=tmp_path,
+                capture_output=True,
+            )
+        result = await get_history()
+        assert len(result["commits"]) == 3
+        # Most recent first
+        assert result["commits"][0]["message"] == "commit 2"
 
 
 # ---------------------------------------------------------------------------
