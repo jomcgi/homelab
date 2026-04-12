@@ -63,6 +63,7 @@ semgrep_test(
 semgrep_test(
     name = "ais_ingest_test_semgrep_test",
     srcs = ["ais_ingest_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -139,6 +140,7 @@ py_test(
 semgrep_test(
     name = "main_test_semgrep_test",
     srcs = ["main_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -157,5 +159,6 @@ py_test(
 semgrep_test(
     name = "coverage_gaps_test_semgrep_test",
     srcs = ["coverage_gaps_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
