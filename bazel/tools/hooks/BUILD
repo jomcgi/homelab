@@ -141,3 +141,9 @@ sh_test(
     srcs = ["check-duplicate-migration-version_test.sh"],
     data = [":check-duplicate-migration-version.sh"],
 )
+
+sh_test(
+    name = "check_generic_test_filename_test",
+    srcs = ["check-generic-test-filename_test.sh"],
+    data = [":check-generic-test-filename.sh"],
+)
