@@ -117,7 +117,7 @@ class TestDateFiltering:
     def test_filter_by_date_and_source(self):
         """Points are filtered by timestamp prefix and source."""
         points = self._make_points()
-        date = "2025-01-15"
+        date = "2025-01-15"  # nosemgrep: test-hardcoded-past-timestamp
         source = "gap"
         result = [
             p
@@ -207,7 +207,7 @@ class TestGapListingLogic:
     def test_date_filter_applied(self):
         points = self._make_gap_points()
         gaps = [p for p in points if p["source"] == "gap"]
-        date = "2025-01-15"
+        date = "2025-01-15"  # nosemgrep: test-hardcoded-past-timestamp
         filtered = [p for p in gaps if p["timestamp"].startswith(date)]
         assert len(filtered) == 2
 

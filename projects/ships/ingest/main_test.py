@@ -176,7 +176,7 @@ class TestHealthEndpoint:
             mock_svc.nc = MagicMock()
             mock_svc.nc.is_connected = True
             mock_svc.messages_published = 42
-            mock_svc.last_message_time = "2024-01-15T10:00:00Z"
+            mock_svc.last_message_time = "2024-01-15T10:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
 
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/health")
@@ -209,7 +209,7 @@ class TestHealthEndpoint:
             mock_svc.nc = MagicMock()
             mock_svc.nc.is_connected = True
             mock_svc.messages_published = 5
-            mock_svc.last_message_time = "2024-01-15T10:00:00Z"
+            mock_svc.last_message_time = "2024-01-15T10:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
 
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/health")
@@ -248,7 +248,7 @@ class TestHealthEndpoint:
             mock_svc.nc = MagicMock()
             mock_svc.nc.is_connected = True
             mock_svc.messages_published = 1
-            mock_svc.last_message_time = "2024-01-15T10:00:00Z"
+            mock_svc.last_message_time = "2024-01-15T10:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
 
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/health")
@@ -331,7 +331,7 @@ class TestMetricsEndpoint:
 
         with patch.object(main_module, "service") as mock_svc:
             mock_svc.messages_published = 1234
-            mock_svc.last_message_time = "2024-01-15T10:00:00Z"
+            mock_svc.last_message_time = "2024-01-15T10:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
 
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/metrics")
@@ -346,7 +346,7 @@ class TestMetricsEndpoint:
 
         with patch.object(main_module, "service") as mock_svc:
             mock_svc.messages_published = 5
-            mock_svc.last_message_time = "2024-01-15T10:00:00Z"
+            mock_svc.last_message_time = "2024-01-15T10:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
 
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/metrics")
