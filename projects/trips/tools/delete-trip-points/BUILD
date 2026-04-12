@@ -65,6 +65,7 @@ py_test(
     imports = ["."],
     deps = [
         "//projects/trips/tools/delete-trip-points",
+        "@pip//httpx",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],
