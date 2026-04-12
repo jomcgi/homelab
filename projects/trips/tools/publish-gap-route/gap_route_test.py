@@ -229,7 +229,11 @@ class TestGenerateGapId:
 
     def test_id_uses_correct_namespace(self):
         """The UUID5 must be generated with GAP_KEY_NAMESPACE."""
-        lat, lng, ts = 45.0, -122.0, "2025-01-01T00:00:00"  # nosemgrep: test-hardcoded-past-timestamp
+        lat, lng, ts = (
+            45.0,
+            -122.0,
+            "2025-01-01T00:00:00",
+        )  # nosemgrep: test-hardcoded-past-timestamp
         identity = f"gap:{lat:.5f}:{lng:.5f}:{ts}"
         expected_uuid = uuid.uuid5(GAP_KEY_NAMESPACE, identity)
         expected_id = f"gap_{expected_uuid.hex[:12]}"
