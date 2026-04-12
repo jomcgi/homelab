@@ -152,6 +152,8 @@
   let budgetRoughG = $state(null);
   let drawerBorderSvg = $state(null);
   let drawerBorderG = $state(null);
+  let hoverBorderG = $state(null);
+  let mapPanG = $state(null);
   const active = $derived(hovered || selected);
 
   let isDark = $state((() => {
@@ -383,12 +385,10 @@
     };
   }
 
-  function connectedTo(nodeId) {
-    if (!active) return false;
-    if (nodeId === active) return true;
-    return edges.some(
-      (e) => (e.from === active && e.to === nodeId) || (e.to === active && e.from === nodeId),
-    );
+  function isHighlighted(nodeId) {
+    const src = hovered || selected;
+    if (!src) return true;
+    return nodeId === src;
   }
 
   function nodeDrawn(id) {
@@ -739,13 +739,11 @@
       g.dataset.node = n.id;
       g.style.transition = "opacity 0.25s ease";
 
-      // Fill rectangle (hidden by default, shown when active via highlight effect)
+      // Solid fill — always visible so scribble lines don't bleed through text
       const fillEl = rc.rectangle(pos.x - w / 2, pos.y - h / 2, w, h, {
-        stroke: "none", fill: c.surface, fillStyle: "solid",
+        stroke: "none", fill: c.bg, fillStyle: "solid",
         roughness: r, seed: seed(n.id + "fill"),
       });
-      fillEl.style.opacity = "0";
-      fillEl.style.transition = "opacity 0.2s ease";
       fillEl.dataset.layer = "fill";
       g.appendChild(fillEl);
 
@@ -884,30 +882,171 @@
   // allowing CSS transitions to produce smooth fades.
   $effect(() => {
     if (!roughEdges || !roughNodes) return;
-    const _active = active;
+    const _hov = hovered;
+    const _sel = selected;
+    const dimSource = _hov || _sel;
 
-    // Edges: dim unrelated, full opacity for connected
+    // Edges: dim all when any node is focused
     roughEdges.querySelectorAll("[data-edge]").forEach((g) => {
-      const key = g.dataset.edge;
-      const [from, to] = key.split("-");
-      const connected = !_active || from === _active || to === _active;
-      g.style.opacity = connected ? "1" : "0.15";
+      g.style.opacity = dimSource ? "0.15" : "1";
     });
 
-    // Nodes: dim unrelated, show fill on active
+    // Nodes: only the focused node stays bright
     roughNodes.querySelectorAll("[data-node]").forEach((g) => {
       const id = g.dataset.node;
-      const connected = !_active || connectedTo(id);
-      const isActive = id === _active;
-
-      // Dim pencil/ink layers for unrelated nodes
-      g.style.opacity = connected ? "1" : "0.25";
-
-      // Show fill rectangle only on the active node
-      const fill = g.querySelector("[data-layer='fill']");
-      if (fill) fill.style.opacity = isActive ? "0.5" : "0";
+      g.style.opacity = (!dimSource || id === dimSource) ? "1" : "0.25";
     });
+
   });
+
+  // ── Hover scribble highlight ────────────────
+  // Chaotic scribble lines behind hovered node — keeps scribbling while cursor stays.
+  // 500ms hover delay prevents scribble on casual mouseover.
+  let hoverFadeTimer = null;
+  let scribbleInterval = null;
+  let scribbleDelayTimer = null;
+  let activeScribbleNode = null; // tracks which node has an active scribble
+
+  function clearAllScribbles(except) {
+    if (!hoverBorderG) return;
+    const children = [...hoverBorderG.children];
+    children.forEach((g) => {
+      if (g.dataset.node === except) return;
+      g.style.opacity = "0";
+      const dying = g;
+      setTimeout(() => { if (dying.parentNode) dying.remove(); }, 300);
+    });
+  }
+
+  $effect(() => {
+    if (!hoverBorderG || !mapSvg) return;
+    const _hov = hovered;
+    const _sel = selected;
+    const keep = _hov || _sel;
+
+    // Clear any scribbles that don't match the current target
+    clearAllScribbles(keep);
+
+    // If nothing to keep, kill the interval and delay
+    if (!keep) {
+      if (scribbleInterval) { clearInterval(scribbleInterval); scribbleInterval = null; }
+      if (scribbleDelayTimer) { clearTimeout(scribbleDelayTimer); scribbleDelayTimer = null; }
+      activeScribbleNode = null;
+      return;
+    }
+
+    // If the target changed, kill old interval + delay
+    if (keep !== activeScribbleNode) {
+      if (scribbleInterval) { clearInterval(scribbleInterval); scribbleInterval = null; }
+      if (scribbleDelayTimer) { clearTimeout(scribbleDelayTimer); scribbleDelayTimer = null; }
+      activeScribbleNode = null;
+    }
+
+    // Already scribbling this node — nothing to do
+    if (activeScribbleNode === keep) return;
+
+    // Start scribble after delay (immediate if clicking/selecting)
+    const delay = _sel === keep && !_hov ? 0 : 500;
+
+    scribbleDelayTimer = setTimeout(() => {
+      scribbleDelayTimer = null;
+      // Re-check that the target hasn't changed during the delay
+      if ((hovered || selected) !== keep) return;
+      activeScribbleNode = keep;
+      startScribble(keep);
+    }, delay);
+  });
+
+  function startScribble(target) {
+      const n = nodeById[target];
+      const pos = getNodePos(target);
+      const rc = rough.svg(mapSvg);
+      const pad = 20;
+      const hw = n.hw + 6 + pad;
+      const hh = HH + 3 + pad;
+
+      // MotherDuck-inspired brutalist palette — vibrant everywhere
+      const scribbleCol = n.status === "degraded"
+        ? (isDark ? "#f87171" : "#dc2626")
+        : n.status === "warning"
+          ? (isDark ? "#fbbf24" : "#f59e0b")
+          : (isDark ? "#7dd3fc" : "#38bdf8");
+
+      const wrap = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      wrap.dataset.node = target;
+      wrap.style.transition = "opacity 0.3s ease";
+
+      function addScribbleBurst(batch, baseDelay) {
+        const now = Date.now();
+        const linesPerBurst = 6;
+        for (let i = 0; i < linesPerBurst; i++) {
+          const idx = batch * linesPerBurst + i;
+          const s = seed(target + "scr" + idx + now);
+          const jx = ((s % 80) - 40);
+          const jy = ((seed(target + "jy" + idx + now) % 60) - 30);
+          const direction = s % 5;
+
+          let x1, y1, x2, y2;
+          if (direction === 0) {
+            // diagonal TL→BR
+            x1 = pos.x - hw + jx; y1 = pos.y - hh + jy;
+            x2 = pos.x + hw + jx * 0.3; y2 = pos.y + hh + jy * 0.3;
+          } else if (direction === 1) {
+            // diagonal TR→BL
+            x1 = pos.x + hw + jx; y1 = pos.y - hh + jy;
+            x2 = pos.x - hw + jx * 0.3; y2 = pos.y + hh + jy * 0.3;
+          } else if (direction === 2) {
+            // horizontal
+            x1 = pos.x - hw + jx; y1 = pos.y + jy;
+            x2 = pos.x + hw + jx * 0.4; y2 = pos.y + jy * 0.6;
+          } else if (direction === 3) {
+            // vertical
+            x1 = pos.x + jx * 0.8; y1 = pos.y - hh + jy;
+            x2 = pos.x + jx * 0.5; y2 = pos.y + hh + jy * 0.3;
+          } else {
+            // steep diagonal
+            x1 = pos.x - hw * 0.6 + jx; y1 = pos.y - hh + jy;
+            x2 = pos.x + hw * 0.6 + jx * 0.2; y2 = pos.y + hh + jy * 0.2;
+          }
+
+          const line = rc.line(x1, y1, x2, y2, {
+            stroke: scribbleCol,
+            roughness: 2.5 + (s % 20) / 10,
+            bowing: 1.5 + (seed(target + "bow" + idx) % 15) / 10,
+            strokeWidth: 1.5 + (s % 12) / 10,
+            seed: s,
+          });
+
+          const stagger = baseDelay + i * 0.04;
+          const dur = 0.12 + (s % 10) / 100;
+          line.querySelectorAll("path").forEach((path) => {
+            try {
+              const len = path.getTotalLength();
+              path.style.strokeDasharray = String(len);
+              path.style.strokeDashoffset = String(len);
+              path.style.animation = `hoverBorderDraw ${dur}s ease-out ${stagger}s forwards`;
+            } catch { /* ignore */ }
+          });
+          // No opacity — bold brutalist strokes, color does the work
+
+          wrap.appendChild(line);
+        }
+      }
+
+      // Initial burst
+      addScribbleBurst(0, 0);
+
+      // Keep scribbling every 250ms for up to 7s
+      let batch = 1;
+      const maxBatches = Math.floor(7000 / 250);
+      scribbleInterval = setInterval(() => {
+        if (batch >= maxBatches) { clearInterval(scribbleInterval); scribbleInterval = null; return; }
+        addScribbleBurst(batch, 0);
+        batch++;
+      }, 250);
+
+      hoverBorderG.appendChild(wrap);
+  }
 
   // ── Hover tooltip ──────────────────────────
   $effect(() => {
@@ -1036,6 +1175,43 @@
     );
   });
 
+  // ── Pan to selected node ─────────────────────
+  // Smoothly reposition the map so the selected node centers in the
+  // available whitespace (viewport minus drawer width).
+  const DRAWER_REM = 22;
+  $effect(() => {
+    if (!mapPanG || !mapSvg) return;
+    const _sel = selected;
+
+    if (!_sel) {
+      mapPanG.style.transform = "translate(0, 0)";
+      return;
+    }
+
+    const pos = getNodePos(_sel);
+    const vb = viewBox.split(" ").map(Number);
+    const [vbX, vbY, vbW, vbH] = vb;
+
+    // SVG center without drawer
+    const svgCenterX = vbX + vbW / 2;
+    const svgCenterY = vbY + vbH / 2;
+
+    // Drawer takes DRAWER_REM from the right — compute how much SVG-space
+    // that consumes, then find the center of the remaining whitespace.
+    const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const drawerPx = DRAWER_REM * remPx;
+    const drawerFraction = Math.min(drawerPx / containerW, 0.9);
+    // Available width fraction (left side)
+    const availFraction = 1 - drawerFraction;
+    // Center of available space in SVG coords
+    const targetX = vbX + (availFraction / 2) * vbW;
+
+    const dx = targetX - pos.x;
+    const dy = svgCenterY - pos.y;
+
+    mapPanG.style.transform = `translate(${dx}px, ${dy}px)`;
+  });
+
   // ── Keyboard ───────────────────────────────
   $effect(() => {
     function onKey(e) {
@@ -1072,13 +1248,15 @@
     aria-label="Service topology"
     preserveAspectRatio="xMidYMin meet"
   >
+    <g bind:this={mapPanG} class="map-pan">
     <g bind:this={roughEdges}></g>
+    <g bind:this={hoverBorderG}></g>
     <g bind:this={roughNodes}></g>
 
     {#key drawGen}
       {#each nodes as n}
         {@const pos = getNodePos(n.id)}
-        {@const dimmed = active && !connectedTo(n.id)}
+        {@const dimmed = !isHighlighted(n.id)}
         {@const visible = nodeDrawn(n.id)}
         {#if visible || flipPhase === "none"}
           <text
@@ -1129,6 +1307,7 @@
         onblur={() => { hovered = null; }}
       />
     {/each}
+    </g>
   </svg>
   </div>
 
@@ -1347,6 +1526,10 @@
     to { stroke-dashoffset: 0; }
   }
 
+  @keyframes -global-hoverBorderDraw {
+    to { stroke-dashoffset: 0; }
+  }
+
   @keyframes -global-textJot {
     0% { opacity: 0; transform: translate(-1px, 0.5px); }
     40% { opacity: 0.85; }
@@ -1354,6 +1537,10 @@
   }
 
   /* ── SVG: topology text ──────────────────── */
+
+  .map-pan {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
   .node-label {
     font-family: var(--font);
@@ -1386,8 +1573,7 @@
     all: unset;
     position: fixed;
     inset: 0;
-    background: var(--bg);
-    opacity: 0.4;
+    background: transparent;
     z-index: 10;
     cursor: default;
   }
