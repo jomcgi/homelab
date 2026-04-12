@@ -224,3 +224,22 @@ semgrep_test(
     exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "exception_continuation_test",
+    srcs = ["exception_continuation_test.py"],
+    imports = ["."],
+    deps = [
+        ":ais-ingest",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
+        "@pip//websockets",
+    ],
+)
+
+semgrep_test(
+    name = "exception_continuation_test_semgrep_test",
+    srcs = ["exception_continuation_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
