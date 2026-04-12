@@ -258,3 +258,20 @@ semgrep_test(
     srcs = ["remaining_gaps_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "coverage_gaps_test",
+    srcs = ["coverage_gaps_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "coverage_gaps_test_semgrep_test",
+    srcs = ["coverage_gaps_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
