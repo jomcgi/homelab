@@ -5,13 +5,15 @@ CLI command -> httpx call -> FastAPI handler -> response -> formatted output.
 """
 
 from contextlib import contextmanager
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
 from knowledge.gardener import Gardener
 from knowledge.models import AtomRawProvenance, RawInput
+from knowledge.router import get_embedding_client
+from knowledge.service import VAULT_ROOT_ENV
 from tools.cli.main import app
 
 
@@ -101,6 +103,57 @@ def _make_dead_letter(session, raw, *, error="boom", retry_count=3):
     return prov
 
 
+# ---------------------------------------------------------------------------
+# Canned data shared across search / note tests
+# ---------------------------------------------------------------------------
+
+_FAKE_EMBEDDING = [0.1] * 1024
+
+_CANNED_RESULTS = [
+    {
+        "note_id": "n1",
+        "title": "Attention Is All You Need",
+        "path": "papers/attention.md",
+        "type": "paper",
+        "tags": ["ml", "transformers"],
+        "score": 0.95,
+        "snippet": "The transformer replaces recurrence entirely with attention.",
+        "section": "## Architecture",
+        "edges": [],
+    },
+]
+
+_CANNED_RESULTS_WITH_EDGES = [
+    {
+        **_CANNED_RESULTS[0],
+        "edges": [
+            {
+                "target_id": "n2",
+                "kind": "edge",
+                "edge_type": "refines",
+                "target_title": None,
+                "resolved_note_id": "n2",
+            },
+        ],
+    },
+]
+
+_SAMPLE_NOTE = {
+    "note_id": "n1",
+    "title": "Attention Is All You Need",
+    "path": "papers/attention.md",
+    "type": "paper",
+    "tags": ["ml", "transformers"],
+}
+
+
+def _fake_embed_override():
+    """Return a FastAPI DI factory that yields a fake async EmbeddingClient."""
+    fake = AsyncMock()
+    fake.embed.return_value = _FAKE_EMBEDDING
+    return lambda: fake
+
+
 class TestDeadLetters:
     def test_lists_dead_letters(self, runner, session):
         raw = _make_raw(session)
@@ -134,3 +187,211 @@ class TestReplay:
     def test_404_for_unknown(self, runner, session):
         result = runner.invoke(app, ["knowledge", "replay", "9999"])
         assert result.exit_code == 1
+
+
+class TestSearch:
+    """Tests for the `knowledge search` CLI command."""
+
+    def test_empty_query_returns_no_results(self, runner):
+        """Single-char query hits the router's 2-char fast-path → 'No results.'"""
+        result = runner.invoke(app, ["knowledge", "search", "x"])
+        assert result.exit_code == 0
+        assert "No results." in result.output
+
+    def test_search_with_results(self, runner):
+        """Successful search prints score, note_id, title, and type."""
+        from app.main import app as fastapi_app
+
+        fastapi_app.dependency_overrides[get_embedding_client] = _fake_embed_override()
+        try:
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.search_notes_with_context.return_value = (
+                    _CANNED_RESULTS
+                )
+                result = runner.invoke(app, ["knowledge", "search", "attention"])
+        finally:
+            del fastapi_app.dependency_overrides[get_embedding_client]
+
+        assert result.exit_code == 0
+        assert "0.95" in result.output
+        assert "n1" in result.output
+        assert "Attention Is All You Need" in result.output
+        assert "paper" in result.output
+
+    def test_search_no_results(self, runner):
+        """Store returning [] prints 'No results.'"""
+        from app.main import app as fastapi_app
+
+        fastapi_app.dependency_overrides[get_embedding_client] = _fake_embed_override()
+        try:
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.search_notes_with_context.return_value = []
+                result = runner.invoke(app, ["knowledge", "search", "nothing here"])
+        finally:
+            del fastapi_app.dependency_overrides[get_embedding_client]
+
+        assert result.exit_code == 0
+        assert "No results." in result.output
+
+    def test_json_flag(self, runner):
+        """--json flag emits raw JSON instead of formatted lines."""
+        from app.main import app as fastapi_app
+
+        fastapi_app.dependency_overrides[get_embedding_client] = _fake_embed_override()
+        try:
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.search_notes_with_context.return_value = (
+                    _CANNED_RESULTS
+                )
+                result = runner.invoke(
+                    app, ["knowledge", "search", "--json", "attention"]
+                )
+        finally:
+            del fastapi_app.dependency_overrides[get_embedding_client]
+
+        assert result.exit_code == 0
+        assert '"results"' in result.output
+        assert '"note_id"' in result.output
+        assert '"n1"' in result.output
+
+    def test_type_filter_forwarded(self, runner):
+        """--type value is forwarded to the store as type_filter."""
+        from app.main import app as fastapi_app
+
+        fastapi_app.dependency_overrides[get_embedding_client] = _fake_embed_override()
+        try:
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.search_notes_with_context.return_value = []
+                runner.invoke(
+                    app, ["knowledge", "search", "--type", "paper", "attention"]
+                )
+                MockStore.return_value.search_notes_with_context.assert_called_once_with(
+                    query_embedding=_FAKE_EMBEDDING,
+                    limit=10,
+                    type_filter="paper",
+                )
+        finally:
+            del fastapi_app.dependency_overrides[get_embedding_client]
+
+    def test_limit_forwarded(self, runner):
+        """--limit value is forwarded to the store."""
+        from app.main import app as fastapi_app
+
+        fastapi_app.dependency_overrides[get_embedding_client] = _fake_embed_override()
+        try:
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.search_notes_with_context.return_value = []
+                runner.invoke(app, ["knowledge", "search", "--limit", "5", "attention"])
+                MockStore.return_value.search_notes_with_context.assert_called_once_with(
+                    query_embedding=_FAKE_EMBEDDING,
+                    limit=5,
+                    type_filter=None,
+                )
+        finally:
+            del fastapi_app.dependency_overrides[get_embedding_client]
+
+    def test_search_with_edges_displays_edge_info(self, runner):
+        """Results with typed edges render edge type and target in output."""
+        from app.main import app as fastapi_app
+
+        fastapi_app.dependency_overrides[get_embedding_client] = _fake_embed_override()
+        try:
+            with patch("knowledge.router.KnowledgeStore") as MockStore:
+                MockStore.return_value.search_notes_with_context.return_value = (
+                    _CANNED_RESULTS_WITH_EDGES
+                )
+                result = runner.invoke(app, ["knowledge", "search", "attention"])
+        finally:
+            del fastapi_app.dependency_overrides[get_embedding_client]
+
+        assert result.exit_code == 0
+        assert "refines" in result.output
+        assert "n2" in result.output
+
+
+class TestNote:
+    """Tests for the `knowledge note` CLI command."""
+
+    def test_note_fetches_metadata_and_writes_tmpfile(
+        self, runner, tmp_path, monkeypatch
+    ):
+        """Successful note fetch prints title/type and writes content to tmpfile."""
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        note_file = vault_dir / "papers" / "attention.md"
+        note_file.parent.mkdir(parents=True)
+        note_file.write_text("# Attention\n\nSelf-attention mechanism.")
+
+        monkeypatch.setenv(VAULT_ROOT_ENV, str(vault_dir))
+
+        with (
+            patch("knowledge.router.KnowledgeStore") as MockStore,
+            patch("tools.cli.output.TMPDIR", tmp_path / "notes"),
+        ):
+            MockStore.return_value.get_note_by_id.return_value = _SAMPLE_NOTE
+            MockStore.return_value.get_note_links.return_value = []
+            result = runner.invoke(app, ["knowledge", "note", "n1"])
+
+        assert result.exit_code == 0
+        assert "Attention Is All You Need" in result.output
+        assert "paper" in result.output
+        assert "Content:" in result.output
+
+    def test_note_json_output(self, runner, tmp_path, monkeypatch):
+        """--json flag emits raw JSON for the note instead of formatted text."""
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        note_file = vault_dir / "papers" / "attention.md"
+        note_file.parent.mkdir(parents=True)
+        note_file.write_text("# Attention\n\nContent.")
+
+        monkeypatch.setenv(VAULT_ROOT_ENV, str(vault_dir))
+
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.get_note_by_id.return_value = _SAMPLE_NOTE
+            MockStore.return_value.get_note_links.return_value = []
+            result = runner.invoke(app, ["knowledge", "note", "--json", "n1"])
+
+        assert result.exit_code == 0
+        assert '"note_id"' in result.output
+        assert '"n1"' in result.output
+        assert '"title"' in result.output
+
+    def test_note_displays_typed_edges(self, runner, tmp_path, monkeypatch):
+        """Note with typed edges shows 'Edges:' line with edge type and target."""
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        note_file = vault_dir / "papers" / "attention.md"
+        note_file.parent.mkdir(parents=True)
+        note_file.write_text("# Attention\n\nContent.")
+
+        monkeypatch.setenv(VAULT_ROOT_ENV, str(vault_dir))
+
+        with (
+            patch("knowledge.router.KnowledgeStore") as MockStore,
+            patch("tools.cli.output.TMPDIR", tmp_path / "notes"),
+        ):
+            MockStore.return_value.get_note_by_id.return_value = _SAMPLE_NOTE
+            MockStore.return_value.get_note_links.return_value = [
+                {
+                    "target_id": "n2",
+                    "kind": "edge",
+                    "edge_type": "refines",
+                    "target_title": None,
+                    "resolved_note_id": "n2",
+                },
+            ]
+            result = runner.invoke(app, ["knowledge", "note", "n1"])
+
+        assert result.exit_code == 0
+        assert "Edges:" in result.output
+        assert "refines" in result.output
+        assert "n2" in result.output
+
+    def test_note_not_found_exits_nonzero(self, runner):
+        """Requesting a non-existent note ID causes a non-zero exit code."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.get_note_by_id.return_value = None
+            result = runner.invoke(app, ["knowledge", "note", "does-not-exist"])
+
+        assert result.exit_code != 0
