@@ -273,10 +273,10 @@ class TestSubscribeToAisstreamMessageHandling:
         assert service.ready is False
 
     @pytest.mark.asyncio
-    async def test_subscribe_sets_ready_true_on_connection(self, service):
-        """ready is set to True once the WebSocket connection is established."""
+    async def test_subscribe_sets_ready_true_after_subscription_sent(self, service):
+        """ready is set to True after the subscription message is sent (after ws.send)."""
         service.running = True
-        ready_values_during_send = []
+        ready_after_messages = []
 
         class _SpyWS:
             def __init__(self):
@@ -289,13 +289,19 @@ class TestSubscribeToAisstreamMessageHandling:
                 pass
 
             async def send(self, msg):
-                ready_values_during_send.append(service.ready)
+                # Before send completes, ready is still False
                 self.sent_messages.append(msg)
 
             def __aiter__(self):
                 return self
 
+            _done = False
+
             async def __anext__(self):
+                # Capture ready state on first message iteration (after send + ready=True)
+                if not self._done:
+                    self._done = True
+                    ready_after_messages.append(service.ready)
                 raise StopAsyncIteration
 
         async def fake_sleep(_):
@@ -309,8 +315,8 @@ class TestSubscribeToAisstreamMessageHandling:
         ):
             await service.subscribe_to_aisstream()
 
-        # ready was True when the subscription message was sent
-        assert True in ready_values_during_send
+        # ready was set to True before message iteration begins (after subscription sent)
+        assert True in ready_after_messages
 
     @pytest.mark.asyncio
     async def test_subscribe_skips_messages_when_stopped(self, service):
