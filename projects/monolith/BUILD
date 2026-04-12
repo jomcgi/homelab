@@ -2246,6 +2246,27 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_ingest_queue_webpage_title_test",
+    srcs = ["knowledge/ingest_queue_webpage_title_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "knowledge_raw_ingest_move_phase_oserror_test",
+    srcs = ["knowledge/raw_ingest_move_phase_oserror_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "notes_router_whitespace_test",
     srcs = ["notes/router_whitespace_test.py"],
     imports = ["."],
