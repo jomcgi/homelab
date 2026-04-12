@@ -177,7 +177,6 @@ py_test(
         ":ais-ingest",
         "@pip//pytest",
         "@pip//pytest_asyncio",  # keep
-        "@pip//websockets",
     ],
 )
 
