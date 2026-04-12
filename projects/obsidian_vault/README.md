@@ -55,7 +55,7 @@ secrets:
     itemPath: "vaults/<your-1password-vault>/items/<item-name>"
 ```
 
-The 1Password item should contain a `token` field with your GitHub personal access token.
+The 1Password item should contain a `GITHUB_TOKEN` field with your GitHub personal access token.
 
 ### Enabling Obsidian Cloud Sync
 
@@ -80,7 +80,7 @@ gateway:
     itemPath: "vaults/<your-1password-vault>/items/<gateway-secret>"
 ```
 
-A Helm post-install hook will automatically register the server with the gateway.
+A Helm post-install and post-upgrade hook will automatically register the server with the gateway.
 
 ### Full Values Reference
 
