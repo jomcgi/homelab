@@ -27,8 +27,8 @@ fi
 
 # Only inspect test files
 case "$FILE_PATH" in
-	*_test.py | *_test.go) ;;
-	*) exit 0 ;;
+*_test.py | *_test.go) ;;
+*) exit 0 ;;
 esac
 
 BASENAME=$(basename "$FILE_PATH")
