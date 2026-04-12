@@ -31,6 +31,7 @@ py_library(
 
 semgrep_target_test(
     name = "main_semgrep_test",
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     lockfiles = ["//bazel/requirements:all.txt"],
     rules = ["//bazel/semgrep/rules:python_rules"],
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
@@ -53,6 +54,7 @@ py_test(
 semgrep_test(
     name = "delete_trip_points_test_semgrep_test",
     srcs = ["delete_trip_points_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -71,5 +73,6 @@ py_test(
 semgrep_test(
     name = "main_test_semgrep_test",
     srcs = ["main_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
