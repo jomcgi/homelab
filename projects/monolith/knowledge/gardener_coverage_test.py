@@ -210,9 +210,7 @@ class TestRunClaudeSubprocessDirect:
         """After a successful subprocess, _last_stdout holds the stdout bytes."""
         proc_mock = AsyncMock()
         proc_mock.returncode = 0
-        proc_mock.communicate = AsyncMock(
-            return_value=(b"subprocess output here", b"")
-        )
+        proc_mock.communicate = AsyncMock(return_value=(b"subprocess output here", b""))
 
         gardener = Gardener(vault_root=tmp_path)
         with patch("asyncio.create_subprocess_exec", return_value=proc_mock):
