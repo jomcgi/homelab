@@ -664,7 +664,7 @@ class TestPublishPositionNATSDetails:
     async def test_publish_position_msg_id_format_is_mmsi_timestamp(self, service):
         """Nats-Msg-Id for positions is '{mmsi}-{timestamp}'."""
         mmsi = "987654321"
-        ts = "2024-06-01T12:34:56Z"
+        ts = "2024-06-01T12:34:56Z"  # nosemgrep: test-hardcoded-past-timestamp
         data = {"mmsi": mmsi, "lat": 49.0, "lon": -124.0, "timestamp": ts}
         await service.publish_position(mmsi, data)
         headers = service.js.publish.call_args[1]["headers"]
@@ -690,7 +690,7 @@ class TestPublishPositionNATSDetails:
     @pytest.mark.asyncio
     async def test_publish_position_updates_last_message_time(self, service):
         """publish_position sets last_message_time to the data timestamp."""
-        ts = "2024-06-01T09:30:00Z"
+        ts = "2024-06-01T09:30:00Z"  # nosemgrep: test-hardcoded-past-timestamp
         data = {"mmsi": "222", "lat": 48.5, "lon": -123.4, "timestamp": ts}
         await service.publish_position("222", data)
         assert service.last_message_time == ts
@@ -719,7 +719,7 @@ class TestPublishStaticNATSDetails:
     async def test_publish_static_uses_static_prefix_in_msg_id(self, service):
         """Nats-Msg-Id for static data is 'static-{mmsi}-{timestamp}'."""
         mmsi = "123456789"
-        ts = "2024-06-01T12:00:00Z"
+        ts = "2024-06-01T12:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
         data = {"mmsi": mmsi, "name": "TEST", "timestamp": ts}
         await service.publish_static(mmsi, data)
         headers = service.js.publish.call_args[1]["headers"]

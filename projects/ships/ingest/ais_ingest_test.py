@@ -324,7 +324,7 @@ class TestHealthEndpoint:
             mock_service.nc = MagicMock()
             mock_service.nc.is_connected = True
             mock_service.messages_published = 100
-            mock_service.last_message_time = "2024-01-15T10:00:00Z"
+            mock_service.last_message_time = "2024-01-15T10:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
 
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/health")
@@ -500,7 +500,7 @@ class TestMetricsEndpoint:
 
         with patch.object(main, "service") as mock_service:
             mock_service.messages_published = 500
-            mock_service.last_message_time = "2024-01-15T12:00:00Z"
+            mock_service.last_message_time = "2024-01-15T12:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
 
             client = TestClient(app, raise_server_exceptions=False)
             response = client.get("/metrics")
