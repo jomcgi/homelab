@@ -24,9 +24,8 @@ Covers gaps not addressed by the existing test suite:
 import asyncio
 import json
 import os
-import tempfile
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -223,28 +222,20 @@ class TestReadOnlyDbConnection:
 
 
 class TestEventLoopYielding:
-    """Verify asyncio.sleep(0) is called at every i % 500 == 0 within a batch."""
+    """Verify asyncio.sleep(0) is called at every i % 500 == 0 within a batch.
 
-    @pytest.mark.asyncio
-    async def test_sleep_called_at_i_0(self):
-        """asyncio.sleep(0) is called at i=0 (start of every batch)."""
-        service = ShipsAPIService()
-        service.running = True
-        service.replay_complete = True
-        service.ready = True
+    These tests run subscribe_ais_stream() with a direct ``await`` (not
+    asyncio.create_task) so that asyncio.sleep is patched without breaking
+    the test's own event-loop yielding.  A closure-based fetch mock stops the
+    service after the first batch by setting ``running=False`` on the second
+    call, which causes the outer ``while self.running:`` loop to exit cleanly.
+    """
 
-        db = Database(":memory:")
-        await db.connect()
-        service.db = db
-
-        sleep_calls = []
-
-        async def track_sleep(n):
-            sleep_calls.append(n)
-
-        # Build exactly 1 message (so i=0 only)
+    @staticmethod
+    def _make_pos_msg(mmsi: str, ship_name: str) -> AsyncMock:
+        """Build a mock NATS message carrying a position payload."""
         pos_data = {
-            "mmsi": "100000001",
+            "mmsi": mmsi,
             "lat": 51.0,
             "lon": -1.0,
             "speed": 5.0,
@@ -253,41 +244,71 @@ class TestEventLoopYielding:
             "nav_status": 0,
             "rate_of_turn": 0,
             "position_accuracy": 1,
-            "ship_name": "YIELD_TEST",
+            "ship_name": ship_name,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-        mock_msg = AsyncMock()
-        mock_msg.subject = "ais.position.100000001"
-        mock_msg.data = json.dumps(pos_data).encode()
-        mock_msg.ack = AsyncMock()
+        m = AsyncMock()
+        m.subject = f"ais.position.{mmsi}"
+        m.data = json.dumps(pos_data).encode()
+        m.ack = AsyncMock()
+        return m
 
+    @staticmethod
+    def _stopping_fetch(service, first_batch):
+        """Return an async fetch callable that stops the service on 2nd call."""
+        call_count = 0
+
+        async def _fetch(batch, timeout):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return first_batch
+            service.running = False
+            raise asyncio.TimeoutError()
+
+        return _fetch
+
+    @staticmethod
+    async def _make_service():
+        """Create a ShipsAPIService wired to an in-memory DB, ready for tests."""
+        service = ShipsAPIService()
+        service.running = True
+        service.replay_complete = True
+        service.ready = True
+        db = Database(":memory:")
+        await db.connect()
+        service.db = db
+        service.ws_manager.broadcast = AsyncMock()
+        return service, db
+
+    @staticmethod
+    def _mock_js(service, first_batch):
+        """Return a mock JetStream context backed by the stopping fetch."""
         mock_psub = AsyncMock()
-        mock_psub.fetch = AsyncMock(side_effect=[[mock_msg], asyncio.TimeoutError()])
+        mock_psub.fetch = TestEventLoopYielding._stopping_fetch(service, first_batch)
         consumer_info_mock = MagicMock()
         consumer_info_mock.num_pending = 0
         mock_psub.consumer_info = AsyncMock(return_value=consumer_info_mock)
-
         mock_js = AsyncMock()
         mock_js.pull_subscribe = AsyncMock(return_value=mock_psub)
-        service.js = mock_js
+        return mock_js
 
-        with patch(
-            "projects.ships.backend.main.asyncio.sleep",
-            side_effect=track_sleep,
-        ):
-            task = asyncio.create_task(service.subscribe_ais_stream())
-            await asyncio.sleep(0.05)
-            service.running = False
-            try:
-                await asyncio.wait_for(task, timeout=2.0)
-            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
-                task.cancel()
-                try:
-                    await task
-                except (asyncio.CancelledError, Exception):
-                    pass
+    @pytest.mark.asyncio
+    async def test_sleep_called_at_i_0(self):
+        """asyncio.sleep(0) is called at i=0 (start of every batch)."""
+        service, db = await self._make_service()
 
-        # sleep(0) must have been called (at i=0)
+        sleep_calls: list[int | float] = []
+
+        async def track_sleep(n):
+            sleep_calls.append(n)
+
+        msg = self._make_pos_msg("100000001", "YIELD_TEST")
+        service.js = self._mock_js(service, [msg])
+
+        with patch("projects.ships.backend.main.asyncio.sleep", new=track_sleep):
+            await service.subscribe_ais_stream()
+
         assert 0 in sleep_calls, (
             f"Expected asyncio.sleep(0) at i=0, sleep calls: {sleep_calls}"
         )
@@ -297,159 +318,55 @@ class TestEventLoopYielding:
     @pytest.mark.asyncio
     async def test_sleep_called_at_i_500_boundary(self):
         """asyncio.sleep(0) is called at i=500 when processing 501+ messages."""
-        service = ShipsAPIService()
-        service.running = True
-        service.replay_complete = True
-        service.ready = True
+        service, db = await self._make_service()
 
-        db = Database(":memory:")
-        await db.connect()
-        service.db = db
-        service.ws_manager.broadcast = AsyncMock()
-
-        sleep_call_count = 0
+        zero_sleep_count = 0
 
         async def count_zero_sleeps(n):
-            nonlocal sleep_call_count
+            nonlocal zero_sleep_count
             if n == 0:
-                sleep_call_count += 1
+                zero_sleep_count += 1
 
-        # Build 501 messages to trigger sleep at i=0 and i=500
-        msgs = []
-        for i in range(501):
-            pos_data = {
-                "mmsi": f"1{i:08d}",
-                "lat": 50.0 + i * 0.0001,
-                "lon": -1.0,
-                "speed": 5.0,
-                "course": 90.0,
-                "heading": 88,
-                "nav_status": 0,
-                "rate_of_turn": 0,
-                "position_accuracy": 1,
-                "ship_name": f"VESSEL{i}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            m = AsyncMock()
-            m.subject = f"ais.position.1{i:08d}"
-            m.data = json.dumps(pos_data).encode()
-            m.ack = AsyncMock()
-            msgs.append(m)
-
-        mock_psub = AsyncMock()
-        mock_psub.fetch = AsyncMock(side_effect=[msgs, asyncio.TimeoutError()])
-        consumer_info_mock = MagicMock()
-        consumer_info_mock.num_pending = 0
-        mock_psub.consumer_info = AsyncMock(return_value=consumer_info_mock)
-
-        mock_js = AsyncMock()
-        mock_js.pull_subscribe = AsyncMock(return_value=mock_psub)
-        service.js = mock_js
+        # 501 distinct MMSIs to avoid deduplication collapsing the batch
+        msgs = [
+            self._make_pos_msg(f"1{i:08d}", f"VESSEL{i}") for i in range(501)
+        ]
+        service.js = self._mock_js(service, msgs)
 
         with patch(
-            "projects.ships.backend.main.asyncio.sleep",
-            side_effect=count_zero_sleeps,
+            "projects.ships.backend.main.asyncio.sleep", new=count_zero_sleeps
         ):
-            task = asyncio.create_task(service.subscribe_ais_stream())
-            await asyncio.sleep(0.1)
-            service.running = False
-            try:
-                await asyncio.wait_for(task, timeout=5.0)
-            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
-                task.cancel()
-                try:
-                    await task
-                except (asyncio.CancelledError, Exception):
-                    pass
+            await service.subscribe_ais_stream()
 
-        # With 501 messages, sleep(0) is called at i=0 and i=500 → 2 calls
-        assert sleep_call_count >= 2, (
+        # sleep(0) fires at i=0 and i=500 → at least 2 calls
+        assert zero_sleep_count >= 2, (
             f"Expected at least 2 sleep(0) calls (at i=0 and i=500), "
-            f"got {sleep_call_count}"
+            f"got {zero_sleep_count}"
         )
-
         await db.close()
 
     @pytest.mark.asyncio
     async def test_sleep_not_called_at_non_multiple_of_500(self):
         """asyncio.sleep(0) is NOT called for i=1..499 (only at multiples of 500)."""
-        service = ShipsAPIService()
-        service.running = True
-        service.replay_complete = True
-        service.ready = True
+        service, db = await self._make_service()
 
-        db = Database(":memory:")
-        await db.connect()
-        service.db = db
-        service.ws_manager.broadcast = AsyncMock()
+        zero_sleep_count = 0
 
-        zero_sleep_indices: list[int] = []
-        current_index = [-1]
-
-        async def track_sleep(n):
+        async def track_zero_sleep(n):
+            nonlocal zero_sleep_count
             if n == 0:
-                zero_sleep_indices.append(current_index[0])
+                zero_sleep_count += 1
 
-        # Patch the loop index tracking by intercepting message processing
-        original_process = service._process_message_sync
-
-        def tracking_process(subject, data):
-            current_index[0] += 1
-            return original_process(subject, data)
-
-        service._process_message_sync = tracking_process
-
-        # Build exactly 3 messages (i=0,1,2) → only i=0 triggers sleep
-        msgs = []
-        for i in range(3):
-            pos_data = {
-                "mmsi": f"2{i:08d}",
-                "lat": 51.0,
-                "lon": -2.0,
-                "speed": 3.0,
-                "course": 45.0,
-                "heading": 44,
-                "nav_status": 0,
-                "rate_of_turn": 0,
-                "position_accuracy": 1,
-                "ship_name": f"V{i}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            m = AsyncMock()
-            m.subject = f"ais.position.2{i:08d}"
-            m.data = json.dumps(pos_data).encode()
-            m.ack = AsyncMock()
-            msgs.append(m)
-
-        mock_psub = AsyncMock()
-        mock_psub.fetch = AsyncMock(side_effect=[msgs, asyncio.TimeoutError()])
-        consumer_info_mock = MagicMock()
-        consumer_info_mock.num_pending = 0
-        mock_psub.consumer_info = AsyncMock(return_value=consumer_info_mock)
-
-        mock_js = AsyncMock()
-        mock_js.pull_subscribe = AsyncMock(return_value=mock_psub)
-        service.js = mock_js
+        # 3 messages → sleep(0) called exactly once (at i=0)
+        msgs = [self._make_pos_msg(f"2{i:08d}", f"V{i}") for i in range(3)]
+        service.js = self._mock_js(service, msgs)
 
         with patch(
-            "projects.ships.backend.main.asyncio.sleep",
-            side_effect=track_sleep,
+            "projects.ships.backend.main.asyncio.sleep", new=track_zero_sleep
         ):
-            task = asyncio.create_task(service.subscribe_ais_stream())
-            await asyncio.sleep(0.05)
-            service.running = False
-            try:
-                await asyncio.wait_for(task, timeout=2.0)
-            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
-                task.cancel()
-                try:
-                    await task
-                except (asyncio.CancelledError, Exception):
-                    pass
+            await service.subscribe_ais_stream()
 
-        # For 3 messages, sleep(0) should only fire at i=0
-        assert len(zero_sleep_indices) == 1, (
-            f"Expected 1 sleep(0) call (only at i=0), got {zero_sleep_indices}"
+        assert zero_sleep_count == 1, (
+            f"Expected exactly 1 sleep(0) call (only at i=0), got {zero_sleep_count}"
         )
-
         await db.close()
