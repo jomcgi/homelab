@@ -107,9 +107,7 @@ class TestMainDbPragmaSettings:
         try:
             cursor = await db.db.execute("PRAGMA mmap_size")
             row = await cursor.fetchone()
-            assert row[0] == 268435456, (
-                f"Expected mmap_size=268435456, got {row[0]}"
-            )
+            assert row[0] == 268435456, f"Expected mmap_size=268435456, got {row[0]}"
         finally:
             await db.close()
 
@@ -139,9 +137,7 @@ class TestReadOnlyDbConnection:
         db = Database(":memory:")
         await db.connect()
         try:
-            assert db._read_db is db.db, (
-                "In-memory DB should reuse the same connection"
-            )
+            assert db._read_db is db.db, "In-memory DB should reuse the same connection"
         finally:
             await db.close()
 
@@ -266,9 +262,7 @@ class TestEventLoopYielding:
         mock_msg.ack = AsyncMock()
 
         mock_psub = AsyncMock()
-        mock_psub.fetch = AsyncMock(
-            side_effect=[[mock_msg], asyncio.TimeoutError()]
-        )
+        mock_psub.fetch = AsyncMock(side_effect=[[mock_msg], asyncio.TimeoutError()])
         consumer_info_mock = MagicMock()
         consumer_info_mock.num_pending = 0
         mock_psub.consumer_info = AsyncMock(return_value=consumer_info_mock)
