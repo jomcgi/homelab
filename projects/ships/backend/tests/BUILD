@@ -294,3 +294,24 @@ semgrep_test(
     exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "identified_gaps_test",
+    srcs = ["identified_gaps_test.py"],
+    imports = [".."],
+    deps = [
+        ":conftest",
+        "//projects/ships/backend:ships-api",
+        "@pip//aiosqlite",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
+    ],
+)
+
+semgrep_test(
+    name = "identified_gaps_test_semgrep_test",
+    srcs = ["identified_gaps_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
