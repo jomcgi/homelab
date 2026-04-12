@@ -168,3 +168,22 @@ semgrep_test(
     exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "ingest_lifecycle_test",
+    srcs = ["ingest_lifecycle_test.py"],
+    imports = ["."],
+    deps = [
+        ":ais-ingest",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
+        "@pip//websockets",
+    ],
+)
+
+semgrep_test(
+    name = "ingest_lifecycle_test_semgrep_test",
+    srcs = ["ingest_lifecycle_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
