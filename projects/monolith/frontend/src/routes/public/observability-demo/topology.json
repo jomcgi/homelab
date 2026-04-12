@@ -1,11 +1,20 @@
 {
   "nodes": [
     {
-      "id": "cloudflare",
-      "label": "CLOUDFLARE",
+      "id": "external",
+      "label": "EXTERNAL",
       "tier": "ingress",
       "status": "healthy",
-      "description": "tunnel + gateway",
+      "description": "webpage · claude · cli",
+      "brief": "all external clients",
+      "metrics": [{ "k": "clients", "v": "webpage, claude, cli" }]
+    },
+    {
+      "id": "cloudflare",
+      "label": "CLOUDFLARE TUNNEL",
+      "tier": "critical",
+      "status": "healthy",
+      "description": "cloudflare tunnel",
       "brief": "14.2k req/24h",
       "metrics": [
         { "k": "tunnel", "v": "connected" },
@@ -141,7 +150,7 @@
     },
     {
       "id": "llama-cpp",
-      "label": "LLAMA.CPP",
+      "label": "GEMMA 4",
       "tier": "critical",
       "status": "healthy",
       "description": "gemma 4 inference",
@@ -317,15 +326,20 @@
     }
   ],
   "edges": [
+    { "from": "external", "to": "cloudflare", "protocol": "https" },
     { "from": "cloudflare", "to": "monolith", "protocol": "https" },
     { "from": "cloudflare", "to": "context-forge", "protocol": "https" },
     { "from": "cloudflare", "to": "agent-platform", "protocol": "https" },
-    { "from": "monolith", "to": "postgres", "protocol": "sql" },
-    { "from": "monolith", "to": "nats", "protocol": "nats" },
+    { "from": "monolith", "to": "postgres", "protocol": "sql", "bidi": true },
     { "from": "monolith", "to": "context-forge", "protocol": "grpc" },
     { "from": "monolith", "to": "llama-cpp", "protocol": "http" },
     { "from": "monolith", "to": "voyage-embedder", "protocol": "http" },
-    { "from": "nats", "to": "agent-platform", "protocol": "nats" },
+    {
+      "from": "nats",
+      "to": "agent-platform",
+      "protocol": "nats",
+      "bidi": true
+    },
     { "from": "agent-platform", "to": "context-forge", "protocol": "grpc" },
     { "from": "context-forge", "to": "k8s-mcp", "protocol": "mcp" },
     { "from": "context-forge", "to": "argocd-mcp", "protocol": "mcp" },
