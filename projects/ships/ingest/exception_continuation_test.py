@@ -115,9 +115,7 @@ class TestGenericExceptionContinuation:
             # Must not raise
             await service.subscribe_to_aisstream()
 
-        assert iteration_count[0] >= 2, (
-            "Loop should have continued after the exception"
-        )
+        assert iteration_count[0] >= 2, "Loop should have continued after the exception"
 
     @pytest.mark.asyncio
     async def test_multiple_consecutive_exceptions_do_not_propagate(self, service):
@@ -444,7 +442,10 @@ class TestReconnectDelayAfterException:
     @pytest.mark.asyncio
     async def test_reconnect_delay_increases_after_each_failure(self, service):
         """Reconnect delay grows with each successive failure (backoff)."""
-        from projects.ships.ingest.main import INITIAL_RECONNECT_DELAY, RECONNECT_BACKOFF_FACTOR
+        from projects.ships.ingest.main import (
+            INITIAL_RECONNECT_DELAY,
+            RECONNECT_BACKOFF_FACTOR,
+        )
 
         service.running = True
         sleep_delays: list[float] = []
@@ -472,7 +473,10 @@ class TestReconnectDelayAfterException:
     @pytest.mark.asyncio
     async def test_reconnect_delay_reset_to_initial_after_success(self, service):
         """Reconnect delay resets to INITIAL_RECONNECT_DELAY after a successful connection."""
-        from projects.ships.ingest.main import INITIAL_RECONNECT_DELAY, RECONNECT_BACKOFF_FACTOR
+        from projects.ships.ingest.main import (
+            INITIAL_RECONNECT_DELAY,
+            RECONNECT_BACKOFF_FACTOR,
+        )
 
         service.running = True
         sleep_delays: list[float] = []
