@@ -328,14 +328,10 @@ class TestEventLoopYielding:
                 zero_sleep_count += 1
 
         # 501 distinct MMSIs to avoid deduplication collapsing the batch
-        msgs = [
-            self._make_pos_msg(f"1{i:08d}", f"VESSEL{i}") for i in range(501)
-        ]
+        msgs = [self._make_pos_msg(f"1{i:08d}", f"VESSEL{i}") for i in range(501)]
         service.js = self._mock_js(service, msgs)
 
-        with patch(
-            "projects.ships.backend.main.asyncio.sleep", new=count_zero_sleeps
-        ):
+        with patch("projects.ships.backend.main.asyncio.sleep", new=count_zero_sleeps):
             await service.subscribe_ais_stream()
 
         # sleep(0) fires at i=0 and i=500 → at least 2 calls
@@ -361,9 +357,7 @@ class TestEventLoopYielding:
         msgs = [self._make_pos_msg(f"2{i:08d}", f"V{i}") for i in range(3)]
         service.js = self._mock_js(service, msgs)
 
-        with patch(
-            "projects.ships.backend.main.asyncio.sleep", new=track_zero_sleep
-        ):
+        with patch("projects.ships.backend.main.asyncio.sleep", new=track_zero_sleep):
             await service.subscribe_ais_stream()
 
         assert zero_sleep_count == 1, (
