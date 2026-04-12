@@ -242,3 +242,22 @@ semgrep_test(
     exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "nats_and_reconnect_test",
+    srcs = ["nats_and_reconnect_test.py"],
+    imports = ["."],
+    deps = [
+        ":ais-ingest",
+        "@pip//nats_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
+    ],
+)
+
+semgrep_test(
+    name = "nats_and_reconnect_test_semgrep_test",
+    srcs = ["nats_and_reconnect_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
