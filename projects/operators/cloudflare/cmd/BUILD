@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
     name = "cmd_lib",
@@ -30,4 +30,17 @@ go_binary(
     name = "cmd",
     embed = [":cmd_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "cmd_test",
+    srcs = ["main_test.go"],
+    embed = [":cmd_lib"],
+    deps = [
+        "//projects/operators/cloudflare/api/v1:api",
+        "//projects/operators/cloudflare/internal/telemetry",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_sigs_gateway_api//apis/v1:apis",
+    ],
 )
