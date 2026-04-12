@@ -3,6 +3,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from tools.cli.output import compact_line, write_to_tmpfile, format_edges
 
 
