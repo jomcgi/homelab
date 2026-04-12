@@ -187,9 +187,7 @@ class TestCreateNoteErrorPropagation:
         with patch.object(
             _mod,
             "_git",
-            side_effect=subprocess.CalledProcessError(
-                1, ["git"], stderr="lock failed"
-            ),
+            side_effect=subprocess.CalledProcessError(1, ["git"], stderr="lock failed"),
         ):
             result = await create_note(content="Some content")
 
@@ -553,7 +551,11 @@ class TestChunkMarkdownMerging:
         """A tiny paragraph following a larger one in the same section merges in."""
         # Create content where the second paragraph is small enough to merge
         # Section body: large paragraph + tiny paragraph
-        content = "# Section\n\nThis is a larger paragraph with enough words to fill a chunk by itself. " * 3 + "\n\nTiny."
+        content = (
+            "# Section\n\nThis is a larger paragraph with enough words to fill a chunk by itself. "
+            * 3
+            + "\n\nTiny."
+        )
         # Use small max_tokens to force initial split
         result = self._chunk(content, max_tokens=50, min_tokens=20)
 
@@ -563,10 +565,7 @@ class TestChunkMarkdownMerging:
 
     def test_small_chunks_in_different_sections_not_merged(self):
         """A small chunk under a different header is NOT merged with the previous."""
-        content = (
-            "# Section A\n\nHello world.\n\n"
-            "# Section B\n\nBye.\n"
-        )
+        content = "# Section A\n\nHello world.\n\n# Section B\n\nBye.\n"
         result = self._chunk(content, max_tokens=512, min_tokens=5)
 
         # Section A and Section B content should be in separate chunks
@@ -652,7 +651,9 @@ class TestSplitByHeadersNoHeaders:
         sections = _split_by_headers(content)
         # First section has no header (empty string)
         headers = [s[0] for s in sections]
-        assert "" in headers, f"Expected empty-string header for preamble, got {headers}"
+        assert "" in headers, (
+            f"Expected empty-string header for preamble, got {headers}"
+        )
 
     def test_three_level_headers_all_captured(self):
         """h1, h2, and h3 headers are all recognised as section boundaries."""
