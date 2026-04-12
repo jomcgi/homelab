@@ -308,8 +308,7 @@ class TestByIdFullRunCli:
         ids = ["alpha", "beta", "gamma"]
         _, mock_js = self._run_with_mocks(ids)
         published = [
-            json.loads(c[0][1].decode())["id"]
-            for c in mock_js.publish.call_args_list
+            json.loads(c[0][1].decode())["id"] for c in mock_js.publish.call_args_list
         ]
         assert published == ids
 

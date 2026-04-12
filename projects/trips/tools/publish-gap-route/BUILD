@@ -88,7 +88,6 @@ py_test(
     deps = [
         "//projects/trips/tools/publish-gap-route",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
         "@pip//typer",
     ],
 )

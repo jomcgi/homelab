@@ -85,7 +85,6 @@ py_test(
     deps = [
         "//projects/trips/tools/delete-trip-points",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
         "@pip//typer",
     ],
 )
