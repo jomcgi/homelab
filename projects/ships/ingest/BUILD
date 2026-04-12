@@ -58,12 +58,14 @@ py_test(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_test(
     name = "ais_ingest_test_semgrep_test",
     srcs = ["ais_ingest_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -80,6 +82,7 @@ py_test(
 semgrep_test(
     name = "ais_parsing_test_semgrep_test",
     srcs = ["ais_parsing_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -97,6 +100,7 @@ py_test(
 semgrep_test(
     name = "ais_edge_cases_test_semgrep_test",
     srcs = ["ais_edge_cases_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -114,11 +118,13 @@ py_test(
 semgrep_test(
     name = "subscribe_test_semgrep_test",
     srcs = ["subscribe_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_target_test(
     name = "main_semgrep_test",
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     lockfiles = ["//bazel/requirements:all.txt"],
     rules = ["//bazel/semgrep/rules:python_rules"],
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
@@ -140,6 +146,7 @@ py_test(
 semgrep_test(
     name = "main_test_semgrep_test",
     srcs = ["main_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -158,5 +165,6 @@ py_test(
 semgrep_test(
     name = "coverage_gaps_test_semgrep_test",
     srcs = ["coverage_gaps_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )

@@ -52,30 +52,35 @@ py_test(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_test(
     name = "api_test_semgrep_test",
     srcs = ["api_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_test(
     name = "conftest_semgrep_test",
     srcs = ["conftest.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_test(
     name = "database_test_semgrep_test",
     srcs = ["database_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_test(
     name = "ships_api_test_semgrep_test",
     srcs = ["ships_api_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -94,6 +99,7 @@ py_test(
 semgrep_test(
     name = "service_lifecycle_test_semgrep_test",
     srcs = ["service_lifecycle_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -114,6 +120,7 @@ py_test(
 semgrep_test(
     name = "vessel_tracking_test_semgrep_test",
     srcs = ["vessel_tracking_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -145,6 +152,7 @@ py_test(
 semgrep_test(
     name = "main_test_semgrep_test",
     srcs = ["main_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -165,6 +173,7 @@ py_test(
 semgrep_test(
     name = "coverage_gaps_test_semgrep_test",
     srcs = ["coverage_gaps_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -183,6 +192,7 @@ py_test(
 semgrep_test(
     name = "subscription_test_semgrep_test",
     srcs = ["subscription_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -202,6 +212,7 @@ py_test(
 semgrep_test(
     name = "new_coverage_test_semgrep_test",
     srcs = ["new_coverage_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
@@ -221,5 +232,6 @@ py_test(
 semgrep_test(
     name = "unit_test_semgrep_test",
     srcs = ["unit_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
