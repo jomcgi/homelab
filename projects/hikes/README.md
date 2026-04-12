@@ -53,7 +53,7 @@ A static Cloudflare Pages app (`public/` directory) served from the `jomcgi-hike
 
 User preferences are persisted to `localStorage`. The app has no server-side component.
 
-**Playwright tests** live in `frontend/tests/` and are configured in `playwright.config.js`. They run against a local static server with mocked `bundle.brotli` responses.
+**Playwright tests** live in `frontend/tests/` and are configured in `playwright.config.js`. They run against a local static server with mocked `bundle.brotli` responses. Note: `mock-data.spec.js` is excluded from the default `npm test` run (it is not listed in the `package.json` test script).
 
 ## Running Locally
 
@@ -92,7 +92,7 @@ The frontend reads `public/config.js` (not environment variables):
 ## Architecture Notes
 
 - Uses `requests-cache` for HTTP caching during development
-- Pydantic models with SQLite persistence via `pydantic-sqlite`
+- `scrape_walkhighlands` uses Pydantic models with SQLite persistence via `pydantic-sqlite`; `update_forecast` reads `walks.db` directly via the stdlib `sqlite3` module
 - Retry decorators for network resilience in the scraper
 - Performance logging for scrape operations
 - Weather fetching is parallelised (up to 20 threads) to respect met.no rate limits
