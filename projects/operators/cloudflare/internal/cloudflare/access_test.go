@@ -152,6 +152,58 @@ var _ = Describe("Access operations", func() {
 			entry := result[0].(map[string]interface{})
 			Expect(entry).To(HaveKey("group"))
 		})
+
+		It("combines IPRanges and Countries into a single cfRule entry", func() {
+			// Both IPRanges and Countries are stored in cfRule (not appended directly
+			// to cfRules), so a rule with both fields produces exactly one combined entry.
+			rules := []AccessPolicyRule{
+				{
+					IPRanges:  []string{"10.0.0.0/8", "192.168.0.0/16"},
+					Countries: []string{"US", "DE"},
+				},
+			}
+			result := convertAccessPolicyRules(rules)
+			Expect(result).To(HaveLen(1), "IPRanges and Countries in the same rule produce one combined entry")
+
+			entry := result[0].(map[string]interface{})
+			Expect(entry).To(HaveKey("ip"), "combined entry must contain the 'ip' key")
+			Expect(entry).To(HaveKey("geo"), "combined entry must contain the 'geo' key")
+
+			ip := entry["ip"].(map[string]interface{})
+			Expect(ip["ip"]).To(ConsistOf("10.0.0.0/8", "192.168.0.0/16"))
+
+			geo := entry["geo"].(map[string]interface{})
+			Expect(geo["country_code"]).To(ConsistOf("US", "DE"))
+		})
+
+		It("emits email entries plus a combined cfRule entry when Emails, IPRanges, and Countries are all set", func() {
+			// Emails are appended individually to cfRules; IPRanges and Countries
+			// land in cfRule together. The result has len(emails)+1 entries.
+			rules := []AccessPolicyRule{
+				{
+					Emails:    []string{"alice@example.com", "bob@example.com"},
+					IPRanges:  []string{"10.0.0.0/8"},
+					Countries: []string{"GB"},
+				},
+			}
+			result := convertAccessPolicyRules(rules)
+			// 2 email entries + 1 combined ip+geo entry = 3 total
+			Expect(result).To(HaveLen(3))
+
+			emailCount := 0
+			for _, r := range result {
+				entry := r.(map[string]interface{})
+				if _, ok := entry["email"]; ok {
+					emailCount++
+				}
+			}
+			Expect(emailCount).To(Equal(2), "two individual email entries expected")
+
+			// The combined ip+geo entry is the last element.
+			last := result[2].(map[string]interface{})
+			Expect(last).To(HaveKey("ip"))
+			Expect(last).To(HaveKey("geo"))
+		})
 	})
 
 	Describe("CreateAccessApplication", func() {

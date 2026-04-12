@@ -300,4 +300,118 @@ var _ = Describe("Circuit breaker state transitions", func() {
 			Expect(callCount).To(Equal(5), "all 5 calls should reach the mock — breaker is CLOSED")
 		})
 	})
+
+	// -----------------------------------------------------------------------
+	// Production ReadyToTrip threshold: ConsecutiveFailures >= 5
+	//
+	// NewTunnelClient creates a circuit breaker with threshold 5. All other
+	// tests use a fast-trip breaker (threshold 1) for convenience. These tests
+	// verify the production threshold directly by calling NewTunnelClient and
+	// swapping in the mock API.
+	// -----------------------------------------------------------------------
+
+	Describe("ReadyToTrip production threshold = 5 (NewTunnelClient settings)", func() {
+		var productionClient *TunnelClient
+
+		BeforeEach(func() {
+			// Create a client using the production NewTunnelClient, which
+			// configures a circuit breaker with ConsecutiveFailures >= 5.
+			// Then swap in the test mock and remove rate limiting.
+			var err error
+			productionClient, err = NewTunnelClient("test-token-threshold")
+			Expect(err).NotTo(HaveOccurred())
+			productionClient.api = mockAPI
+			productionClient.limiter = rate.NewLimiter(rate.Inf, 0)
+		})
+
+		It("keeps the circuit CLOSED after 4 consecutive retryable failures", func() {
+			retryableErr := &cloudflare.Error{StatusCode: http.StatusInternalServerError}
+			mockAPI.createTunnelFunc = func(_ context.Context, _ *cloudflare.ResourceContainer, _ cloudflare.TunnelCreateParams) (cloudflare.Tunnel, error) {
+				return cloudflare.Tunnel{}, retryableErr
+			}
+
+			// 4 consecutive retryable failures — threshold not yet reached.
+			for _, name := range []string{"t-fail-1", "t-fail-2", "t-fail-3", "t-fail-4"} {
+				_, _, err := productionClient.CreateTunnel(ctx, "account-1", name)
+				Expect(err).To(HaveOccurred())
+			}
+
+			// Switch mock to succeed. If circuit is CLOSED the call goes through.
+			reachCount := 0
+			mockAPI.createTunnelFunc = func(_ context.Context, _ *cloudflare.ResourceContainer, _ cloudflare.TunnelCreateParams) (cloudflare.Tunnel, error) {
+				reachCount++
+				return cloudflare.Tunnel{ID: "ok"}, nil
+			}
+
+			_, _, err := productionClient.CreateTunnel(ctx, "account-1", "probe-after-4")
+			Expect(err).NotTo(HaveOccurred(),
+				"circuit must still be CLOSED after only 4 consecutive failures (threshold is 5)")
+			Expect(reachCount).To(Equal(1), "mock must be reached — circuit is CLOSED")
+		})
+
+		It("opens the circuit after exactly 5 consecutive retryable failures", func() {
+			retryableErr := &cloudflare.Error{StatusCode: http.StatusInternalServerError}
+			mockAPI.createTunnelFunc = func(_ context.Context, _ *cloudflare.ResourceContainer, _ cloudflare.TunnelCreateParams) (cloudflare.Tunnel, error) {
+				return cloudflare.Tunnel{}, retryableErr
+			}
+
+			// 5 consecutive retryable failures — exactly at the threshold.
+			for _, name := range []string{"t-fail-1", "t-fail-2", "t-fail-3", "t-fail-4", "t-fail-5"} {
+				_, _, err := productionClient.CreateTunnel(ctx, "account-1", name)
+				Expect(err).To(HaveOccurred())
+			}
+
+			// Circuit is now OPEN. The next call must not reach the mock.
+			reachCount := 0
+			mockAPI.createTunnelFunc = func(_ context.Context, _ *cloudflare.ResourceContainer, _ cloudflare.TunnelCreateParams) (cloudflare.Tunnel, error) {
+				reachCount++
+				return cloudflare.Tunnel{}, nil
+			}
+
+			_, _, errOpen := productionClient.CreateTunnel(ctx, "account-1", "post-5-failures")
+			Expect(errOpen).To(HaveOccurred(),
+				"circuit must be OPEN after exactly 5 consecutive failures")
+			Expect(reachCount).To(Equal(0),
+				"mock must NOT be reached when circuit is open")
+		})
+
+		It("requires consecutive failures — a success resets the count", func() {
+			retryableErr := &cloudflare.Error{StatusCode: http.StatusInternalServerError}
+			failCount := 0
+
+			// Alternate fail / succeed: 4 failures, then 1 success, then 4 more
+			// failures. Circuit should never open because the run of consecutive
+			// failures never reaches 5.
+			for call := 0; call < 9; call++ {
+				if call == 4 {
+					// Success resets the consecutive failure count.
+					mockAPI.createTunnelFunc = func(_ context.Context, _ *cloudflare.ResourceContainer, _ cloudflare.TunnelCreateParams) (cloudflare.Tunnel, error) {
+						return cloudflare.Tunnel{ID: "reset"}, nil
+					}
+					_, _, err := productionClient.CreateTunnel(ctx, "account-1", "reset-call")
+					Expect(err).NotTo(HaveOccurred())
+				} else {
+					mockAPI.createTunnelFunc = func(_ context.Context, _ *cloudflare.ResourceContainer, _ cloudflare.TunnelCreateParams) (cloudflare.Tunnel, error) {
+						failCount++
+						return cloudflare.Tunnel{}, retryableErr
+					}
+					_, _, err := productionClient.CreateTunnel(ctx, "account-1", "fail-call")
+					Expect(err).To(HaveOccurred())
+				}
+			}
+
+			// After 4 + reset + 4 failures (8 failures total, max 4 consecutive),
+			// the circuit must still be CLOSED.
+			reachCount := 0
+			mockAPI.createTunnelFunc = func(_ context.Context, _ *cloudflare.ResourceContainer, _ cloudflare.TunnelCreateParams) (cloudflare.Tunnel, error) {
+				reachCount++
+				return cloudflare.Tunnel{ID: "still-closed"}, nil
+			}
+
+			_, _, err := productionClient.CreateTunnel(ctx, "account-1", "final-probe")
+			Expect(err).NotTo(HaveOccurred(),
+				"circuit should be CLOSED — 4 consecutive failures then a reset never reaches threshold 5")
+			Expect(reachCount).To(Equal(1))
+		})
+	})
 })
