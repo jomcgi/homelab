@@ -62,7 +62,9 @@ def _init_git(tmp_path):
 _PATCH_TARGET = "projects.obsidian_vault.vault_mcp.app.qdrant_client.httpx.AsyncClient"
 
 
-def _mock_response(status_code: int = 200, json_data: dict | None = None) -> httpx.Response:
+def _mock_response(
+    status_code: int = 200, json_data: dict | None = None
+) -> httpx.Response:
     return httpx.Response(
         status_code=status_code,
         json=json_data or {},
@@ -235,7 +237,9 @@ class TestReconcileLoopNonCancelledErrorLogging:
             f"Expected 'Reconciler error' log message, got: {[r.message for r in caplog.records]}"
         )
 
-    async def test_various_exception_types_are_caught_and_loop_continues(self, tmp_path):
+    async def test_various_exception_types_are_caught_and_loop_continues(
+        self, tmp_path
+    ):
         """Different exception types (ValueError, IOError, RuntimeError) are all caught."""
         settings = Settings(
             path=str(tmp_path),
@@ -247,7 +251,11 @@ class TestReconcileLoopNonCancelledErrorLogging:
         mock_embedder.dimension = 768
         mock_qdrant = AsyncMock()
 
-        exception_types = [ValueError("val error"), IOError("io error"), RuntimeError("rt error")]
+        exception_types = [
+            ValueError("val error"),
+            IOError("io error"),
+            RuntimeError("rt error"),
+        ]
         call_count = [0]
 
         async def run_side_effect():
