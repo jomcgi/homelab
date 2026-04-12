@@ -61,7 +61,9 @@ def _init_git(tmp_path):
 _PATCH_TARGET = "projects.obsidian_vault.vault_mcp.app.qdrant_client.httpx.AsyncClient"
 
 
-def _mock_response(status_code: int = 200, json_data: dict | None = None) -> httpx.Response:
+def _mock_response(
+    status_code: int = 200, json_data: dict | None = None
+) -> httpx.Response:
     return httpx.Response(
         status_code=status_code,
         json=json_data or {},
@@ -235,7 +237,9 @@ class TestReconcileLoopLifespanTask:
 
         await run_and_check()
 
-    async def test_task_cancelled_on_shutdown_propagates_cancelled_error(self, tmp_path):
+    async def test_task_cancelled_on_shutdown_propagates_cancelled_error(
+        self, tmp_path
+    ):
         """When the reconcile task is cancelled during shutdown, CancelledError propagates."""
         mock_settings = MagicMock(spec=Settings)
         mock_settings.path = str(tmp_path)
