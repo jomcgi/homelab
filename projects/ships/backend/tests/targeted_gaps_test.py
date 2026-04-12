@@ -111,9 +111,7 @@ class TestLifespanTeardownUnderException:
                     async with main_module.lifespan(main_module.app):
                         pass
                 except Exception as exc:
-                    pytest.fail(
-                        f"Startup exception should be caught, but got: {exc}"
-                    )
+                    pytest.fail(f"Startup exception should be caught, but got: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +136,9 @@ class TestBroadcastPartialFailureMiddleClient:
         first_ws = AsyncMock()
         first_ws.accept = AsyncMock()
         first_received = []
-        first_ws.send_json = AsyncMock(side_effect=lambda msg: first_received.append(msg))
+        first_ws.send_json = AsyncMock(
+            side_effect=lambda msg: first_received.append(msg)
+        )
 
         middle_ws = AsyncMock()
         middle_ws.accept = AsyncMock()
@@ -295,7 +295,9 @@ class TestCleanupLoopYieldingExactCount:
         async def capture_sleep(duration: float):
             sleep_calls.append(duration)
 
-        with patch("projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep):
+        with patch(
+            "projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep
+        ):
             total = await db.cleanup_old_positions()
 
         assert total == 10050
@@ -315,7 +317,9 @@ class TestCleanupLoopYieldingExactCount:
         async def capture_sleep(duration: float):
             sleep_calls.append(duration)
 
-        with patch("projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep):
+        with patch(
+            "projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep
+        ):
             total = await db.cleanup_old_positions()
 
         assert total == 20200
@@ -336,7 +340,9 @@ class TestCleanupLoopYieldingExactCount:
         async def capture_sleep(duration: float):
             sleep_calls.append(duration)
 
-        with patch("projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep):
+        with patch(
+            "projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep
+        ):
             total = await db.cleanup_old_positions()
 
         assert total == 500
@@ -356,7 +362,9 @@ class TestCleanupLoopYieldingExactCount:
         async def capture_sleep(duration: float):
             sleep_calls.append(duration)
 
-        with patch("projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep):
+        with patch(
+            "projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep
+        ):
             total = await db.cleanup_old_positions()
 
         assert total == 0
@@ -375,7 +383,9 @@ class TestCleanupLoopYieldingExactCount:
         async def capture_sleep(duration: float):
             sleep_calls.append(duration)
 
-        with patch("projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep):
+        with patch(
+            "projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep
+        ):
             total = await db.cleanup_old_positions()
 
         assert total == 30300
@@ -396,7 +406,9 @@ class TestCleanupLoopYieldingExactCount:
         async def capture_sleep(duration: float):
             sleep_calls.append(duration)
 
-        with patch("projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep):
+        with patch(
+            "projects.ships.backend.main.asyncio.sleep", side_effect=capture_sleep
+        ):
             await db.cleanup_old_positions()
 
         assert 0.1 in sleep_calls, (
