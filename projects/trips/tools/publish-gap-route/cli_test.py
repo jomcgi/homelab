@@ -77,16 +77,12 @@ class TestPublishMissingKml:
 
     def test_exit_code_one_for_missing_file(self, tmp_path):
         missing = tmp_path / "nonexistent.kml"
-        result = runner.invoke(
-            app, ["publish", str(missing), "2025-01-03T10:28:00"]
-        )
+        result = runner.invoke(app, ["publish", str(missing), "2025-01-03T10:28:00"])
         assert result.exit_code == 1
 
     def test_error_message_mentions_file(self, tmp_path):
         missing = tmp_path / "nonexistent.kml"
-        result = runner.invoke(
-            app, ["publish", str(missing), "2025-01-03T10:28:00"]
-        )
+        result = runner.invoke(app, ["publish", str(missing), "2025-01-03T10:28:00"])
         assert "not found" in result.output.lower() or "Error" in result.output
 
 
@@ -129,9 +125,7 @@ class TestPublishEmptyKml:
 </kml>
 """
         )
-        result = runner.invoke(
-            app, ["publish", str(kml), "2025-01-03T10:28:00"]
-        )
+        result = runner.invoke(app, ["publish", str(kml), "2025-01-03T10:28:00"])
         assert result.exit_code == 1
         assert "No coordinates" in result.output
 
@@ -262,9 +256,7 @@ class TestPublishFullRun:
     def test_timestamps_start_at_provided_time(self, tmp_path):
         """The first published point's timestamp must equal the provided start time."""
         _, mock_js = self._run_with_mocks(tmp_path)
-        first_payload = json.loads(
-            mock_js.publish.call_args_list[0][0][1].decode()
-        )
+        first_payload = json.loads(mock_js.publish.call_args_list[0][0][1].decode())
         ts = datetime.fromisoformat(first_payload["timestamp"])
         assert ts == datetime(2025, 1, 3, 10, 28, 0)
 
@@ -272,9 +264,7 @@ class TestPublishFullRun:
         """Consecutive published points must have timestamps 1 ms apart."""
         _, mock_js = self._run_with_mocks(tmp_path)
         timestamps = [
-            datetime.fromisoformat(
-                json.loads(c[0][1].decode())["timestamp"]
-            )
+            datetime.fromisoformat(json.loads(c[0][1].decode())["timestamp"])
             for c in mock_js.publish.call_args_list
         ]
         for i in range(1, len(timestamps)):
@@ -288,9 +278,7 @@ class TestPublishFullRun:
         kml.write_text(MINIMAL_KML)
 
         with patch("main.nats.connect", return_value=mock_nc):
-            result = runner.invoke(
-                app, ["publish", str(kml), "2025-01-03T10:28:00"]
-            )
+            result = runner.invoke(app, ["publish", str(kml), "2025-01-03T10:28:00"])
 
         assert result.exit_code == 0
         mock_nc.close.assert_awaited_once()
