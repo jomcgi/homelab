@@ -39,3 +39,13 @@ py_test(
         "@pip//pytest",
     ],
 )
+
+py_test(
+    name = "output_test",
+    srcs = ["output_test.py"],
+    imports = ["."],
+    deps = [
+        ":homelab_cli",
+        "@pip//pytest",
+    ],
+)
