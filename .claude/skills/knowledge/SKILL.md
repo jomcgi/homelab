@@ -1,148 +1,82 @@
 ---
 name: knowledge
 description: >
-  Search and read Joe's Obsidian knowledge graph. Use when ANY context about
-  Joe's thinking, decisions, opinions, knowledge base, prior work, or personal
-  notes might be relevant — even if there's only a 1% chance. Trigger examples:
-  "What does Joe think about X?", "What's the basis for this?", "What do I mean
-  by Y?", architectural decisions, project history, personal preferences.
+  Search and read Joe's Obsidian knowledge graph, or debug ingest failures.
+  Use when ANY context about Joe's thinking, decisions, opinions, knowledge base,
+  prior work, or personal notes might be relevant — even if there's only a 1%
+  chance. Also use for dead-lettered raws, gardener errors, or ingest debugging.
+  Trigger examples: "What does Joe think about X?", "are there any dead letters?",
+  "why didn't my note get processed?", architectural decisions, project history.
 ---
 
 # Knowledge Graph
 
-Search and read notes from Joe's Obsidian vault via the monolith knowledge API.
+Query and debug the knowledge graph via the `homelab` CLI.
 
 ## When to Use
 
 - User asks what Joe thinks, means, or believes about a topic
 - User references a past decision, project, or idea
 - Context about Joe's knowledge or opinions would improve your response
-- You need background on a topic Joe has written about
+- Investigating failed knowledge ingestion or gardener processing errors
+- Checking pipeline health after deploying gardener changes
 - ANY scenario where Joe's personal notes might be relevant
 
-## Auth
+## Commands
 
-The API is behind Cloudflare Access on `private.jomcgi.dev`.
-
-**Get a token** (only needed once per session, or when token expires):
+### Search notes
 
 ```bash
-# Check if we have a valid token
-TOKEN_FILE=$(ls -t ~/.cloudflared/*private.jomcgi.dev* 2>/dev/null | head -1)
-if [ -z "$TOKEN_FILE" ]; then
-  cloudflared access login https://private.jomcgi.dev
-  TOKEN_FILE=$(ls -t ~/.cloudflared/*private.jomcgi.dev* 2>/dev/null | head -1)
-fi
-CF_TOKEN=$(cat "$TOKEN_FILE")
+homelab knowledge search "query" [--limit N] [--type TYPE]
 ```
 
-If a request returns 401/403 or a redirect to a login page, re-run
-`cloudflared access login https://private.jomcgi.dev` and retry.
+Returns compact one-liners with edges:
 
-## API
+```
+[0.85] dead-letter-queue — Dead Letter Queue Pattern (atom)
+  derives_from→book-building-event-driven-microservices, related→exactly-once-delivery
+```
 
-Base URL: `https://private.jomcgi.dev`
-
-### Search: `GET /api/knowledge/search`
+### Read a note
 
 ```bash
-curl -s -b "CF_Authorization=$CF_TOKEN" \
-  "https://private.jomcgi.dev/api/knowledge/search?q=QUERY&limit=10"
+homelab knowledge note <note_id>
 ```
 
-Returns:
+Prints metadata to stdout, writes full markdown to a tmpfile.
+Use `Read` on the tmpfile path to access content on demand.
 
-```json
-{
-  "results": [
-    {
-      "note_id": "abc",
-      "title": "Note Title",
-      "path": "folder/note.md",
-      "type": "concept",
-      "tags": ["tag1", "tag2"],
-      "score": 0.85,
-      "section": "## Section Header",
-      "snippet": "First 240 chars of best-matching chunk...",
-      "edges": [
-        {
-          "target_id": "def",
-          "kind": "edge",
-          "edge_type": "refines",
-          "target_title": null,
-          "resolved_note_id": "def"
-        },
-        {
-          "target_id": "ghost-note",
-          "kind": "edge",
-          "edge_type": "related",
-          "target_title": null,
-          "resolved_note_id": null
-        },
-        {
-          "target_id": "Linked Note Title",
-          "kind": "link",
-          "edge_type": null,
-          "target_title": "Linked Note"
-        }
-      ]
-    }
-  ]
-}
-```
-
-**Edge resolution:**
-
-- Typed edges (`kind: "edge"`) include `resolved_note_id` — if non-null, you can fetch that note via `/notes/{resolved_note_id}`
-- `resolved_note_id: null` means the target note doesn't exist in the vault (yet)
-- Body wikilinks (`kind: "link"`) do not include `resolved_note_id` — they are visible inline when you read the note content
-
-### Read note: `GET /api/knowledge/notes/{note_id}`
+### Check dead letters
 
 ```bash
-curl -s -b "CF_Authorization=$CF_TOKEN" \
-  "https://private.jomcgi.dev/api/knowledge/notes/NOTE_ID"
+homelab knowledge dead-letters
 ```
 
-Returns full note content + edges.
+Lists raws that exhausted all retry attempts:
+
+```
+[42] _raw/2026/04/11/note.md (obsidian) — invalid JSON [3 retries]
+```
+
+### Replay a dead letter
+
+```bash
+homelab knowledge replay <raw_id>
+```
+
+Removes failed provenance so the gardener retries on its next cycle.
 
 ## Workflow
 
-1. **Formulate a search query** from the conversational context — use natural language
-2. **Search** via the API — review results (title, tags, edges, snippet, score)
-3. **Judge relevance** — only fetch full content for notes that look genuinely useful.
-   Do NOT auto-fetch all results. Use the snippet and metadata to decide.
-4. **Read selectively** — fetch full content for relevant notes via the notes endpoint
-5. **Use the context** — reference it, quote it, or let it inform your reasoning
-
-## Graph Traversal
-
-When a search result has edges with `resolved_note_id`, you can follow them to build deeper context. Prioritize `derives_from` and `refines` edges — they indicate direct conceptual lineage.
-
-**Example:** User asks "what's the basis for the SLO work?"
-
-1. Search for "SLO" → find `benchsci-slo-shortlist` (score 0.62)
-2. Check edges → `derives_from: ["benchsci-observability-implementation"]` with `resolved_note_id: "benchsci-observability-implementation"`
-3. Fetch `/notes/benchsci-observability-implementation` → find further `derives_from: ["benchsci-observability-problem-brief"]`
-4. Fetch the problem brief → now you have the full chain: problem → strategy → SLO shortlist
-
-**When to traverse:**
-
-- User asks "why" or "what led to" something — follow `derives_from` edges upstream
-- User asks for detail — follow `refines` edges downstream
-- User asks for related work — follow `related` edges laterally
-- Stop after 2-3 hops or when `resolved_note_id` is null (target doesn't exist)
-
-**When NOT to traverse:**
-
-- The search snippet already answers the question
-- You have enough context from the initial results
-- The edges are all `related` with low relevance to the query
+1. **Search** — formulate a natural language query
+2. **Judge relevance** — use the compact output (score, title, edges) to decide what's useful
+3. **Read selectively** — fetch full content only for relevant notes
+4. **Traverse edges** — follow `derives_from` upstream for "why", `refines` downstream for detail
 
 ## Tips
 
-- Search queries work best as natural language phrases, not keywords
-- The `type` field indicates note category (concept, project, paper, etc.)
-- Edges show how notes relate: `refines`, `generalizes`, `related`, `contradicts`, `derives_from`, `supersedes`
-- `kind: "link"` = wikilink from note body; `kind: "edge"` = typed frontmatter relationship
-- If search returns nothing useful, the query may just not match anything — that's fine, move on
+- All commands support `--json` for raw API output
+- Search queries work best as natural language phrases
+- After replaying dead letters, re-check after the next gardener cycle
+- Edge types: `refines`, `generalizes`, `related`, `contradicts`, `derives_from`, `supersedes`
+- If auth fails, the CLI will prompt for `cloudflared access login` automatically
