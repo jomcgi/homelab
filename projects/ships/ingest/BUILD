@@ -186,3 +186,22 @@ semgrep_test(
     exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "reconnect_cap_test",
+    srcs = ["reconnect_cap_test.py"],
+    imports = ["."],
+    deps = [
+        ":ais-ingest",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
+        "@pip//websockets",
+    ],
+)
+
+semgrep_test(
+    name = "reconnect_cap_test_semgrep_test",
+    srcs = ["reconnect_cap_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
