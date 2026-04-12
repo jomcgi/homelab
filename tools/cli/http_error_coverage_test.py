@@ -77,7 +77,12 @@ class TestGetCfTokenCloudflaredFails:
                 "tools.cli.auth.subprocess.run",
                 side_effect=subprocess.CalledProcessError(
                     returncode=1,
-                    cmd=["cloudflared", "access", "login", "https://private.jomcgi.dev"],
+                    cmd=[
+                        "cloudflared",
+                        "access",
+                        "login",
+                        "https://private.jomcgi.dev",
+                    ],
                 ),
             ),
         ):
