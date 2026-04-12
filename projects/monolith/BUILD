@@ -27,7 +27,8 @@ exec_filegroup(
 
 py_venv_binary(
     name = "main",
-    srcs = glob(  # keep
+    srcs = glob(
+        # keep
         [
             "app/**/*.py",
             "chat/**/*.py",
@@ -47,7 +48,8 @@ py_venv_binary(
 
 py_library(
     name = "monolith_backend",
-    srcs = glob(  # keep
+    srcs = glob(
+        # keep
         [
             "app/**/*.py",
             "chat/**/*.py",
