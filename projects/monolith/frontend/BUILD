@@ -31,6 +31,8 @@ js_library(
         ":node_modules/vite",
         # Hand-drawn SVG rendering
         ":node_modules/roughjs",
+        # DAG layout engine
+        ":node_modules/@dagrejs/dagre",
         # OpenTelemetry browser tracing
         ":node_modules/@opentelemetry/api",
         ":node_modules/@opentelemetry/sdk-trace-web",
