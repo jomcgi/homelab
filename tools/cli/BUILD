@@ -126,7 +126,6 @@ py_test(
     srcs = ["knowledge_note_empty_content_test.py"],
     deps = [
         ":cli",
-        "@pip//httpx",
         "@pip//pytest",
         "@pip//typer",
     ],
