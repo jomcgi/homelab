@@ -204,8 +204,7 @@ class TestReconcileLoopLifespanTask:
             await run_and_check()
 
         assert task_count_after_done[0] == 0, (
-            f"Expected 0 tasks after reconcile finished, "
-            f"got {task_count_after_done[0]}"
+            f"Expected 0 tasks after reconcile finished, got {task_count_after_done[0]}"
         )
 
     async def test_task_cancelled_on_shutdown_propagates_cancelled_error(
