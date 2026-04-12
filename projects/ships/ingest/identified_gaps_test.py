@@ -136,7 +136,11 @@ class TestPublishStaticCounterAsymmetry:
         service = AISIngestService()
         service.js = AsyncMock()
 
-        data = {"mmsi": "123456789", "name": "TEST VESSEL", "timestamp": "2027-01-01T00:00:00Z"}
+        data = {
+            "mmsi": "123456789",
+            "name": "TEST VESSEL",
+            "timestamp": "2027-01-01T00:00:00Z",
+        }
         await service.publish_static("123456789", data)
 
         assert service.messages_published == 0
@@ -149,7 +153,11 @@ class TestPublishStaticCounterAsymmetry:
         service = AISIngestService()
         service.js = AsyncMock()
 
-        data = {"mmsi": "123456789", "name": "TEST", "timestamp": "2027-01-01T00:00:00Z"}
+        data = {
+            "mmsi": "123456789",
+            "name": "TEST",
+            "timestamp": "2027-01-01T00:00:00Z",
+        }
         await service.publish_static("123456789", data)
 
         assert service.last_message_time is None
@@ -195,8 +203,17 @@ class TestPublishStaticCounterAsymmetry:
         service = AISIngestService()
         service.js = AsyncMock()
 
-        static_data = {"mmsi": "111", "name": "VESSEL", "timestamp": "2027-01-01T00:00:00Z"}
-        pos_data = {"mmsi": "111", "lat": 48.5, "lon": -123.4, "timestamp": "2027-01-01T00:01:00Z"}
+        static_data = {
+            "mmsi": "111",
+            "name": "VESSEL",
+            "timestamp": "2027-01-01T00:00:00Z",
+        }
+        pos_data = {
+            "mmsi": "111",
+            "lat": 48.5,
+            "lon": -123.4,
+            "timestamp": "2027-01-01T00:01:00Z",
+        }
 
         # 3 static publishes (should NOT count)
         await service.publish_static("111", static_data)
@@ -205,7 +222,9 @@ class TestPublishStaticCounterAsymmetry:
 
         # 2 position publishes (SHOULD count)
         await service.publish_position("111", pos_data)
-        await service.publish_position("111", {**pos_data, "timestamp": "2027-01-01T00:02:00Z"})
+        await service.publish_position(
+            "111", {**pos_data, "timestamp": "2027-01-01T00:02:00Z"}
+        )
 
         # Only the 2 position publishes should be counted
         assert service.messages_published == 2

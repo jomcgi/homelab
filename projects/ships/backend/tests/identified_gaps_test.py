@@ -375,7 +375,9 @@ class TestUpsertVesselsBatchCoalesceAllFields:
             assert row["dimension_b"] == 50, "dimension_b must be preserved"
             assert row["dimension_c"] == 20, "dimension_c must be preserved"
             assert row["dimension_d"] == 10, "dimension_d must be preserved"
-            assert row["destination"] == "ORIGINAL DEST", "destination must be preserved"
+            assert row["destination"] == "ORIGINAL DEST", (
+                "destination must be preserved"
+            )
             assert row["eta"] == "2027-01-01T00:00:00Z", "eta must be preserved"
             assert row["draught"] == pytest.approx(9.5), "draught must be preserved"
         finally:
@@ -440,9 +442,7 @@ class TestUpsertVesselsBatchCoalesceAllFields:
             await db.commit()
 
             # Update only destination — name, eta, draught should be preserved
-            await db.upsert_vessels_batch(
-                [{"mmsi": mmsi, "destination": "PORT B"}]
-            )
+            await db.upsert_vessels_batch([{"mmsi": mmsi, "destination": "PORT B"}])
             await db.commit()
 
             cursor = await db.db.execute(
