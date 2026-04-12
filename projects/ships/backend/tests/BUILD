@@ -334,3 +334,23 @@ semgrep_test(
     exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "subscription_edge_cases_test",
+    srcs = ["subscription_edge_cases_test.py"],
+    imports = [".."],
+    deps = [
+        ":conftest",
+        "//projects/ships/backend:ships-api",
+        "@pip//aiosqlite",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
+    ],
+)
+
+semgrep_test(
+    name = "subscription_edge_cases_test_semgrep_test",
+    srcs = ["subscription_edge_cases_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
