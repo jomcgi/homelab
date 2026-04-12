@@ -1,7 +1,7 @@
 #!/bin/bash
 # PreToolUse hook: warns when Chart.yaml version is bumped but only test files
-# changed under chart/ or deploy/ — a chart version bump triggers a redeployment
-# and is unnecessary if only test files were modified.
+# changed anywhere under the service directory root — a chart version bump
+# triggers a redeployment and is unnecessary if only test files were modified.
 #
 # Input: JSON on stdin from Claude Code hook system
 # Exit 0: allow the operation (warning only, never blocks)
@@ -59,14 +59,14 @@ SERVICE_DIR=$(dirname "$(dirname "$FILE_PATH")")
 SERVICE_DIR_REL="${SERVICE_DIR#$REPO_ROOT/}"
 CHART_YAML_REL="${FILE_PATH#$REPO_ROOT/}"
 
-# Collect all changed files under chart/ and deploy/ (staged, unstaged, working tree)
+# Collect all changed files under the service directory root (staged, unstaged, working tree)
 ALL_CHANGED=$(
 	git -C "$REPO_ROOT" diff --cached --name-only -- \
-		"${SERVICE_DIR_REL}/chart/" "${SERVICE_DIR_REL}/deploy/" 2>/dev/null || true
+		"${SERVICE_DIR_REL}/" 2>/dev/null || true
 	git -C "$REPO_ROOT" diff --name-only HEAD -- \
-		"${SERVICE_DIR_REL}/chart/" "${SERVICE_DIR_REL}/deploy/" 2>/dev/null || true
+		"${SERVICE_DIR_REL}/" 2>/dev/null || true
 	git -C "$REPO_ROOT" status --porcelain -- \
-		"${SERVICE_DIR_REL}/chart/" "${SERVICE_DIR_REL}/deploy/" 2>/dev/null |
+		"${SERVICE_DIR_REL}/" 2>/dev/null |
 		awk '{print $NF}' || true
 )
 

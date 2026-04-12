@@ -6,7 +6,7 @@
 #     (or .tool_input.content for Write tool)
 #   - Exits 0 always (warning only, never blocks)
 #   - Prints WARNING to stderr when Chart.yaml version is bumped but only test
-#     files changed under chart/ or deploy/
+#     files changed anywhere under the service directory root
 #
 # This test mocks jq via a minimal Python3 stub and git via a Python3 stub,
 # both placed earlier on PATH so the hook can run in the hermetic Bazel sandbox.
@@ -411,6 +411,31 @@ run_git_test \
 	"" \
 	"" \
 	"WARNING:"
+
+# 18. Version changing, test file outside chart/deploy (e.g. backend/tests/) -- WARNING emitted
+#     This validates that the scope expansion covers the full service directory root,
+#     not just chart/ and deploy/ subdirectories.
+run_git_test \
+	"version_bump_test_outside_chart_deploy_emits_warning" \
+	"$CHART_PATH" \
+	"version: 0.2.0" \
+	"$FIXTURE" \
+	"projects/myservice/backend/tests/foo_test.py" \
+	"" \
+	"" \
+	"WARNING:"
+
+# 19. Version changing, non-test file outside chart/deploy (e.g. backend/main.go) -- no warning
+#     A real source-code change in the backend warrants the chart bump.
+run_git_test \
+	"version_bump_with_backend_source_no_warning" \
+	"$CHART_PATH" \
+	"version: 0.2.0" \
+	"$FIXTURE" \
+	"projects/myservice/backend/main.go" \
+	"" \
+	"" \
+	""
 
 # ---------------------------------------------------------------------------
 # Summary
