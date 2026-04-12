@@ -1190,7 +1190,9 @@ class TestDatabaseLoadPositionCacheNonEmpty:
     @pytest.mark.asyncio
     async def test_cache_preserves_first_seen_at_location(self, mem_db):
         """_load_position_cache copies first_seen_at_location from the DB row."""
-        first_seen = "2024-01-01T08:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
+        first_seen = (
+            "2024-01-01T08:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
+        )
         now = "2024-01-01T10:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
         await mem_db.insert_positions_batch(
             [

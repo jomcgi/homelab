@@ -123,7 +123,9 @@ class TestShouldInsertPositionBoundaryConditions:
         `distance <= MOORED_RADIUS_METERS` (500 m) → first_seen preserved.
         """
         db = _make_bare_db()
-        original_first_seen = "2024-06-01T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        original_first_seen = (
+            "2024-06-01T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        )
         db._position_cache["333"] = _cached(
             lat=48.5,
             lon=-123.4,
