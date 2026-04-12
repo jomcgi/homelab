@@ -79,3 +79,23 @@ semgrep_test(
     exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+# gazelle:resolve py cli_test //projects/trips/tools/publish-gap-route:publish-gap-route
+py_test(
+    name = "cli_test",
+    srcs = ["cli_test.py"],
+    imports = ["."],
+    deps = [
+        "//projects/trips/tools/publish-gap-route",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//typer",
+    ],
+)
+
+semgrep_test(
+    name = "cli_test_semgrep_test",
+    srcs = ["cli_test.py"],
+    exclude_rules = ["test-hardcoded-past-timestamp"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
