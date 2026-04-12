@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio  # noqa: F401 — registers plugin
 
-from main import TripPoint, publish_point, replay_stream, run_backfill
+from main import TripPoint, cache_stats, publish_point, replay_stream, run_backfill
 
 
 # ---------------------------------------------------------------------------
@@ -232,3 +232,131 @@ class TestPublishPointAdditional:
         )
         with pytest.raises(Exception, match="NATS error"):
             await publish_point(mock_js, point)
+
+
+# ---------------------------------------------------------------------------
+# cache_stats — ElevationCache statistics display
+# ---------------------------------------------------------------------------
+
+
+class TestCacheStatsCommand:
+    """Tests for the cache_stats command.
+
+    cache_stats() creates an ElevationCache instance, calls stats(), and
+    prints the total / with_data / no_data counts.  All tests mock
+    ElevationCache so no SQLite file is touched.
+    """
+
+    def test_creates_elevation_cache_instance(self):
+        """cache_stats() must instantiate ElevationCache exactly once."""
+        mock_cache = MagicMock()
+        mock_cache.stats.return_value = {"total": 0, "with_data": 0, "no_data": 0}
+
+        with patch("main.ElevationCache", return_value=mock_cache) as mock_cls:
+            cache_stats()
+
+        mock_cls.assert_called_once()
+
+    def test_calls_stats_on_cache(self):
+        """cache_stats() must call cache.stats() to obtain counts."""
+        mock_cache = MagicMock()
+        mock_cache.stats.return_value = {"total": 0, "with_data": 0, "no_data": 0}
+
+        with patch("main.ElevationCache", return_value=mock_cache):
+            cache_stats()
+
+        mock_cache.stats.assert_called_once()
+
+    def test_empty_cache_does_not_raise(self):
+        """cache_stats() handles an empty cache (all counts zero) without error."""
+        mock_cache = MagicMock()
+        mock_cache.stats.return_value = {"total": 0, "with_data": 0, "no_data": 0}
+
+        with patch("main.ElevationCache", return_value=mock_cache):
+            cache_stats()  # must not raise
+
+    def test_populated_cache_does_not_raise(self):
+        """cache_stats() handles a fully-populated cache without error."""
+        mock_cache = MagicMock()
+        mock_cache.stats.return_value = {
+            "total": 1000,
+            "with_data": 950,
+            "no_data": 50,
+        }
+
+        with patch("main.ElevationCache", return_value=mock_cache):
+            cache_stats()  # must not raise
+
+    def test_all_entries_have_elevation(self):
+        """cache_stats() handles the case where no_data == 0 (all points have elevation)."""
+        mock_cache = MagicMock()
+        mock_cache.stats.return_value = {"total": 200, "with_data": 200, "no_data": 0}
+
+        with patch("main.ElevationCache", return_value=mock_cache):
+            cache_stats()
+
+        mock_cache.stats.assert_called_once()
+
+    def test_all_entries_missing_elevation(self):
+        """cache_stats() handles the case where with_data == 0 (no points have elevation)."""
+        mock_cache = MagicMock()
+        mock_cache.stats.return_value = {"total": 75, "with_data": 0, "no_data": 75}
+
+        with patch("main.ElevationCache", return_value=mock_cache):
+            cache_stats()
+
+        mock_cache.stats.assert_called_once()
+
+    def test_stats_dict_total_key_accessed(self):
+        """cache_stats() accesses stats['total'] without raising KeyError."""
+        accessed_keys: list[str] = []
+        real_stats = {"total": 42, "with_data": 30, "no_data": 12}
+
+        class _TrackingDict(dict):
+            def __getitem__(self, key):
+                accessed_keys.append(key)
+                return super().__getitem__(key)
+
+        mock_cache = MagicMock()
+        mock_cache.stats.return_value = _TrackingDict(real_stats)
+
+        with patch("main.ElevationCache", return_value=mock_cache):
+            cache_stats()
+
+        assert "total" in accessed_keys
+
+    def test_stats_dict_with_data_key_accessed(self):
+        """cache_stats() accesses stats['with_data'] without raising KeyError."""
+        accessed_keys: list[str] = []
+        real_stats = {"total": 42, "with_data": 30, "no_data": 12}
+
+        class _TrackingDict(dict):
+            def __getitem__(self, key):
+                accessed_keys.append(key)
+                return super().__getitem__(key)
+
+        mock_cache = MagicMock()
+        mock_cache.stats.return_value = _TrackingDict(real_stats)
+
+        with patch("main.ElevationCache", return_value=mock_cache):
+            cache_stats()
+
+        assert "with_data" in accessed_keys
+
+    def test_stats_dict_no_data_key_accessed(self):
+        """cache_stats() accesses stats['no_data'] without raising KeyError."""
+        accessed_keys: list[str] = []
+        real_stats = {"total": 42, "with_data": 30, "no_data": 12}
+
+        class _TrackingDict(dict):
+            def __getitem__(self, key):
+                accessed_keys.append(key)
+                return super().__getitem__(key)
+
+        mock_cache = MagicMock()
+        mock_cache.stats.return_value = _TrackingDict(real_stats)
+
+        with patch("main.ElevationCache", return_value=mock_cache):
+            cache_stats()
+
+        assert "no_data" in accessed_keys
