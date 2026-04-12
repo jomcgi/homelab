@@ -53,7 +53,7 @@ py_test(
 py_test(
     name = "knowledge_test",
     srcs = ["knowledge_test.py"],
-    imports = ["."],
+    imports = [".", "../../projects/monolith"],  # keep
     deps = [
         ":homelab_cli",
         "//projects/monolith:monolith_backend",
