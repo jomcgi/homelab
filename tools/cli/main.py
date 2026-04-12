@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import typer
 
+from knowledge import knowledge_app
+
 app = typer.Typer(
     name="homelab",
     help="Token-efficient CLI for homelab operations.",
     no_args_is_help=True,
 )
+
+app.add_typer(knowledge_app)
 
 
 def main() -> None:
