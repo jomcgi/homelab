@@ -1,3 +1,5 @@
+# gazelle:resolve py knowledge_cmd //tools/cli:homelab_cli
+# gazelle:resolve py knowledge_cmd.knowledge_app //tools/cli:homelab_cli
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
@@ -17,17 +19,11 @@ py_library(
 
 py_venv_binary(
     name = "main",
-    srcs = glob(
-        ["**/*.py"],
-        exclude = ["**/*_test.py"],
-    ),
-    imports = ["."],
+    srcs = ["main.py"],  # keep
+    imports = ["."],  # keep
     main = "main.py",
     visibility = ["//:__subpackages__"],
-    deps = [
-        "@pip//httpx",
-        "@pip//typer",
-    ],
+    deps = [":homelab_cli"],  # keep
 )
 
 py_test(
