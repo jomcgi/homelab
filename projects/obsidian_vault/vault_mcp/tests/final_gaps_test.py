@@ -110,7 +110,9 @@ class TestGitCommitEmptyStderr:
 
     def test_non_empty_stderr_is_preferred_over_exception_str(self):
         """Non-empty stderr appears in the error message instead of str(exc)."""
-        exc = subprocess.CalledProcessError(1, ["git", "commit"], stderr="fatal: lock fail")
+        exc = subprocess.CalledProcessError(
+            1, ["git", "commit"], stderr="fatal: lock fail"
+        )
         with patch.object(_mod, "_git", side_effect=exc):
             result = _git_commit(["note.md"], "commit message")
         assert "fatal: lock fail" in result["error"]
@@ -275,9 +277,7 @@ class TestSearchSemanticVectorForwarding:
         ):
             await search_semantic(query="test query", limit=3)
 
-        mock_qdrant.search.assert_called_once_with(
-            vector=expected_vector, limit=3
-        )
+        mock_qdrant.search.assert_called_once_with(vector=expected_vector, limit=3)
 
 
 # ---------------------------------------------------------------------------
