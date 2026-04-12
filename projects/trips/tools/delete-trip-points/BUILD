@@ -52,7 +52,6 @@ py_test(
 semgrep_test(
     name = "delete_trip_points_test_semgrep_test",
     srcs = ["delete_trip_points_test.py"],
-    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 

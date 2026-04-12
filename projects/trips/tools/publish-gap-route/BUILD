@@ -54,7 +54,6 @@ py_test(
 semgrep_test(
     name = "gap_route_test_semgrep_test",
     srcs = ["gap_route_test.py"],
-    exclude_rules = ["test-hardcoded-past-timestamp"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
