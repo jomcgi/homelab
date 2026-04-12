@@ -136,3 +136,20 @@ semgrep_test(
     srcs = ["knowledge_note_empty_content_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "http_error_coverage_test",
+    srcs = ["http_error_coverage_test.py"],
+    deps = [
+        ":cli",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//typer",
+    ],
+)
+
+semgrep_test(
+    name = "http_error_coverage_test_semgrep_test",
+    srcs = ["http_error_coverage_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
