@@ -307,7 +307,7 @@ class TestDatabaseDeduplication:
     def test_moving_vessel_within_moored_radius_keeps_first_seen(self):
         """Moving vessel within 500m of original location preserves first_seen."""
         db = self._make_db()
-        original_first_seen = "2024-01-15T08:00:00Z"
+        original_first_seen = "2024-01-15T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
         db._position_cache["123456789"] = self._make_cached(
             lat=48.5,
             lon=-123.4,
@@ -330,7 +330,7 @@ class TestDatabaseDeduplication:
     def test_moving_vessel_beyond_moored_radius_resets_first_seen(self):
         """Moving vessel beyond 500m resets first_seen to current timestamp."""
         db = self._make_db()
-        original_first_seen = "2024-01-15T08:00:00Z"
+        original_first_seen = "2024-01-15T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
         db._position_cache["123456789"] = self._make_cached(
             lat=48.5,
             lon=-123.4,
@@ -339,7 +339,7 @@ class TestDatabaseDeduplication:
             first_seen=original_first_seen,
         )
         # Move ~1 km north — outside MOORED_RADIUS_METERS (500m)
-        new_timestamp = "2024-01-15T10:01:00Z"
+        new_timestamp = "2024-01-15T10:01:00Z"  # nosemgrep: test-hardcoded-past-timestamp
         data = {
             "mmsi": "123456789",
             "lat": 48.509,
@@ -354,7 +354,7 @@ class TestDatabaseDeduplication:
     def test_slow_vessel_moved_200m_within_moored_radius_keeps_first_seen(self):
         """Slow vessel that moved 200m (>100m dedup, <500m moored) keeps first_seen."""
         db = self._make_db()
-        original_first_seen = "2024-01-15T08:00:00Z"
+        original_first_seen = "2024-01-15T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
         db._position_cache["123456789"] = self._make_cached(
             lat=48.5,
             lon=-123.4,

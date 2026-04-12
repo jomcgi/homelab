@@ -1149,7 +1149,7 @@ class TestDatabaseLoadPositionCacheNonEmpty:
         Uses the in-memory DB fixture (same connection for read/write) to verify
         that _load_position_cache reads all rows from latest_positions.
         """
-        now = "2024-03-01T10:00:00+00:00"
+        now = "2024-03-01T10:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
         positions = [
             (
                 {
@@ -1190,8 +1190,8 @@ class TestDatabaseLoadPositionCacheNonEmpty:
     @pytest.mark.asyncio
     async def test_cache_preserves_first_seen_at_location(self, mem_db):
         """_load_position_cache copies first_seen_at_location from the DB row."""
-        first_seen = "2024-01-01T08:00:00+00:00"
-        now = "2024-01-01T10:00:00+00:00"
+        first_seen = "2024-01-01T08:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
+        now = "2024-01-01T10:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
         await mem_db.insert_positions_batch(
             [
                 (
@@ -1338,8 +1338,8 @@ class TestGetVesselErrorBranches:
     @pytest.mark.asyncio
     async def test_get_vessel_sets_time_at_location_when_first_seen_valid(self, mem_db):
         """get_vessel populates time_at_location_seconds when first_seen is valid ISO."""
-        first_seen = "2000-01-01T00:00:00+00:00"  # very old, so duration is large
-        now_ts = "2000-01-01T01:00:00+00:00"
+        first_seen = "2000-01-01T00:00:00+00:00"  # very old, so duration is large  # nosemgrep: test-hardcoded-past-timestamp
+        now_ts = "2000-01-01T01:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
         await mem_db.insert_positions_batch(
             [
                 (
@@ -1366,7 +1366,7 @@ class TestGetVesselErrorBranches:
     async def test_get_vessel_handles_invalid_first_seen_timestamp(self, mem_db):
         """get_vessel sets time fields to None when first_seen_at_location is malformed."""
         # Insert position then manually corrupt first_seen in latest_positions
-        now_ts = "2024-06-01T10:00:00+00:00"
+        now_ts = "2024-06-01T10:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
         await mem_db.insert_positions_batch(
             [
                 (
@@ -1393,7 +1393,7 @@ class TestGetVesselErrorBranches:
     @pytest.mark.asyncio
     async def test_get_vessel_no_first_seen_skips_time_calculation(self, mem_db):
         """get_vessel skips time_at_location fields when first_seen_at_location is NULL."""
-        now_ts = "2024-06-01T10:00:00+00:00"
+        now_ts = "2024-06-01T10:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
         await mem_db.insert_positions_batch(
             [
                 (

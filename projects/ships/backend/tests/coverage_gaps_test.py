@@ -123,7 +123,7 @@ class TestShouldInsertPositionBoundaryConditions:
         `distance <= MOORED_RADIUS_METERS` (500 m) → first_seen preserved.
         """
         db = _make_bare_db()
-        original_first_seen = "2024-06-01T08:00:00Z"
+        original_first_seen = "2024-06-01T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
         db._position_cache["333"] = _cached(
             lat=48.5,
             lon=-123.4,
@@ -1208,7 +1208,7 @@ class TestGetVesselEndpointAnalytics:
         from projects.ships.backend.main import service
 
         # Insert a vessel whose first_seen_at_location is set to a known time
-        ts = "2024-01-01T00:00:00+00:00"
+        ts = "2024-01-01T00:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
         await service.db.insert_positions_batch(
             [
                 (
