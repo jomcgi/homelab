@@ -86,7 +86,20 @@ def _mock_async_client(**method_returns):
 
 
 class TestReconcileLoopLifespanTask:
-    """Verify the background task lifecycle during lifespan startup and shutdown."""
+    """Verify the background task lifecycle during lifespan startup and shutdown.
+
+    The lifespan closure in main() creates an asyncio task for _reconcile_loop
+    and registers a done callback to remove it from _background_tasks.
+    These tests verify:
+    - The task is added to _background_tasks on lifespan entry.
+    - The done callback removes it when the task finishes.
+    - Cancelling the task raises CancelledError.
+
+    IMPORTANT: The lifespan closure captures _reconcile_loop by name from the
+    module namespace (late binding). The patch on _mod._reconcile_loop must
+    remain active while the lifespan context is entered and the task is running.
+    Therefore all async assertions run *inside* the patch context.
+    """
 
     @pytest.fixture(autouse=True)
     def _reset_globals(self):
@@ -97,49 +110,6 @@ class TestReconcileLoopLifespanTask:
         _mod._embedder = None
         _mod._qdrant = None
         _mod._background_tasks.clear()
-
-    def _build_lifespan(self, reconcile_side_effect):
-        """Wire up main() with mocks and return the custom lifespan closure."""
-        mock_settings = MagicMock(spec=Settings)
-        mock_settings.path = "/tmp/test-vault"
-        mock_settings.port = 8000
-
-        @asynccontextmanager
-        async def noop_original_lifespan(app):
-            yield
-
-        mock_app = MagicMock()
-        mock_app.router = MagicMock()
-        mock_app.router.lifespan_context = noop_original_lifespan
-
-        # Capture the lifespan assigned by main()
-        captured = {}
-
-        original_setattr = type(mock_app.router).__setattr__
-
-        def capturing_setattr(self, name, value):
-            if name == "lifespan_context":
-                captured["lifespan"] = value
-            # Don't call original (MagicMock handles the attr itself)
-
-        with (
-            patch.object(_mod, "Settings", return_value=mock_settings),
-            patch.object(_mod, "configure"),
-            patch.object(_mod.mcp, "http_app", return_value=mock_app),
-            patch("uvicorn.run"),
-            patch.object(_mod, "_reconcile_loop", side_effect=reconcile_side_effect),
-        ):
-            # Use a simpler approach: spy on mock_app.router attribute assignment
-            assignments = []
-            mock_app.router.__setattr__ = lambda name, value: assignments.append(
-                (name, value)
-            )
-            _mod.main()
-
-        # The lifespan was assigned as mock_app.router.lifespan_context
-        # but since MagicMock, we need to grab it from mock_app.router
-        lifespan = mock_app.router.lifespan_context
-        return lifespan
 
     async def test_task_added_to_background_tasks_on_startup(self, tmp_path):
         """main() registers the reconcile task in _background_tasks during lifespan entry."""
@@ -162,6 +132,9 @@ class TestReconcileLoopLifespanTask:
         mock_app.router = MagicMock()
         mock_app.router.lifespan_context = noop_lifespan
 
+        task_count_during_run = []
+
+        # The patch must be active while the lifespan (and thus the task) runs
         with (
             patch.object(_mod, "Settings", return_value=mock_settings),
             patch.object(_mod, "configure"),
@@ -170,30 +143,25 @@ class TestReconcileLoopLifespanTask:
             patch.object(_mod, "_reconcile_loop", side_effect=blocking_reconcile),
         ):
             _mod.main()
+            lifespan = mock_app.router.lifespan_context
 
-        # The lifespan closure was assigned to mock_app.router.lifespan_context
-        lifespan = mock_app.router.lifespan_context
+            async def run_lifespan():
+                async with lifespan(mock_app):
+                    await asyncio.wait_for(started.wait(), timeout=2.0)
+                    # While inside the lifespan context, the task should be registered
+                    task_count_during_run.append(len(_mod._background_tasks))
+                    # Cancel the task so we can exit cleanly
+                    for t in list(_mod._background_tasks):
+                        t.cancel()
+                        try:
+                            await asyncio.shield(t)
+                        except (asyncio.CancelledError, Exception):
+                            pass
 
-        task_in_set_during_run = []
+            await run_lifespan()
 
-        async def run_lifespan():
-            async with lifespan(mock_app):
-                await asyncio.wait_for(started.wait(), timeout=2.0)
-                # While inside the lifespan context, the task should be registered
-                task_in_set_during_run.append(len(_mod._background_tasks))
-                # Cancel the task so we can exit cleanly
-                for t in list(_mod._background_tasks):
-                    t.cancel()
-                    try:
-                        await asyncio.shield(t)
-                    except (asyncio.CancelledError, Exception):
-                        pass
-
-        await run_lifespan()
-
-        # The task should have been in the set while the lifespan was active
-        assert task_in_set_during_run[0] == 1, (
-            f"Expected 1 task in _background_tasks, got {task_in_set_during_run[0]}"
+        assert task_count_during_run[0] == 1, (
+            f"Expected 1 task in _background_tasks, got {task_count_during_run[0]}"
         )
 
     async def test_done_callback_removes_task_from_set(self, tmp_path):
@@ -214,6 +182,9 @@ class TestReconcileLoopLifespanTask:
             # Returns immediately — task finishes quickly
             return
 
+        task_count_after_done = []
+
+        # The patch must be active while the lifespan runs and the task completes
         with (
             patch.object(_mod, "Settings", return_value=mock_settings),
             patch.object(_mod, "configure"),
@@ -222,37 +193,38 @@ class TestReconcileLoopLifespanTask:
             patch.object(_mod, "_reconcile_loop", side_effect=instant_reconcile),
         ):
             _mod.main()
+            lifespan = mock_app.router.lifespan_context
 
-        lifespan = mock_app.router.lifespan_context
+            async def run_and_check():
+                async with lifespan(mock_app):
+                    # Wait for the task to complete and the done callback to fire
+                    await asyncio.sleep(0.1)
+                    task_count_after_done.append(len(_mod._background_tasks))
 
-        async def run_and_check():
-            async with lifespan(mock_app):
-                # Wait for the task to complete and the done callback to fire
-                await asyncio.sleep(0.1)
-                # After the task finishes, done callback should have discarded it
-                assert len(_mod._background_tasks) == 0, (
-                    f"Expected 0 tasks after reconcile finished, "
-                    f"got {len(_mod._background_tasks)}"
-                )
+            await run_and_check()
 
-        await run_and_check()
+        assert task_count_after_done[0] == 0, (
+            f"Expected 0 tasks after reconcile finished, "
+            f"got {task_count_after_done[0]}"
+        )
 
     async def test_task_cancelled_on_shutdown_propagates_cancelled_error(
         self, tmp_path
     ):
-        """When the reconcile task is cancelled during shutdown, CancelledError propagates."""
+        """When the reconcile task is cancelled, CancelledError propagates correctly."""
         mock_settings = MagicMock(spec=Settings)
         mock_settings.path = str(tmp_path)
         mock_settings.port = 8000
 
         started = asyncio.Event()
+        cancel_errors_caught = []
 
         async def long_running_reconcile(settings):
             started.set()
             try:
                 await asyncio.sleep(9999)
             except asyncio.CancelledError:
-                # CancelledError propagates as expected
+                cancel_errors_caught.append(True)
                 raise
 
         @asynccontextmanager
@@ -263,6 +235,7 @@ class TestReconcileLoopLifespanTask:
         mock_app.router = MagicMock()
         mock_app.router.lifespan_context = noop_lifespan
 
+        # The patch must be active while the lifespan runs and the task is cancelled
         with (
             patch.object(_mod, "Settings", return_value=mock_settings),
             patch.object(_mod, "configure"),
@@ -271,27 +244,25 @@ class TestReconcileLoopLifespanTask:
             patch.object(_mod, "_reconcile_loop", side_effect=long_running_reconcile),
         ):
             _mod.main()
+            lifespan = mock_app.router.lifespan_context
 
-        lifespan = mock_app.router.lifespan_context
-        cancelled_correctly = []
+            async def run_and_cancel():
+                async with lifespan(mock_app):
+                    await asyncio.wait_for(started.wait(), timeout=2.0)
+                    # Simulate shutdown: cancel the background task
+                    for t in list(_mod._background_tasks):
+                        t.cancel()
+                        try:
+                            await t
+                        except asyncio.CancelledError:
+                            pass  # expected
+                        except Exception:
+                            pass
 
-        async def run_and_cancel():
-            async with lifespan(mock_app):
-                await asyncio.wait_for(started.wait(), timeout=2.0)
-                # Simulate shutdown: cancel the background task
-                for t in list(_mod._background_tasks):
-                    t.cancel()
-                    try:
-                        await t
-                    except asyncio.CancelledError:
-                        cancelled_correctly.append(True)
-                    except Exception:
-                        pass
+            await run_and_cancel()
 
-        await run_and_cancel()
-
-        assert len(cancelled_correctly) == 1, (
-            "Expected the reconcile task to raise CancelledError when cancelled"
+        assert len(cancel_errors_caught) == 1, (
+            "Expected the reconcile task to catch CancelledError when cancelled"
         )
 
 
