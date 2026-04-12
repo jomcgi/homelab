@@ -36,7 +36,9 @@ from projects.obsidian_vault.vault_mcp.app.qdrant_client import QdrantClient
 _PATCH_TARGET = "projects.obsidian_vault.vault_mcp.app.qdrant_client.httpx.AsyncClient"
 
 
-def _mock_response(status_code: int = 200, json_data: dict | None = None) -> httpx.Response:
+def _mock_response(
+    status_code: int = 200, json_data: dict | None = None
+) -> httpx.Response:
     return httpx.Response(
         status_code=status_code,
         json=json_data or {},
