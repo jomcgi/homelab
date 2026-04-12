@@ -246,6 +246,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-duplicate-migration-version.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-generic-test-filename.sh",
+            "timeout": 5
           }
         ]
       }
