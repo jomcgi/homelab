@@ -135,3 +135,9 @@ sh_test(
     srcs = ["check-batch-session-add_test.sh"],
     data = [":check-batch-session-add.sh"],
 )
+
+sh_test(
+    name = "check_duplicate_migration_version_test",
+    srcs = ["check-duplicate-migration-version_test.sh"],
+    data = [":check-duplicate-migration-version.sh"],
+)
