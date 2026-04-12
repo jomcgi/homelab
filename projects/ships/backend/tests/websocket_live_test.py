@@ -80,7 +80,9 @@ class TestWebSocketLiveSnapshotOnConnect:
             "ship_name": "TEST VESSEL",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-        await service.db.insert_positions_batch([(vessel_data, vessel_data["timestamp"])])
+        await service.db.insert_positions_batch(
+            [(vessel_data, vessel_data["timestamp"])]
+        )
         await service.db.commit()
 
         mock_ws = _RecordingWebSocket(receive_sequence=[WebSocketDisconnect()])
@@ -128,9 +130,7 @@ class TestWebSocketLiveSnapshotOnConnect:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         ]
-        await service.db.insert_positions_batch(
-            [(v, v["timestamp"]) for v in vessels]
-        )
+        await service.db.insert_positions_batch([(v, v["timestamp"]) for v in vessels])
         await service.db.commit()
 
         mock_ws = _RecordingWebSocket(receive_sequence=[WebSocketDisconnect()])
@@ -171,9 +171,7 @@ class TestWebSocketLivePingPong:
     @pytest.mark.asyncio
     async def test_ping_returns_pong(self, test_client):
         """Sending 'ping' text triggers a 'pong' text response."""
-        mock_ws = _RecordingWebSocket(
-            receive_sequence=["ping", WebSocketDisconnect()]
-        )
+        mock_ws = _RecordingWebSocket(receive_sequence=["ping", WebSocketDisconnect()])
 
         from projects.ships.backend.main import websocket_live
 
@@ -195,9 +193,7 @@ class TestWebSocketLivePingPong:
         await websocket_live(mock_ws)
 
         pong_count = mock_ws.sent_text.count("pong")
-        assert pong_count == 3, (
-            f"Expected 3 pongs for 3 pings, got {pong_count}"
-        )
+        assert pong_count == 3, f"Expected 3 pongs for 3 pings, got {pong_count}"
 
     @pytest.mark.asyncio
     async def test_non_ping_message_does_not_send_pong(self, test_client):
@@ -217,9 +213,7 @@ class TestWebSocketLivePingPong:
     @pytest.mark.asyncio
     async def test_ping_after_initial_snapshot(self, test_client):
         """'pong' is sent after the initial snapshot has been transmitted."""
-        mock_ws = _RecordingWebSocket(
-            receive_sequence=["ping", WebSocketDisconnect()]
-        )
+        mock_ws = _RecordingWebSocket(receive_sequence=["ping", WebSocketDisconnect()])
 
         from projects.ships.backend.main import websocket_live
 
