@@ -71,38 +71,14 @@ semgrep_target_test(
 )
 
 semgrep_test(
-    name = "__init___semgrep_test",
-    srcs = ["__init__.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
-
-semgrep_test(
-    name = "auth_semgrep_test",
-    srcs = ["auth.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
-
-semgrep_test(
     name = "auth_test_semgrep_test",
     srcs = ["auth_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_test(
-    name = "knowledge_cmd_semgrep_test",
-    srcs = ["knowledge_cmd.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
-
-semgrep_test(
     name = "knowledge_test_semgrep_test",
     srcs = ["knowledge_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
-
-semgrep_test(
-    name = "output_semgrep_test",
-    srcs = ["output.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
