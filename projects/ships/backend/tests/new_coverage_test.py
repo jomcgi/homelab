@@ -369,7 +369,9 @@ class TestLoadPositionCachePrePopulated:
             await db.connect()
 
             now = datetime.now(timezone.utc).isoformat()
-            first_seen = "2024-01-01T08:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
+            first_seen = (
+                "2024-01-01T08:00:00+00:00"  # nosemgrep: test-hardcoded-past-timestamp
+            )
             await db.insert_positions_batch(
                 [
                     (

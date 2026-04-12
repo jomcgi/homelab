@@ -95,7 +95,9 @@ class TestDeduplicationMooringEdgeCases:
     def test_slow_vessel_moved_beyond_moored_radius_resets_first_seen(self):
         """Slow vessel that moved >500m (beyond moored radius) gets a new first_seen."""
         db = self._make_db()
-        original_first_seen = "2024-06-01T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        original_first_seen = (
+            "2024-06-01T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        )
         db._position_cache["111111111"] = self._cache(
             lat=48.5,
             lon=-123.4,
@@ -103,7 +105,9 @@ class TestDeduplicationMooringEdgeCases:
             first_seen=original_first_seen,
         )
 
-        new_timestamp = "2024-06-01T10:01:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        new_timestamp = (
+            "2024-06-01T10:01:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        )
         # Move ~1 km north — beyond MOORED_RADIUS_METERS (500 m)
         data = {
             "mmsi": "111111111",
@@ -120,7 +124,9 @@ class TestDeduplicationMooringEdgeCases:
     def test_slow_vessel_within_dedup_but_inside_moored_radius_keeps_first_seen(self):
         """Slow vessel that moved <100m keeps first_seen if within time threshold."""
         db = self._make_db()
-        original_first_seen = "2024-06-01T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        original_first_seen = (
+            "2024-06-01T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        )
         db._position_cache["222222222"] = self._cache(
             lat=48.5,
             lon=-123.4,
@@ -145,7 +151,9 @@ class TestDeduplicationMooringEdgeCases:
     def test_stationary_vessel_time_threshold_preserves_first_seen(self):
         """When time threshold triggers insert, original first_seen is preserved."""
         db = self._make_db()
-        original_first_seen = "2024-06-01T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        original_first_seen = (
+            "2024-06-01T08:00:00Z"  # nosemgrep: test-hardcoded-past-timestamp
+        )
         db._position_cache["333333333"] = self._cache(
             lat=48.5,
             lon=-123.4,
