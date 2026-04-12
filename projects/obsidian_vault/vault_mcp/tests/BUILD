@@ -225,3 +225,19 @@ semgrep_test(
     srcs = ["reconciler_race_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "final_gaps_test",
+    srcs = ["final_gaps_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/obsidian_vault/vault_mcp/app",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "final_gaps_test_semgrep_test",
+    srcs = ["final_gaps_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
