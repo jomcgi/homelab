@@ -41,9 +41,9 @@
     --fg: #111;
     --fg-secondary: #555;
     --fg-tertiary: #999;
-    --bg: #f2f0ed;
-    --border: #ccc;
-    --surface: #e8e6e3;
+    --bg: #fff;
+    --border: #d4d4d4;
+    --surface: #f5f5f5;
     --danger: #c53030;
   }
 
@@ -74,9 +74,9 @@
     --fg: #111;
     --fg-secondary: #555;
     --fg-tertiary: #999;
-    --bg: #f2f0ed;
-    --border: #ccc;
-    --surface: #e8e6e3;
+    --bg: #fff;
+    --border: #d4d4d4;
+    --surface: #f5f5f5;
     --danger: #c53030;
   }
 

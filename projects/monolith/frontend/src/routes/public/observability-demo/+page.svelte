@@ -139,7 +139,9 @@
   let selected = $state(null);
   let hovered = $state(null);
   let drawing = $state(true);
-  let drawStartTime = 0; // set when animation begins (performance.now())
+  let drawStartTime = 0;
+  let drawTimer = null;
+  let scribbleG = $state(null); // overlay group for scribble-out effect
   let mapSvg = $state(null);
   let roughEdges = $state(null);
   let roughNodes = $state(null);
@@ -152,13 +154,19 @@
   let drawerBorderG = $state(null);
   const active = $derived(hovered || selected);
 
-  let isDark = $state(false);
+  let isDark = $state((() => {
+    const stored = localStorage.getItem("theme");
+    const dark = stored !== null ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    // Apply synchronously to prevent flash on first render
+    document.documentElement.classList.toggle("theme-dark", dark);
+    document.documentElement.classList.toggle("theme-light", !dark);
+    return dark;
+  })());
   $effect(() => {
-    isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
-  $effect(() => {
+    // Keep in sync on subsequent toggles
     document.documentElement.classList.toggle("theme-dark", isDark);
     document.documentElement.classList.toggle("theme-light", !isDark);
+    localStorage.setItem("theme", isDark ? "dark" : "light");
   });
   function toggleTheme() {
     isDark = !isDark;
@@ -166,7 +174,19 @@
 
   // ── Responsive layout ────────────────────
   let containerW = $state(960);
-  let containerH = $state(470);
+  let containerH = $state(700);
+
+  // Use window dimensions (not element dimensions) to avoid
+  // feedback loops when CSS 3D transforms change element size
+  $effect(() => {
+    function onResize() {
+      containerW = window.innerWidth;
+      containerH = window.innerHeight;
+    }
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  });
 
   // Pick layout that minimizes whitespace by matching container aspect ratio
   const LAND_AR = 960 / 470;  // ~2.04
@@ -175,7 +195,142 @@
     const ar = containerW / containerH;
     return Math.abs(ar - PORT_AR) < Math.abs(ar - LAND_AR);
   });
-  const viewBox = $derived(isPortrait ? "0 10 500 510" : "30 40 960 470");
+
+  // activeLayout is what rough.js is currently rendering.
+  // It lags behind isPortrait during the paper-turn transition.
+  let activeLayout = $state((() => {
+    const ar = window.innerWidth / window.innerHeight;
+    return Math.abs(ar - PORT_AR) < Math.abs(ar - LAND_AR);
+  })()); // matches initial isPortrait so no spurious flip
+  let flipPhase = $state("none");   // "none" | "out" | "in"
+  let scribbling = $state(false);   // true during scribble-out + fade
+  let flipTimer = null;
+  const FLIP_HALF = 300; // ms per half-turn
+  // Initialize to current layout so first $effect run is a no-op (no spurious flip on mount)
+  let lastFlipTarget = (() => {
+    const ar = window.innerWidth / window.innerHeight;
+    return Math.abs(ar - PORT_AR) < Math.abs(ar - LAND_AR);
+  })();
+  let drawGen = $state(0);
+  const SCRIBBLE_DUR = 450; // ms — scribble lines draw across content
+  const FADE_DUR = 350;     // ms — content fades out after scribble
+
+  function doScribbleOut() {
+    if (!scribbleG || !mapSvg) return;
+    clearChildren(scribbleG);
+    const c = colors();
+    const rc = rough.svg(mapSvg);
+    const vb = viewBox.split(" ").map(Number);
+    const [vx, vy, vw, vh] = vb;
+    const margin = 20;
+    const now = Date.now();
+
+    // Random jitter helper — different every time
+    function j(i, axis) {
+      const h = seed("scr" + i + axis + now);
+      return ((h % 80) - 40); // ±40 SVG units
+    }
+
+    // 12 scratchy lines with jittered endpoints — chaotic cross-hatch
+    const lines = [];
+    for (let i = 0; i < 12; i++) {
+      // Alternate between diagonal directions for cross-hatch feel
+      const flip = i % 3;
+      let x1, y1, x2, y2;
+      if (flip === 0) {
+        // top-left to bottom-right
+        x1 = vx + margin + j(i,"x1"); y1 = vy + vh * (0.1 + (i * 0.07) % 0.5) + j(i,"y1");
+        x2 = vx + vw - margin + j(i,"x2"); y2 = vy + vh * (0.4 + (i * 0.05) % 0.5) + j(i,"y2");
+      } else if (flip === 1) {
+        // top-right to bottom-left
+        x1 = vx + vw - margin + j(i,"x1"); y1 = vy + vh * (0.05 + (i * 0.06) % 0.4) + j(i,"y1");
+        x2 = vx + margin + j(i,"x2"); y2 = vy + vh * (0.5 + (i * 0.04) % 0.45) + j(i,"y2");
+      } else {
+        // more horizontal zigzag
+        x1 = vx + vw * (0.1 + (i * 0.08) % 0.3) + j(i,"x1"); y1 = vy + vh * (0.3 + (i * 0.09) % 0.5) + j(i,"y1");
+        x2 = vx + vw * (0.6 + (i * 0.05) % 0.35) + j(i,"x2"); y2 = vy + vh * (0.2 + (i * 0.07) % 0.6) + j(i,"y2");
+      }
+      lines.push([x1, y1, x2, y2]);
+    }
+
+    lines.forEach((coords, i) => {
+      const el = rc.line(coords[0], coords[1], coords[2], coords[3], {
+        stroke: c.danger,
+        roughness: 2.5 + (seed("scr-r" + i + now) % 20) / 10,
+        bowing: 1.5 + (seed("scr-b" + i + now) % 15) / 10,
+        strokeWidth: 1 + (seed("scr-w" + i + now) % 10) / 10,
+        seed: seed("scribble" + i + now),
+      });
+      const stagger = i * 0.03;
+      el.querySelectorAll("path").forEach((path) => {
+        try {
+          const len = path.getTotalLength();
+          path.style.strokeDasharray = String(len);
+          path.style.strokeDashoffset = String(len);
+          path.style.animation = `edgeDraw ${SCRIBBLE_DUR * 0.001}s ease-out ${stagger}s forwards`;
+        } catch { /* ignore */ }
+      });
+      el.style.opacity = String(0.4 + (seed("scr-o" + i + now) % 30) / 100);
+      scribbleG.appendChild(el);
+    });
+  }
+
+  function resetTransitionState() {
+    // Kill all in-flight timers and animation state
+    if (flipTimer) { clearTimeout(flipTimer); flipTimer = null; }
+    if (drawTimer) { clearTimeout(drawTimer); drawTimer = null; }
+    scribbling = false;
+    flipPhase = "none";
+    if (scribbleG) clearChildren(scribbleG);
+  }
+
+  function startFlip(target) {
+    // Clean up any in-progress transition first
+    resetTransitionState();
+
+    const wasMidDraw = drawing;
+
+    if (wasMidDraw) {
+      // Phase 0: scribble lines draw across existing content
+      scribbling = true;
+      doScribbleOut();
+
+      flipTimer = setTimeout(() => {
+        // Phase 1: after scribble, fade out (CSS handles the opacity)
+        flipTimer = setTimeout(() => {
+          // Phase 2: swap layout, full reset, start fresh
+          scribbling = false;
+          if (scribbleG) clearChildren(scribbleG);
+          activeLayout = target;
+          hasAnimated = false;
+          drawStartTime = 0;
+          drawing = true;
+          drawGen++;
+        }, FADE_DUR);
+      }, SCRIBBLE_DUR);
+    } else {
+      // Already done drawing — paper turn flip
+      flipPhase = "out";
+      flipTimer = setTimeout(() => {
+        activeLayout = target;
+        drawGen++;
+        flipPhase = "in";
+        flipTimer = setTimeout(() => {
+          flipPhase = "none";
+        }, FLIP_HALF);
+      }, FLIP_HALF);
+    }
+  }
+
+  // Only track isPortrait — everything else is untracked
+  $effect(() => {
+    const target = isPortrait;
+    if (target === lastFlipTarget) return;
+    lastFlipTarget = target;
+    startFlip(target);
+  });
+
+  const viewBox = $derived(activeLayout ? "0 10 500 510" : "30 40 960 470");
 
   // Portrait node positions (top-to-bottom flow)
   // Longhorn at bottom-left so its storage edges (→postgres, →clickhouse)
@@ -194,7 +349,7 @@
   const portraitById = Object.fromEntries(portraitNodes.map((n) => [n.id, n]));
 
   function getNodePos(id) {
-    if (isPortrait) {
+    if (activeLayout) {
       const p = portraitById[id];
       return { x: p.x, y: p.y };
     }
@@ -224,7 +379,7 @@
       border: s.getPropertyValue("--border").trim(),
       surface: s.getPropertyValue("--surface").trim(),
       danger: s.getPropertyValue("--danger").trim(),
-      warn: isDark ? "#ecc94b" : "#d97706",
+      warn: document.documentElement.classList.contains("theme-dark") ? "#ecc94b" : "#d97706",
     };
   }
 
@@ -487,11 +642,8 @@
   let hasAnimated = false;
   $effect(() => {
     if (!mapSvg || !roughEdges || !roughNodes) return;
-    const _dark = isDark;
-    const _portrait = isPortrait;
-
-    // During animation, allow theme changes to redraw with remaining timings
-    // but don't re-trigger the full animation sequence
+    const _layout = activeLayout;
+    const _gen = drawGen; // bump to force redraw after flip
 
     const c = colors();
     const rc = rough.svg(mapSvg);
@@ -500,6 +652,8 @@
     const shouldAnimate = !hasAnimated;
 
     edges.forEach((e) => {
+      const key = e.from + "-" + e.to;
+
       const fromPos = getNodePos(e.from);
       const toPos = getNodePos(e.to);
       const fromNode = nodeById[e.from];
@@ -508,13 +662,13 @@
       const p2 = boxExit(toPos.x, toPos.y, toNode.hw + 6, HH + 4, fromPos.x, fromPos.y);
 
       // Draw line from BFS-earlier node toward BFS-later node
-      const fwd = animDelay.edgeDir[e.from + "-" + e.to];
+      const fwd = animDelay.edgeDir[key];
       const startPt = fwd ? p1 : p2;
       const endPt = fwd ? p2 : p1;
       const edgeSeed = seed(e.from + e.to);
 
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      g.dataset.edge = e.from + "-" + e.to;
+      g.dataset.edge = key;
       g.style.transition = "opacity 0.25s ease";
 
       // Pencil sketch (light guide)
@@ -539,7 +693,7 @@
       ink.dataset.layer = "ink";
 
       if (shouldAnimate) {
-        const anim = animDelay.edge[e.from + "-" + e.to];
+        const anim = animDelay.edge[key];
 
         // Pencil: grey sketch, starts with parent's edges
         pencil.querySelectorAll("path").forEach((path) => {
@@ -573,6 +727,7 @@
     });
 
     nodes.forEach((n) => {
+
       const pos = getNodePos(n.id);
       const w = n.hw * 2 + 12;
       const h = HH * 2 + 6;
@@ -689,7 +844,37 @@
     if (shouldAnimate) {
       hasAnimated = true;
       drawStartTime = performance.now();
-      setTimeout(() => { drawing = false; }, animDelay.totalDur * 1000);
+      if (drawTimer) clearTimeout(drawTimer);
+      drawTimer = setTimeout(() => { drawing = false; }, animDelay.totalDur * 1000);
+    }
+  });
+
+  // Recolor rough.js strokes in-place when theme changes (no redraw needed)
+  let prevDark = isDark;
+  $effect(() => {
+    const dark = isDark;
+    if (dark === prevDark) return;
+    prevDark = dark;
+
+    const c = colors();
+    // Recolor edges
+    if (roughEdges) {
+      roughEdges.querySelectorAll("[data-edge]").forEach((g) => {
+        g.querySelector("[data-layer='pencil']")?.querySelectorAll("path").forEach((p) => { p.setAttribute("stroke", c.border); });
+        g.querySelector("[data-layer='ink']")?.querySelectorAll("path").forEach((p) => { p.setAttribute("stroke", c.fgTer); });
+      });
+    }
+    // Recolor nodes
+    if (roughNodes) {
+      roughNodes.querySelectorAll("[data-node]").forEach((g) => {
+        const id = g.dataset.node;
+        const n = nodeById[id];
+        const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.fg;
+        g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", c.border); });
+        g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", inkCol); });
+        const fill = g.querySelector("[data-layer='fill']");
+        if (fill) fill.querySelectorAll("path").forEach((p) => { p.setAttribute("fill", c.surface); });
+      });
     }
   });
 
@@ -865,7 +1050,7 @@
 
 </script>
 
-<div class="root" class:theme-dark={isDark} class:theme-light={!isDark} class:portrait={isPortrait}>
+<div class="root" class:portrait={isPortrait}>
   <button class="theme-toggle" onclick={toggleTheme} aria-label="Toggle theme">
     {#if isDark}
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42m12.72-12.72l1.42-1.42"/></svg>
@@ -873,6 +1058,12 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
     {/if}
   </button>
+  <div
+    class="map-wrap"
+    class:scribbling
+    class:flip-out={flipPhase === "out"}
+    class:flip-in={flipPhase === "in"}
+  >
   <svg
     bind:this={mapSvg}
     viewBox={viewBox}
@@ -880,27 +1071,30 @@
     role="img"
     aria-label="Service topology"
     preserveAspectRatio="xMidYMin meet"
-    bind:clientWidth={containerW}
-    bind:clientHeight={containerH}
-    style="will-change: contents;"
   >
     <g bind:this={roughEdges}></g>
     <g bind:this={roughNodes}></g>
 
-    {#each nodes as n}
-      {@const pos = getNodePos(n.id)}
-      {@const dimmed = active && !connectedTo(n.id)}
-      <text
-        x={pos.x} y={pos.y + 4}
-        class="node-label"
-        class:node-label--dimmed={dimmed}
-        class:node-label--active={active === n.id}
-        style={drawing ? `opacity:0;animation:textJot ${animDelay.node[n.id].textDur.toFixed(3)}s cubic-bezier(0.2,0,0.1,1) ${animDelay.node[n.id].text.toFixed(3)}s forwards` : ''}
-      >
-        {n.label}
-      </text>
-    {/each}
+    {#key drawGen}
+      {#each nodes as n}
+        {@const pos = getNodePos(n.id)}
+        {@const dimmed = active && !connectedTo(n.id)}
+        {@const visible = nodeDrawn(n.id)}
+        {#if visible || flipPhase === "none"}
+          <text
+            x={pos.x} y={pos.y + 4}
+            class="node-label"
+            class:node-label--dimmed={dimmed}
+            class:node-label--active={active === n.id}
+            style={drawing && flipPhase === "none" ? `opacity:0;animation:textJot ${animDelay.node[n.id].textDur.toFixed(3)}s cubic-bezier(0.2,0,0.1,1) ${animDelay.node[n.id].text.toFixed(3)}s forwards` : visible ? '' : 'opacity:0'}
+          >
+            {n.label}
+          </text>
+        {/if}
+      {/each}
+    {/key}
 
+    <g bind:this={scribbleG}></g>
     <g bind:this={tooltipRough}></g>
 
     {#if hovered && !selected}
@@ -936,6 +1130,7 @@
       />
     {/each}
   </svg>
+  </div>
 
 
   <!-- ── Detail drawer ────────────────────── -->
@@ -1067,12 +1262,53 @@
     -webkit-font-feature-settings: "liga" 0;
     font-feature-settings: "liga" 0;
     transition: color 0.3s ease, background 0.3s ease;
+    perspective: 1200px;
+  }
+
+  .map-wrap {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    padding: 16px;
+    overflow: hidden;
+    transform-origin: center center;
+    transform-style: preserve-3d;
+    transition: opacity 0.15s ease;
   }
 
   .map {
-    flex: 1;
     width: 100%;
-    padding: 16px;
+    height: 100%;
+  }
+
+  /* Scribble-out: scribble draws (250ms), then content fades out (200ms) */
+  .map-wrap.scribbling {
+    animation: scribbleFade 0.8s ease-in forwards;
+  }
+
+  @keyframes scribbleFade {
+    0%   { opacity: 1; }
+    56%  { opacity: 1; }   /* hold while scribble lines draw (450/800) */
+    100% { opacity: 0; }   /* fade to nothing over remaining 350ms */
+  }
+
+  /* Paper turn: used for post-draw layout transitions only */
+  .map-wrap.flip-out {
+    animation: flipOut 0.3s ease-in forwards;
+  }
+
+  .map-wrap.flip-in {
+    animation: flipIn 0.3s ease-out forwards;
+  }
+
+  @keyframes flipOut {
+    from { transform: rotateY(0deg); }
+    to   { transform: rotateY(90deg); }
+  }
+
+  @keyframes flipIn {
+    from { transform: rotateY(-90deg); }
+    to   { transform: rotateY(0deg); }
   }
 
   /* ── Theme toggle ─────────────────────────── */
