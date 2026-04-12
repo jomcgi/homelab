@@ -10,8 +10,8 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from projects.monolith.knowledge.gardener import Gardener
-from projects.monolith.knowledge.models import AtomRawProvenance, RawInput
+from knowledge.gardener import Gardener
+from knowledge.models import AtomRawProvenance, RawInput
 from tools.cli.main import app
 
 
@@ -54,8 +54,8 @@ def _patch_fastapi(session):
     cloudflared files.
     """
     from fastapi.testclient import TestClient
-    from projects.monolith.app.main import app as fastapi_app
-    from projects.monolith.app.db import get_session
+    from app.main import app as fastapi_app
+    from app.db import get_session
 
     fastapi_app.dependency_overrides[get_session] = lambda: session
     test_client = TestClient(fastapi_app)
