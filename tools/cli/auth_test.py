@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tools.cli.auth import get_cf_token
+from tools.cli.auth import _read_token, get_cf_token
 
 
 class TestGetCfToken:
@@ -108,3 +108,73 @@ class TestGetCfToken:
         with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
             result = get_cf_token()
         assert result == "new-token"
+
+
+class TestReadToken:
+    """Direct unit tests for the _read_token() private helper.
+
+    _read_token() is tested indirectly through get_cf_token() in TestGetCfToken,
+    but direct tests isolate its two short-circuit branches and make the
+    contract explicit without the noise of the cloudflared-login machinery.
+    """
+
+    def test_returns_none_when_token_dir_does_not_exist(self, tmp_path):
+        """Returns None immediately when CF_TOKEN_DIR is not a directory."""
+        nonexistent = tmp_path / "no-such-dir"
+        with patch("tools.cli.auth.CF_TOKEN_DIR", nonexistent):
+            result = _read_token("private.jomcgi.dev")
+        assert result is None
+
+    def test_returns_none_when_token_dir_is_a_file_not_a_directory(self, tmp_path):
+        """Returns None when CF_TOKEN_DIR path exists but is a file, not a directory."""
+        file_path = tmp_path / "not-a-dir"
+        file_path.write_text("oops")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", file_path):
+            result = _read_token("private.jomcgi.dev")
+        assert result is None
+
+    def test_returns_none_when_no_matching_file_in_dir(self, tmp_path):
+        """Returns None when CF_TOKEN_DIR exists but contains no file matching hostname."""
+        # Directory exists but has no files matching the hostname glob.
+        (tmp_path / "other.host.com-token").write_text("unrelated")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            result = _read_token("private.jomcgi.dev")
+        assert result is None
+
+    def test_returns_token_content_when_matching_file_found(self, tmp_path):
+        """Returns the stripped content of the matching token file."""
+        token_file = tmp_path / "private.jomcgi.dev-token"
+        token_file.write_text("direct-token\n")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            result = _read_token("private.jomcgi.dev")
+        assert result == "direct-token"
+
+    def test_returns_most_recent_file_when_multiple_match(self, tmp_path):
+        """Returns the most recently modified file when multiple files match hostname."""
+        import time
+
+        old_file = tmp_path / "private.jomcgi.dev-old"
+        old_file.write_text("stale-token")
+        time.sleep(0.01)
+        new_file = tmp_path / "private.jomcgi.dev-new"
+        new_file.write_text("fresh-token")
+
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            result = _read_token("private.jomcgi.dev")
+        assert result == "fresh-token"
+
+    def test_glob_pattern_matches_hostname_substring(self, tmp_path):
+        """Token file is matched by glob when hostname appears anywhere in its name."""
+        # The glob pattern is f"*{hostname}*" so the hostname can be a substring.
+        token_file = tmp_path / "app.private.jomcgi.dev.access"
+        token_file.write_text("substring-token")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            result = _read_token("private.jomcgi.dev")
+        assert result == "substring-token"
+
+    def test_custom_hostname_not_matched_by_unrelated_files(self, tmp_path):
+        """Token files for different hostnames are not returned."""
+        (tmp_path / "other.example.com-token").write_text("wrong-token")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            result = _read_token("my.hostname.com")
+        assert result is None
