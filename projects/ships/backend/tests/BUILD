@@ -303,7 +303,6 @@ py_test(
         ":conftest",
         "//projects/ships/backend:ships-api",
         "@pip//aiosqlite",
-        "@pip//httpx",
         "@pip//pytest",
         "@pip//pytest_asyncio",  # keep
     ],
