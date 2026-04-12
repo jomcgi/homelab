@@ -26,10 +26,12 @@ go_test(
     name = "cloudflare_test",
     srcs = [
         "access_test.go",
+        "circuit_breaker_test.go",
         "client_test.go",
         "coverage_gaps_test.go",
         "dns_test.go",
         "mock_api_test.go",
+        "nil_guard_test.go",
         "rate_limiter_coverage_test.go",
         "routes_test.go",
         "tunnel_crud_test.go",
