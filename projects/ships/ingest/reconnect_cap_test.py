@@ -240,6 +240,7 @@ class TestSubscriptionApiKey:
                 sent_messages.append(msg)
 
         fake_key = "test-api-key-12345"
+
         async def fake_sleep(_):
             service.running = False
 
