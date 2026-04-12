@@ -57,7 +57,9 @@ class TestMovePhaseOSError:
         assert stats.moved == 0
         assert stats.deduped == 0
         # A warning was emitted for the bad file.
-        assert any("move_phase" in r.message and "failed" in r.message for r in caplog.records)
+        assert any(
+            "move_phase" in r.message and "failed" in r.message for r in caplog.records
+        )
 
     def test_oserror_skipped_file_does_not_count_as_moved(self, tmp_path):
         """An OSError'd file increments neither moved nor deduped."""
@@ -117,6 +119,8 @@ class TestMovePhaseOSError:
         ):
             move_phase(vault_root=tmp_path, now=_NOW)
 
-        warning_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
+        warning_messages = [
+            r.message for r in caplog.records if r.levelno == logging.WARNING
+        ]
         # At least one warning should mention the file path.
         assert any("secret.md" in msg for msg in warning_messages)
