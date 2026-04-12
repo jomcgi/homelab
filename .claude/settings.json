@@ -241,6 +241,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-batch-session-add.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-duplicate-migration-version.sh",
+            "timeout": 5
           }
         ]
       }
