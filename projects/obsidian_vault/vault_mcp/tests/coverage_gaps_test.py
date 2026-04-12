@@ -4,7 +4,7 @@ Gaps addressed:
 1. _reconcile_loop() lifespan shutdown — background task cancellation on app shutdown.
 2. search_semantic() partial init — _qdrant set but _embedder is None returns error.
 3. QdrantClient HTTP error paths:
-   - Non-200/404 on GET in ensure_collection raises immediately (no PUT issued).
+   - Non-200/404 on GET in ensure_collection raises on subsequent PUT (5xx).
    - Error response (5xx) on DELETE filter in delete_by_source_url raises.
 """
 
@@ -79,12 +79,12 @@ def _mock_async_client(**method_returns):
 
 
 # ---------------------------------------------------------------------------
-# Gap 1: _reconcile_loop() lifespan shutdown — task cancellation verified
+# Gap 1: _reconcile_loop() lifespan — background task lifecycle verified
 # ---------------------------------------------------------------------------
 
 
-class TestReconcileLoopLifespanShutdown:
-    """Verify that the reconcile background task is cancelled on lifespan shutdown."""
+class TestReconcileLoopLifespanTask:
+    """Verify the background task lifecycle during lifespan startup and shutdown."""
 
     @pytest.fixture(autouse=True)
     def _reset_globals(self):
@@ -96,118 +96,67 @@ class TestReconcileLoopLifespanShutdown:
         _mod._qdrant = None
         _mod._background_tasks.clear()
 
-    async def test_task_cancelled_when_lifespan_exits(self, tmp_path):
-        """The reconcile task receives CancelledError when the lifespan context exits.
-
-        The lifespan in main() creates the task but does NOT cancel it explicitly —
-        the task is cancelled by the asyncio event loop when the task's coroutine
-        raises CancelledError.  We test this by:
-        1. Extracting the lifespan from a wired-up app.
-        2. Entering the lifespan context (which starts the task).
-        3. Cancelling the task manually (simulating shutdown) before exiting.
-        4. Asserting the task ends with CancelledError.
-        """
+    def _build_lifespan(self, reconcile_side_effect):
+        """Wire up main() with mocks and return the custom lifespan closure."""
         mock_settings = MagicMock(spec=Settings)
-        mock_settings.path = str(tmp_path)
+        mock_settings.path = "/tmp/test-vault"
         mock_settings.port = 8000
-        mock_app = MagicMock()
 
-        # Capture the lifespan that main() registers
-        registered_lifespan = None
-
-        def capture_lifespan_assignment(value):
-            nonlocal registered_lifespan
-            registered_lifespan = value
-
-        mock_app.router = MagicMock()
-        mock_app.router.lifespan_context = _stub_lifespan  # initial value
-
-        # We need to capture the assignment to mock_app.router.lifespan_context
-        type(mock_app.router).__setattr__ = MagicMock(
-            side_effect=lambda self, name, value: (
-                capture_lifespan_assignment(value) if name == "lifespan_context" else None
-            )
-        )
-
-        # Use a long-running reconcile loop mock that only stops on cancellation
-        reconcile_started = asyncio.Event()
-
-        async def slow_reconcile(settings):
-            reconcile_started.set()
-            # Sleep forever — only CancelledError will stop it
-            await asyncio.sleep(9999)
-
-        with (
-            patch.object(_mod, "Settings", return_value=mock_settings),
-            patch.object(_mod, "configure"),
-            patch.object(_mod.mcp, "http_app", return_value=mock_app),
-            patch("uvicorn.run"),
-            patch.object(_mod, "_reconcile_loop", side_effect=slow_reconcile),
-        ):
-            _mod.main()
-
-        # registered_lifespan is the custom lifespan closure
-        assert registered_lifespan is not None
-
-        # Enter the lifespan: it wraps original_lifespan then starts the task
-        # We mock the original_lifespan as a no-op async context manager
         @asynccontextmanager
-        async def noop_lifespan(app):
+        async def noop_original_lifespan(app):
             yield
 
-        mock_app.router.lifespan_context = noop_lifespan
-        # Re-run main() to get a lifespan that uses the noop original
+        mock_app = MagicMock()
+        mock_app.router = MagicMock()
+        mock_app.router.lifespan_context = noop_original_lifespan
+
+        # Capture the lifespan assigned by main()
+        captured = {}
+
+        original_setattr = type(mock_app.router).__setattr__
+
+        def capturing_setattr(self, name, value):
+            if name == "lifespan_context":
+                captured["lifespan"] = value
+            # Don't call original (MagicMock handles the attr itself)
+
         with (
             patch.object(_mod, "Settings", return_value=mock_settings),
             patch.object(_mod, "configure"),
             patch.object(_mod.mcp, "http_app", return_value=mock_app),
             patch("uvicorn.run"),
-            patch.object(_mod, "_reconcile_loop", side_effect=slow_reconcile),
+            patch.object(_mod, "_reconcile_loop", side_effect=reconcile_side_effect),
         ):
+            # Use a simpler approach: spy on mock_app.router attribute assignment
+            assignments = []
+            mock_app.router.__setattr__ = lambda name, value: assignments.append(
+                (name, value)
+            )
             _mod.main()
 
-        # The lifespan attribute was reassigned — get current value
+        # The lifespan was assigned as mock_app.router.lifespan_context
+        # but since MagicMock, we need to grab it from mock_app.router
         lifespan = mock_app.router.lifespan_context
+        return lifespan
 
-        task_ref: list[asyncio.Task] = []
-
-        async def run_and_capture():
-            # Enter the lifespan context, capture the task, then cancel it
-            async with lifespan(mock_app):
-                # Wait until the reconcile loop has actually started
-                await asyncio.wait_for(reconcile_started.wait(), timeout=2.0)
-                # Capture the background task
-                assert len(_mod._background_tasks) == 1
-                task = next(iter(_mod._background_tasks))
-                task_ref.append(task)
-                task.cancel()
-                # Give cancellation time to propagate
-                try:
-                    await asyncio.wait_for(asyncio.shield(task), timeout=1.0)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass
-            # After lifespan exits the task should be done or cancelled
-            assert task_ref[0].done() or task_ref[0].cancelled()
-
-        await run_and_capture()
-
-    async def test_background_task_added_to_background_tasks_set(self, tmp_path):
-        """main() adds the reconcile task to _background_tasks during lifespan startup."""
-        mock_settings = MagicMock(spec=Settings)
-        mock_settings.path = str(tmp_path)
-        mock_settings.port = 8000
-        mock_app = MagicMock()
-
+    async def test_task_added_to_background_tasks_on_startup(self, tmp_path):
+        """main() registers the reconcile task in _background_tasks during lifespan entry."""
         started = asyncio.Event()
 
         async def blocking_reconcile(settings):
             started.set()
+            # Block until cancelled
             await asyncio.sleep(9999)
+
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.path = str(tmp_path)
+        mock_settings.port = 8000
 
         @asynccontextmanager
         async def noop_lifespan(app):
             yield
 
+        mock_app = MagicMock()
         mock_app.router = MagicMock()
         mock_app.router.lifespan_context = noop_lifespan
 
@@ -220,39 +169,48 @@ class TestReconcileLoopLifespanShutdown:
         ):
             _mod.main()
 
+        # The lifespan closure was assigned to mock_app.router.lifespan_context
         lifespan = mock_app.router.lifespan_context
 
-        async def check_task_registered():
+        task_in_set_during_run = []
+
+        async def run_lifespan():
             async with lifespan(mock_app):
                 await asyncio.wait_for(started.wait(), timeout=2.0)
-                # The task must be present in _background_tasks while running
-                assert len(_mod._background_tasks) == 1
-                task = next(iter(_mod._background_tasks))
-                task.cancel()
-                try:
-                    await asyncio.wait_for(asyncio.shield(task), timeout=1.0)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass
+                # While inside the lifespan context, the task should be registered
+                task_in_set_during_run.append(len(_mod._background_tasks))
+                # Cancel the task so we can exit cleanly
+                for t in list(_mod._background_tasks):
+                    t.cancel()
+                    try:
+                        await asyncio.shield(t)
+                    except (asyncio.CancelledError, Exception):
+                        pass
 
-        await check_task_registered()
+        await run_lifespan()
 
-    async def test_reconcile_task_removed_from_set_after_done(self, tmp_path):
-        """The done callback discards the task from _background_tasks when it finishes."""
+        # The task should have been in the set while the lifespan was active
+        assert task_in_set_during_run[0] == 1, (
+            f"Expected 1 task in _background_tasks, got {task_in_set_during_run[0]}"
+        )
+
+    async def test_done_callback_removes_task_from_set(self, tmp_path):
+        """The done callback registered by main() removes the task from _background_tasks."""
         mock_settings = MagicMock(spec=Settings)
         mock_settings.path = str(tmp_path)
         mock_settings.port = 8000
-        mock_app = MagicMock()
-
-        async def instant_reconcile(settings):
-            # Returns immediately — task will be "done" quickly
-            return
 
         @asynccontextmanager
         async def noop_lifespan(app):
             yield
 
+        mock_app = MagicMock()
         mock_app.router = MagicMock()
         mock_app.router.lifespan_context = noop_lifespan
+
+        async def instant_reconcile(settings):
+            # Returns immediately — task finishes quickly
+            return
 
         with (
             patch.object(_mod, "Settings", return_value=mock_settings),
@@ -265,20 +223,72 @@ class TestReconcileLoopLifespanShutdown:
 
         lifespan = mock_app.router.lifespan_context
 
-        async def check_removal():
+        async def run_and_check():
             async with lifespan(mock_app):
-                # Allow the task to complete
-                await asyncio.sleep(0.05)
-                # After the task finishes, the done callback should have removed it
-                assert len(_mod._background_tasks) == 0
+                # Wait for the task to complete and the done callback to fire
+                await asyncio.sleep(0.1)
+                # After the task finishes, done callback should have discarded it
+                assert len(_mod._background_tasks) == 0, (
+                    f"Expected 0 tasks after reconcile finished, "
+                    f"got {len(_mod._background_tasks)}"
+                )
 
-        await check_removal()
+        await run_and_check()
 
+    async def test_task_cancelled_on_shutdown_propagates_cancelled_error(self, tmp_path):
+        """When the reconcile task is cancelled during shutdown, CancelledError propagates."""
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.path = str(tmp_path)
+        mock_settings.port = 8000
 
-# Stub lifespan for use as the initial mock_app.router.lifespan_context value
-@asynccontextmanager
-async def _stub_lifespan(app):
-    yield
+        started = asyncio.Event()
+
+        async def long_running_reconcile(settings):
+            started.set()
+            try:
+                await asyncio.sleep(9999)
+            except asyncio.CancelledError:
+                # CancelledError propagates as expected
+                raise
+
+        @asynccontextmanager
+        async def noop_lifespan(app):
+            yield
+
+        mock_app = MagicMock()
+        mock_app.router = MagicMock()
+        mock_app.router.lifespan_context = noop_lifespan
+
+        with (
+            patch.object(_mod, "Settings", return_value=mock_settings),
+            patch.object(_mod, "configure"),
+            patch.object(_mod.mcp, "http_app", return_value=mock_app),
+            patch("uvicorn.run"),
+            patch.object(_mod, "_reconcile_loop", side_effect=long_running_reconcile),
+        ):
+            _mod.main()
+
+        lifespan = mock_app.router.lifespan_context
+        cancelled_correctly = []
+
+        async def run_and_cancel():
+            async with lifespan(mock_app):
+                await asyncio.wait_for(started.wait(), timeout=2.0)
+                # Simulate shutdown: cancel the background task
+                for t in list(_mod._background_tasks):
+                    t.cancel()
+                    try:
+                        await t
+                    except asyncio.CancelledError:
+                        cancelled_correctly.append(True)
+                    except Exception:
+                        pass
+
+        await run_and_cancel()
+
+        assert len(cancelled_correctly) == 1, (
+            "Expected the reconcile task to raise CancelledError when cancelled"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -353,19 +363,14 @@ class TestSearchSemanticPartialInit:
 
 
 class TestEnsureCollectionHttpErrorPaths:
-    """Non-200/404 on GET in ensure_collection should propagate via raise_for_status."""
+    """Non-200/404 on GET in ensure_collection should trigger PUT; 5xx on PUT raises."""
 
-    async def test_get_returns_500_raises_http_status_error(self):
-        """A 500 response on the GET check raises HTTPStatusError immediately.
+    async def test_get_returns_500_then_put_500_raises_http_status_error(self):
+        """A 500 GET + 500 PUT causes raise_for_status to propagate HTTPStatusError.
 
-        The implementation only handles 200 (return) and implicitly falls through
-        to PUT for any non-200 response. However, a 500 means Qdrant is broken —
-        the PUT is still attempted and its raise_for_status() will catch the error
-        on the PUT side. This test verifies the path where GET returns 500 and
-        a subsequent PUT also fails, causing raise_for_status to propagate.
+        When GET returns non-200, the implementation falls through to PUT.
+        If PUT also returns an error status, raise_for_status raises.
         """
-        # When GET returns 500, ensure_collection falls through to PUT.
-        # If PUT also returns an error, raise_for_status raises.
         mock = _mock_async_client(
             get=_mock_response(500, {"status": "error"}),
             put=_mock_response(500, {"status": {"error": "internal server error"}}),
@@ -380,7 +385,7 @@ class TestEnsureCollectionHttpErrorPaths:
         mock.put.assert_called_once()
 
     async def test_get_returns_500_put_succeeds_no_error(self):
-        """When GET returns 500 and PUT succeeds, no error is raised.
+        """When GET returns 500 and PUT succeeds (200), no error is raised.
 
         The implementation treats any non-200 GET response as 'collection absent'
         and attempts to create it via PUT. If PUT returns 200, the method succeeds.
