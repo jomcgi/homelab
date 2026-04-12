@@ -88,12 +88,15 @@ A Helm post-install and post-upgrade hook will automatically register the server
 | ------------------------------------ | -------------------------------- | ----------------------------------------------------- |
 | `headlessSync.enabled`               | `false`                          | Enable Obsidian cloud sync sidecar                    |
 | `headlessSync.vaultName`             | `""`                             | Obsidian vault name to sync                           |
-| `headlessSync.image`                 | `node:22-alpine`                 | Headless sync container image                         |
-| `gitSidecar.image`                   | `alpine/git:latest`              | Git sidecar container image                           |
+| `headlessSync.image.repository`      | `node`                           | Headless sync container image repository              |
+| `headlessSync.image.tag`             | `22-alpine`                      | Headless sync container image tag                     |
+| `gitSidecar.image.repository`        | `alpine/git`                     | Git sidecar container image repository                |
+| `gitSidecar.image.tag`               | `latest`                         | Git sidecar container image tag                       |
 | `gitSidecar.remote`                  | `""`                             | GitHub repo URL for audit trail                       |
 | `gitSidecar.branch`                  | `main`                           | Git branch to push to                                 |
 | `gitSidecar.debounceSeconds`         | `10`                             | Seconds to wait before committing changes             |
-| `vaultMcp.image`                     | `ghcr.io/jomcgi/homelab/…:latest` | vault-mcp container image                            |
+| `vaultMcp.image.repository`          | `ghcr.io/jomcgi/homelab/…`       | vault-mcp container image repository                  |
+| `vaultMcp.image.tag`                 | `latest`                         | vault-mcp container image tag                         |
 | `vaultMcp.port`                      | `8000`                           | MCP server listen port                                |
 | `persistence.size`                   | `5Gi`                            | PVC size for vault storage                            |
 | `persistence.storageClass`           | `""`                             | Storage class (empty = cluster default)               |
@@ -104,7 +107,8 @@ A Helm post-install and post-upgrade hook will automatically register the server
 | `qdrant.replicaCount`                | `1`                              | Qdrant replicas                                       |
 | `qdrant.persistence.size`            | `2Gi`                            | Qdrant storage size                                   |
 | `gateway.url`                        | `""`                             | Context Forge gateway URL (empty = skip registration) |
-| `gateway.image`                      | `ghcr.io/ibm/mcp-context-forge:v1.0.0-RC1` | Gateway registration init container image  |
+| `gateway.image.repository`           | `ghcr.io/ibm/mcp-context-forge`  | Gateway registration init container image repository  |
+| `gateway.image.tag`                  | `v1.0.0-RC1`                     | Gateway registration init container image tag         |
 | `gateway.secret.name`                | `context-forge-gateway`          | Secret name for gateway credentials                   |
 | `secrets.obsidian.itemPath`          | `""`                             | 1Password item path for Obsidian/GitHub credentials   |
 
@@ -152,3 +156,4 @@ The vault-mcp container needs significant memory because it loads the embedding 
 - **Soft deletes** — `delete_note` moves files to `_archive/` rather than permanently removing them.
 - **Embedding runs on CPU** — no GPU required. The `nomic-embed-text-v1.5` model runs via [FastEmbed](https://github.com/qdrant/fastembed) with single-threaded inference.
 - **Reconciliation** — a background loop re-indexes changed notes every 5 minutes (configurable). It uses SHA256 content hashing to detect changes efficiently.
+- **Git sidecar script** — the deployed script is sourced from `chart/templates/configmap.yaml`, not from `scripts/git-sidecar.sh`. The ConfigMap version includes additional logic not present in the standalone script: credential helper setup (writing `~/.git-credentials` from `$GITHUB_TOKEN`) and exclusion of `.cache/` from git tracking (to prevent OOM from accidentally committing the FastEmbed model cache).
