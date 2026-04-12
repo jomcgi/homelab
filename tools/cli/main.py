@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from knowledge import knowledge_app
+from knowledge_cmd import knowledge_app
 
 app = typer.Typer(
     name="homelab",

@@ -65,8 +65,8 @@ def _patch_fastapi(session):
         yield test_client
 
     with (
-        patch("knowledge._client", _fake_client),
-        patch("knowledge.get_cf_token", return_value="fake-token"),
+        patch("knowledge_cmd._client", _fake_client),
+        patch("knowledge_cmd.get_cf_token", return_value="fake-token"),
     ):
         yield
 
