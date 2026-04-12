@@ -11,7 +11,18 @@
   const portLayout = computeLayout(topology, "TB");
 
   // ── Service data (from config) ─────────────
-  const svc = Object.fromEntries(topology.nodes.map((n) => [n.id, n]));
+  const svc = Object.fromEntries([
+    ...topology.nodes.map((n) => [n.id, n]),
+    ...(topology.groups || []).map((g) => [g.id, g]),
+  ]);
+
+  // ── Group lookups ─────────────────────────
+  const groupDefs = topology.groups || [];
+  const childToGroup = {};
+  for (const g of groupDefs) {
+    for (const cid of g.children) childToGroup[cid] = g.id;
+  }
+  const groupChildIds = new Set(Object.keys(childToGroup));
 
   // ── State ──────────────────────────────────
   let selected = $state(null);
@@ -31,7 +42,9 @@
   let drawerBorderSvg = $state(null);
   let drawerBorderG = $state(null);
   let hoverBorderG = $state(null);
+  let groupLabelBorderG = $state(null);
   let roughArrows = $state(null);
+  let roughGroups = $state(null);
   let mapPanG = $state(null);
   const active = $derived(hovered || selected);
 
@@ -95,6 +108,8 @@
   const nodes = $derived(activeLayout ? portLayout.nodes : landLayout.nodes);
   const edges = $derived(activeLayout ? portLayout.edges : landLayout.edges);
   const nodeById = $derived(activeLayout ? portLayout.nodeById : landLayout.nodeById);
+  const groups = $derived(activeLayout ? portLayout.groups : landLayout.groups);
+  const groupById = $derived(activeLayout ? portLayout.groupById : landLayout.groupById);
 
   let flipPhase = $state("none");   // "none" | "out" | "in"
   let scribbling = $state(false);   // true during scribble-out + fade
@@ -233,6 +248,12 @@
       maxX = Math.max(maxX, n.x + n.hw + 20);
       maxY = Math.max(maxY, n.y + HH + 20);
     }
+    for (const g of layout.groups || []) {
+      minX = Math.min(minX, g.bounds.minX - 10);
+      minY = Math.min(minY, g.bounds.minY - 10);
+      maxX = Math.max(maxX, g.bounds.maxX + 10);
+      maxY = Math.max(maxY, g.bounds.maxY + 10);
+    }
     const pad = 40;
     return `${minX - pad} ${minY - pad} ${maxX - minX + pad * 2} ${maxY - minY + pad * 2}`;
   });
@@ -275,14 +296,45 @@
   function isHighlighted(nodeId) {
     const src = hovered || selected;
     if (!src) return true;
-    return nodeId === src;
+    if (nodeId === src) return true;
+    // Selecting a group highlights its children and their edge-connected nodes
+    const srcGroup = groupDefs.find((g) => g.id === src);
+    if (srcGroup) {
+      if (srcGroup.children.includes(nodeId)) return true;
+      // Check if nodeId is connected via edge to any child
+      const childSet = new Set(srcGroup.children);
+      for (const e of edges) {
+        if (childSet.has(e.from) && e.to === nodeId) return true;
+        if (childSet.has(e.to) && e.from === nodeId) return true;
+      }
+      // Check if nodeId is a group that contains an edge-connected node
+      const grp = groupDefs.find((g) => g.id === nodeId);
+      if (grp) {
+        for (const cid of grp.children) {
+          for (const e of edges) {
+            if (childSet.has(e.from) && e.to === cid) return true;
+            if (childSet.has(e.to) && e.from === cid) return true;
+          }
+        }
+      }
+    }
+    // Selecting a child highlights its group
+    if (childToGroup[src] === nodeId) return true;
+    // Selecting a child highlights siblings
+    if (childToGroup[nodeId] && childToGroup[nodeId] === childToGroup[src]) return true;
+    return false;
   }
 
   function nodeDrawn(id) {
     if (!drawing) return true;
     if (!drawStartTime) return false;
     const elapsed = (performance.now() - drawStartTime) / 1000;
-    return elapsed >= animDelay.node[id].box;
+    // For groups, interactive once the fill + text are both complete
+    const ga = animDelay.group?.[id];
+    if (ga) return elapsed >= ga.text + ga.textDur;
+    const a = animDelay.node[id];
+    if (!a) return true;
+    return elapsed >= a.text;
   }
 
   function selectNode(id) {
@@ -357,12 +409,18 @@
     const __nodes = _nodes;
     const __edges = _edges;
     const __nodeById = _nodeById;
+    const __groupById = activeLayout ? portLayout.groupById : landLayout.groupById;
+    const __lookup = (id) => __nodeById[id] || __groupById[id];
 
     const adj = {};
     __nodes.forEach((n) => (adj[n.id] = []));
+    // Also add group IDs as valid adjacency entries
+    for (const g of groupDefs) adj[g.id] = [];
     __edges.forEach((e) => {
-      adj[e.from].push({ nb: e.to, edge: e });
-      adj[e.to].push({ nb: e.from, edge: e });
+      if (adj[e.from] && adj[e.to]) {
+        adj[e.from].push({ nb: e.to, edge: e });
+        adj[e.to].push({ nb: e.from, edge: e });
+      }
     });
 
     function textDur(s) {
@@ -383,6 +441,7 @@
 
     // Edge duration scales with actual distance between nodes
     function edgeDur(from, to, key) {
+      if (!from || !to) return MIN_EDGE_DUR;
       const dist = Math.sqrt((from.x - to.x) ** 2 + (from.y - to.y) ** 2);
       return Math.max(MIN_EDGE_DUR, (dist / EDGE_PEN_SPEED) * jitter(key));
     }
@@ -394,7 +453,9 @@
       const dx = fromX - n.x;
       const dy = fromY - n.y;
       if (dx === 0 && dy === 0) return 0;
-      const w = n.hw * 2 + 12, h = HH * 2 + 6;
+      const isGrp = !!__groupById[n.id];
+      const w = isGrp ? n.hw * 2 : n.hw * 2 + 12;
+      const h = isGrp ? n.hh * 2 : HH * 2 + 6;
       // Normalize by half-dimensions so rectangles behave like squares
       const sx = Math.abs(dx) / (w / 2);
       const sy = Math.abs(dy) / (h / 2);
@@ -420,7 +481,8 @@
     // Schedule a node's pencil box. Returns pencil cursor after box completes.
     function scheduleNode(c, item) {
       const { id, fromX, fromY } = item;
-      const n = __nodeById[id];
+      const n = __lookup(id);
+      if (!n) return c;
       const side = arrivalSide(n, fromX, fromY);
       const sides = boxSideDurs(n);
       const bDur = sides.reduce((a, b) => a + b, 0);
@@ -448,8 +510,8 @@
     function scheduleEdge(pencilStart, parentId, edge, siblingIdx) {
       const key = edge.from + "-" + edge.to;
       edDir[key] = edge.from === parentId;
-      const from = __nodeById[edge.from];
-      const to = __nodeById[edge.to];
+      const from = __lookup(edge.from);
+      const to = __lookup(edge.to);
       const eDur = edgeDur(from, to, key);
 
       // Ink line waits for: parent's ink box + stagger, AND pencil line to complete + pause
@@ -469,7 +531,8 @@
 
     // Collect unvisited children
     function collectChildren(item) {
-      const n = __nodeById[item.id];
+      const n = __lookup(item.id);
+      if (!n) return [];
       const children = [];
       let sibIdx = 0;
       for (const { nb: nbId, edge } of adj[item.id]) {
@@ -488,7 +551,7 @@
       return scheduleNode(c, item);
     }
 
-    let batch = [{ id: "external", fromX: 0, fromY: __nodeById["external"]?.y ?? 240, viaEdge: null, parentId: null }];
+    let batch = [{ id: "external", fromX: 0, fromY: __lookup("external")?.y ?? 240, viaEdge: null, parentId: null }];
     let cursor = 0.2;
 
     while (batch.length > 0) {
@@ -523,7 +586,7 @@
     __edges.forEach((e) => {
       const key = e.from + "-" + e.to;
       if (ed[key]) return;
-      const eDur = edgeDur(__nodeById[e.from], __nodeById[e.to], key);
+      const eDur = edgeDur(__lookup(e.from), __lookup(e.to), key);
       const fromDone = (nd[e.from]?.box ?? 0) + (nd[e.from]?.boxDur ?? 0);
       const toDone = (nd[e.to]?.box ?? 0) + (nd[e.to]?.boxDur ?? 0);
       edDir[key] = fromDone <= toDone;
@@ -535,26 +598,63 @@
     });
 
     // Schedule unvisited nodes (infra tier — no edges from critical path)
-    // Sort left-to-right (by x) and stagger from the start of the animation
-    // so they draw concurrently with the critical path
+    // Single cursor fills left-to-right sequentially
     const unvisited = __nodes
       .filter((n) => !visited.has(n.id))
       .sort((a, b) => a.x - b.x);
     if (unvisited.length > 0) {
-      const infraStart = 0.8; // start shortly after cloudflare
-      const infraSpacing = 0.4; // seconds between each infra node
-      unvisited.forEach((n, i) => {
+      let infraCursor = 0.8; // start shortly after cloudflare
+      unvisited.forEach((n) => {
         visited.add(n.id);
-        const t = infraStart + i * infraSpacing * jitter(n.id + "infra");
-        scheduleNode(t, { id: n.id, fromX: n.x, fromY: n.y - 80 });
+        infraCursor = scheduleNode(infraCursor, { id: n.id, fromX: n.x, fromY: n.y - 80 });
+        infraCursor += TRAVEL_PAUSE * 0.5; // brief pause between infra nodes
       });
+    }
+
+    // Schedule group boundaries — draw after all children complete their ink phase
+    const gd = {};
+    for (const group of groupDefs) {
+      let latestChildInkDone = 0;
+      for (const cid of group.children) {
+        if (nd[cid]) {
+          const childDone = nd[cid].inkBox + nd[cid].inkBoxDur;
+          latestChildInkDone = Math.max(latestChildInkDone, childDone);
+        }
+      }
+      const gStart = latestChildInkDone + TRAVEL_PAUSE;
+      // Group boundary is larger — estimate perimeter for timing
+      const gNode = groups.find((g) => g.id === group.id);
+      if (!gNode) continue;
+      const perim = (gNode.hw + gNode.hh) * 4;
+      const gSides = [
+        Math.max(MIN_SIDE_DUR, (gNode.hw * 2 / BOX_PEN_SPEED) * jitter(group.id + "top")),
+        Math.max(MIN_SIDE_DUR, (gNode.hh * 2 / BOX_PEN_SPEED) * jitter(group.id + "right")),
+        Math.max(MIN_SIDE_DUR, (gNode.hw * 2 / BOX_PEN_SPEED) * jitter(group.id + "bottom")),
+        Math.max(MIN_SIDE_DUR, (gNode.hh * 2 / BOX_PEN_SPEED) * jitter(group.id + "left")),
+      ];
+      const gDur = gSides.reduce((a, b) => a + b, 0);
+      const tDur = textDur(group.label);
+      gd[group.id] = {
+        box: gStart,
+        boxSides: gSides,
+        boxStartSide: 0,
+        boxDur: gDur,
+        inkBox: gStart + gDur,
+        inkBoxDur: gDur * INK_SPEED,
+        inkBoxSides: gSides.map((d) => d * INK_SPEED),
+        fill: gStart + gDur + gDur * INK_SPEED,
+        fillDur: 0.35,
+        text: gStart + gDur + gDur * INK_SPEED + 0.1,
+        textDur: tDur,
+      };
     }
 
     let maxT = 0;
     for (const v of Object.values(nd)) maxT = Math.max(maxT, v.inkBox + v.inkBoxDur);
     for (const v of Object.values(ed)) maxT = Math.max(maxT, v.inkLine + v.inkLineDur);
+    for (const v of Object.values(gd)) maxT = Math.max(maxT, v.inkBox + v.inkBoxDur);
 
-    return { node: nd, edge: ed, edgeDir: edDir, totalDur: maxT + 0.5 };
+    return { node: nd, edge: ed, edgeDir: edDir, group: gd, totalDur: maxT + 0.5 };
   });
 
   // ── Draw topology ──────────────────────────
@@ -563,7 +663,7 @@
   // that updates opacity on existing elements, allowing CSS transitions to work.
   let hasAnimated = false;
   $effect(() => {
-    if (!mapSvg || !roughEdges || !roughNodes || !roughArrows) return;
+    if (!mapSvg || !roughEdges || !roughNodes || !roughArrows || !roughGroups) return;
     const _layout = activeLayout;
     const _gen = drawGen; // bump to force redraw after flip
 
@@ -572,6 +672,7 @@
     clearChildren(roughEdges);
     clearChildren(roughNodes);
     clearChildren(roughArrows);
+    clearChildren(roughGroups);
     const shouldAnimate = !hasAnimated;
 
     // Helper: draw a hand-drawn chevron arrowhead (two rough lines forming a ">")
@@ -625,12 +726,15 @@
     edges.forEach((e) => {
       const key = e.from + "-" + e.to;
 
-      const fromPos = getNodePos(e.from);
-      const toPos = getNodePos(e.to);
-      const fromNode = nodeById[e.from];
-      const toNode = nodeById[e.to];
-      const p1 = boxExit(fromPos.x, fromPos.y, fromNode.hw + 6, HH + 4, toPos.x, toPos.y);
-      const p2 = boxExit(toPos.x, toPos.y, toNode.hw + 6, HH + 4, fromPos.x, fromPos.y);
+      const fromPos = getNodePos(e.from) || groupById[e.from];
+      const toPos = getNodePos(e.to) || groupById[e.to];
+      if (!fromPos || !toPos) return;
+      const fromNode = nodeById[e.from] || groupById[e.from];
+      const toNode = nodeById[e.to] || groupById[e.to];
+      const fromIsGroup = !!groupById[e.from];
+      const toIsGroup = !!groupById[e.to];
+      const p1 = boxExit(fromPos.x, fromPos.y, (fromIsGroup ? fromNode.hw : fromNode.hw + 6), (fromIsGroup ? fromNode.hh : HH + 4), toPos.x, toPos.y);
+      const p2 = boxExit(toPos.x, toPos.y, (toIsGroup ? toNode.hw : toNode.hw + 6), (toIsGroup ? toNode.hh : HH + 4), fromPos.x, fromPos.y);
 
       // Draw line from BFS-earlier node toward BFS-later node
       const fwd = animDelay.edgeDir[key];
@@ -714,8 +818,8 @@
         // Arrowheads: draw in after edge ink + target node ink both complete
         const edgeInkDone = anim.inkLine + anim.inkLineDur;
         // Find when the "to" node's ink box finishes (if it has anim data)
-        const toNodeAnim = animDelay.node[fwd ? e.to : e.from];
-        const fromNodeAnim = animDelay.node[fwd ? e.from : e.to];
+        const toNodeAnim = animDelay.node[fwd ? e.to : e.from] || animDelay.group?.[fwd ? e.to : e.from];
+        const fromNodeAnim = animDelay.node[fwd ? e.from : e.to] || animDelay.group?.[fwd ? e.from : e.to];
         const toInkDone = toNodeAnim ? toNodeAnim.inkBox + toNodeAnim.inkBoxDur : 0;
         const arrowStart = Math.max(edgeInkDone, toInkDone);
         const arrowDur = 0.375;
@@ -753,12 +857,19 @@
       const pos = getNodePos(n.id);
       const w = n.hw * 2 + 12;
       const h = HH * 2 + 6;
-      const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.borderInk;
+      // Nodes inside groups: during animation, draw with theme colors then flip when group fill appears.
+      // When not animating, use dark strokes immediately since group fill is already visible.
+      const inGroup = !!childToGroup[n.id];
+      const LIGHT_BORDER = "#1a1a1a";
+      const useGroupColors = inGroup && !shouldAnimate;
+      const pencilCol = useGroupColors ? LIGHT_BORDER : c.border;
+      const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : (useGroupColors ? LIGHT_BORDER : c.borderInk);
       const r = nodeRoughness(n.status);
       const bow = n.status === "warning" ? 1.2 : 0.5;
 
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
       g.dataset.node = n.id;
+      g.dataset.inGroup = inGroup ? "true" : "";
       g.style.transition = "opacity 0.25s ease";
 
       // Solid fill — starts transparent, scrubs in after ink outline completes
@@ -807,7 +918,7 @@
 
         // Pencil sketch
         const pencil = rc.line(side.from[0], side.from[1], side.to[0], side.to[1], {
-          stroke: c.border,
+          stroke: pencilCol,
           roughness: r,
           bowing: bow,
           strokeWidth: 1.0,
@@ -871,6 +982,130 @@
       roughNodes.appendChild(g);
     });
 
+    // ── Draw group boundaries ────────────────
+    groups.forEach((grp) => {
+      const anim = shouldAnimate ? animDelay.group[grp.id] : null;
+      const b = grp.bounds;
+      const w = b.maxX - b.minX;
+      const h = b.maxY - b.minY;
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.dataset.group = grp.id;
+      g.style.transition = "opacity 0.25s ease";
+
+      // Fill — always warm cream so child labels stay high-contrast black-on-light
+      const GROUP_FILL = "#f5f0e8";
+      const fillEl = rc.rectangle(b.minX, b.minY, w, h, {
+        stroke: "none", fill: GROUP_FILL, fillStyle: "solid",
+        roughness: 0.6, seed: seed(grp.id + "grp-fill"),
+      });
+      fillEl.dataset.layer = "fill";
+      fillEl.style.opacity = shouldAnimate ? "0" : "1";
+      g.appendChild(fillEl);
+
+      // 4 sequential border strokes (same pattern as node boxes)
+      const x1 = b.minX, y1 = b.minY;
+      const x2 = b.maxX, y2 = b.maxY;
+      const allSides = [
+        { from: [x1, y1], to: [x2, y1], key: "top" },
+        { from: [x2, y1], to: [x2, y2], key: "right" },
+        { from: [x2, y2], to: [x1, y2], key: "bottom" },
+        { from: [x1, y2], to: [x1, y1], key: "left" },
+      ];
+
+      const pencilDurs = anim ? anim.boxSides : null;
+      const inkDurs = anim ? anim.inkBoxSides : null;
+      let pencilOffset = 0;
+      let inkOffset = 0;
+
+      allSides.forEach((side, i) => {
+        const sideSeed = seed(grp.id + side.key + "grp");
+
+        const pencil = rc.line(side.from[0], side.from[1], side.to[0], side.to[1], {
+          stroke: "#c0b8a8", roughness: 1.2, bowing: 1.0,
+          strokeWidth: 1.0, seed: sideSeed,
+        });
+        pencil.style.opacity = "0.5";
+        pencil.dataset.layer = "pencil";
+
+        const ink = rc.line(side.from[0], side.from[1], side.to[0], side.to[1], {
+          stroke: "#8a8070", roughness: 1.2, bowing: 1.0,
+          strokeWidth: 1.8, seed: sideSeed + 7,
+        });
+        ink.dataset.layer = "ink";
+
+        if (anim) {
+          const pencilStart = anim.box + pencilOffset;
+          const pDur = pencilDurs[i];
+          pencil.querySelectorAll("path").forEach((path) => {
+            try {
+              const len = path.getTotalLength();
+              path.style.strokeDasharray = String(len);
+              path.style.strokeDashoffset = String(len);
+              path.style.animation = `edgeDraw ${pDur.toFixed(3)}s ${PEN_EASE} ${pencilStart.toFixed(3)}s forwards`;
+            } catch {
+              path.style.opacity = "0";
+              path.style.animation = `nodeIn 0.15s ease ${pencilStart.toFixed(3)}s forwards`;
+            }
+          });
+          pencilOffset += pDur;
+
+          const inkStart = anim.inkBox + inkOffset;
+          const iDur = inkDurs[i];
+          ink.querySelectorAll("path").forEach((path) => {
+            try {
+              const len = path.getTotalLength();
+              path.style.strokeDasharray = String(len);
+              path.style.strokeDashoffset = String(len);
+              path.style.animation = `edgeDraw ${iDur.toFixed(3)}s ${PEN_EASE} ${inkStart.toFixed(3)}s forwards`;
+            } catch {
+              path.style.opacity = "0";
+              path.style.animation = `nodeIn 0.15s ease ${inkStart.toFixed(3)}s forwards`;
+            }
+          });
+          inkOffset += iDur;
+        }
+        g.appendChild(pencil);
+        g.appendChild(ink);
+      });
+
+      // Animate fill scrub — use groupFillIn which targets 0.25 opacity
+      if (anim) {
+        fillEl.style.animation = `groupFillIn ${anim.fillDur.toFixed(3)}s ease-out ${anim.fill.toFixed(3)}s forwards`;
+      }
+
+      roughGroups.appendChild(g);
+    });
+
+    // When group fill fades in, transition child node strokes from theme → dark
+    if (shouldAnimate && roughNodes) {
+      const LIGHT_BORDER = "#1a1a1a";
+      for (const group of groupDefs) {
+        const gAnim = animDelay.group[group.id];
+        if (!gAnim) continue;
+        const flipTime = gAnim.fill * 1000; // ms — when group fill starts
+        const flipDur = gAnim.fillDur; // seconds — match fill duration
+        for (const cid of group.children) {
+          const el = roughNodes.querySelector(`[data-node="${cid}"]`);
+          if (!el) continue;
+          // Set CSS transition on stroke, then flip after delay
+          setTimeout(() => {
+            el.querySelectorAll("[data-layer='pencil'] path").forEach((p) => {
+              p.style.transition = `stroke ${flipDur}s ease`;
+              p.setAttribute("stroke", LIGHT_BORDER);
+            });
+            el.querySelectorAll("[data-layer='ink'] path").forEach((p) => {
+              // Keep status colors (degraded/warning), only flip normal ink
+              const n = nodeById[cid];
+              if (n && n.status !== "degraded" && n.status !== "warning") {
+                p.style.transition = `stroke ${flipDur}s ease`;
+                p.setAttribute("stroke", LIGHT_BORDER);
+              }
+            });
+          }, flipTime);
+        }
+      }
+    }
+
     if (shouldAnimate) {
       hasAnimated = true;
       drawStartTime = performance.now();
@@ -902,15 +1137,41 @@
     }
     // Recolor nodes
     if (roughNodes) {
+      const elapsed = drawStartTime ? (performance.now() - drawStartTime) / 1000 : Infinity;
       roughNodes.querySelectorAll("[data-node]").forEach((g) => {
         const id = g.dataset.node;
         const n = nodeById[id];
-        const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.borderInk;
-        g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", c.border); });
+        const inGroup = g.dataset.inGroup === "true";
+        const LIGHT_BORDER = "#1a1a1a";
+        // During animation, only use dark strokes if the group fill has already appeared
+        let groupFillVisible = !drawing; // post-animation: fill is visible
+        if (inGroup && drawing) {
+          const gid = childToGroup[id];
+          const gAnim = animDelay.group?.[gid];
+          groupFillVisible = gAnim ? elapsed >= gAnim.fill : false;
+        }
+        const useDark = inGroup && groupFillVisible;
+        const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : (useDark ? LIGHT_BORDER : c.borderInk);
+        const pencilCol = useDark ? LIGHT_BORDER : c.border;
+        g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", pencilCol); });
         g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", inkCol); });
         const fill = g.querySelector("[data-layer='fill']");
         if (fill) fill.querySelectorAll("path").forEach((p) => {
           p.setAttribute("fill", tierFill(n.tier, c));
+        });
+      });
+    }
+    // Recolor groups
+    if (roughGroups) {
+      roughGroups.querySelectorAll("[data-group]").forEach((g) => {
+        const gid = g.dataset.group;
+        const grp = groupById[gid];
+        if (!grp) return;
+        g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", "#c0b8a8"); });
+        g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", "#8a8070"); });
+        const fill = g.querySelector("[data-layer='fill']");
+        if (fill) fill.querySelectorAll("path").forEach((p) => {
+          p.setAttribute("fill", "#f5f0e8");
         });
       });
     }
@@ -930,8 +1191,14 @@
     const connectedNodes = new Set();
     if (dimSource) {
       connectedNodes.add(dimSource);
+      // If source is a group, expand to include all children
+      const expandedSources = new Set([dimSource]);
+      const srcGroup = groupDefs.find((g) => g.id === dimSource);
+      if (srcGroup) {
+        srcGroup.children.forEach((cid) => { expandedSources.add(cid); connectedNodes.add(cid); });
+      }
       edges.forEach((e) => {
-        if (e.from === dimSource || e.to === dimSource) {
+        if (expandedSources.has(e.from) || expandedSources.has(e.to)) {
           connectedEdges.add(e.from + "-" + e.to);
           connectedNodes.add(e.from);
           connectedNodes.add(e.to);
@@ -973,6 +1240,50 @@
       const id = g.dataset.node;
       g.style.opacity = (!dimSource || connectedNodes.has(id)) ? "1" : "0.15";
     });
+
+    // Group label border: bottom + right lines matching group ink, only on focused group
+    if (groupLabelBorderG && mapSvg) {
+      clearChildren(groupLabelBorderG);
+      if (dimSource && groupById[dimSource] && nodeDrawn(dimSource)) {
+        const grp = groupById[dimSource];
+        const labelW = grp.label.length * 5.5 + 8;
+        const lx = grp.bounds.minX + 4;
+        const ly = grp.bounds.minY + 3;
+        const rx = lx + labelW;
+        const by = ly + 14;
+        const rc = rough.svg(mapSvg);
+        const lineOpts = { stroke: "#3a3530", roughness: 1.0, bowing: 0.8, strokeWidth: 1.8, seed: seed("lbl-" + dimSource) };
+        // Bottom edge: left to right
+        groupLabelBorderG.appendChild(rc.line(lx, by, rx, by, lineOpts));
+        // Right edge: top to bottom (connects to bottom)
+        groupLabelBorderG.appendChild(rc.line(rx, ly, rx, by, { ...lineOpts, seed: lineOpts.seed + 3 }));
+      }
+    }
+
+    // Groups: highlight if any child is connected, darken borders when focused
+    if (roughGroups) {
+      roughGroups.querySelectorAll("[data-group]").forEach((g) => {
+        const gid = g.dataset.group;
+        if (!dimSource) {
+          g.style.opacity = "1";
+          g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", "#8a8070"); p.style.strokeWidth = ""; });
+          g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", "#c0b8a8"); });
+          return;
+        }
+        const grp = groupDefs.find((gr) => gr.id === gid);
+        const anyChildConnected = grp && grp.children.some((cid) => connectedNodes.has(cid));
+        const isActive = connectedNodes.has(gid) || anyChildConnected;
+        g.style.opacity = isActive ? "1" : "0.15";
+        if (isActive && gid === dimSource) {
+          // Darken borders for the focused group
+          g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", "#3a3530"); p.style.strokeWidth = "2.5"; });
+          g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", "#6a6050"); });
+        } else {
+          g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", "#8a8070"); p.style.strokeWidth = ""; });
+          g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", "#c0b8a8"); });
+        }
+      });
+    }
 
   });
 
@@ -1035,19 +1346,34 @@
   });
 
   function startScribble(target) {
-      const n = nodeById[target];
-      const pos = getNodePos(target);
+      const n = nodeById[target] || groupById[target];
+      const pos = getNodePos(target) || groupById[target];
+      if (!n || !pos) return;
       const rc = rough.svg(mapSvg);
+      const isGroup = !!groupById[target];
+
+      // For groups, scribble the group boundary; for nodes, scribble the node
       const pad = 20;
-      const hw = n.hw + 6 + pad;
-      const hh = HH + 3 + pad;
+      let scribbleHw, scribbleHh, scribbleCx, scribbleCy;
+      if (isGroup) {
+        const b = pos.bounds;
+        scribbleCx = (b.minX + b.maxX) / 2;
+        scribbleCy = (b.minY + b.maxY) / 2;
+        scribbleHw = (b.maxX - b.minX) / 2 + pad;
+        scribbleHh = (b.maxY - b.minY) / 2 + pad;
+      } else {
+        scribbleCx = pos.x;
+        scribbleCy = pos.y;
+        scribbleHw = n.hw + 6 + pad;
+        scribbleHh = HH + 3 + pad;
+      }
 
       // MotherDuck-inspired brutalist palette — vibrant everywhere
       const scribbleCol = n.status === "degraded"
         ? (isDark ? "#ff3333" : "#dc2626")
         : n.status === "warning"
           ? "#ff9500"
-          : (isDark ? "#7dd3fc" : "#38bdf8");
+          : (isDark ? "#c084fc" : "#9333ea");
 
       const wrap = document.createElementNS("http://www.w3.org/2000/svg", "g");
       wrap.dataset.node = target;
@@ -1055,36 +1381,32 @@
 
       function addScribbleBurst(batch, baseDelay) {
         const now = Date.now();
-        const linesPerBurst = 6;
+        // Scale density by area — a wide group needs more lines than a small node
+        const area = scribbleHw * scribbleHh * 4;
+        const baseArea = 60 * 40; // approximate single node area
+        const linesPerBurst = Math.min(24, Math.max(6, Math.round(6 * Math.sqrt(area / baseArea))));
+        const clusterSize = 2 + (seed(target + "cl" + batch + now) % 2); // 2-3 lines per cluster
         for (let i = 0; i < linesPerBurst; i++) {
           const idx = batch * linesPerBurst + i;
           const s = seed(target + "scr" + idx + now);
-          const jx = ((s % 80) - 40);
-          const jy = ((seed(target + "jy" + idx + now) % 60) - 30);
-          const direction = s % 5;
-
-          let x1, y1, x2, y2;
-          if (direction === 0) {
-            // diagonal TL→BR
-            x1 = pos.x - hw + jx; y1 = pos.y - hh + jy;
-            x2 = pos.x + hw + jx * 0.3; y2 = pos.y + hh + jy * 0.3;
-          } else if (direction === 1) {
-            // diagonal TR→BL
-            x1 = pos.x + hw + jx; y1 = pos.y - hh + jy;
-            x2 = pos.x - hw + jx * 0.3; y2 = pos.y + hh + jy * 0.3;
-          } else if (direction === 2) {
-            // horizontal
-            x1 = pos.x - hw + jx; y1 = pos.y + jy;
-            x2 = pos.x + hw + jx * 0.4; y2 = pos.y + jy * 0.6;
-          } else if (direction === 3) {
-            // vertical
-            x1 = pos.x + jx * 0.8; y1 = pos.y - hh + jy;
-            x2 = pos.x + jx * 0.5; y2 = pos.y + hh + jy * 0.3;
-          } else {
-            // steep diagonal
-            x1 = pos.x - hw * 0.6 + jx; y1 = pos.y - hh + jy;
-            x2 = pos.x + hw * 0.6 + jx * 0.2; y2 = pos.y + hh + jy * 0.2;
-          }
+          // Cluster lines share an angle — pick new angle every clusterSize lines
+          const clusterIdx = Math.floor(i / clusterSize);
+          const sAngle = seed(target + "ang" + clusterIdx + batch + now);
+          const angle = ((sAngle % 360) / 360) * Math.PI * 2;
+          // Small jitter within cluster so lines aren't perfectly parallel
+          const angleJitter = ((s % 20) - 10) / 180 * Math.PI; // ±10°
+          const finalAngle = angle + angleJitter;
+          const s2 = seed(target + "jy" + idx + now);
+          const offsetX = ((s2 % 100) - 50) / 50;
+          const offsetY = ((seed(target + "oz" + idx + now) % 100) - 50) / 50;
+          const cos = Math.cos(finalAngle), sin = Math.sin(finalAngle);
+          const reach = 0.7 + (s % 30) / 100;
+          const cx = scribbleCx + offsetX * scribbleHw * 0.4;
+          const cy = scribbleCy + offsetY * scribbleHh * 0.4;
+          const x1 = cx - cos * scribbleHw * reach;
+          const y1 = cy - sin * scribbleHh * reach;
+          const x2 = cx + cos * scribbleHw * reach;
+          const y2 = cy + sin * scribbleHh * reach;
 
           const line = rc.line(x1, y1, x2, y2, {
             stroke: scribbleCol,
@@ -1104,7 +1426,6 @@
               path.style.animation = `hoverBorderDraw ${dur}s ease-out ${stagger}s forwards`;
             } catch { /* ignore */ }
           });
-          // No opacity — bold brutalist strokes, color does the work
 
           wrap.appendChild(line);
         }
@@ -1132,14 +1453,15 @@
     const _hovered = hovered;
     if (!_hovered || selected) return;
 
-    const pos = getNodePos(_hovered);
+    const pos = getNodePos(_hovered) || groupById[_hovered];
     const s = svc[_hovered];
-    if (!s?.brief) return;
+    if (!pos || !s?.brief) return;
 
     const c = colors();
     const rc = rough.svg(mapSvg);
     const tipW = s.brief.length * 5.2 + 20;
-    const tipY = pos.y - HH - 24;
+    const isGroup = !!groupById[_hovered];
+    const tipY = isGroup ? (pos.bounds?.minY ?? pos.y) - 14 : pos.y - HH - 24;
 
     tooltipRough.appendChild(
       rc.rectangle(pos.x - tipW / 2, tipY - 9, tipW, 18, {
@@ -1265,7 +1587,8 @@
       return;
     }
 
-    const pos = getNodePos(_sel);
+    const pos = getNodePos(_sel) || groupById[_sel];
+    if (!pos) { mapPanG.style.transform = "translate(0, 0)"; return; }
     const vb = viewBox.split(" ").map(Number);
     const [vbX, vbY, vbW, vbH] = vb;
 
@@ -1328,11 +1651,34 @@
     <defs></defs>
     <g bind:this={mapPanG} class="map-pan">
     <g bind:this={hoverBorderG}></g>
+    <g bind:this={roughGroups}></g>
     <g bind:this={roughEdges}></g>
     <g bind:this={roughNodes}></g>
     <g bind:this={roughArrows}></g>
 
+    <g bind:this={groupLabelBorderG}></g>
     {#key drawGen}
+      {#each groups as grp}
+        {@const anim = animDelay.group?.[grp.id]}
+        {@const labelW = grp.label.length * 5.5 + 8}
+        {@const labelAnim = drawing && anim && flipPhase === "none" ? `opacity:0;animation:textJot ${anim.textDur.toFixed(3)}s cubic-bezier(0.2,0,0.1,1) ${anim.text.toFixed(3)}s forwards` : ''}
+        <rect
+          x={grp.bounds.minX + 4} y={grp.bounds.minY + 3}
+          width={labelW} height={14}
+          rx="2"
+          fill={isHighlighted(grp.id) ? "#f5f0e8" : "none"}
+          stroke="none"
+          style={labelAnim}
+        />
+        <text
+          x={grp.bounds.minX + 8} y={grp.bounds.minY + 12}
+          class="group-label"
+          class:node-label--subtle={!isHighlighted(grp.id)}
+          style={labelAnim}
+        >
+          {grp.label}
+        </text>
+      {/each}
       {#each nodes as n}
         {@const pos = getNodePos(n.id)}
         {@const dimmed = !isHighlighted(n.id)}
@@ -1341,7 +1687,7 @@
           <text
             x={pos.x} y={pos.y + 4}
             class="node-label"
-            class:node-label--dimmed={dimmed}
+            class:node-label--subtle={dimmed}
             class:node-label--active={active === n.id}
             style={drawing && flipPhase === "none" ? `opacity:0;animation:textJot ${animDelay.node[n.id].textDur.toFixed(3)}s cubic-bezier(0.2,0,0.1,1) ${animDelay.node[n.id].text.toFixed(3)}s forwards` : visible ? '' : 'opacity:0'}
           >
@@ -1355,13 +1701,35 @@
     <g bind:this={tooltipRough}></g>
 
     {#if hovered && !selected}
-      {@const pos = getNodePos(hovered)}
+      {@const pos = getNodePos(hovered) || groupById[hovered]}
       {@const s = svc[hovered]}
-      {#if s?.brief}
-        <text x={pos.x} y={pos.y - HH - 24} class="tooltip-text" dominant-baseline="central">{s.brief}</text>
+      {#if pos && s?.brief}
+        <text x={pos.x} y={(getNodePos(hovered) ? pos.y - HH - 24 : (pos.bounds?.minY ?? pos.y) - 14)} class="tooltip-text" dominant-baseline="central">{s.brief}</text>
       {/if}
     {/if}
 
+    {#each groups as grp}
+      <rect
+        x={grp.bounds.minX}
+        y={grp.bounds.minY}
+        width={grp.bounds.maxX - grp.bounds.minX}
+        height={grp.bounds.maxY - grp.bounds.minY}
+        fill="transparent"
+        class="hit-area"
+        style:cursor={!drawing || nodeDrawn(grp.id) ? "pointer" : "default"}
+        role="button"
+        tabindex="0"
+        aria-label="{grp.label} group — {svc[grp.id]?.brief ?? ''}"
+        onclick={() => selectNode(grp.id)}
+        onkeydown={(ev) => {
+          if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectNode(grp.id); }
+        }}
+        onmouseenter={() => { if (!drawing || nodeDrawn(grp.id)) hovered = grp.id; }}
+        onmouseleave={() => { hovered = null; }}
+        onfocus={() => { if (!drawing || nodeDrawn(grp.id)) hovered = grp.id; }}
+        onblur={() => { hovered = null; }}
+      />
+    {/each}
     {#each nodes as n}
       {@const pos = getNodePos(n.id)}
       {@const w = n.hw * 2 + 12}
@@ -1412,9 +1780,12 @@
 
       <div class="drawer-content">
         <button class="drawer-back" onclick={() => (selected = null)}>&larr; esc</button>
+        {#if childToGroup[selected]}
+          <div class="drawer-breadcrumb">part of {svc[childToGroup[selected]]?.label ?? childToGroup[selected]}</div>
+        {/if}
         <div class="drawer-title-row">
-          <h2 class="drawer-name">{nodeById[selected].label}</h2>
-          <span class="drawer-status" style="color: {statusColor(nodeById[selected].status)}">{nodeById[selected].status}</span>
+          <h2 class="drawer-name">{(nodeById[selected] || groupById[selected])?.label ?? selected}</h2>
+          <span class="drawer-status" style="color: {statusColor((nodeById[selected] || groupById[selected])?.status ?? 'healthy')}">{(nodeById[selected] || groupById[selected])?.status ?? ''}</span>
         </div>
         <p class="drawer-desc">{svc[selected].description}</p>
 
@@ -1645,6 +2016,11 @@
     to { stroke-dashoffset: 0; }
   }
 
+  @keyframes -global-groupFillIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
   @keyframes -global-hoverBorderDraw {
     to { stroke-dashoffset: 0; }
   }
@@ -1672,7 +2048,19 @@
     transition: opacity 0.2s ease;
   }
 
+  .group-label {
+    font-family: var(--font);
+    font-size: 8px;
+    font-weight: 700;
+    fill: #555;
+    text-anchor: start;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: opacity 0.2s ease;
+  }
+
   .node-label--dimmed { opacity: 0.25; }
+  .node-label--subtle { opacity: 0.45; }
   .node-label--active { text-decoration: underline; }
 
   .tooltip-text {
@@ -1740,6 +2128,15 @@
   }
 
   .drawer-back:hover { color: var(--fg-secondary); }
+
+  .drawer-breadcrumb {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-tertiary);
+    margin-bottom: 0.25rem;
+  }
 
   .drawer-title-row {
     display: flex;

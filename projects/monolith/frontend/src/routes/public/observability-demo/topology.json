@@ -1,27 +1,5 @@
 {
-  "nodes": [
-    {
-      "id": "external",
-      "label": "EXTERNAL",
-      "tier": "ingress",
-      "status": "healthy",
-      "description": "webpage · claude · cli",
-      "brief": "all external clients",
-      "metrics": [{ "k": "clients", "v": "webpage, claude, cli" }]
-    },
-    {
-      "id": "cloudflare",
-      "label": "CLOUDFLARE TUNNEL",
-      "tier": "critical",
-      "status": "healthy",
-      "description": "cloudflare tunnel",
-      "brief": "14.2k req/24h",
-      "metrics": [
-        { "k": "tunnel", "v": "connected" },
-        { "k": "requests 24h", "v": "14.2k" },
-        { "k": "cached", "v": "62%" }
-      ]
-    },
+  "groups": [
     {
       "id": "monolith",
       "label": "MONOLITH",
@@ -30,6 +8,7 @@
       "status": "healthy",
       "description": "fastapi + sveltekit",
       "brief": "99.97% · 12.5 rps",
+      "children": ["home", "knowledge", "chat"],
       "slo": { "target": 99.9, "current": 99.97 },
       "budget": {
         "consumed": 28,
@@ -46,6 +25,134 @@
       "spark": [
         38, 42, 45, 41, 39, 44, 42, 40, 43, 41, 38, 42, 47, 44, 42, 39, 41, 43,
         42, 40, 38, 41, 43, 42
+      ]
+    },
+    {
+      "id": "context-forge",
+      "label": "CONTEXT FORGE",
+      "tier": "critical",
+      "ingress": true,
+      "status": "healthy",
+      "description": "mcp gateway",
+      "brief": "99.98% · 8 rps",
+      "children": ["k8s-mcp", "argocd-mcp", "signoz-mcp"],
+      "slo": { "target": 99.9, "current": 99.98 },
+      "budget": {
+        "consumed": 12,
+        "elapsed": 40,
+        "remaining": "38.2 min",
+        "window": "30d"
+      },
+      "latency": { "p99": 180, "target": 500, "unit": "ms" },
+      "metrics": [
+        { "k": "rps", "v": "8" },
+        { "k": "mcp servers", "v": "3" },
+        { "k": "p99", "v": "180ms" }
+      ],
+      "spark": [
+        120, 140, 180, 160, 150, 170, 190, 165, 155, 175, 145, 160, 185, 170,
+        160, 150, 165, 180, 160, 155, 140, 160, 175, 165
+      ]
+    },
+    {
+      "id": "cluster",
+      "label": "CLUSTER",
+      "tier": "infra",
+      "status": "healthy",
+      "description": "k3s infrastructure",
+      "brief": "healthy · 7 services",
+      "children": [
+        "argocd",
+        "signoz",
+        "envoy-gateway",
+        "longhorn",
+        "seaweedfs",
+        "otel-operator",
+        "linkerd"
+      ],
+      "metrics": [
+        { "k": "services", "v": "7" },
+        { "k": "nodes", "v": "4" },
+        { "k": "pods", "v": "42" }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "external",
+      "label": "EXTERNAL",
+      "tier": "ingress",
+      "status": "healthy",
+      "description": "webpage · claude · cli",
+      "brief": "all external clients",
+      "metrics": [{ "k": "clients", "v": "webpage, claude, cli" }]
+    },
+    {
+      "id": "discord",
+      "label": "DISCORD",
+      "tier": "ingress",
+      "status": "healthy",
+      "description": "discord api",
+      "brief": "external api",
+      "metrics": [{ "k": "service", "v": "discord api" }]
+    },
+    {
+      "id": "cloudflare",
+      "label": "CLOUDFLARE TUNNEL",
+      "tier": "critical",
+      "status": "healthy",
+      "description": "cloudflare tunnel",
+      "brief": "14.2k req/24h",
+      "metrics": [
+        { "k": "tunnel", "v": "connected" },
+        { "k": "requests 24h", "v": "14.2k" },
+        { "k": "cached", "v": "62%" }
+      ]
+    },
+    {
+      "id": "home",
+      "label": "HOME",
+      "tier": "critical",
+      "status": "healthy",
+      "group": "monolith",
+      "description": "dashboard + notes + schedule",
+      "brief": "100% · 4.2 rps",
+      "metrics": [
+        { "k": "rps", "v": "4.2" },
+        { "k": "routes", "v": "todo, notes, schedule" }
+      ]
+    },
+    {
+      "id": "knowledge",
+      "label": "KNOWLEDGE",
+      "tier": "critical",
+      "status": "healthy",
+      "group": "monolith",
+      "description": "search · ingest · gardener",
+      "brief": "99.98% · 6.1 rps",
+      "slo": { "target": 99.9, "current": 99.98 },
+      "latency": { "p99": 65, "target": 200, "unit": "ms" },
+      "metrics": [
+        { "k": "rps", "v": "6.1" },
+        { "k": "vault notes", "v": "1.2k" },
+        { "k": "p99", "v": "65ms" }
+      ],
+      "spark": [
+        50, 55, 65, 60, 52, 58, 70, 62, 55, 68, 58, 54, 66, 72, 60, 55, 62, 68,
+        58, 54, 50, 58, 65, 60
+      ]
+    },
+    {
+      "id": "chat",
+      "label": "CHAT",
+      "tier": "critical",
+      "status": "healthy",
+      "group": "monolith",
+      "description": "discord backfill + summarization",
+      "brief": "healthy · 2.2 rps",
+      "metrics": [
+        { "k": "rps", "v": "2.2" },
+        { "k": "backfills 24h", "v": "3" }
       ]
     },
     {
@@ -94,32 +201,6 @@
       "spark": [
         40, 42, 48, 45, 43, 47, 44, 41, 46, 43, 42, 45, 50, 47, 44, 42, 45, 48,
         44, 43, 41, 44, 46, 45
-      ]
-    },
-    {
-      "id": "context-forge",
-      "label": "CONTEXT FORGE",
-      "tier": "critical",
-      "ingress": true,
-      "status": "healthy",
-      "description": "mcp gateway",
-      "brief": "99.98% · 8 rps",
-      "slo": { "target": 99.9, "current": 99.98 },
-      "budget": {
-        "consumed": 12,
-        "elapsed": 40,
-        "remaining": "38.2 min",
-        "window": "30d"
-      },
-      "latency": { "p99": 180, "target": 500, "unit": "ms" },
-      "metrics": [
-        { "k": "rps", "v": "8" },
-        { "k": "mcp servers", "v": "3" },
-        { "k": "p99", "v": "180ms" }
-      ],
-      "spark": [
-        120, 140, 180, 160, 150, 170, 190, 165, 155, 175, 145, 160, 185, 170,
-        160, 150, 165, 180, 160, 155, 140, 160, 175, 165
       ]
     },
     {
@@ -188,9 +269,10 @@
     },
     {
       "id": "k8s-mcp",
-      "label": "K8S MCP",
+      "label": "K8S",
       "tier": "critical",
       "status": "healthy",
+      "group": "context-forge",
       "description": "kubernetes mcp server",
       "brief": "healthy",
       "metrics": [
@@ -200,9 +282,10 @@
     },
     {
       "id": "argocd-mcp",
-      "label": "ARGOCD MCP",
+      "label": "ARGOCD",
       "tier": "critical",
       "status": "healthy",
+      "group": "context-forge",
       "description": "argocd mcp server",
       "brief": "healthy",
       "metrics": [
@@ -212,9 +295,10 @@
     },
     {
       "id": "signoz-mcp",
-      "label": "SIGNOZ MCP",
+      "label": "SIGNOZ",
       "tier": "critical",
       "status": "healthy",
+      "group": "context-forge",
       "description": "signoz mcp server",
       "brief": "healthy",
       "metrics": [
@@ -227,6 +311,7 @@
       "label": "ARGOCD",
       "tier": "infra",
       "status": "healthy",
+      "group": "cluster",
       "description": "gitops controller",
       "brief": "14/14 synced",
       "metrics": [
@@ -240,6 +325,7 @@
       "label": "SIGNOZ",
       "tier": "infra",
       "status": "warning",
+      "group": "cluster",
       "description": "observability platform",
       "brief": "99.84% · 450 spans/s",
       "slo": { "target": 99.9, "current": 99.84 },
@@ -265,6 +351,7 @@
       "label": "ENVOY GATEWAY",
       "tier": "infra",
       "status": "healthy",
+      "group": "cluster",
       "description": "api gateway",
       "brief": "healthy · 14.2k req/24h",
       "metrics": [
@@ -278,6 +365,7 @@
       "label": "LONGHORN",
       "tier": "infra",
       "status": "healthy",
+      "group": "cluster",
       "description": "distributed storage",
       "brief": "340 / 1000 GiB",
       "metrics": [
@@ -291,6 +379,7 @@
       "label": "SEAWEEDFS",
       "tier": "infra",
       "status": "healthy",
+      "group": "cluster",
       "description": "object storage",
       "brief": "healthy · 28 GiB",
       "metrics": [
@@ -304,6 +393,7 @@
       "label": "OTEL OPERATOR",
       "tier": "infra",
       "status": "healthy",
+      "group": "cluster",
       "description": "opentelemetry operator",
       "brief": "healthy · 3 collectors",
       "metrics": [
@@ -316,6 +406,7 @@
       "label": "LINKERD",
       "tier": "infra",
       "status": "healthy",
+      "group": "cluster",
       "description": "service mesh",
       "brief": "healthy · 12 meshed",
       "metrics": [
@@ -326,23 +417,20 @@
     }
   ],
   "edges": [
-    { "from": "external", "to": "cloudflare", "protocol": "https" },
-    { "from": "cloudflare", "to": "monolith", "protocol": "https" },
-    { "from": "cloudflare", "to": "context-forge", "protocol": "https" },
-    { "from": "cloudflare", "to": "agent-platform", "protocol": "https" },
-    { "from": "monolith", "to": "postgres", "protocol": "sql", "bidi": true },
-    { "from": "monolith", "to": "context-forge", "protocol": "grpc" },
-    { "from": "monolith", "to": "llama-cpp", "protocol": "http" },
-    { "from": "monolith", "to": "voyage-embedder", "protocol": "http" },
-    {
-      "from": "nats",
-      "to": "agent-platform",
-      "protocol": "nats",
-      "bidi": true
-    },
-    { "from": "agent-platform", "to": "context-forge", "protocol": "grpc" },
-    { "from": "context-forge", "to": "k8s-mcp", "protocol": "mcp" },
-    { "from": "context-forge", "to": "argocd-mcp", "protocol": "mcp" },
-    { "from": "context-forge", "to": "signoz-mcp", "protocol": "mcp" }
+    { "from": "external", "to": "cloudflare" },
+    { "from": "cloudflare", "to": "home" },
+    { "from": "cloudflare", "to": "knowledge" },
+    { "from": "cloudflare", "to": "agent-platform" },
+    { "from": "home", "to": "postgres" },
+    { "from": "knowledge", "to": "postgres" },
+    { "from": "knowledge", "to": "voyage-embedder" },
+    { "from": "knowledge", "to": "llama-cpp" },
+    { "from": "chat", "to": "postgres" },
+    { "from": "chat", "to": "llama-cpp" },
+    { "from": "chat", "to": "discord" },
+    { "from": "nats", "to": "agent-platform", "bidi": true },
+    { "from": "agent-platform", "to": "k8s-mcp" },
+    { "from": "agent-platform", "to": "argocd-mcp" },
+    { "from": "agent-platform", "to": "signoz-mcp" }
   ]
 }
