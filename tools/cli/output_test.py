@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from output import compact_line, write_to_tmpfile, format_edges
+from tools.cli.output import compact_line, write_to_tmpfile, format_edges
 
 
 class TestCompactLine:
@@ -31,14 +31,14 @@ class TestFormatEdges:
 
 class TestWriteToTmpfile:
     def test_writes_content_and_returns_path(self, tmp_path):
-        with patch("output.TMPDIR", tmp_path):
+        with patch("tools.cli.output.TMPDIR", tmp_path):
             path = write_to_tmpfile("my-note", "# Hello\nWorld")
             assert path.exists()
             assert path.read_text() == "# Hello\nWorld"
             assert "my-note" in path.name
 
     def test_overwrites_existing(self, tmp_path):
-        with patch("output.TMPDIR", tmp_path):
+        with patch("tools.cli.output.TMPDIR", tmp_path):
             write_to_tmpfile("note", "v1")
             path = write_to_tmpfile("note", "v2")
             assert path.read_text() == "v2"

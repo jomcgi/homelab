@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 
 from knowledge.gardener import Gardener
 from knowledge.models import AtomRawProvenance, RawInput
-from main import app
+from tools.cli.main import app
 
 
 @pytest.fixture
@@ -65,8 +65,8 @@ def _patch_fastapi(session):
         yield test_client
 
     with (
-        patch("knowledge_cmd._client", _fake_client),
-        patch("knowledge_cmd.get_cf_token", return_value="fake-token"),
+        patch("tools.cli.knowledge_cmd._client", _fake_client),
+        patch("tools.cli.knowledge_cmd.get_cf_token", return_value="fake-token"),
     ):
         yield
 

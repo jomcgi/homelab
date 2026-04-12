@@ -8,8 +8,8 @@ from typing import Annotated, Optional
 import httpx
 import typer
 
-from auth import get_cf_token
-from output import compact_line, format_edges, search_line, write_to_tmpfile
+from tools.cli.auth import get_cf_token
+from tools.cli.output import compact_line, format_edges, search_line, write_to_tmpfile
 
 API_BASE = "https://private.jomcgi.dev"
 
