@@ -28,6 +28,7 @@ py_test(
     name = "auth_test",
     srcs = ["auth_test.py"],
     deps = [
+        ":cli",
         ":homelab_cli",  # keep
         "@pip//pytest",
     ],
@@ -37,8 +38,8 @@ py_test(
     name = "output_test",
     srcs = ["output_test.py"],
     deps = [
+        ":cli",
         ":homelab_cli",  # keep
-        "@pip//pytest",
     ],
 )
 
@@ -51,6 +52,7 @@ py_test(
     srcs = ["knowledge_test.py"],
     imports = ["../../projects/monolith"],  # keep
     deps = [
+        ":cli",
         ":homelab_cli",  # keep
         "//projects/monolith:monolith_backend",
         "@pip//fastapi",
@@ -106,4 +108,20 @@ semgrep_test(
     name = "output_test_semgrep_test",
     srcs = ["output_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_library(
+    name = "cli",
+    srcs = [
+        "__init__.py",
+        "auth.py",
+        "knowledge_cmd.py",
+        "main.py",
+        "output.py",
+    ],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@pip//httpx",
+        "@pip//typer",
+    ],
 )
