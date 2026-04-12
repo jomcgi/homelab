@@ -196,7 +196,9 @@ class TestSubscribeAisStreamInnerExceptionHandler:
         mock_psub.consumer_info = AsyncMock(
             side_effect=[
                 _make_consumer_info(50_000),  # initial
-                _make_consumer_info(50_000),  # TimeoutError check: still above threshold
+                _make_consumer_info(
+                    50_000
+                ),  # TimeoutError check: still above threshold
             ]
         )
 
