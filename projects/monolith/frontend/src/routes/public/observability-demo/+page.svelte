@@ -150,17 +150,58 @@
   let budgetRoughG = $state(null);
   let drawerBorderSvg = $state(null);
   let drawerBorderG = $state(null);
-
   const active = $derived(hovered || selected);
 
   let isDark = $state(false);
   $effect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    isDark = mq.matches;
-    const handler = (e) => { isDark = e.matches; };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
+  $effect(() => {
+    document.documentElement.classList.toggle("theme-dark", isDark);
+    document.documentElement.classList.toggle("theme-light", !isDark);
+  });
+  function toggleTheme() {
+    isDark = !isDark;
+  }
+
+  // ── Responsive layout ────────────────────
+  let containerW = $state(960);
+  let containerH = $state(470);
+
+  // Pick layout that minimizes whitespace by matching container aspect ratio
+  const LAND_AR = 960 / 470;  // ~2.04
+  const PORT_AR = 500 / 510;  // ~0.98
+  const isPortrait = $derived.by(() => {
+    const ar = containerW / containerH;
+    return Math.abs(ar - PORT_AR) < Math.abs(ar - LAND_AR);
+  });
+  const viewBox = $derived(isPortrait ? "0 10 500 510" : "30 40 960 470");
+
+  // Portrait node positions (top-to-bottom flow)
+  // Longhorn at bottom-left so its storage edges (→postgres, →clickhouse)
+  // run vertically and horizontally without crossing signoz/nats.
+  const portraitNodes = [
+    { id: "cloudflare", x: 250, y: 70 },
+    { id: "argocd", x: 80, y: 190 },
+    { id: "monolith", x: 250, y: 190 },
+    { id: "postgres", x: 100, y: 320 },
+    { id: "nats", x: 250, y: 320 },
+    { id: "signoz", x: 400, y: 320 },
+    { id: "longhorn", x: 100, y: 430 },
+    { id: "clickhouse", x: 400, y: 430 },
+    { id: "agents", x: 250, y: 470 },
+  ];
+  const portraitById = Object.fromEntries(portraitNodes.map((n) => [n.id, n]));
+
+  function getNodePos(id) {
+    if (isPortrait) {
+      const p = portraitById[id];
+      return { x: p.x, y: p.y };
+    }
+    const n = nodes.find((n) => n.id === id);
+    return { x: n.x, y: n.y };
+  }
+
 
   // ── Helpers ────────────────────────────────
   function seed(s) {
@@ -183,7 +224,7 @@
       border: s.getPropertyValue("--border").trim(),
       surface: s.getPropertyValue("--surface").trim(),
       danger: s.getPropertyValue("--danger").trim(),
-      warn: isDark ? "#d69e2e" : "#b7791f",
+      warn: isDark ? "#ecc94b" : "#d97706",
     };
   }
 
@@ -447,9 +488,10 @@
   $effect(() => {
     if (!mapSvg || !roughEdges || !roughNodes) return;
     const _dark = isDark;
+    const _portrait = isPortrait;
 
-    // Skip dark-mode redraws while the initial animation is still running
-    if (hasAnimated && drawStartTime && (performance.now() - drawStartTime) / 1000 < animDelay.totalDur) return;
+    // During animation, allow theme changes to redraw with remaining timings
+    // but don't re-trigger the full animation sequence
 
     const c = colors();
     const rc = rough.svg(mapSvg);
@@ -458,10 +500,12 @@
     const shouldAnimate = !hasAnimated;
 
     edges.forEach((e) => {
-      const from = nodeById[e.from];
-      const to = nodeById[e.to];
-      const p1 = boxExit(from.x, from.y, from.hw + 6, HH + 4, to.x, to.y);
-      const p2 = boxExit(to.x, to.y, to.hw + 6, HH + 4, from.x, from.y);
+      const fromPos = getNodePos(e.from);
+      const toPos = getNodePos(e.to);
+      const fromNode = nodeById[e.from];
+      const toNode = nodeById[e.to];
+      const p1 = boxExit(fromPos.x, fromPos.y, fromNode.hw + 6, HH + 4, toPos.x, toPos.y);
+      const p2 = boxExit(toPos.x, toPos.y, toNode.hw + 6, HH + 4, fromPos.x, fromPos.y);
 
       // Draw line from BFS-earlier node toward BFS-later node
       const fwd = animDelay.edgeDir[e.from + "-" + e.to];
@@ -529,6 +573,7 @@
     });
 
     nodes.forEach((n) => {
+      const pos = getNodePos(n.id);
       const w = n.hw * 2 + 12;
       const h = HH * 2 + 6;
       const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.fg;
@@ -540,7 +585,7 @@
       g.style.transition = "opacity 0.25s ease";
 
       // Fill rectangle (hidden by default, shown when active via highlight effect)
-      const fillEl = rc.rectangle(n.x - w / 2, n.y - h / 2, w, h, {
+      const fillEl = rc.rectangle(pos.x - w / 2, pos.y - h / 2, w, h, {
         stroke: "none", fill: c.surface, fillStyle: "solid",
         roughness: r, seed: seed(n.id + "fill"),
       });
@@ -550,8 +595,8 @@
       g.appendChild(fillEl);
 
       // 4 sequential strokes, rotated to start from the nearest corner to the incoming edge
-      const x1 = n.x - w / 2, y1 = n.y - h / 2;
-      const x2 = n.x + w / 2, y2 = n.y + h / 2;
+      const x1 = pos.x - w / 2, y1 = pos.y - h / 2;
+      const x2 = pos.x + w / 2, y2 = pos.y + h / 2;
       // Canonical order starting from each corner (clockwise):
       // Corner 0 (TL): top→right→bottom→left
       // Corner 1 (TR): right→bottom→left→top
@@ -686,17 +731,17 @@
     const _hovered = hovered;
     if (!_hovered || selected) return;
 
-    const n = nodeById[_hovered];
+    const pos = getNodePos(_hovered);
     const s = svc[_hovered];
     if (!s?.brief) return;
 
     const c = colors();
     const rc = rough.svg(mapSvg);
     const tipW = s.brief.length * 5.2 + 20;
-    const tipY = n.y - HH - 24;
+    const tipY = pos.y - HH - 24;
 
     tooltipRough.appendChild(
-      rc.rectangle(n.x - tipW / 2, tipY - 9, tipW, 18, {
+      rc.rectangle(pos.x - tipW / 2, tipY - 9, tipW, 18, {
         stroke: c.border,
         fill: c.bg,
         fillStyle: "solid",
@@ -820,22 +865,33 @@
 
 </script>
 
-<div class="root">
+<div class="root" class:theme-dark={isDark} class:theme-light={!isDark} class:portrait={isPortrait}>
+  <button class="theme-toggle" onclick={toggleTheme} aria-label="Toggle theme">
+    {#if isDark}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42m12.72-12.72l1.42-1.42"/></svg>
+    {:else}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    {/if}
+  </button>
   <svg
     bind:this={mapSvg}
-    viewBox="30 40 960 470"
+    viewBox={viewBox}
     class="map"
     role="img"
     aria-label="Service topology"
-    preserveAspectRatio="xMidYMid meet"
+    preserveAspectRatio="xMidYMin meet"
+    bind:clientWidth={containerW}
+    bind:clientHeight={containerH}
+    style="will-change: contents;"
   >
     <g bind:this={roughEdges}></g>
     <g bind:this={roughNodes}></g>
 
     {#each nodes as n}
+      {@const pos = getNodePos(n.id)}
       {@const dimmed = active && !connectedTo(n.id)}
       <text
-        x={n.x} y={n.y + 4}
+        x={pos.x} y={pos.y + 4}
         class="node-label"
         class:node-label--dimmed={dimmed}
         class:node-label--active={active === n.id}
@@ -848,18 +904,19 @@
     <g bind:this={tooltipRough}></g>
 
     {#if hovered && !selected}
-      {@const n = nodeById[hovered]}
+      {@const pos = getNodePos(hovered)}
       {@const s = svc[hovered]}
       {#if s?.brief}
-        <text x={n.x} y={n.y - HH - 24} class="tooltip-text" dominant-baseline="central">{s.brief}</text>
+        <text x={pos.x} y={pos.y - HH - 24} class="tooltip-text" dominant-baseline="central">{s.brief}</text>
       {/if}
     {/if}
 
     {#each nodes as n}
+      {@const pos = getNodePos(n.id)}
       {@const w = n.hw * 2 + 12}
       <rect
-        x={n.x - w / 2}
-        y={n.y - HH - 3}
+        x={pos.x - w / 2}
+        y={pos.y - HH - 3}
         width={w}
         height={HH * 2 + 6}
         fill="transparent"
@@ -996,24 +1053,51 @@
   /* ── Layout ──────────────────────────────── */
 
   .root {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100vh;
     width: 100%;
     font-family: var(--font);
-    font-size: 1rem;
+    font-size: 16px;
     line-height: 1.5;
     color: var(--fg);
     background: var(--bg);
     overflow: hidden;
     -webkit-font-feature-settings: "liga" 0;
     font-feature-settings: "liga" 0;
+    transition: color 0.3s ease, background 0.3s ease;
   }
 
   .map {
     flex: 1;
     width: 100%;
-    padding: 1.5rem 2rem;
+    padding: 16px;
+  }
+
+  /* ── Theme toggle ─────────────────────────── */
+
+  .theme-toggle {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 30;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--fg-secondary);
+    cursor: pointer;
+    padding: 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    line-height: 0;
+  }
+
+  .theme-toggle:hover {
+    color: var(--fg);
+    background: var(--border);
   }
 
   /* ── Drawing animation: per-element DFS stagger */
@@ -1041,7 +1125,7 @@
     font-weight: 700;
     fill: var(--fg);
     text-anchor: middle;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.2s ease, x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .node-label--dimmed { opacity: 0.25; }
@@ -1057,6 +1141,7 @@
 
   .hit-area {
     outline: none;
+    transition: x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* ── Backdrop + Drawer ───────────────────── */
