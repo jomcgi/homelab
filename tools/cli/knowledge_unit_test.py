@@ -1,0 +1,200 @@
+"""Unit tests for knowledge_cmd internals: _client(), timeout, and non-404 errors.
+
+These tests do NOT use the FastAPI integration stack — they exercise the CLI
+layer in isolation using mocked httpx responses. This keeps them fast and
+free of monolith dependencies.
+"""
+
+from __future__ import annotations
+
+from contextlib import contextmanager
+from unittest.mock import MagicMock, patch
+
+import httpx
+import pytest
+from typer.testing import CliRunner
+
+import tools.cli.knowledge_cmd as knowledge_cmd
+from tools.cli.main import app
+
+
+@pytest.fixture
+def runner():
+    return CliRunner()
+
+
+# ---------------------------------------------------------------------------
+# _client() helper
+# ---------------------------------------------------------------------------
+
+
+class TestClientHelper:
+    def test_uses_cf_token_as_cookie(self):
+        """_client() injects the CF token as the CF_Authorization cookie."""
+        with patch("tools.cli.knowledge_cmd.get_cf_token", return_value="test-token"):
+            client = knowledge_cmd._client()
+            try:
+                assert client.cookies.get("CF_Authorization") == "test-token"
+            finally:
+                client.close()
+
+    def test_sets_correct_base_url(self):
+        """_client() sets the base URL to the private homelab domain."""
+        with patch("tools.cli.knowledge_cmd.get_cf_token", return_value="test-token"):
+            client = knowledge_cmd._client()
+            try:
+                assert "private.jomcgi.dev" in str(client.base_url)
+            finally:
+                client.close()
+
+    def test_sets_30_second_timeout(self):
+        """_client() configures a 30-second read timeout."""
+        with patch("tools.cli.knowledge_cmd.get_cf_token", return_value="test-token"):
+            client = knowledge_cmd._client()
+            try:
+                assert client.timeout.read == 30.0
+            finally:
+                client.close()
+
+    def test_different_tokens_produce_different_cookies(self):
+        """Each unique token returned by get_cf_token() appears in the cookie jar."""
+        with patch(
+            "tools.cli.knowledge_cmd.get_cf_token", return_value="unique-token-xyz"
+        ):
+            client = knowledge_cmd._client()
+            try:
+                assert client.cookies.get("CF_Authorization") == "unique-token-xyz"
+            finally:
+                client.close()
+
+
+# ---------------------------------------------------------------------------
+# Helpers: mock _client() as a context manager
+#
+# knowledge_cmd commands use:  `with _client() as client:`
+# so patching _client with a plain function that returns a @contextmanager
+# correctly intercepts both the call and the `with` block.
+# ---------------------------------------------------------------------------
+
+
+def _make_timeout_client() -> object:
+    """Return a _client replacement that raises TimeoutException on every request."""
+    mock_client = MagicMock()
+    mock_client.get.side_effect = httpx.TimeoutException("timed out")
+    mock_client.post.side_effect = httpx.TimeoutException("timed out")
+
+    @contextmanager
+    def _ctx():
+        yield mock_client
+
+    def _factory():
+        return _ctx()
+
+    return _factory
+
+
+def _make_error_client(status_code: int) -> object:
+    """Return a _client replacement that returns an HTTP error response."""
+    mock_resp = MagicMock()
+    mock_resp.status_code = status_code
+    mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+        f"HTTP {status_code}",
+        request=MagicMock(),
+        response=mock_resp,
+    )
+    mock_client = MagicMock()
+    mock_client.get.return_value = mock_resp
+    mock_client.post.return_value = mock_resp
+
+    @contextmanager
+    def _ctx():
+        yield mock_client
+
+    def _factory():
+        return _ctx()
+
+    return _factory
+
+
+# ---------------------------------------------------------------------------
+# Timeout propagation
+# ---------------------------------------------------------------------------
+
+
+class TestTimeoutHandling:
+    def test_search_timeout_exits_nonzero(self, runner):
+        """Network timeout during `knowledge search` results in a non-zero exit."""
+        with patch("tools.cli.knowledge_cmd._client", _make_timeout_client()):
+            result = runner.invoke(app, ["knowledge", "search", "query"])
+        assert result.exit_code != 0
+
+    def test_note_timeout_exits_nonzero(self, runner):
+        """Network timeout during `knowledge note` results in a non-zero exit."""
+        with patch("tools.cli.knowledge_cmd._client", _make_timeout_client()):
+            result = runner.invoke(app, ["knowledge", "note", "n1"])
+        assert result.exit_code != 0
+
+    def test_dead_letters_timeout_exits_nonzero(self, runner):
+        """Network timeout during `knowledge dead-letters` results in a non-zero exit."""
+        with patch("tools.cli.knowledge_cmd._client", _make_timeout_client()):
+            result = runner.invoke(app, ["knowledge", "dead-letters"])
+        assert result.exit_code != 0
+
+    def test_replay_timeout_exits_nonzero(self, runner):
+        """Network timeout during `knowledge replay` results in a non-zero exit."""
+        with patch("tools.cli.knowledge_cmd._client", _make_timeout_client()):
+            result = runner.invoke(app, ["knowledge", "replay", "1"])
+        assert result.exit_code != 0
+
+
+# ---------------------------------------------------------------------------
+# replay() non-404 error handling
+#
+# The replay() command handles 404 explicitly (prints message, Exit(1)).
+# All other HTTP error codes must propagate via raise_for_status() → non-zero exit.
+# ---------------------------------------------------------------------------
+
+
+class TestReplayNon404ErrorHandling:
+    def test_replay_500_exits_nonzero(self, runner):
+        """500 Internal Server Error from replay propagates as a non-zero exit."""
+        with patch("tools.cli.knowledge_cmd._client", _make_error_client(500)):
+            result = runner.invoke(app, ["knowledge", "replay", "1"])
+        assert result.exit_code != 0
+
+    def test_replay_403_exits_nonzero(self, runner):
+        """403 Forbidden from replay propagates as a non-zero exit."""
+        with patch("tools.cli.knowledge_cmd._client", _make_error_client(403)):
+            result = runner.invoke(app, ["knowledge", "replay", "1"])
+        assert result.exit_code != 0
+
+    def test_replay_503_exits_nonzero(self, runner):
+        """503 Service Unavailable from replay propagates as a non-zero exit."""
+        with patch("tools.cli.knowledge_cmd._client", _make_error_client(503)):
+            result = runner.invoke(app, ["knowledge", "replay", "1"])
+        assert result.exit_code != 0
+
+    def test_replay_404_prints_friendly_message(self, runner):
+        """404 from replay prints a human-readable 'not found' message to stderr."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        # raise_for_status should NOT be called for 404 — the code checks status directly.
+        mock_resp.raise_for_status.side_effect = AssertionError(
+            "raise_for_status should not be called for 404"
+        )
+        mock_client = MagicMock()
+        mock_client.post.return_value = mock_resp
+
+        @contextmanager
+        def _ctx():
+            yield mock_client
+
+        def _factory():
+            return _ctx()
+
+        with patch("tools.cli.knowledge_cmd._client", _factory):
+            result = runner.invoke(app, ["knowledge", "replay", "42"])
+
+        assert result.exit_code == 1
+        assert "42" in result.output
+        assert "not found" in result.output.lower()

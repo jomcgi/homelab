@@ -103,3 +103,20 @@ semgrep_test(
     srcs = ["output_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+py_test(
+    name = "knowledge_unit_test",
+    srcs = ["knowledge_unit_test.py"],
+    deps = [
+        ":cli",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//typer",
+    ],
+)
+
+semgrep_test(
+    name = "knowledge_unit_test_semgrep_test",
+    srcs = ["knowledge_unit_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
