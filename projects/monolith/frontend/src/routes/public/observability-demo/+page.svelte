@@ -2,138 +2,16 @@
   import rough from "roughjs";
   import { fly, fade } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
+  import topology from "./topology.json";
+  import { computeLayout } from "./layout.js";
 
-  // ── Topology ───────────────────────────────
-  const nodes = [
-    { id: "cloudflare", label: "cloudflare", x: 150, y: 240, hw: 48, status: "healthy" },
-    { id: "monolith", label: "monolith", x: 420, y: 240, hw: 40, status: "healthy" },
-    { id: "postgres", label: "postgres", x: 680, y: 110, hw: 40, status: "healthy" },
-    { id: "nats", label: "nats", x: 680, y: 240, hw: 24, status: "healthy" },
-    { id: "signoz", label: "signoz", x: 680, y: 370, hw: 34, status: "warning" },
-    { id: "agents", label: "agents", x: 900, y: 240, hw: 34, status: "degraded" },
-    { id: "clickhouse", label: "clickhouse", x: 900, y: 370, hw: 48, status: "healthy" },
-    { id: "argocd", label: "argocd", x: 150, y: 440, hw: 34, status: "healthy" },
-    { id: "longhorn", label: "longhorn", x: 420, y: 440, hw: 40, status: "healthy" },
-  ];
-
-  const edges = [
-    { from: "cloudflare", to: "monolith", protocol: "https" },
-    { from: "monolith", to: "postgres", protocol: "sql" },
-    { from: "monolith", to: "nats", protocol: "nats" },
-    { from: "monolith", to: "signoz", protocol: "otlp" },
-    { from: "nats", to: "agents", protocol: "nats" },
-    { from: "signoz", to: "clickhouse", protocol: "tcp" },
-    { from: "argocd", to: "monolith", protocol: "gitops" },
-    { from: "longhorn", to: "postgres", protocol: "pvc" },
-    { from: "longhorn", to: "clickhouse", protocol: "pvc" },
-  ];
-
-  const nodeById = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  // ── Topology (config-driven) ─────────────
   const HH = 18;
+  const landLayout = computeLayout(topology, "LR");
+  const portLayout = computeLayout(topology, "TB");
 
-  // ── Service data ───────────────────────────
-  const svc = {
-    cloudflare: {
-      description: "edge proxy + tunnel",
-      brief: "14.2k req/24h",
-      metrics: [
-        { k: "tunnel", v: "connected" },
-        { k: "requests 24h", v: "14.2k" },
-        { k: "cached", v: "62%" },
-      ],
-    },
-    monolith: {
-      description: "fastapi + sveltekit",
-      brief: "99.97% · 12.5 rps",
-      slo: { target: 99.9, current: 99.97 },
-      budget: { consumed: 28, elapsed: 40, remaining: "31.1 min", window: "30d" },
-      latency: { p99: 42, target: 200, unit: "ms" },
-      metrics: [
-        { k: "rps", v: "12.5" },
-        { k: "error rate", v: "0.02%" },
-        { k: "p99", v: "42ms" },
-      ],
-      spark: [38, 42, 45, 41, 39, 44, 42, 40, 43, 41, 38, 42, 47, 44, 42, 39, 41, 43, 42, 40, 38, 41, 43, 42],
-    },
-    postgres: {
-      description: "cnpg + pgvector",
-      brief: "100% · 8ms p99",
-      slo: { target: 99.95, current: 100 },
-      budget: { consumed: 0, elapsed: 40, remaining: "21.6 min", window: "30d" },
-      latency: { p99: 8, target: 50, unit: "ms" },
-      metrics: [
-        { k: "connections", v: "12 / 100" },
-        { k: "query p99", v: "8ms" },
-        { k: "storage", v: "2.1 GiB" },
-      ],
-      spark: [6, 7, 8, 7, 6, 8, 7, 7, 8, 7, 6, 7, 9, 8, 7, 6, 7, 8, 7, 7, 6, 7, 8, 7],
-    },
-    nats: {
-      description: "jetstream message bus",
-      brief: "100% · 45 msg/s",
-      slo: { target: 99.99, current: 100 },
-      budget: { consumed: 0, elapsed: 40, remaining: "4.3 min", window: "30d" },
-      metrics: [
-        { k: "msg/s", v: "45" },
-        { k: "consumers", v: "3" },
-        { k: "lag", v: "0" },
-      ],
-      spark: [40, 42, 48, 45, 43, 47, 44, 41, 46, 43, 42, 45, 50, 47, 44, 42, 45, 48, 44, 43, 41, 44, 46, 45],
-    },
-    signoz: {
-      description: "observability platform",
-      brief: "99.84% · 450 spans/s",
-      slo: { target: 99.9, current: 99.84 },
-      budget: { consumed: 66, elapsed: 40, remaining: "14.7 min", window: "30d" },
-      latency: { p99: 320, target: 500, unit: "ms" },
-      metrics: [
-        { k: "spans/s", v: "450" },
-        { k: "ingestion p99", v: "320ms" },
-        { k: "storage", v: "82 / 150 GiB" },
-      ],
-      spark: [280, 310, 350, 320, 290, 340, 380, 320, 310, 340, 290, 300, 360, 340, 320, 300, 330, 350, 320, 310, 290, 320, 340, 320],
-    },
-    agents: {
-      description: "mcp + orchestrator",
-      brief: "99.31% · 2 active",
-      slo: { target: 99.5, current: 99.31 },
-      budget: { consumed: 138, elapsed: 40, remaining: "0 min", window: "30d" },
-      latency: { p99: 890, target: 500, unit: "ms" },
-      metrics: [
-        { k: "active jobs", v: "2" },
-        { k: "completed 24h", v: "47" },
-        { k: "mcp servers", v: "4" },
-      ],
-      spark: [420, 510, 680, 890, 750, 820, 940, 870, 780, 910, 850, 720, 880, 930, 810, 760, 890, 950, 870, 820, 780, 850, 910, 890],
-    },
-    clickhouse: {
-      description: "signoz storage backend",
-      brief: "34% cpu · 82 GiB",
-      metrics: [
-        { k: "cpu", v: "34%" },
-        { k: "memory", v: "5.2 / 8 GiB" },
-        { k: "storage", v: "82 GiB" },
-      ],
-    },
-    argocd: {
-      description: "gitops controller",
-      brief: "14/14 synced",
-      metrics: [
-        { k: "applications", v: "14" },
-        { k: "synced", v: "14 / 14" },
-        { k: "last sync", v: "12s ago" },
-      ],
-    },
-    longhorn: {
-      description: "distributed storage",
-      brief: "340 / 1000 GiB",
-      metrics: [
-        { k: "volumes", v: "8" },
-        { k: "replicas", v: "healthy" },
-        { k: "used", v: "340 / 1000 GiB" },
-      ],
-    },
-  };
+  // ── Service data (from config) ─────────────
+  const svc = Object.fromEntries(topology.nodes.map((n) => [n.id, n]));
 
   // ── State ──────────────────────────────────
   let selected = $state(null);
@@ -153,6 +31,7 @@
   let drawerBorderSvg = $state(null);
   let drawerBorderG = $state(null);
   let hoverBorderG = $state(null);
+  let roughArrows = $state(null);
   let mapPanG = $state(null);
   const active = $derived(hovered || selected);
 
@@ -191,8 +70,16 @@
   });
 
   // Pick layout that minimizes whitespace by matching container aspect ratio
-  const LAND_AR = 960 / 470;  // ~2.04
-  const PORT_AR = 500 / 510;  // ~0.98
+  function computeAR(layout) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const n of layout.nodes) {
+      minX = Math.min(minX, n.x - n.hw); maxX = Math.max(maxX, n.x + n.hw);
+      minY = Math.min(minY, n.y - HH); maxY = Math.max(maxY, n.y + HH);
+    }
+    return (maxX - minX) / (maxY - minY);
+  }
+  const LAND_AR = computeAR(landLayout);
+  const PORT_AR = computeAR(portLayout);
   const isPortrait = $derived.by(() => {
     const ar = containerW / containerH;
     return Math.abs(ar - PORT_AR) < Math.abs(ar - LAND_AR);
@@ -204,6 +91,11 @@
     const ar = window.innerWidth / window.innerHeight;
     return Math.abs(ar - PORT_AR) < Math.abs(ar - LAND_AR);
   })()); // matches initial isPortrait so no spurious flip
+
+  const nodes = $derived(activeLayout ? portLayout.nodes : landLayout.nodes);
+  const edges = $derived(activeLayout ? portLayout.edges : landLayout.edges);
+  const nodeById = $derived(activeLayout ? portLayout.nodeById : landLayout.nodeById);
+
   let flipPhase = $state("none");   // "none" | "out" | "in"
   let scribbling = $state(false);   // true during scribble-out + fade
   let flipTimer = null;
@@ -332,31 +224,21 @@
     startFlip(target);
   });
 
-  const viewBox = $derived(activeLayout ? "0 10 500 510" : "30 40 960 470");
-
-  // Portrait node positions (top-to-bottom flow)
-  // Longhorn at bottom-left so its storage edges (→postgres, →clickhouse)
-  // run vertically and horizontally without crossing signoz/nats.
-  const portraitNodes = [
-    { id: "cloudflare", x: 250, y: 70 },
-    { id: "argocd", x: 80, y: 190 },
-    { id: "monolith", x: 250, y: 190 },
-    { id: "postgres", x: 100, y: 320 },
-    { id: "nats", x: 250, y: 320 },
-    { id: "signoz", x: 400, y: 320 },
-    { id: "longhorn", x: 100, y: 430 },
-    { id: "clickhouse", x: 400, y: 430 },
-    { id: "agents", x: 250, y: 470 },
-  ];
-  const portraitById = Object.fromEntries(portraitNodes.map((n) => [n.id, n]));
+  const viewBox = $derived.by(() => {
+    const layout = activeLayout ? portLayout : landLayout;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of layout.nodes) {
+      minX = Math.min(minX, n.x - n.hw - 20);
+      minY = Math.min(minY, n.y - HH - 20);
+      maxX = Math.max(maxX, n.x + n.hw + 20);
+      maxY = Math.max(maxY, n.y + HH + 20);
+    }
+    const pad = 40;
+    return `${minX - pad} ${minY - pad} ${maxX - minX + pad * 2} ${maxY - minY + pad * 2}`;
+  });
 
   function getNodePos(id) {
-    if (activeLayout) {
-      const p = portraitById[id];
-      return { x: p.x, y: p.y };
-    }
-    const n = nodes.find((n) => n.id === id);
-    return { x: n.x, y: n.y };
+    return nodeById[id];
   }
 
 
@@ -379,9 +261,14 @@
       fgTer: s.getPropertyValue("--fg-tertiary").trim(),
       bg: s.getPropertyValue("--bg").trim(),
       border: s.getPropertyValue("--border").trim(),
+      borderInk: s.getPropertyValue("--border-ink").trim(),
       surface: s.getPropertyValue("--surface").trim(),
       danger: s.getPropertyValue("--danger").trim(),
-      warn: document.documentElement.classList.contains("theme-dark") ? "#ecc94b" : "#d97706",
+      warn: s.getPropertyValue("--warn").trim(),
+      tierIngress: s.getPropertyValue("--tier-ingress").trim(),
+      tierCritical: s.getPropertyValue("--tier-critical").trim(),
+      tierInfra: s.getPropertyValue("--tier-infra").trim(),
+      tooltipBg: s.getPropertyValue("--tooltip-bg").trim(),
     };
   }
 
@@ -427,9 +314,15 @@
     return { x: cx + dx * s, y: cy + dy * s };
   }
 
+  function tierFill(tier, c) {
+    if (tier === "ingress") return c.tierIngress;
+    if (tier === "infra") return c.tierInfra;
+    return c.tierCritical;
+  }
+
   function nodeRoughness(status) {
-    if (status === "degraded") return 2.5;
-    if (status === "warning") return 1.8;
+    if (status === "degraded") return 0.8;
+    if (status === "warning") return 0.8;
     return 0.8;
   }
 
@@ -455,10 +348,19 @@
 
   // ── Sequential BFS animation timeline ─────
   // Each step blocks the next: box sides draw sequentially → text jots → travel pause → edge → next box
-  const animDelay = (() => {
+  const animDelay = $derived.by(() => {
+    const _nodes = nodes;
+    const _edges = edges;
+    const _nodeById = nodeById;
+    const _gen = drawGen;
+
+    const __nodes = _nodes;
+    const __edges = _edges;
+    const __nodeById = _nodeById;
+
     const adj = {};
-    nodes.forEach((n) => (adj[n.id] = []));
-    edges.forEach((e) => {
+    __nodes.forEach((n) => (adj[n.id] = []));
+    __edges.forEach((e) => {
       adj[e.from].push({ nb: e.to, edge: e });
       adj[e.to].push({ nb: e.from, edge: e });
     });
@@ -510,7 +412,7 @@
     // Pencil cursor drives the flow; ink/text are non-blocking overlays.
     const INK_SPEED = 0.85; // ink pass is 85% the duration of pencil (pencil sketches ahead, ink follows)
 
-    const visited = new Set(["cloudflare"]);
+    const visited = new Set(["external"]);
     const nd = {};
     const ed = {};
     const edDir = {};
@@ -518,12 +420,14 @@
     // Schedule a node's pencil box. Returns pencil cursor after box completes.
     function scheduleNode(c, item) {
       const { id, fromX, fromY } = item;
-      const n = nodeById[id];
+      const n = __nodeById[id];
       const side = arrivalSide(n, fromX, fromY);
       const sides = boxSideDurs(n);
       const bDur = sides.reduce((a, b) => a + b, 0);
       const tDur = textDur(n.label);
 
+      const fillStart = c + bDur + bDur * INK_SPEED; // fill scrubs in after ink completes
+      const fillDur = 0.25;                          // quick color scrub
       nd[id] = {
         box: c,                              // pencil box start
         boxSides: sides,                     // pencil per-side durations
@@ -532,7 +436,9 @@
         inkBox: c + bDur,                    // ink retrace starts when pencil box finishes
         inkBoxDur: bDur * INK_SPEED,
         inkBoxSides: sides.map((d) => d * INK_SPEED),
-        text: c + bDur,                      // text jots at same time as ink
+        fill: fillStart,                     // color fill after ink outline
+        fillDur,
+        text: fillStart + fillDur * 0.5,     // text jots in as fill is completing
         textDur: tDur,
       };
       return c + bDur; // pencil cursor: box done, ready for edges
@@ -542,8 +448,8 @@
     function scheduleEdge(pencilStart, parentId, edge, siblingIdx) {
       const key = edge.from + "-" + edge.to;
       edDir[key] = edge.from === parentId;
-      const from = nodeById[edge.from];
-      const to = nodeById[edge.to];
+      const from = __nodeById[edge.from];
+      const to = __nodeById[edge.to];
       const eDur = edgeDur(from, to, key);
 
       // Ink line waits for: parent's ink box + stagger, AND pencil line to complete + pause
@@ -563,7 +469,7 @@
 
     // Collect unvisited children
     function collectChildren(item) {
-      const n = nodeById[item.id];
+      const n = __nodeById[item.id];
       const children = [];
       let sibIdx = 0;
       for (const { nb: nbId, edge } of adj[item.id]) {
@@ -582,7 +488,7 @@
       return scheduleNode(c, item);
     }
 
-    let batch = [{ id: "cloudflare", fromX: 0, fromY: 240, viaEdge: null, parentId: null }];
+    let batch = [{ id: "external", fromX: 0, fromY: __nodeById["external"]?.y ?? 240, viaEdge: null, parentId: null }];
     let cursor = 0.2;
 
     while (batch.length > 0) {
@@ -614,10 +520,10 @@
     }
 
     // Cross-edges (both endpoints already visited)
-    edges.forEach((e) => {
+    __edges.forEach((e) => {
       const key = e.from + "-" + e.to;
       if (ed[key]) return;
-      const eDur = edgeDur(nodeById[e.from], nodeById[e.to], key);
+      const eDur = edgeDur(__nodeById[e.from], __nodeById[e.to], key);
       const fromDone = (nd[e.from]?.box ?? 0) + (nd[e.from]?.boxDur ?? 0);
       const toDone = (nd[e.to]?.box ?? 0) + (nd[e.to]?.boxDur ?? 0);
       edDir[key] = fromDone <= toDone;
@@ -628,12 +534,28 @@
       cursor += eDur + TRAVEL_PAUSE;
     });
 
+    // Schedule unvisited nodes (infra tier — no edges from critical path)
+    // Sort left-to-right (by x) and stagger from the start of the animation
+    // so they draw concurrently with the critical path
+    const unvisited = __nodes
+      .filter((n) => !visited.has(n.id))
+      .sort((a, b) => a.x - b.x);
+    if (unvisited.length > 0) {
+      const infraStart = 0.8; // start shortly after cloudflare
+      const infraSpacing = 0.4; // seconds between each infra node
+      unvisited.forEach((n, i) => {
+        visited.add(n.id);
+        const t = infraStart + i * infraSpacing * jitter(n.id + "infra");
+        scheduleNode(t, { id: n.id, fromX: n.x, fromY: n.y - 80 });
+      });
+    }
+
     let maxT = 0;
     for (const v of Object.values(nd)) maxT = Math.max(maxT, v.inkBox + v.inkBoxDur);
     for (const v of Object.values(ed)) maxT = Math.max(maxT, v.inkLine + v.inkLineDur);
 
     return { node: nd, edge: ed, edgeDir: edDir, totalDur: maxT + 0.5 };
-  })();
+  });
 
   // ── Draw topology ──────────────────────────
   // This effect draws all Rough.js elements once (and on dark mode change).
@@ -641,7 +563,7 @@
   // that updates opacity on existing elements, allowing CSS transitions to work.
   let hasAnimated = false;
   $effect(() => {
-    if (!mapSvg || !roughEdges || !roughNodes) return;
+    if (!mapSvg || !roughEdges || !roughNodes || !roughArrows) return;
     const _layout = activeLayout;
     const _gen = drawGen; // bump to force redraw after flip
 
@@ -649,7 +571,56 @@
     const rc = rough.svg(mapSvg);
     clearChildren(roughEdges);
     clearChildren(roughNodes);
+    clearChildren(roughArrows);
     const shouldAnimate = !hasAnimated;
+
+    // Helper: draw a hand-drawn chevron arrowhead (two rough lines forming a ">")
+    function drawArrowhead(rc, x, y, fromX, fromY, color, arrowSeed, hidden) {
+      const dx = x - fromX;
+      const dy = y - fromY;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len === 0) return null;
+      const ux = dx / len;
+      const uy = dy / len;
+      const px = -uy;
+      const py = ux;
+      const size = 10;
+      const spread = 6;
+      // Two barb endpoints behind the tip
+      const leftX = x - ux * size + px * spread;
+      const leftY = y - uy * size + py * spread;
+      const rightX = x - ux * size - px * spread;
+      const rightY = y - uy * size - py * spread;
+
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      // First barb: outer → tip (drawing inward)
+      const leftBarb = rc.line(leftX, leftY, x, y, {
+        stroke: color, roughness: 1.0, bowing: 0.8,
+        strokeWidth: 1.5, seed: arrowSeed,
+      });
+      leftBarb.dataset.barb = "left";
+      g.appendChild(leftBarb);
+      // Second barb: tip → outer (drawing outward, continuous stroke)
+      const rightBarb = rc.line(x, y, rightX, rightY, {
+        stroke: color, roughness: 1.0, bowing: 0.8,
+        strokeWidth: 1.5, seed: arrowSeed + 3,
+      });
+      rightBarb.dataset.barb = "right";
+      g.appendChild(rightBarb);
+      // Hide all paths when animating — they'll be revealed via edgeDraw
+      if (hidden) {
+        g.querySelectorAll("path").forEach((p) => {
+          try {
+            const pLen = p.getTotalLength();
+            p.style.strokeDasharray = String(pLen);
+            p.style.strokeDashoffset = String(pLen);
+          } catch {
+            p.style.opacity = "0";
+          }
+        });
+      }
+      return g;
+    }
 
     edges.forEach((e) => {
       const key = e.from + "-" + e.to;
@@ -676,7 +647,7 @@
         stroke: c.border,
         roughness: 1.5,
         bowing: 1.2,
-        strokeWidth: 0.8,
+        strokeWidth: 1.0,
         seed: edgeSeed,
       });
       pencil.style.opacity = "0.6";
@@ -687,10 +658,29 @@
         stroke: c.fgTer,
         roughness: 1.5,
         bowing: 1.2,
-        strokeWidth: 1,
+        strokeWidth: 1.5,
         seed: edgeSeed + 7,
       });
       ink.dataset.layer = "ink";
+
+      // Rough.js arrowheads — rendered in separate layer on top of nodes
+      const fwdArrow = drawArrowhead(rc, endPt.x, endPt.y, startPt.x, startPt.y, c.fgTer, edgeSeed + 20, shouldAnimate);
+      if (fwdArrow) {
+        fwdArrow.dataset.edge = key;
+        fwdArrow.style.transition = "opacity 0.25s ease";
+        roughArrows.appendChild(fwdArrow);
+      }
+
+      // Bidirectional: arrowhead at the "from" end too
+      let revArrow = null;
+      if (e.bidi) {
+        revArrow = drawArrowhead(rc, startPt.x, startPt.y, endPt.x, endPt.y, c.fgTer, edgeSeed + 30, shouldAnimate);
+        if (revArrow) {
+          revArrow.dataset.edge = key;
+          revArrow.style.transition = "opacity 0.25s ease";
+          roughArrows.appendChild(revArrow);
+        }
+      }
 
       if (shouldAnimate) {
         const anim = animDelay.edge[key];
@@ -720,6 +710,38 @@
             path.style.animation = `nodeIn 0.3s ease ${anim.inkLine.toFixed(3)}s forwards`;
           }
         });
+
+        // Arrowheads: draw in after edge ink + target node ink both complete
+        const edgeInkDone = anim.inkLine + anim.inkLineDur;
+        // Find when the "to" node's ink box finishes (if it has anim data)
+        const toNodeAnim = animDelay.node[fwd ? e.to : e.from];
+        const fromNodeAnim = animDelay.node[fwd ? e.from : e.to];
+        const toInkDone = toNodeAnim ? toNodeAnim.inkBox + toNodeAnim.inkBoxDur : 0;
+        const arrowStart = Math.max(edgeInkDone, toInkDone);
+        const arrowDur = 0.375;
+
+        const barbStagger = 0.08; // slight delay between left and right barb
+        function animateArrow(arrow, delay) {
+          if (!arrow) return;
+          // Animate each barb separately with stagger
+          arrow.querySelectorAll("[data-barb]").forEach((barbG, i) => {
+            const barbDelay = delay + i * barbStagger;
+            barbG.querySelectorAll("path").forEach((p) => {
+              try {
+                p.style.animation = `edgeDraw ${arrowDur}s ${PEN_EASE} ${barbDelay.toFixed(3)}s forwards`;
+              } catch {
+                p.style.opacity = "0";
+                p.style.animation = `nodeIn ${arrowDur}s ease ${barbDelay.toFixed(3)}s forwards`;
+              }
+            });
+          });
+        }
+        animateArrow(fwdArrow, arrowStart);
+        if (e.bidi) {
+          const fromInkDone = fromNodeAnim ? fromNodeAnim.inkBox + fromNodeAnim.inkBoxDur : 0;
+          const revStart = Math.max(edgeInkDone, fromInkDone);
+          animateArrow(revArrow, revStart);
+        }
       }
       g.appendChild(pencil);
       g.appendChild(ink);
@@ -731,7 +753,7 @@
       const pos = getNodePos(n.id);
       const w = n.hw * 2 + 12;
       const h = HH * 2 + 6;
-      const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.fg;
+      const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.borderInk;
       const r = nodeRoughness(n.status);
       const bow = n.status === "warning" ? 1.2 : 0.5;
 
@@ -739,12 +761,16 @@
       g.dataset.node = n.id;
       g.style.transition = "opacity 0.25s ease";
 
-      // Solid fill — always visible so scribble lines don't bleed through text
+      // Solid fill — starts transparent, scrubs in after ink outline completes
+      const fillCol = tierFill(n.tier, c);
       const fillEl = rc.rectangle(pos.x - w / 2, pos.y - h / 2, w, h, {
-        stroke: "none", fill: c.bg, fillStyle: "solid",
+        stroke: "none", fill: fillCol, fillStyle: "solid",
         roughness: r, seed: seed(n.id + "fill"),
       });
       fillEl.dataset.layer = "fill";
+      if (shouldAnimate) {
+        fillEl.style.opacity = "0";
+      }
       g.appendChild(fillEl);
 
       // 4 sequential strokes, rotated to start from the nearest corner to the incoming edge
@@ -784,7 +810,7 @@
           stroke: c.border,
           roughness: r,
           bowing: bow,
-          strokeWidth: 0.7,
+          strokeWidth: 1.0,
           seed: sideSeed,
         });
         pencil.style.opacity = "0.5";
@@ -795,7 +821,7 @@
           stroke: inkCol,
           roughness: r,
           bowing: bow,
-          strokeWidth: 1,
+          strokeWidth: 2,
           seed: sideSeed + 7,
         });
         ink.dataset.layer = "ink";
@@ -836,6 +862,12 @@
         g.appendChild(pencil);
         g.appendChild(ink);
       });
+
+      // Animate fill scrub: fade in after ink outline completes
+      if (anim) {
+        fillEl.style.animation = `nodeIn ${anim.fillDur.toFixed(3)}s ease-out ${anim.fill.toFixed(3)}s forwards`;
+      }
+
       roughNodes.appendChild(g);
     });
 
@@ -862,39 +894,84 @@
         g.querySelector("[data-layer='ink']")?.querySelectorAll("path").forEach((p) => { p.setAttribute("stroke", c.fgTer); });
       });
     }
+    // Recolor arrowheads
+    if (roughArrows) {
+      roughArrows.querySelectorAll("[data-edge]").forEach((g) => {
+        g.querySelectorAll("path").forEach((p) => { p.setAttribute("stroke", c.fgTer); });
+      });
+    }
     // Recolor nodes
     if (roughNodes) {
       roughNodes.querySelectorAll("[data-node]").forEach((g) => {
         const id = g.dataset.node;
         const n = nodeById[id];
-        const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.fg;
+        const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : c.borderInk;
         g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", c.border); });
         g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", inkCol); });
         const fill = g.querySelector("[data-layer='fill']");
-        if (fill) fill.querySelectorAll("path").forEach((p) => { p.setAttribute("fill", c.surface); });
+        if (fill) fill.querySelectorAll("path").forEach((p) => {
+          p.setAttribute("fill", tierFill(n.tier, c));
+        });
       });
     }
   });
 
   // ── Highlight effect ──────────────────────────
-  // Updates opacity on existing Rough.js elements when active changes.
-  // Separated from draw effect so selection/hover doesn't trigger a full redraw,
-  // allowing CSS transitions to produce smooth fades.
+  // When a node is focused: connected edges become bold, others dim.
+  // Separated from draw effect so selection/hover doesn't trigger a full redraw.
   $effect(() => {
-    if (!roughEdges || !roughNodes) return;
+    if (!roughEdges || !roughNodes || !roughArrows) return;
     const _hov = hovered;
     const _sel = selected;
     const dimSource = _hov || _sel;
 
-    // Edges: dim all when any node is focused
+    // Build set of connected edge keys for the focused node
+    const connectedEdges = new Set();
+    const connectedNodes = new Set();
+    if (dimSource) {
+      connectedNodes.add(dimSource);
+      edges.forEach((e) => {
+        if (e.from === dimSource || e.to === dimSource) {
+          connectedEdges.add(e.from + "-" + e.to);
+          connectedNodes.add(e.from);
+          connectedNodes.add(e.to);
+        }
+      });
+    }
+
+    // Edges: connected ones become bold, others dim
     roughEdges.querySelectorAll("[data-edge]").forEach((g) => {
-      g.style.opacity = dimSource ? "0.15" : "1";
+      const key = g.dataset.edge;
+      if (!dimSource) {
+        g.style.opacity = "1";
+        g.querySelectorAll("path").forEach((p) => { p.style.strokeWidth = ""; });
+      } else if (connectedEdges.has(key)) {
+        g.style.opacity = "1";
+        // Bold up the ink layer paths
+        const ink = g.querySelector("[data-layer='ink']");
+        if (ink) ink.querySelectorAll("path").forEach((p) => { p.style.strokeWidth = "3"; });
+      } else {
+        g.style.opacity = "0.08";
+        g.querySelectorAll("path").forEach((p) => { p.style.strokeWidth = ""; });
+      }
     });
 
-    // Nodes: only the focused node stays bright
+    // Arrowheads: match their edge's visibility
+    roughArrows.querySelectorAll("[data-edge]").forEach((g) => {
+      const key = g.dataset.edge;
+      if (!dimSource) {
+        g.style.opacity = "1";
+      } else if (connectedEdges.has(key)) {
+        g.style.opacity = "1";
+      } else {
+        g.style.opacity = "0.08";
+      }
+    });
+
+    // Nodes: focused + connected neighbors stay bright
     roughNodes.querySelectorAll("[data-node]").forEach((g) => {
       const id = g.dataset.node;
-      g.style.opacity = (!dimSource || id === dimSource) ? "1" : "0.25";
+      g.style.opacity = (!dimSource || connectedNodes.has(id)) ? "1" : "0.15";
     });
 
   });
@@ -967,9 +1044,9 @@
 
       // MotherDuck-inspired brutalist palette — vibrant everywhere
       const scribbleCol = n.status === "degraded"
-        ? (isDark ? "#f87171" : "#dc2626")
+        ? (isDark ? "#ff3333" : "#dc2626")
         : n.status === "warning"
-          ? (isDark ? "#fbbf24" : "#f59e0b")
+          ? "#ff9500"
           : (isDark ? "#7dd3fc" : "#38bdf8");
 
       const wrap = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -1067,7 +1144,7 @@
     tooltipRough.appendChild(
       rc.rectangle(pos.x - tipW / 2, tipY - 9, tipW, 18, {
         stroke: c.border,
-        fill: c.bg,
+        fill: c.tooltipBg,
         fillStyle: "solid",
         roughness: 0.5,
         strokeWidth: 0.6,
@@ -1248,10 +1325,12 @@
     aria-label="Service topology"
     preserveAspectRatio="xMidYMin meet"
   >
+    <defs></defs>
     <g bind:this={mapPanG} class="map-pan">
-    <g bind:this={roughEdges}></g>
     <g bind:this={hoverBorderG}></g>
+    <g bind:this={roughEdges}></g>
     <g bind:this={roughNodes}></g>
+    <g bind:this={roughArrows}></g>
 
     {#key drawGen}
       {#each nodes as n}
@@ -1424,6 +1503,42 @@
 </div>
 
 <style>
+  :global(.theme-light) {
+    --bg: #f5f0e8;
+    --surface: #ebe5d9;
+    --tooltip-bg: #f5f0e8;
+    --fg: #1a1a1a;
+    --fg-secondary: #4a4a4a;
+    --fg-tertiary: #7a7a7a;
+    --border: #1a1a1a;
+    --border-ink: #1a1a1a;
+    --danger: #dc2626;
+    --warn: #ff9500;
+    --tier-ingress: #bfdbfe;
+    --tier-critical: #fef08a;
+    --tier-infra: #bbf7d0;
+    --node-text: #1a1a1a;
+    --font: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace;
+  }
+
+  :global(.theme-dark) {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --tooltip-bg: #d4cfc7;
+    --fg: #f0f0f0;
+    --fg-secondary: #b0b0b0;
+    --fg-tertiary: #808080;
+    --border: #ffffff;
+    --border-ink: #ffffff;
+    --danger: #ff4444;
+    --warn: #ff9500;
+    --tier-ingress: #93c5fd;
+    --tier-critical: #fde047;
+    --tier-infra: #86efac;
+    --node-text: #1a1a1a;
+    --font: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace;
+  }
+
   /* ── Layout ──────────────────────────────── */
 
   .root {
@@ -1458,6 +1573,10 @@
   .map {
     width: 100%;
     height: 100%;
+  }
+  .map :global(path) {
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   /* Scribble-out: scribble draws (250ms), then content fades out (200ms) */
@@ -1544,11 +1663,13 @@
 
   .node-label {
     font-family: var(--font);
-    font-size: 11px;
-    font-weight: 700;
-    fill: var(--fg);
+    font-size: 9px;
+    font-weight: 800;
+    fill: var(--node-text);
     text-anchor: middle;
-    transition: opacity 0.2s ease, x 0.5s cubic-bezier(0.4, 0, 0.2, 1), y 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: opacity 0.2s ease;
   }
 
   .node-label--dimmed { opacity: 0.25; }
@@ -1558,9 +1679,10 @@
     font-family: var(--font);
     font-size: 8px;
     font-weight: 700;
-    fill: var(--fg-secondary);
+    fill: var(--node-text);
     text-anchor: middle;
   }
+
 
   .hit-area {
     outline: none;
