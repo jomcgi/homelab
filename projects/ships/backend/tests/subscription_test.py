@@ -356,6 +356,113 @@ class TestSubscribeAisStreamCatchupDetection:
         # consumer_info only called once (initial check); not again on timeout
         assert mock_psub.consumer_info.call_count == 1
 
+    @pytest.mark.asyncio
+    async def test_progress_log_at_10k_message_milestone(self):
+        """consumer_info is called for the progress log when messages_received hits a 10k multiple.
+
+        The code logs progress every 10_000 messages:
+            if not self.replay_complete and self.messages_received % 10000 == 0:
+                info = await psub.consumer_info()
+
+        When messages_received starts at 9_999 and one message is processed, it
+        becomes 10_000 — exactly on the milestone — triggering the extra
+        consumer_info call inside the progress-log branch.
+        """
+        service = _make_service(replay_complete=False)
+        # Pre-seed so that processing one more message hits the 10_000 milestone.
+        service.messages_received = 9999
+
+        msg = _make_mock_msg(
+            "ais.position",
+            {
+                "mmsi": "123456789",
+                "lat": 51.5,
+                "lon": -0.1,
+                "sog": 5.0,
+                "cog": 90.0,
+                "timestamp": "2024-01-15T10:00:00Z",
+            },
+        )
+
+        mock_psub = AsyncMock()
+        # consumer_info is called:
+        #   1) initial check before the while loop (50_000 pending → catchup)
+        #   2) progress-log branch (messages_received == 10_000, 10_000 % 10_000 == 0)
+        #   3) post-batch catchup check (still above threshold → stay in catchup)
+        mock_psub.consumer_info = AsyncMock(
+            side_effect=[
+                _make_consumer_info(50_000),  # initial
+                _make_consumer_info(45_000),  # progress log at 10k milestone
+                _make_consumer_info(50_000),  # post-batch catchup check
+            ]
+        )
+
+        async def fake_fetch(batch, timeout):
+            # Exit the loop after the first batch so the test terminates.
+            service.running = False
+            return [msg]
+
+        mock_psub.fetch = AsyncMock(side_effect=fake_fetch)
+        _attach_js(service, mock_psub)
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        assert service.messages_received == 10000, (
+            "messages_received should be 10_000 after processing one message from 9_999"
+        )
+        # The progress-log branch fired: consumer_info called 3 times total.
+        assert mock_psub.consumer_info.call_count == 3, (
+            "consumer_info must be called once for initial check, "
+            "once for the 10k-message progress log, "
+            "and once for the post-batch catchup check"
+        )
+
+    @pytest.mark.asyncio
+    async def test_progress_log_skipped_when_replay_complete(self):
+        """The 10k-message progress log is guarded by `not self.replay_complete`.
+
+        When the service is already in live mode, the progress-log branch is
+        never entered regardless of the messages_received value.
+        """
+        service = _make_service(replay_complete=True)
+        # Even though this sits exactly on a 10k boundary, the guard prevents logging.
+        service.messages_received = 9999
+
+        msg = _make_mock_msg(
+            "ais.position",
+            {
+                "mmsi": "987654321",
+                "lat": 52.0,
+                "lon": 4.0,
+                "sog": 0.0,
+                "cog": 0.0,
+                "timestamp": "2024-01-15T11:00:00Z",
+            },
+        )
+
+        mock_psub = AsyncMock()
+        # Only 1 consumer_info call expected: the initial check before the loop.
+        # (Live mode: post-batch catchup check is also skipped.)
+        mock_psub.consumer_info = AsyncMock(return_value=_make_consumer_info(0))
+
+        async def fake_fetch(batch, timeout):
+            service.running = False
+            return [msg]
+
+        mock_psub.fetch = AsyncMock(side_effect=fake_fetch)
+        _attach_js(service, mock_psub)
+
+        with patch("projects.ships.backend.main.asyncio.sleep"):
+            await service.subscribe_ais_stream()
+
+        assert service.messages_received == 10000
+        # Progress-log branch skipped (replay_complete=True) — only the initial
+        # consumer_info call happens.
+        assert mock_psub.consumer_info.call_count == 1, (
+            "progress-log consumer_info must NOT be called when replay_complete is True"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Batch size selection
