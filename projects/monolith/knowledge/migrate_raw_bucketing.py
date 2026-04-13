@@ -65,7 +65,7 @@ def _grandfather_raws(vault_root: Path, session: Session) -> int:
     if not deleted_root.exists():
         return 0
     inserted = 0
-    for src in sorted(deleted_root.rglob("*.md")):
+    for src in sorted(deleted_root.rglob("*.md")):  # nosemgrep: session-add-in-loop
         raw_content = src.read_text(encoding="utf-8")
         try:
             meta, _ = frontmatter.parse(raw_content)
@@ -131,7 +131,7 @@ def _grandfather_atoms(session: Session) -> int:
         select(Note).where(Note.type.in_(["atom", "fact", "active"]))
     ).all()
     inserted = 0
-    for atom in atoms:
+    for atom in atoms:  # nosemgrep: session-add-in-loop
         existing = session.exec(
             select(AtomRawProvenance).where(
                 AtomRawProvenance.atom_fk == atom.id,

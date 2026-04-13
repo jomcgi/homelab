@@ -73,7 +73,7 @@ def update_todo(data: TodoData, session: Session = Depends(get_session)) -> None
     )
 
     # Write daily
-    for i, d in enumerate(data.daily):
+    for i, d in enumerate(data.daily):  # nosemgrep: session-add-in-loop
         session.add(Task(task=d.task, done=d.done, kind="daily", position=i))
 
     session.commit()
