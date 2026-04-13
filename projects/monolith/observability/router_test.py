@@ -60,10 +60,9 @@ def _reset_cache():
     mod._cache_time = 0.0
 
 
-class TestObservabilityRouter:
-    @patch("observability.router.build_topology")
-    def test_get_topology_returns_json(self, mock_build, mock_topology):
-        mock_build.return_value = mock_topology
+def test_get_topology_returns_json(mock_topology):
+    mock_build = AsyncMock(return_value=mock_topology)
+    with patch("observability.router.build_topology", mock_build):
         client = TestClient(app)
         resp = client.get("/api/public/observability/topology")
         assert resp.status_code == 200
@@ -72,9 +71,10 @@ class TestObservabilityRouter:
         assert "nodes" in data
         assert "edges" in data
 
-    @patch("observability.router.build_topology")
-    def test_topology_has_slo_fields(self, mock_build, mock_topology):
-        mock_build.return_value = mock_topology
+
+def test_topology_has_slo_fields(mock_topology):
+    mock_build = AsyncMock(return_value=mock_topology)
+    with patch("observability.router.build_topology", mock_build):
         client = TestClient(app)
         resp = client.get("/api/public/observability/topology")
         data = resp.json()
@@ -83,11 +83,11 @@ class TestObservabilityRouter:
         assert "status" in node
         assert "brief" in node
 
-    @patch("observability.router.build_topology")
-    def test_topology_cached(self, mock_build, mock_topology):
-        mock_build.return_value = mock_topology
+
+def test_topology_cached(mock_topology):
+    mock_build = AsyncMock(return_value=mock_topology)
+    with patch("observability.router.build_topology", mock_build):
         client = TestClient(app)
         client.get("/api/public/observability/topology")
         client.get("/api/public/observability/topology")
-        # build_topology called only once due to cache
         assert mock_build.call_count == 1
