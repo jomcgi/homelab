@@ -46,6 +46,13 @@ filegroup(
     srcs = ["fixtures/no-create-extension-sql.yaml"],
 )
 
+# Fixture for the no-generic-test-filename rule (languages: generic, paths-filtered).
+# Referenced by //bazel/semgrep/rules:no_generic_test_filename_test.
+filegroup(
+    name = "no_generic_test_filename_fixtures",
+    srcs = ["fixtures/no-generic-test-filename.py"],
+)
+
 # Fixtures for kubernetes rules (require-readiness-probe, require-resource-limits, etc.).
 # Referenced by //bazel/semgrep/rules:kubernetes_rules_test.
 # New rule fixtures should be added here as they are created.
