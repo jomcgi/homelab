@@ -769,8 +769,8 @@
       });
       ink.dataset.layer = "ink";
 
-      // Rough.js arrowheads — rendered in separate layer on top of nodes
-      const fwdArrow = drawArrowhead(rc, endPt.x, endPt.y, startPt.x, startPt.y, c.fgTer, edgeSeed + 20, shouldAnimate);
+      // Rough.js arrowheads — always use logical p1/p2 (source→target), not startPt/endPt (BFS draw order)
+      const fwdArrow = drawArrowhead(rc, p2.x, p2.y, p1.x, p1.y, c.fgTer, edgeSeed + 20, shouldAnimate);
       if (fwdArrow) {
         fwdArrow.dataset.edge = key;
         fwdArrow.style.transition = "opacity 0.25s ease";
@@ -780,7 +780,7 @@
       // Bidirectional: arrowhead at the "from" end too
       let revArrow = null;
       if (e.bidi) {
-        revArrow = drawArrowhead(rc, startPt.x, startPt.y, endPt.x, endPt.y, c.fgTer, edgeSeed + 30, shouldAnimate);
+        revArrow = drawArrowhead(rc, p1.x, p1.y, p2.x, p2.y, c.fgTer, edgeSeed + 30, shouldAnimate);
         if (revArrow) {
           revArrow.dataset.edge = key;
           revArrow.style.transition = "opacity 0.25s ease";

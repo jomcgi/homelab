@@ -172,9 +172,13 @@ WHERE metric_name = 'SeaweedFS_volumeServer_total_disk_size'
 
 
 def _argocd_apps_synced_query() -> str:
-    """Metric query: number of ArgoCD applications."""
+    """Metric query: number of ArgoCD applications.
+
+    argocd_app_info is a label-cardinality gauge — value is always 1, one
+    series per app. Count distinct fingerprints instead of max(value).
+    """
     return """\
-SELECT round(max(value)) AS value
+SELECT count(DISTINCT fingerprint) AS value
 FROM signoz_metrics.distributed_samples_v4
 WHERE metric_name = 'argocd_app_info'
   AND fingerprint IN (
@@ -195,6 +199,54 @@ WHERE metric_name = 'container.memory.usage'
     AND resource_attrs['k8s.namespace.name'] = '{namespace}'
     AND resource_attrs['k8s.deployment.name'] = '{deployment}'
 ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000"""
+
+
+def _llamacpp_requests_query(deployment: str) -> str:
+    """Metric query: active inference requests for a llama-cpp deployment."""
+    return f"""\
+SELECT round(max(value)) AS value
+FROM signoz_metrics.distributed_samples_v4
+WHERE metric_name = 'llamacpp:requests_processing'
+  AND fingerprint IN (
+  SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+  WHERE metric_name = 'llamacpp:requests_processing'
+    AND resource_attrs['k8s.deployment.name'] = '{deployment}'
+) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000"""
+
+
+def _llamacpp_tokens_query(deployment: str) -> str:
+    """Metric query: tokens generated in the last 5 minutes (counter delta)."""
+    return f"""\
+SELECT round(max(value) - min(value)) AS value
+FROM signoz_metrics.distributed_samples_v4
+WHERE metric_name = 'llamacpp:tokens_predicted_total'
+  AND fingerprint IN (
+  SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+  WHERE metric_name = 'llamacpp:tokens_predicted_total'
+    AND resource_attrs['k8s.deployment.name'] = '{deployment}'
+) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000"""
+
+
+def _nats_storage_query() -> str:
+    """Metric query: JetStream storage used in MB."""
+    return """\
+SELECT round(max(value) / 1048576, 1) AS value
+FROM signoz_metrics.distributed_samples_v4
+WHERE metric_name = 'nats_varz_jetstream_stats_storage'
+  AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000"""
+
+
+def _nats_queue_depth_query() -> str:
+    """Metric query: total pending messages across all JetStream consumers."""
+    return """\
+WITH latest AS (
+  SELECT fingerprint, argMax(value, unix_milli) AS v
+  FROM signoz_metrics.distributed_samples_v4
+  WHERE metric_name = 'nats_consumer_num_pending'
+    AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+  GROUP BY fingerprint
+)
+SELECT round(sum(v)) AS value FROM latest"""
 
 
 def _slo(query: str) -> SloConfig:
@@ -338,6 +390,10 @@ TOPOLOGY = TopologyConfig(
             tier="critical",
             description="jetstream message bus",
             slo=_slo(_container_ready_query("nats", "nats")),
+            metrics=[
+                MetricConfig(key="storage", query=_nats_storage_query(), unit=" MB"),
+                MetricConfig(key="pending", query=_nats_queue_depth_query()),
+            ],
         ),
         NodeConfig(
             id="agent-platform",
@@ -365,6 +421,8 @@ TOPOLOGY = TopologyConfig(
             description="gemma 4 inference",
             slo=_slo(_container_ready_query("llama-cpp", "llama-server", "llama-cpp-")),
             metrics=[
+                MetricConfig(key="reqs", query=_llamacpp_requests_query("llama-cpp")),
+                MetricConfig(key="tokens", query=_llamacpp_tokens_query("llama-cpp")),
                 MetricConfig(
                     key="mem",
                     query=_container_memory_mb_query("llama-cpp", "llama-cpp"),
@@ -383,6 +441,12 @@ TOPOLOGY = TopologyConfig(
                 )
             ),
             metrics=[
+                MetricConfig(
+                    key="reqs", query=_llamacpp_requests_query("llama-cpp-embeddings")
+                ),
+                MetricConfig(
+                    key="tokens", query=_llamacpp_tokens_query("llama-cpp-embeddings")
+                ),
                 MetricConfig(
                     key="mem",
                     query=_container_memory_mb_query(
@@ -493,11 +557,11 @@ TOPOLOGY = TopologyConfig(
         EdgeConfig(source="cloudflare", target="home"),
         EdgeConfig(source="cloudflare", target="knowledge"),
         EdgeConfig(source="cloudflare", target="agent-platform"),
-        EdgeConfig(source="home", target="postgres"),
-        EdgeConfig(source="knowledge", target="postgres"),
+        EdgeConfig(source="home", target="postgres", bidi=True),
+        EdgeConfig(source="knowledge", target="postgres", bidi=True),
         EdgeConfig(source="knowledge", target="voyage-embedder"),
         EdgeConfig(source="knowledge", target="llama-cpp"),
-        EdgeConfig(source="chat", target="postgres"),
+        EdgeConfig(source="chat", target="postgres", bidi=True),
         EdgeConfig(source="chat", target="llama-cpp"),
         EdgeConfig(source="chat", target="discord"),
         EdgeConfig(source="nats", target="agent-platform", bidi=True),
