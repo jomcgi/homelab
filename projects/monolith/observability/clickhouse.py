@@ -13,10 +13,14 @@ class ClickHouseClient:
     def __init__(
         self,
         base_url: str = "http://chi-signoz-clickhouse-cluster-0-0.signoz.svc.cluster.local:8123",
+        user: str = "",
+        password: str = "",
         transport: httpx.AsyncBaseTransport | None = None,
         timeout: float = 30.0,
     ):
         kwargs: dict = {"base_url": base_url}
+        if user and password:
+            kwargs["auth"] = httpx.BasicAuth(user, password)
         if transport is not None:
             kwargs["transport"] = transport
         self._client = httpx.AsyncClient(timeout=timeout, **kwargs)

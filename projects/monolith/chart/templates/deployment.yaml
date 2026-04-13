@@ -53,6 +53,18 @@ spec:
             - name: CLICKHOUSE_URL
               value: {{ .Values.backend.clickhouseUrl | quote }}
             {{- end }}
+            {{- if .Values.clickhouse.onepassword.itemPath }}
+            - name: CLICKHOUSE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monolith.fullname" . }}-clickhouse
+                  key: USER
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "monolith.fullname" . }}-clickhouse
+                  key: PASSWORD
+            {{- end }}
             - name: FRONTEND_HEALTH_URL
               value: "http://localhost:3000/"
             {{- if .Values.chat.enabled }}
