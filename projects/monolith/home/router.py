@@ -74,7 +74,10 @@ def update_todo(data: TodoData, session: Session = Depends(get_session)) -> None
 
     # Write daily
     session.add_all(
-        [Task(task=d.task, done=d.done, kind="daily", position=i) for i, d in enumerate(data.daily)]
+        [
+            Task(task=d.task, done=d.done, kind="daily", position=i)
+            for i, d in enumerate(data.daily)
+        ]
     )
 
     session.commit()
