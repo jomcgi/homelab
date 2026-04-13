@@ -126,6 +126,10 @@ WRAPPER
 py_venv_binary(
     name = "python_deps",
     main = "python_deps.py",
+    deps = [  # keep — runtime deps for homelab CLI (tools/cli), not imported by this shim
+        "@pip//httpx",  # keep
+        "@pip//typer",  # keep
+    ],
 )
 
 # Per-platform Python runtime + pip deps tars.
