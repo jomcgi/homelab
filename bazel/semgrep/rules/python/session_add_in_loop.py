@@ -46,6 +46,17 @@ def ok_outside_loop(items, session):
     session.commit()
 
 
+# ok: commit inside loop (each iteration is its own transaction)
+def ok_commit_inside_loop(items, session):
+    for item in items:
+        try:
+            obj = MyModel(value=item)
+            session.add(obj)
+            session.commit()
+        except Exception:
+            session.rollback()
+
+
 class MyModel:
     def __init__(self, value):
         self.value = value
