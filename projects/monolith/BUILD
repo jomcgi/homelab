@@ -2357,6 +2357,7 @@ py_test(
 py_test(
     name = "observability_router_test",
     srcs = ["observability/router_test.py"],
+    data = ["observability/topology.yaml"],
     imports = ["."],
     deps = [
         ":monolith_backend",
