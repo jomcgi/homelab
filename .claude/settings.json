@@ -146,6 +146,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/pretooluse-write-edit.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-unnecessary-chart-bump.sh",
+            "timeout": 10
           }
         ]
       }
