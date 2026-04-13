@@ -95,7 +95,11 @@ async def build_topology() -> dict:
         "CLICKHOUSE_URL",
         "http://chi-signoz-clickhouse-cluster-0-0.signoz.svc.cluster.local:8123",
     )
-    client = ClickHouseClient(base_url=ch_url)
+    client = ClickHouseClient(
+        base_url=ch_url,
+        user=os.environ.get("CLICKHOUSE_USER", ""),
+        password=os.environ.get("CLICKHOUSE_PASSWORD", ""),
+    )
 
     try:
         # Query all nodes in parallel

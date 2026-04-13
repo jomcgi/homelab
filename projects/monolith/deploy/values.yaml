@@ -18,6 +18,10 @@ onepassword:
   enabled: true
   itemPath: "vaults/k8s-homelab/items/private-homepage"
 
+clickhouse:
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/signoz-clickhouse"
+
 cfIngress:
   public:
     enabled: true

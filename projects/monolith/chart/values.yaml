@@ -53,6 +53,10 @@ onepassword:
   enabled: false
   itemPath: ""
 
+clickhouse:
+  onepassword:
+    itemPath: ""
+
 knowledge:
   enabled: false
   gitRemote: ""
