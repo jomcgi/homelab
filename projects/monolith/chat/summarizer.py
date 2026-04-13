@@ -114,7 +114,9 @@ async def generate_channel_summaries(
         select(Message.channel_id).group_by(Message.channel_id)
     ).all()
 
-    for (channel_id,) in [(c,) if isinstance(c, str) else c for c in channels]:  # nosemgrep: session-add-in-loop
+    for (channel_id,) in [
+        (c,) if isinstance(c, str) else c for c in channels
+    ]:  # nosemgrep: session-add-in-loop
         try:
             existing = session.exec(
                 select(ChannelSummary).where(
