@@ -5,6 +5,7 @@
 # gazelle:exclude knowledge
 # gazelle:exclude notes
 # gazelle:exclude scripts
+# gazelle:exclude observability
 # gazelle:exclude shared
 # gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,sqlmodel-datetime-without-factory,tainted-fastapi-http-request-httpx,tainted-path-traversal-stdlib-fastapi
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
@@ -35,6 +36,7 @@ py_venv_binary(
             "home/**/*.py",
             "knowledge/**/*.py",
             "notes/**/*.py",
+            "observability/**/*.py",
             "shared/**/*.py",
         ],
         exclude = ["**/*_test.py"],
@@ -56,6 +58,7 @@ py_library(
             "home/**/*.py",
             "knowledge/**/*.py",
             "notes/**/*.py",
+            "observability/**/*.py",
             "shared/**/*.py",
         ],
         exclude = ["**/*_test.py"],
@@ -2315,6 +2318,39 @@ py_test(
         "@pip//httpx",
         "@pip//pytest",
         "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "observability_clickhouse_test",
+    srcs = ["observability/clickhouse_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "observability_config_test",
+    srcs = ["observability/config_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pyyaml",
+    ],
+)
+
+py_test(
+    name = "observability_slo_test",
+    srcs = ["observability/slo_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
     ],
 )
 
