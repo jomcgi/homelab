@@ -8,7 +8,7 @@ import time
 from fastapi import APIRouter
 
 from observability.clickhouse import ClickHouseClient
-from observability.config import NodeConfig, GroupConfig, TopologyConfig
+from observability.config import EdgeConfig, GroupConfig, NodeConfig, TopologyConfig
 from observability.slo import (
     aggregate_group,
     compute_brief,
@@ -121,6 +121,33 @@ async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
     return result
 
 
+async def _query_edge(client: ClickHouseClient, edge: EdgeConfig) -> dict:
+    """Serialize an edge, running Linkerd metric queries if configured."""
+    result: dict = {"from": edge.source, "to": edge.target}
+    if edge.bidi:
+        result["bidi"] = True
+    if edge.linkerd is None:
+        return result
+    lk = edge.linkerd
+    try:
+        rps, latency, error_rate = await asyncio.gather(
+            _ch_scalar(client, lk.rps_query),
+            _ch_scalar(client, lk.latency_query),
+            _ch_scalar(client, lk.error_rate_query),
+            return_exceptions=True,
+        )
+        result["linkerd"] = {
+            "rps": rps if not isinstance(rps, Exception) else None,
+            "latency_ms": latency if not isinstance(latency, Exception) else None,
+            "error_pct": error_rate if not isinstance(error_rate, Exception) else None,
+        }
+    except Exception:
+        logger.exception(
+            "Linkerd edge query failed for %s->%s", edge.source, edge.target
+        )
+    return result
+
+
 async def build_topology() -> dict:
     """Execute all queries and build the full topology response."""
     cfg = TOPOLOGY
@@ -135,10 +162,16 @@ async def build_topology() -> dict:
     )
 
     try:
-        # Query all nodes in parallel
-        node_results = await asyncio.gather(
-            *[_query_node(client, n) for n in cfg.nodes],
-            return_exceptions=True,
+        # Query all nodes and edges in parallel
+        node_results, edge_results = await asyncio.gather(
+            asyncio.gather(
+                *[_query_node(client, n) for n in cfg.nodes],
+                return_exceptions=True,
+            ),
+            asyncio.gather(
+                *[_query_edge(client, e) for e in cfg.edges],
+                return_exceptions=True,
+            ),
         )
 
         # Build node lookup, handling exceptions
@@ -186,11 +219,16 @@ async def build_topology() -> dict:
 
         # Edges
         edges = []
-        for e in cfg.edges:
-            edge = {"from": e.source, "to": e.target}
-            if e.bidi:
-                edge["bidi"] = True
-            edges.append(edge)
+        for i, r in enumerate(edge_results):
+            if isinstance(r, Exception):
+                e = cfg.edges[i]
+                logger.error("Edge %s->%s failed: %s", e.source, e.target, r)
+                edge: dict = {"from": e.source, "to": e.target}
+                if e.bidi:
+                    edge["bidi"] = True
+                edges.append(edge)
+            else:
+                edges.append(r)
 
         return {"groups": groups, "nodes": nodes, "edges": edges}
     finally:
