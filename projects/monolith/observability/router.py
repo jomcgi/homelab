@@ -138,7 +138,7 @@ async def _query_edge(client: ClickHouseClient, edge: EdgeConfig) -> dict:
         )
         result["linkerd"] = {
             "rps": rps if not isinstance(rps, Exception) else None,
-            "latency_ms": latency if not isinstance(latency, Exception) else None,
+            "p99_ms": latency if not isinstance(latency, Exception) else None,
             "error_pct": error_rate if not isinstance(error_rate, Exception) else None,
         }
     except Exception:

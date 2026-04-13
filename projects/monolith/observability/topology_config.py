@@ -250,11 +250,18 @@ WITH latest AS (
 SELECT round(sum(v)) AS value FROM latest"""
 
 
-def _linkerd_rps_query(src: str, dst_ns: str, dst_svc: str) -> str:
-    """Metric query: requests per second over the last 5 minutes (Linkerd outbound)."""
+def _linkerd_p99_rps_query(src: str, dst_ns: str, dst_svc: str) -> str:
+    """Metric query: P99 per-minute request rate over 7 days (Linkerd outbound).
+
+    Buckets counter deltas into 1-minute windows, computes requests/sec per
+    minute, then takes the 99th percentile. Only minutes with traffic are
+    included — otherwise low-traffic services always report near-zero.
+    """
     return f"""\
-WITH c AS (
-  SELECT fingerprint, max(value) - min(value) AS delta
+WITH
+per_fp_min AS (
+  SELECT fingerprint, intDiv(unix_milli, 60000) AS mb,
+    max(value) - min(value) AS delta
   FROM signoz_metrics.distributed_samples_v4
   WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
     AND fingerprint IN (
@@ -263,57 +270,87 @@ WITH c AS (
       AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
       AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
       AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
-  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
-  GROUP BY fingerprint
+  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 7 DAY) * 1000
+  GROUP BY fingerprint, mb
+),
+per_min AS (
+  SELECT mb, sum(delta) / 60 AS rps
+  FROM per_fp_min
+  WHERE delta > 0
+  GROUP BY mb
 )
-SELECT round(sum(delta) / 300, 2) AS value FROM c"""
+SELECT round(quantileExact(0.99)(rps), 2) AS value FROM per_min"""
 
 
-def _linkerd_latency_query(src: str, dst_ns: str, dst_svc: str) -> str:
-    """Metric query: average request latency in ms over the last 5 minutes (Linkerd outbound).
+def _linkerd_p99_latency_query(src: str, dst_ns: str, dst_svc: str) -> str:
+    """Metric query: P99 latency in ms over 7 days (Linkerd outbound).
 
-    Note: .sum and .count are separate metrics with disjoint fingerprints in
-    SigNoz, so we aggregate each independently and divide — no fingerprint JOIN.
+    Implements Prometheus histogram_quantile(0.99) in ClickHouse:
+    1. Get counter deltas per fingerprint in the 7-day window
+    2. Map fingerprints back to their `le` bucket boundary
+    3. Aggregate cumulative counts per `le` across routes/pods
+    4. Find the bucket containing the 99th percentile, interpolate
+
+    Linkerd buckets are coarse (0.05s, 0.5s, 1s, 10s, +Inf) so precision
+    is limited, but still more useful than point-in-time averages.
     """
     return f"""\
 WITH
-s AS (
-  SELECT sum(delta) AS total FROM (
-    SELECT max(value) - min(value) AS delta
-    FROM signoz_metrics.distributed_samples_v4
-    WHERE metric_name = 'outbound_http_route_request_duration_seconds.sum'
-      AND fingerprint IN (
-      SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
-      WHERE metric_name = 'outbound_http_route_request_duration_seconds.sum'
-        AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
-        AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
-        AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
-    ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
-    GROUP BY fingerprint
-  )
+ts AS (
+  SELECT fingerprint,
+    JSONExtractString(labels, 'le') AS le_str
+  FROM signoz_metrics.distributed_time_series_v4_6hrs
+  WHERE metric_name = 'outbound_http_route_request_duration_seconds.bucket'
+    AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
+    AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
+    AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
 ),
-c AS (
-  SELECT sum(delta) AS total FROM (
-    SELECT max(value) - min(value) AS delta
-    FROM signoz_metrics.distributed_samples_v4
-    WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
-      AND fingerprint IN (
-      SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
-      WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
-        AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
-        AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
-        AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
-    ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
-    GROUP BY fingerprint
-  )
+per_fp AS (
+  SELECT s.fingerprint, max(s.value) - min(s.value) AS delta
+  FROM signoz_metrics.distributed_samples_v4 s
+  WHERE s.metric_name = 'outbound_http_route_request_duration_seconds.bucket'
+    AND s.fingerprint IN (SELECT fingerprint FROM ts)
+    AND s.unix_milli >= toUnixTimestamp(now() - INTERVAL 7 DAY) * 1000
+  GROUP BY s.fingerprint
+),
+agg AS (
+  SELECT
+    if(ts.le_str = '+Inf', 999999, toFloat64(ts.le_str)) AS le,
+    sum(pf.delta) AS cum_count
+  FROM per_fp pf
+  JOIN ts ON pf.fingerprint = ts.fingerprint
+  GROUP BY le
+  ORDER BY le
+),
+total AS (SELECT max(cum_count) AS n FROM agg),
+ranked AS (
+  SELECT
+    le, cum_count,
+    lag(le, 1, 0) OVER (ORDER BY le) AS prev_le,
+    lag(cum_count, 1, 0) OVER (ORDER BY le) AS prev_count
+  FROM agg
 )
-SELECT round(s.total / nullIf(c.total, 0) * 1000, 1) AS value FROM s, c"""
+SELECT round(
+  1000 * if(
+    cum_count = prev_count, le,
+    prev_le + (le - prev_le)
+      * ((0.99 * t.n - prev_count) / (cum_count - prev_count))
+  ), 1
+) AS value
+FROM ranked, total t
+WHERE t.n > 0
+  AND cum_count >= 0.99 * t.n
+  AND (prev_count < 0.99 * t.n OR prev_le = 0)
+  AND le < 999999
+LIMIT 1"""
 
 
-def _linkerd_error_rate_query(src: str, dst_ns: str, dst_svc: str) -> str:
-    """Metric query: HTTP error rate % over the last 5 minutes (Linkerd outbound).
+def _linkerd_p99_error_rate_query(src: str, dst_ns: str, dst_svc: str) -> str:
+    """Metric query: P99 per-minute error rate % over 7 days (Linkerd outbound).
 
-    Errors = 5xx responses OR non-empty Linkerd error label (e.g. FAIL_FAST).
+    Buckets response status counter deltas into 1-minute windows, computes
+    error percentage per minute (5xx + Linkerd errors), then takes P99.
+    Only minutes with traffic are included.
     """
     return f"""\
 WITH
@@ -327,27 +364,32 @@ ts AS (
     AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
     AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
 ),
-deltas AS (
-  SELECT fingerprint, max(value) - min(value) AS delta
-  FROM signoz_metrics.distributed_samples_v4
-  WHERE metric_name = 'outbound_http_route_backend_response_statuses_total'
-    AND fingerprint IN (SELECT fingerprint FROM ts)
-    AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
-  GROUP BY fingerprint
+per_fp_min AS (
+  SELECT s.fingerprint, intDiv(s.unix_milli, 60000) AS mb,
+    max(s.value) - min(s.value) AS delta
+  FROM signoz_metrics.distributed_samples_v4 s
+  WHERE s.metric_name = 'outbound_http_route_backend_response_statuses_total'
+    AND s.fingerprint IN (SELECT fingerprint FROM ts)
+    AND s.unix_milli >= toUnixTimestamp(now() - INTERVAL 7 DAY) * 1000
+  GROUP BY s.fingerprint, mb
+),
+per_min AS (
+  SELECT mb,
+    round(100.0 * sumIf(pf.delta, t.http_status LIKE '5%' OR t.error_label != '')
+      / nullIf(sum(pf.delta), 0), 1) AS err_pct
+  FROM per_fp_min pf
+  JOIN ts t ON pf.fingerprint = t.fingerprint
+  WHERE pf.delta > 0
+  GROUP BY mb
 )
-SELECT round(
-  100.0 * sumIf(d.delta, t.http_status LIKE '5%' OR t.error_label != '')
-  / nullIf(sum(d.delta), 0),
-  1
-) AS value
-FROM deltas d JOIN ts t ON d.fingerprint = t.fingerprint"""
+SELECT round(quantileExact(0.99)(err_pct), 1) AS value FROM per_min"""
 
 
 def _linkerd(src: str, dst_ns: str, dst_svc: str) -> LinkerdEdge:
     return LinkerdEdge(
-        rps_query=_linkerd_rps_query(src, dst_ns, dst_svc),
-        latency_query=_linkerd_latency_query(src, dst_ns, dst_svc),
-        error_rate_query=_linkerd_error_rate_query(src, dst_ns, dst_svc),
+        rps_query=_linkerd_p99_rps_query(src, dst_ns, dst_svc),
+        latency_query=_linkerd_p99_latency_query(src, dst_ns, dst_svc),
+        error_rate_query=_linkerd_p99_error_rate_query(src, dst_ns, dst_svc),
     )
 
 

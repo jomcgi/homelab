@@ -38,8 +38,6 @@
   let tooltipRough = $state(null);
   let sparkSvg = $state(null);
   let sparkRoughG = $state(null);
-  let budgetSvg = $state(null);
-  let budgetRoughG = $state(null);
   let drawerBorderSvg = $state(null);
   let drawerBorderG = $state(null);
   let hoverBorderG = $state(null);
@@ -112,24 +110,13 @@
   const groups = $derived(activeLayout ? portLayout.groups : landLayout.groups);
   const groupById = $derived(activeLayout ? portLayout.groupById : landLayout.groupById);
 
-  // Midpoints for edges with Linkerd metrics — reuses box-exit logic from drawGraph().
-  // Placed after groupById/nodeById so reactive tracking picks up layout changes.
-  const edgeLinkerdMidpoints = $derived.by(() => {
-    const result = {};
-    for (const e of edges) {
-      if (!e.linkerd) continue;
-      const fromPos = nodeById[e.from] || groupById[e.from];
-      const toPos = nodeById[e.to] || groupById[e.to];
-      if (!fromPos || !toPos) continue;
-      const fromNode = nodeById[e.from] || groupById[e.from];
-      const toNode = nodeById[e.to] || groupById[e.to];
-      const fromIsGroup = !!groupById[e.from];
-      const toIsGroup = !!groupById[e.to];
-      const p1 = boxExit(fromPos.x, fromPos.y, (fromIsGroup ? fromNode.hw : fromNode.hw + 6), (fromIsGroup ? fromNode.hh : HH + 4), toPos.x, toPos.y);
-      const p2 = boxExit(toPos.x, toPos.y, (toIsGroup ? toNode.hw : toNode.hw + 6), (toIsGroup ? toNode.hh : HH + 4), fromPos.x, fromPos.y);
-      result[e.from + '-' + e.to] = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-    }
-    return result;
+  // Linkerd edges connected to the selected node (for the detail drawer)
+  const selectedEdges = $derived.by(() => {
+    if (!selected) return [];
+    // For groups, match edges to/from any child
+    const g = groupDefs.find(g => g.id === selected);
+    const ids = g ? new Set(g.children) : new Set([selected]);
+    return edges.filter(e => e.linkerd && (ids.has(e.from) || ids.has(e.to)));
   });
 
   let flipPhase = $state("none");   // "none" | "out" | "in"
@@ -311,7 +298,18 @@
       tierCritical: s.getPropertyValue("--tier-critical").trim(),
       tierInfra: s.getPropertyValue("--tier-infra").trim(),
       tooltipBg: s.getPropertyValue("--tooltip-bg").trim(),
+      burnYellow: s.getPropertyValue("--burn-yellow").trim(),
+      burnOrange: s.getPropertyValue("--burn-orange").trim(),
+      burnRed: s.getPropertyValue("--burn-red").trim(),
     };
+  }
+
+  function burnInkCol(nodeId, c, fallback) {
+    const s = svc[nodeId];
+    const consumed = s?.budget?.consumed;
+    if (consumed == null || consumed <= 25) return fallback;
+    if (consumed > 50) return c.burnRed;
+    return c.burnOrange;
   }
 
   function isHighlighted(nodeId) {
@@ -341,8 +339,17 @@
     }
     // Selecting a child highlights its group
     if (childToGroup[src] === nodeId) return true;
-    // Selecting a child highlights siblings
-    if (childToGroup[nodeId] && childToGroup[nodeId] === childToGroup[src]) return true;
+    // Edge-connected nodes are highlighted
+    for (const e of edges) {
+      if (e.from === src && e.to === nodeId) return true;
+      if (e.to === src && e.from === nodeId) return true;
+      // If nodeId is a group containing an edge-connected node
+      const grp = groupDefs.find((g) => g.id === nodeId);
+      if (grp) {
+        if (e.from === src && grp.children.includes(e.to)) return true;
+        if (e.to === src && grp.children.includes(e.from)) return true;
+      }
+    }
     return false;
   }
 
@@ -368,14 +375,6 @@
     if (s === "warning") return c.warn;
     if (s === "degraded") return c.danger;
     return c.fg;
-  }
-
-  function budgetColor(consumed, elapsed) {
-    const c = colors();
-    if (consumed >= 100) return c.danger;
-    if (consumed > elapsed * 1.5) return c.danger;
-    if (consumed > elapsed) return c.warn;
-    return c.fgTer;
   }
 
   function boxExit(cx, cy, hw, hh, tx, ty) {
@@ -885,7 +884,8 @@
       const LIGHT_BORDER = "#1a1a1a";
       const useGroupColors = inGroup && !shouldAnimate;
       const pencilCol = useGroupColors ? LIGHT_BORDER : c.border;
-      const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : (useGroupColors ? LIGHT_BORDER : c.borderInk);
+      const defaultInk = useGroupColors ? LIGHT_BORDER : c.borderInk;
+      const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : burnInkCol(n.id, c, defaultInk);
       const r = nodeRoughness(n.status);
       const bow = n.status === "warning" ? 1.2 : 0.5;
 
@@ -1039,18 +1039,21 @@
       let pencilOffset = 0;
       let inkOffset = 0;
 
+      const grpInkCol = burnInkCol(grp.id, c, "#8a8070");
+      const grpPencilCol = grpInkCol !== "#8a8070" ? grpInkCol : "#c0b8a8";
+
       allSides.forEach((side, i) => {
         const sideSeed = seed(grp.id + side.key + "grp");
 
         const pencil = rc.line(side.from[0], side.from[1], side.to[0], side.to[1], {
-          stroke: "#c0b8a8", roughness: 1.2, bowing: 1.0,
+          stroke: grpPencilCol, roughness: 1.2, bowing: 1.0,
           strokeWidth: 1.0, seed: sideSeed,
         });
         pencil.style.opacity = "0.5";
         pencil.dataset.layer = "pencil";
 
         const ink = rc.line(side.from[0], side.from[1], side.to[0], side.to[1], {
-          stroke: "#8a8070", roughness: 1.2, bowing: 1.0,
+          stroke: grpInkCol, roughness: 1.2, bowing: 1.0,
           strokeWidth: 1.8, seed: sideSeed + 7,
         });
         ink.dataset.layer = "ink";
@@ -1111,17 +1114,16 @@
           if (!el) continue;
           // Set CSS transition on stroke, then flip after delay
           setTimeout(() => {
+            const n = nodeById[cid];
+            const c_ = colors();
+            const flipInk = n.status === "degraded" ? c_.danger : n.status === "warning" ? c_.warn : burnInkCol(cid, c_, LIGHT_BORDER);
             el.querySelectorAll("[data-layer='pencil'] path").forEach((p) => {
               p.style.transition = `stroke ${flipDur}s ease`;
-              p.setAttribute("stroke", LIGHT_BORDER);
+              p.setAttribute("stroke", flipInk);
             });
             el.querySelectorAll("[data-layer='ink'] path").forEach((p) => {
-              // Keep status colors (degraded/warning), only flip normal ink
-              const n = nodeById[cid];
-              if (n && n.status !== "degraded" && n.status !== "warning") {
-                p.style.transition = `stroke ${flipDur}s ease`;
-                p.setAttribute("stroke", LIGHT_BORDER);
-              }
+              p.style.transition = `stroke ${flipDur}s ease`;
+              p.setAttribute("stroke", flipInk);
             });
           }, flipTime);
         }
@@ -1173,7 +1175,8 @@
           groupFillVisible = gAnim ? elapsed >= gAnim.fill : false;
         }
         const useDark = inGroup && groupFillVisible;
-        const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : (useDark ? LIGHT_BORDER : c.borderInk);
+        const defaultInk = useDark ? LIGHT_BORDER : c.borderInk;
+        const inkCol = n.status === "degraded" ? c.danger : n.status === "warning" ? c.warn : burnInkCol(id, c, defaultInk);
         const pencilCol = useDark ? LIGHT_BORDER : c.border;
         g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", pencilCol); });
         g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", inkCol); });
@@ -1189,8 +1192,10 @@
         const gid = g.dataset.group;
         const grp = groupById[gid];
         if (!grp) return;
-        g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", "#c0b8a8"); });
-        g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", "#8a8070"); });
+        const grpInk = burnInkCol(gid, c, "#8a8070");
+        const grpPencil = grpInk !== "#8a8070" ? grpInk : "#c0b8a8";
+        g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", grpPencil); });
+        g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", grpInk); });
         const fill = g.querySelector("[data-layer='fill']");
         if (fill) fill.querySelectorAll("path").forEach((p) => {
           p.setAttribute("fill", "#f5f0e8");
@@ -1284,12 +1289,15 @@
 
     // Groups: highlight if any child is connected, darken borders when focused
     if (roughGroups) {
+      const c_ = colors();
       roughGroups.querySelectorAll("[data-group]").forEach((g) => {
         const gid = g.dataset.group;
+        const grpInk = burnInkCol(gid, c_, "#8a8070");
+        const grpPencil = grpInk !== "#8a8070" ? grpInk : "#c0b8a8";
         if (!dimSource) {
           g.style.opacity = "1";
-          g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", "#8a8070"); p.style.strokeWidth = ""; });
-          g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", "#c0b8a8"); });
+          g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", grpInk); p.style.strokeWidth = ""; });
+          g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", grpPencil); });
           return;
         }
         const grp = groupDefs.find((gr) => gr.id === gid);
@@ -1298,8 +1306,10 @@
         g.style.opacity = isActive ? "1" : "0.15";
         if (isActive && gid === dimSource) {
           // Darken borders for the focused group
-          g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", "#3a3530"); p.style.strokeWidth = "2.5"; });
-          g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", "#6a6050"); });
+          const focusInk = grpInk !== "#8a8070" ? grpInk : "#3a3530";
+          const focusPencil = grpInk !== "#8a8070" ? grpInk : "#6a6050";
+          g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", focusInk); p.style.strokeWidth = "2.5"; });
+          g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", focusPencil); });
         } else {
           g.querySelectorAll("[data-layer='ink'] path").forEach((p) => { p.setAttribute("stroke", "#8a8070"); p.style.strokeWidth = ""; });
           g.querySelectorAll("[data-layer='pencil'] path").forEach((p) => { p.setAttribute("stroke", "#c0b8a8"); });
@@ -1373,6 +1383,13 @@
       if (!n || !pos) return;
       const rc = rough.svg(mapSvg);
       const isGroup = !!groupById[target];
+
+      // Move scribble layer: behind groups for group targets, in front for nodes
+      if (isGroup) {
+        roughGroups?.parentNode?.insertBefore(hoverBorderG, roughGroups);
+      } else {
+        roughEdges?.parentNode?.insertBefore(hoverBorderG, roughEdges);
+      }
 
       // For groups, scribble the group boundary; for nodes, scribble the node
       const pad = 20;
@@ -1509,7 +1526,7 @@
         stroke: c.fg,
         roughness: 2.5,
         bowing: 2,
-        strokeWidth: 1,
+        strokeWidth: 2.5,
         seed: seed("drawer-border"),
       }),
     );
@@ -1554,47 +1571,7 @@
     }
   });
 
-  // ── Drawer: budget burn ────────────────────
-  $effect(() => {
-    if (!budgetSvg || !budgetRoughG || !selected) return;
-    const s = svc[selected];
-    if (!s?.budget) { clearChildren(budgetRoughG); return; }
-    const _dark = isDark;
-    const c = colors();
-    const rc = rough.svg(budgetSvg);
-    clearChildren(budgetRoughG);
-
-    const trackW = 240;
-    const trackH = 10;
-
-    budgetRoughG.appendChild(
-      rc.rectangle(0, 0, trackW, trackH, {
-        stroke: c.border, fill: c.surface, fillStyle: "solid",
-        roughness: 0.6, strokeWidth: 0.8, seed: seed("budget-track"),
-      }),
-    );
-
-    const exceeded = s.budget.consumed > 100;
-    const fillW = Math.min(s.budget.consumed, 100) / 100 * trackW;
-    if (fillW > 0) {
-      budgetRoughG.appendChild(
-        rc.rectangle(1, 1, fillW - 2, trackH - 2, {
-          stroke: "none", fill: budgetColor(s.budget.consumed, s.budget.elapsed),
-          fillStyle: exceeded ? "cross-hatch" : "solid",
-          fillWeight: exceeded ? 0.8 : undefined,
-          roughness: exceeded ? 1.5 : 0.4,
-          seed: seed("budget-fill"),
-        }),
-      );
-    }
-
-    const markerX = (s.budget.elapsed / 100) * trackW;
-    budgetRoughG.appendChild(
-      rc.line(markerX, -4, markerX, trackH + 4, {
-        stroke: c.fg, roughness: 0.3, strokeWidth: 1.5, seed: seed("budget-marker"),
-      }),
-    );
-  });
+  // Budget bar is now rendered directly in the template as smooth SVG rects.
 
   // ── Pan to selected node ─────────────────────
   // Smoothly reposition the map so the selected node centers in the
@@ -1672,9 +1649,9 @@
   >
     <defs></defs>
     <g bind:this={mapPanG} class="map-pan">
-    <g bind:this={hoverBorderG}></g>
     <g bind:this={roughGroups}></g>
     <g bind:this={roughEdges}></g>
+    <g bind:this={hoverBorderG}></g>
     <g bind:this={roughNodes}></g>
     <g bind:this={roughArrows}></g>
 
@@ -1715,32 +1692,6 @@
           >
             {n.label}
           </text>
-        {/if}
-      {/each}
-      {#each edges.filter(e => e.linkerd) as e}
-        {@const key = e.from + '-' + e.to}
-        {@const mid = edgeLinkerdMidpoints[key]}
-        {@const lk = e.linkerd}
-        {#if mid && !drawing}
-          {@const parts = [
-            lk.rps != null ? lk.rps + '/s' : null,
-            lk.latency_ms != null ? lk.latency_ms + 'ms' : null,
-            lk.error_pct != null ? lk.error_pct + '%' : null,
-          ].filter(Boolean)}
-          {#if parts.length}
-            {@const label = parts.join(' · ')}
-            {@const labelW = label.length * 4.2 + 8}
-            <rect
-              x={mid.x - labelW / 2} y={mid.y - 7}
-              width={labelW} height={13}
-              rx="2"
-              fill="var(--bg)"
-              stroke="var(--border)"
-              stroke-width="0.5"
-              opacity="0.92"
-            />
-            <text x={mid.x} y={mid.y + 4} class="edge-label">{label}</text>
-          {/if}
         {/if}
       {/each}
     {/key}
@@ -1833,89 +1784,95 @@
         {/if}
         <div class="drawer-title-row">
           <h2 class="drawer-name">{(nodeById[selected] || groupById[selected])?.label ?? selected}</h2>
-          <span class="drawer-status" style="color: {statusColor((nodeById[selected] || groupById[selected])?.status ?? 'healthy')}">{(nodeById[selected] || groupById[selected])?.status ?? ''}</span>
+          {#if ((nodeById[selected] || groupById[selected])?.status ?? 'healthy') !== 'healthy'}
+            <span class="drawer-status" style="color: {statusColor((nodeById[selected] || groupById[selected])?.status)}">{(nodeById[selected] || groupById[selected])?.status}</span>
+          {/if}
         </div>
         <p class="drawer-desc">{svc[selected].description}</p>
 
         {#if svc[selected].slo}
-          <section class="drawer-section">
-            <h3 class="section-label">slo</h3>
-            <div class="slo-row">
-              <span class="slo-label">availability</span>
-              <span class="slo-value">{svc[selected].slo.current}%</span>
-              <span class="slo-target">target {svc[selected].slo.target}%</span>
+          {@const s = svc[selected]}
+          {@const avail = s.slo.current}
+          {@const target = s.slo.target}
+          {@const rounded = avail != null ? Math.round(avail * 100) / 100 : null}
+          {@const margin = rounded != null ? Math.round((rounded - target) * 100) / 100 : null}
+          <section class="drawer-section slo-card">
+            <h3 class="section-label">slo — {target}%</h3>
+            <div class="hero-stat">
+              {#if rounded != null}
+                <span class="hero-num">{rounded.toFixed(2)}</span>
+                <span class="hero-unit">%</span>
+                {#if margin != null}
+                  <span class="hero-margin" class:positive={margin >= 0} class:negative={margin < 0}>
+                    {margin >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(margin).toFixed(2)}
+                  </span>
+                {/if}
+              {:else}
+                <span class="hero-num">{'\u2014'}</span>
+              {/if}
             </div>
-            {#if svc[selected].latency}
-              <div class="slo-row">
-                <span class="slo-label">latency p99</span>
-                <span class="slo-value">{svc[selected].latency.p99}{svc[selected].latency.unit}</span>
-                <span class="slo-target">target {svc[selected].latency.target}{svc[selected].latency.unit}</span>
+            {#if s.budget}
+              {@const budget = s.budget}
+              {@const N = 20}
+              {@const filled = Math.round(Math.min(budget.consumed, 100) / 100 * N)}
+              {@const burnColor = budget.consumed > 50 ? 'var(--burn-red)' : budget.consumed > 25 ? 'var(--burn-orange)' : 'var(--burn-yellow)'}
+              <div class="budget-header">
+                <span class="budget-label">error budget</span>
+                <span class="budget-burnt" style:color={burnColor}>{budget.consumed}% burnt</span>
               </div>
+              <svg viewBox="0 0 242 11" class="budget-chart">
+                <defs>
+                  <pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                    <line x1="0" y1="0" x2="0" y2="4" stroke={burnColor} stroke-width="2" />
+                  </pattern>
+                </defs>
+                {#each Array(N) as _, i}
+                  {@const x = i * 12.1}
+                  {#if i < filled}
+                    <rect x={x} y="0" width="11" height="11" rx="1.5"
+                      fill={i === filled - 1 && budget.consumed < 100 ? "url(#hatch)" : burnColor} />
+                  {:else}
+                    <rect x={x} y="0" width="11" height="11" rx="1.5"
+                      fill="var(--burn-green)" />
+                  {/if}
+                {/each}
+              </svg>
             {/if}
           </section>
         {/if}
 
-        {#if svc[selected].budget}
-          {@const budget = svc[selected].budget}
+        {#if svc[selected].metrics.length}
           <section class="drawer-section">
-            <h3 class="section-label">error budget</h3>
-            <svg
-              bind:this={budgetSvg}
-              viewBox="0 -6 240 22"
-              class="budget-chart"
-              preserveAspectRatio="xMidYMid meet"
-            >
-              <g bind:this={budgetRoughG}></g>
-            </svg>
-            <div class="budget-labels">
-              <span>{budget.consumed}% consumed</span>
-              <span>{budget.consumed >= 100 ? "exhausted" : budget.remaining + " left"}</span>
-            </div>
-            <div class="budget-meta">
-              {budget.window} window · day {Math.round((budget.elapsed * 30) / 100)} of 30
-            </div>
-            {#if budget.consumed >= 100}
-              <div class="budget-alert">
-                budget exhausted — {budget.consumed - 100}% over
+            <h3 class="section-label">metrics</h3>
+            {#each svc[selected].metrics as m}
+              <div class="metric-row">
+                <span class="metric-key">{m.k}</span>
+                <span class="metric-val">{m.v}</span>
               </div>
-            {:else if budget.consumed > budget.elapsed}
-              <div class="budget-alert">
-                burning {Math.round((budget.consumed / budget.elapsed) * 100 - 100)}% faster than expected
-              </div>
-            {/if}
+            {/each}
           </section>
         {/if}
 
-        {#if svc[selected].spark}
-          {@const spark = svc[selected].spark}
-          {@const max = Math.max(...spark)}
-          {@const min = Math.min(...spark)}
+        {#if selectedEdges.length}
           <section class="drawer-section">
-            <h3 class="section-label">latency 24h</h3>
-            <svg
-              bind:this={sparkSvg}
-              viewBox="0 0 {spark.length * 8} 40"
-              class="spark-chart"
-              preserveAspectRatio="xMidYMid meet"
-            >
-              <g bind:this={sparkRoughG}></g>
-            </svg>
-            <div class="spark-labels">
-              <span>{min}{svc[selected].latency?.unit ?? "ms"}</span>
-              <span>{max}{svc[selected].latency?.unit ?? "ms"} peak</span>
-            </div>
+            <h3 class="section-label">edges <span class="section-meta">p99 · 7d</span></h3>
+            {#each selectedEdges as e}
+              {@const lk = e.linkerd}
+              {@const peer = e.from === selected || (childToGroup[e.from] === selected) ? e.to : e.from}
+              {@const peerLabel = svc[peer]?.label ?? peer}
+              {@const dir = (e.from === selected || childToGroup[e.from] === selected) ? '\u2192' : '\u2190'}
+              {@const parts = [
+                lk.rps != null ? lk.rps + '/s' : null,
+                lk.p99_ms != null ? lk.p99_ms + 'ms' : null,
+              ].filter(Boolean)}
+              <div class="edge-row">
+                <span class="edge-dir">{dir}</span>
+                <span class="edge-badge">{peerLabel}</span>
+                <span class="edge-stats">{parts.length ? parts.join(' · ') : '\u2014'}</span>
+              </div>
+            {/each}
           </section>
         {/if}
-
-        <section class="drawer-section">
-          <h3 class="section-label">metrics</h3>
-          {#each svc[selected].metrics as m}
-            <div class="metric-row">
-              <span class="metric-key">{m.k}</span>
-              <span class="metric-val">{m.v}</span>
-            </div>
-          {/each}
-        </section>
       </div>
     </aside>
   {/if}
@@ -1933,6 +1890,14 @@
     --border-ink: #1a1a1a;
     --danger: #dc2626;
     --warn: #ff9500;
+    --healthy: #16a34a;
+    --node-fill: #fef08a;
+    --budget-empty: #d6d0c4;
+    --slo-card-bg: #F5F2EB;
+    --burn-yellow: #d4a017;
+    --burn-orange: #e67e22;
+    --burn-red: #dc2626;
+    --burn-green: #22c55e;
     --tier-ingress: #bfdbfe;
     --tier-critical: #fef08a;
     --tier-infra: #bbf7d0;
@@ -1951,6 +1916,14 @@
     --border-ink: #ffffff;
     --danger: #ff4444;
     --warn: #ff9500;
+    --healthy: #4ade80;
+    --node-fill: #fde047;
+    --budget-empty: #3a3530;
+    --slo-card-bg: #252220;
+    --burn-yellow: #facc15;
+    --burn-orange: #f59e0b;
+    --burn-red: #ff4444;
+    --burn-green: #4ade80;
     --tier-ingress: #93c5fd;
     --tier-critical: #fde047;
     --tier-infra: #86efac;
@@ -2107,16 +2080,6 @@
     transition: opacity 0.2s ease;
   }
 
-  .edge-label {
-    font-family: var(--font);
-    font-size: 7px;
-    font-weight: 600;
-    fill: var(--fg-tertiary);
-    text-anchor: middle;
-    letter-spacing: 0.02em;
-    pointer-events: none;
-  }
-
   .node-label--dimmed { opacity: 0.25; }
   .node-label--subtle { opacity: 0.45; }
   .node-label--active { text-decoration: underline; }
@@ -2151,7 +2114,7 @@
     right: 0;
     top: 0;
     bottom: 0;
-    width: 22rem;
+    width: 15rem;
     max-width: 90vw;
     background: var(--bg);
     z-index: 20;
@@ -2166,7 +2129,7 @@
 
   .drawer-content {
     flex: 1;
-    padding: 2.5rem 2rem 2.5rem 1.5rem;
+    padding: 1.2rem 0.6rem 1.2rem 0.5rem;
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -2175,13 +2138,13 @@
 
   .drawer-back {
     font-family: var(--font);
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: var(--fg-tertiary);
     background: none;
     border: none;
     padding: 0;
     cursor: pointer;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.4rem;
     display: block;
   }
 
@@ -2215,46 +2178,91 @@
   }
 
   .drawer-desc {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--fg-tertiary);
-    margin-top: 0.25rem;
+    margin-top: 0.15rem;
   }
 
   .drawer-section {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    margin-top: 1rem;
+    gap: 0.2rem;
+    margin-top: 0.7rem;
+  }
+  .slo-card {
+    background: var(--slo-card-bg);
+    border-radius: 6px;
+    padding: 0.5rem 0.5rem 0.6rem;
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
   }
 
   .section-label {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: var(--fg);
-    padding-bottom: 0.3rem;
-    border-bottom: 0.04rem solid var(--border);
-    margin-bottom: 0.15rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+  .section-label::after {
+    content: "";
+    flex: 1;
+    height: 0;
+    border-top: 1px solid var(--border);
+  }
+  .section-meta {
+    font-weight: 400;
+    color: var(--fg-tertiary);
+    font-size: 0.55rem;
+    letter-spacing: 0.06em;
+    margin-left: auto;
   }
 
   /* ── SLO / Budget / Spark / Metrics ──────── */
 
-  .slo-row { display: flex; align-items: baseline; gap: 0.5rem; }
-  .slo-label { font-size: 0.75rem; color: var(--fg-secondary); min-width: 6rem; }
-  .slo-value { font-size: 0.8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .slo-target { font-size: 0.65rem; color: var(--fg-tertiary); }
+  /* ── Hero stat ────────────────────────────── */
+  .hero-stat {
+    display: flex;
+    align-items: baseline;
+    margin: 0.1rem 0 0.3rem;
+  }
+  .hero-num {
+    font-size: 1.28rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .hero-unit { font-size: 0.8rem; color: var(--fg-secondary); margin-left: 0.1rem; }
+  .hero-sep { font-size: 0.7rem; color: var(--fg-tertiary); margin-left: 0.2rem; }
+  .hero-margin {
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 0.5rem;
+  }
+  .hero-margin.positive { color: var(--healthy); }
+  .hero-margin.negative { color: var(--danger); }
 
-  .budget-chart { width: 100%; height: 1.5rem; }
-  .budget-labels {
-    display: flex; justify-content: space-between;
-    font-size: 0.7rem; color: var(--fg-secondary); font-variant-numeric: tabular-nums;
+  /* ── Budget bar ─────────────────────────── */
+  .budget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
   }
-  .budget-meta { font-size: 0.65rem; color: var(--fg-tertiary); }
-  .budget-alert {
-    font-size: 0.65rem; font-weight: 700; color: var(--danger);
-    text-transform: uppercase; letter-spacing: 0.08em;
+  .budget-label {
+    font-size: 0.7rem;
+    color: var(--fg-secondary);
   }
+  .budget-burnt {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--danger);
+    font-variant-numeric: tabular-nums;
+  }
+  .budget-chart { width: 100%; height: 1rem; margin-top: 0.25rem; }
 
   .spark-chart { width: 100%; height: 2.5rem; }
   .spark-labels {
@@ -2264,9 +2272,44 @@
 
   .metric-row {
     display: flex; justify-content: space-between; align-items: baseline; padding: 0.15rem 0;
+    border-bottom: 0.5px solid var(--border);
+    opacity: 1;
   }
+  .metric-row:last-child { border-bottom: none; }
   .metric-key { font-size: 0.75rem; color: var(--fg-secondary); }
   .metric-val { font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ── Edge rows ──────────────────────────── */
+  .edge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0;
+  }
+  .edge-dir {
+    font-size: 0.75rem;
+    color: var(--fg-tertiary);
+    flex-shrink: 0;
+    width: 0.8rem;
+  }
+  .edge-badge {
+    font-family: var(--font);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--node-text);
+    background: var(--node-fill);
+    border: 1.5px solid var(--node-text);
+    padding: 0.15rem 0.4rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .edge-stats {
+    font-size: 0.7rem;
+    color: var(--fg-secondary);
+    font-variant-numeric: tabular-nums;
+  }
 
   /* ── Reduced motion ──────────────────────── */
 
