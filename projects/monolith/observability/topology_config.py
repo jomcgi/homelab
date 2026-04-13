@@ -9,6 +9,7 @@ from __future__ import annotations
 from observability.config import (
     EdgeConfig,
     GroupConfig,
+    LinkerdEdge,
     MetricConfig,
     NodeConfig,
     SloConfig,
@@ -247,6 +248,101 @@ WITH latest AS (
   GROUP BY fingerprint
 )
 SELECT round(sum(v)) AS value FROM latest"""
+
+
+def _linkerd_rps_query(src: str, dst_ns: str, dst_svc: str) -> str:
+    """Metric query: requests per second over the last 5 minutes (Linkerd outbound)."""
+    return f"""\
+WITH c AS (
+  SELECT fingerprint, max(value) - min(value) AS delta
+  FROM signoz_metrics.distributed_samples_v4
+  WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
+    AND fingerprint IN (
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+    WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
+      AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
+      AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
+      AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
+  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+  GROUP BY fingerprint
+)
+SELECT round(sum(delta) / 300, 2) AS value FROM c"""
+
+
+def _linkerd_latency_query(src: str, dst_ns: str, dst_svc: str) -> str:
+    """Metric query: average request latency in ms over the last 5 minutes (Linkerd outbound)."""
+    return f"""\
+WITH
+s AS (
+  SELECT fingerprint, max(value) - min(value) AS delta
+  FROM signoz_metrics.distributed_samples_v4
+  WHERE metric_name = 'outbound_http_route_request_duration_seconds.sum'
+    AND fingerprint IN (
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+    WHERE metric_name = 'outbound_http_route_request_duration_seconds.sum'
+      AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
+      AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
+      AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
+  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+  GROUP BY fingerprint
+),
+c AS (
+  SELECT fingerprint, max(value) - min(value) AS delta
+  FROM signoz_metrics.distributed_samples_v4
+  WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
+    AND fingerprint IN (
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+    WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
+      AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
+      AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
+      AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
+  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+  GROUP BY fingerprint
+)
+SELECT round(sum(s.delta) / nullIf(sum(c.delta), 0) * 1000, 1) AS value
+FROM s JOIN c ON s.fingerprint = c.fingerprint
+WHERE c.delta > 0"""
+
+
+def _linkerd_error_rate_query(src: str, dst_ns: str, dst_svc: str) -> str:
+    """Metric query: HTTP error rate % over the last 5 minutes (Linkerd outbound).
+
+    Errors = 5xx responses OR non-empty Linkerd error label (e.g. FAIL_FAST).
+    """
+    return f"""\
+WITH
+ts AS (
+  SELECT fingerprint,
+    JSONExtractString(labels, 'http_status') AS http_status,
+    JSONExtractString(labels, 'error') AS error_label
+  FROM signoz_metrics.distributed_time_series_v4_6hrs
+  WHERE metric_name = 'outbound_http_route_backend_response_statuses_total'
+    AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
+    AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
+    AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
+),
+deltas AS (
+  SELECT fingerprint, max(value) - min(value) AS delta
+  FROM signoz_metrics.distributed_samples_v4
+  WHERE metric_name = 'outbound_http_route_backend_response_statuses_total'
+    AND fingerprint IN (SELECT fingerprint FROM ts)
+    AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+  GROUP BY fingerprint
+)
+SELECT round(
+  100.0 * sumIf(d.delta, t.http_status LIKE '5%' OR t.error_label != '')
+  / nullIf(sum(d.delta), 0),
+  1
+) AS value
+FROM deltas d JOIN ts t ON d.fingerprint = t.fingerprint"""
+
+
+def _linkerd(src: str, dst_ns: str, dst_svc: str) -> LinkerdEdge:
+    return LinkerdEdge(
+        rps_query=_linkerd_rps_query(src, dst_ns, dst_svc),
+        latency_query=_linkerd_latency_query(src, dst_ns, dst_svc),
+        error_rate_query=_linkerd_error_rate_query(src, dst_ns, dst_svc),
+    )
 
 
 def _slo(query: str) -> SloConfig:
@@ -560,9 +656,17 @@ TOPOLOGY = TopologyConfig(
         EdgeConfig(source="home", target="postgres", bidi=True),
         EdgeConfig(source="knowledge", target="postgres", bidi=True),
         EdgeConfig(source="knowledge", target="voyage-embedder"),
-        EdgeConfig(source="knowledge", target="llama-cpp"),
+        EdgeConfig(
+            source="knowledge",
+            target="llama-cpp",
+            linkerd=_linkerd("monolith", "llama-cpp", "llama-cpp"),
+        ),
         EdgeConfig(source="chat", target="postgres", bidi=True),
-        EdgeConfig(source="chat", target="llama-cpp"),
+        EdgeConfig(
+            source="chat",
+            target="llama-cpp",
+            linkerd=_linkerd("monolith", "llama-cpp", "llama-cpp"),
+        ),
         EdgeConfig(source="chat", target="discord"),
         EdgeConfig(source="nats", target="agent-platform", bidi=True),
         EdgeConfig(source="agent-platform", target="k8s-mcp"),

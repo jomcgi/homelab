@@ -112,6 +112,26 @@
   const groups = $derived(activeLayout ? portLayout.groups : landLayout.groups);
   const groupById = $derived(activeLayout ? portLayout.groupById : landLayout.groupById);
 
+  // Midpoints for edges with Linkerd metrics — reuses box-exit logic from drawGraph().
+  // Placed after groupById/nodeById so reactive tracking picks up layout changes.
+  const edgeLinkerdMidpoints = $derived.by(() => {
+    const result = {};
+    for (const e of edges) {
+      if (!e.linkerd) continue;
+      const fromPos = nodeById[e.from] || groupById[e.from];
+      const toPos = nodeById[e.to] || groupById[e.to];
+      if (!fromPos || !toPos) continue;
+      const fromNode = nodeById[e.from] || groupById[e.from];
+      const toNode = nodeById[e.to] || groupById[e.to];
+      const fromIsGroup = !!groupById[e.from];
+      const toIsGroup = !!groupById[e.to];
+      const p1 = boxExit(fromPos.x, fromPos.y, (fromIsGroup ? fromNode.hw : fromNode.hw + 6), (fromIsGroup ? fromNode.hh : HH + 4), toPos.x, toPos.y);
+      const p2 = boxExit(toPos.x, toPos.y, (toIsGroup ? toNode.hw : toNode.hw + 6), (toIsGroup ? toNode.hh : HH + 4), fromPos.x, fromPos.y);
+      result[e.from + '-' + e.to] = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    }
+    return result;
+  });
+
   let flipPhase = $state("none");   // "none" | "out" | "in"
   let scribbling = $state(false);   // true during scribble-out + fade
   let flipTimer = null;
@@ -1697,6 +1717,32 @@
           </text>
         {/if}
       {/each}
+      {#each edges.filter(e => e.linkerd) as e}
+        {@const key = e.from + '-' + e.to}
+        {@const mid = edgeLinkerdMidpoints[key]}
+        {@const lk = e.linkerd}
+        {#if mid && !drawing}
+          {@const parts = [
+            lk.rps != null ? lk.rps + '/s' : null,
+            lk.latency_ms != null ? lk.latency_ms + 'ms' : null,
+            lk.error_pct != null ? lk.error_pct + '%' : null,
+          ].filter(Boolean)}
+          {#if parts.length}
+            {@const label = parts.join(' · ')}
+            {@const labelW = label.length * 4.2 + 8}
+            <rect
+              x={mid.x - labelW / 2} y={mid.y - 7}
+              width={labelW} height={13}
+              rx="2"
+              fill="var(--bg)"
+              stroke="var(--border)"
+              stroke-width="0.5"
+              opacity="0.92"
+            />
+            <text x={mid.x} y={mid.y + 4} class="edge-label">{label}</text>
+          {/if}
+        {/if}
+      {/each}
     {/key}
 
     <g bind:this={scribbleG}></g>
@@ -2059,6 +2105,16 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     transition: opacity 0.2s ease;
+  }
+
+  .edge-label {
+    font-family: var(--font);
+    font-size: 7px;
+    font-weight: 600;
+    fill: var(--fg-tertiary);
+    text-anchor: middle;
+    letter-spacing: 0.02em;
+    pointer-events: none;
   }
 
   .node-label--dimmed { opacity: 0.25; }
