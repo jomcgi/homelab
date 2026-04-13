@@ -65,7 +65,7 @@ def _grandfather_raws(vault_root: Path, session: Session) -> int:
     if not deleted_root.exists():
         return 0
     inserted = 0
-    for src in sorted(deleted_root.rglob("*.md")):  # nosemgrep: session-add-in-loop
+    for src in sorted(deleted_root.rglob("*.md")):
         raw_content = src.read_text(encoding="utf-8")
         try:
             meta, _ = frontmatter.parse(raw_content)
@@ -91,32 +91,33 @@ def _grandfather_raws(vault_root: Path, session: Session) -> int:
             select(RawInput).where(RawInput.raw_id == raw_id)
         ).first()
         if existing is None:
-            raw_row = RawInput(
-                raw_id=raw_id,
-                path=rel,
-                source="grandfathered",
-                original_path=original_path,
-                content=stripped,
-                content_hash=raw_id,
-            )
-            session.add(raw_row)
-            session.flush()
-            session.add(
-                Note(
-                    note_id=raw_id,
+            with session.begin_nested():
+                raw_row = RawInput(
+                    raw_id=raw_id,
                     path=rel,
-                    title=title,
-                    content_hash=raw_id,
-                    type="raw",
                     source="grandfathered",
+                    original_path=original_path,
+                    content=stripped,
+                    content_hash=raw_id,
                 )
-            )
-            session.add(
-                AtomRawProvenance(
-                    raw_fk=raw_row.id,
-                    gardener_version=_PRE_MIGRATION,
+                session.add(raw_row)
+                session.flush()
+                session.add(
+                    Note(
+                        note_id=raw_id,
+                        path=rel,
+                        title=title,
+                        content_hash=raw_id,
+                        type="raw",
+                        source="grandfathered",
+                    )
                 )
-            )
+                session.add(
+                    AtomRawProvenance(
+                        raw_fk=raw_row.id,
+                        gardener_version=_PRE_MIGRATION,
+                    )
+                )
             inserted += 1
 
         # Delete source after DB record exists so a crash doesn't lose data.
@@ -131,7 +132,7 @@ def _grandfather_atoms(session: Session) -> int:
         select(Note).where(Note.type.in_(["atom", "fact", "active"]))
     ).all()
     inserted = 0
-    for atom in atoms:  # nosemgrep: session-add-in-loop
+    for atom in atoms:
         existing = session.exec(
             select(AtomRawProvenance).where(
                 AtomRawProvenance.atom_fk == atom.id,
@@ -141,12 +142,13 @@ def _grandfather_atoms(session: Session) -> int:
         ).first()
         if existing is not None:
             continue
-        session.add(
-            AtomRawProvenance(
-                atom_fk=atom.id,
-                gardener_version=_PRE_MIGRATION,
+        with session.begin_nested():
+            session.add(
+                AtomRawProvenance(
+                    atom_fk=atom.id,
+                    gardener_version=_PRE_MIGRATION,
+                )
             )
-        )
         inserted += 1
     return inserted
 

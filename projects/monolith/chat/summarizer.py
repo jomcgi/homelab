@@ -25,7 +25,7 @@ async def generate_summaries(
         .group_by(Message.channel_id, Message.user_id, Message.username)
     ).all()
 
-    for channel_id, user_id, username in pairs:  # nosemgrep: session-add-in-loop
+    for channel_id, user_id, username in pairs:
         try:
             existing = session.exec(
                 select(UserChannelSummary).where(

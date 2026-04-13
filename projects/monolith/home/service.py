@@ -53,8 +53,7 @@ def archive_and_reset(session: Session, weekly_reset: bool) -> None:
         session.add(Task(task=weekly.task, done=weekly.done, kind="weekly", position=0))
 
     # Add empty daily slots
-    for i in range(3):  # nosemgrep: session-add-in-loop
-        session.add(Task(task="", done=False, kind="daily", position=i))
+    session.add_all([Task(task="", done=False, kind="daily", position=i) for i in range(3)])
 
     session.commit()
     logger.info("Reset completed (weekly=%s)", weekly_reset)
