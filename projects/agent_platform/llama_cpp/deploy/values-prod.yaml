@@ -39,6 +39,8 @@ nodeSelector:
 
 podAnnotations:
   linkerd.io/inject: disabled
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
 
 resources:
   requests:

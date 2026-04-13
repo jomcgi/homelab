@@ -352,6 +352,7 @@
 
   function budgetColor(consumed, elapsed) {
     const c = colors();
+    if (consumed >= 100) return c.danger;
     if (consumed > elapsed * 1.5) return c.danger;
     if (consumed > elapsed) return c.warn;
     return c.fgTer;

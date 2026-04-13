@@ -10,6 +10,9 @@ nats:
       metadata:
         annotations:
           config.linkerd.io/opaque-ports: "4222"
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "7777"
+          prometheus.io/path: "/metrics"
       spec:
         nodeSelector:
           kubernetes.io/hostname: node-4
@@ -82,10 +85,3 @@ nats:
       nats:
         enabled: true
         port: 4222
-    # Prometheus scrape annotations for SigNoz
-    merge:
-      metadata:
-        annotations:
-          prometheus.io/scrape: "true"
-          prometheus.io/port: "7777"
-          prometheus.io/path: "/metrics"

@@ -22,10 +22,15 @@ router = APIRouter(prefix="/api/public/observability", tags=["observability"])
 
 _cache: dict | None = None
 _cache_time: float = 0.0
+_ch_semaphore = asyncio.Semaphore(2)
 
 
 async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
-    """Execute all queries for a single node and return topology JSON."""
+    """Execute all queries for a single node and return topology JSON.
+
+    Acquires _ch_semaphore before each ClickHouse call to limit concurrent
+    queries and avoid ClickHouse OOM-killing under memory pressure.
+    """
     result: dict = {
         "id": node.id,
         "label": node.label,
@@ -41,7 +46,8 @@ async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
     availability = None
     if node.slo and node.slo.query:
         try:
-            availability = await client.query_scalar(node.slo.query)
+            async with _ch_semaphore:
+                availability = await client.query_scalar(node.slo.query)
         except Exception:
             logger.exception("SLO query failed for %s", node.id)
 
@@ -64,7 +70,8 @@ async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
             metrics.append({"k": m.key, "v": m.static})
         elif m.query:
             try:
-                val = await client.query_scalar(m.query)
+                async with _ch_semaphore:
+                    val = await client.query_scalar(m.query)
                 suffix = m.unit or ""
                 v = f"{val}{suffix}" if val is not None else "—"
                 metrics.append({"k": m.key, "v": v})
@@ -80,7 +87,8 @@ async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
     # Spark query
     if node.spark:
         try:
-            rows = await client.query_rows(node.spark.query)
+            async with _ch_semaphore:
+                rows = await client.query_rows(node.spark.query)
             result["spark"] = [r.get("value", 0) for r in rows]
         except Exception:
             logger.exception("Spark query failed for %s", node.id)

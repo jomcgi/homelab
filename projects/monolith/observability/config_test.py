@@ -36,7 +36,7 @@ class TestTopologyConfig:
         for n in TOPOLOGY.nodes:
             if n.slo is not None:
                 assert n.slo.query is not None, f"node {n.id} has SLO but no query"
-                assert n.slo.target == 99.0
+                assert n.slo.target == 98.0
                 assert n.slo.window_days == 30
 
     def test_edges(self):

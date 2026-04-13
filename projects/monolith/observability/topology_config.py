@@ -16,20 +16,29 @@ from observability.config import (
 )
 
 WINDOW_DAYS = 30
-SLO_TARGET = 99.0
+SLO_TARGET = 98.0
 
 
-def _container_ready_query(namespace: str, container: str) -> str:
+def _container_ready_query(
+    namespace: str, container: str, pod_prefix: str | None = None
+) -> str:
     """SLO query: percentage of minutes where k8s.container.ready >= 1."""
+    pod_filter = ""
+    if pod_prefix is not None:
+        pod_filter = (
+            f"\n      AND JSONExtractString(labels, 'k8s.pod.name')"
+            f" LIKE '{pod_prefix}%'"
+        )
     return f"""\
 WITH per_minute AS (
   SELECT intDiv(s.unix_milli, 60000) AS mb, max(s.value) AS ready
   FROM signoz_metrics.distributed_samples_v4 s
-  WHERE s.fingerprint IN (
+  WHERE s.metric_name = 'k8s.container.ready'
+    AND s.fingerprint IN (
     SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
     WHERE metric_name = 'k8s.container.ready'
       AND JSONExtractString(labels, 'k8s.namespace.name') = '{namespace}'
-      AND JSONExtractString(labels, 'k8s.container.name') = '{container}'
+      AND JSONExtractString(labels, 'k8s.container.name') = '{container}'{pod_filter}
   ) AND s.unix_milli >= toUnixTimestamp(now() - INTERVAL {WINDOW_DAYS} DAY) * 1000
   GROUP BY mb
 )
@@ -43,7 +52,8 @@ WITH
 bad AS (
   SELECT intDiv(unix_milli, 60000) AS mb, sum(value) AS v
   FROM signoz_metrics.distributed_samples_v4
-  WHERE fingerprint IN (
+  WHERE metric_name = 'envoy_cluster_upstream_rq_xx'
+    AND fingerprint IN (
     SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
     WHERE metric_name = 'envoy_cluster_upstream_rq_xx'
       AND JSONExtractString(labels, 'envoy_cluster_name') LIKE '%{cluster_pattern}%'
@@ -54,7 +64,8 @@ bad AS (
 total AS (
   SELECT intDiv(unix_milli, 60000) AS mb, sum(value) AS v
   FROM signoz_metrics.distributed_samples_v4
-  WHERE fingerprint IN (
+  WHERE metric_name = 'envoy_cluster_upstream_rq_xx'
+    AND fingerprint IN (
     SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
     WHERE metric_name = 'envoy_cluster_upstream_rq_xx'
       AND JSONExtractString(labels, 'envoy_cluster_name') LIKE '%{cluster_pattern}%'
@@ -71,13 +82,119 @@ def _cnpg_up_query() -> str:
 WITH per_minute AS (
   SELECT intDiv(s.unix_milli, 60000) AS mb, max(s.value) AS up
   FROM signoz_metrics.distributed_samples_v4 s
-  WHERE s.fingerprint IN (
+  WHERE s.metric_name = 'cnpg_collector_up'
+    AND s.fingerprint IN (
     SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
     WHERE metric_name = 'cnpg_collector_up'
   ) AND s.unix_milli >= toUnixTimestamp(now() - INTERVAL {WINDOW_DAYS} DAY) * 1000
   GROUP BY mb
 )
 SELECT round(countIf(up >= 1) / count() * 100, 4) AS value FROM per_minute"""
+
+
+def _envoy_rps_query(cluster_pattern: str) -> str:
+    """Metric query: average requests per second over the last 5 minutes."""
+    return f"""\
+WITH per_minute AS (
+  SELECT intDiv(unix_milli, 60000) AS mb, sum(value) AS v
+  FROM signoz_metrics.distributed_samples_v4
+  WHERE metric_name = 'envoy_cluster_upstream_rq_xx'
+    AND fingerprint IN (
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+    WHERE metric_name = 'envoy_cluster_upstream_rq_xx'
+      AND JSONExtractString(labels, 'envoy_cluster_name') LIKE '%{cluster_pattern}%'
+  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+  GROUP BY mb
+)
+SELECT round(avg(v) / 60, 1) AS value FROM per_minute"""
+
+
+def _envoy_avg_latency_query(cluster_pattern: str) -> str:
+    """Metric query: average upstream latency (ms) from histogram sum/count."""
+    return f"""\
+WITH
+s AS (
+  SELECT max(value) AS v FROM signoz_metrics.distributed_samples_v4
+  WHERE metric_name = 'envoy_cluster_upstream_rq_time.sum'
+    AND fingerprint IN (
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+    WHERE metric_name = 'envoy_cluster_upstream_rq_time.sum'
+      AND attrs['envoy_cluster_name'] LIKE '%{cluster_pattern}%'
+  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+),
+c AS (
+  SELECT max(value) AS v FROM signoz_metrics.distributed_samples_v4
+  WHERE metric_name = 'envoy_cluster_upstream_rq_time.count'
+    AND fingerprint IN (
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+    WHERE metric_name = 'envoy_cluster_upstream_rq_time.count'
+      AND attrs['envoy_cluster_name'] LIKE '%{cluster_pattern}%'
+  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+)
+SELECT round(s.v / c.v, 1) AS value FROM s, c WHERE c.v > 0"""
+
+
+def _cnpg_backends_query() -> str:
+    """Metric query: current active backends."""
+    return """\
+SELECT round(max(value)) AS value
+FROM signoz_metrics.distributed_samples_v4
+WHERE metric_name = 'cnpg_backends_total'
+  AND fingerprint IN (
+  SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+  WHERE metric_name = 'cnpg_backends_total'
+) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000"""
+
+
+def _cnpg_db_size_query() -> str:
+    """Metric query: database size in MB for the monolith database."""
+    return """\
+SELECT round(max(value) / 1048576, 1) AS value
+FROM signoz_metrics.distributed_samples_v4
+WHERE metric_name = 'cnpg_pg_database_size_bytes'
+  AND fingerprint IN (
+  SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+  WHERE metric_name = 'cnpg_pg_database_size_bytes'
+    AND JSONExtractString(labels, 'datname') = 'monolith'
+) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000"""
+
+
+def _seaweedfs_disk_query() -> str:
+    """Metric query: total disk usage in GB."""
+    return """\
+SELECT round(max(value) / 1073741824, 1) AS value
+FROM signoz_metrics.distributed_samples_v4
+WHERE metric_name = 'SeaweedFS_volumeServer_total_disk_size'
+  AND fingerprint IN (
+  SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+  WHERE metric_name = 'SeaweedFS_volumeServer_total_disk_size'
+) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000"""
+
+
+def _argocd_apps_synced_query() -> str:
+    """Metric query: number of ArgoCD applications."""
+    return """\
+SELECT round(max(value)) AS value
+FROM signoz_metrics.distributed_samples_v4
+WHERE metric_name = 'argocd_app_info'
+  AND fingerprint IN (
+  SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+  WHERE metric_name = 'argocd_app_info'
+) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000"""
+
+
+def _container_memory_mb_query(namespace: str, deployment: str) -> str:
+    """Metric query: container memory usage in MB (via resource_attrs Map)."""
+    return f"""\
+SELECT round(max(value) / 1048576) AS value
+FROM signoz_metrics.distributed_samples_v4
+WHERE metric_name = 'container.memory.usage'
+  AND fingerprint IN (
+  SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+  WHERE metric_name = 'container.memory.usage'
+    AND resource_attrs['k8s.namespace.name'] = '{namespace}'
+    AND resource_attrs['k8s.deployment.name'] = '{deployment}'
+) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000"""
 
 
 def _slo(query: str) -> SloConfig:
@@ -152,6 +269,17 @@ TOPOLOGY = TopologyConfig(
             group="monolith",
             description="dashboard + notes + schedule",
             slo=_slo(_envoy_success_rate_query("monolith-public")),
+            metrics=[
+                MetricConfig(
+                    key="rps",
+                    query=_envoy_rps_query("monolith-public"),
+                ),
+                MetricConfig(
+                    key="latency",
+                    query=_envoy_avg_latency_query("monolith-public"),
+                    unit="ms",
+                ),
+            ],
         ),
         NodeConfig(
             id="knowledge",
@@ -160,6 +288,17 @@ TOPOLOGY = TopologyConfig(
             group="monolith",
             description="search · ingest · gardener",
             slo=_slo(_envoy_success_rate_query("monolith-private")),
+            metrics=[
+                MetricConfig(
+                    key="rps",
+                    query=_envoy_rps_query("monolith-private"),
+                ),
+                MetricConfig(
+                    key="latency",
+                    query=_envoy_avg_latency_query("monolith-private"),
+                    unit="ms",
+                ),
+            ],
         ),
         NodeConfig(
             id="chat",
@@ -168,6 +307,12 @@ TOPOLOGY = TopologyConfig(
             group="monolith",
             description="discord backfill + summarization",
             slo=_slo(_envoy_success_rate_query("monolith-private")),
+            metrics=[
+                MetricConfig(
+                    key="rps",
+                    query=_envoy_rps_query("monolith-private"),
+                ),
+            ],
         ),
         NodeConfig(
             id="postgres",
@@ -175,6 +320,17 @@ TOPOLOGY = TopologyConfig(
             tier="critical",
             description="cnpg + pgvector",
             slo=_slo(_cnpg_up_query()),
+            metrics=[
+                MetricConfig(
+                    key="backends",
+                    query=_cnpg_backends_query(),
+                ),
+                MetricConfig(
+                    key="size",
+                    query=_cnpg_db_size_query(),
+                    unit=" MB",
+                ),
+            ],
         ),
         NodeConfig(
             id="nats",
@@ -190,20 +346,51 @@ TOPOLOGY = TopologyConfig(
             ingress=True,
             description="orchestrator + mcp clients",
             slo=_slo(_envoy_success_rate_query("agent-orchestrator")),
+            metrics=[
+                MetricConfig(
+                    key="rps",
+                    query=_envoy_rps_query("agent-orchestrator"),
+                ),
+                MetricConfig(
+                    key="latency",
+                    query=_envoy_avg_latency_query("agent-orchestrator"),
+                    unit="ms",
+                ),
+            ],
         ),
         NodeConfig(
             id="llama-cpp",
             label="GEMMA 4",
             tier="critical",
             description="gemma 4 inference",
-            slo=_slo(_container_ready_query("gpu-operator", "llama-cpp")),
+            slo=_slo(_container_ready_query("llama-cpp", "llama-server", "llama-cpp-")),
+            metrics=[
+                MetricConfig(
+                    key="mem",
+                    query=_container_memory_mb_query("llama-cpp", "llama-cpp"),
+                    unit=" MB",
+                ),
+            ],
         ),
         NodeConfig(
             id="voyage-embedder",
             label="VOYAGE EMBEDDER",
             tier="critical",
             description="voyage-4 embedding",
-            slo=_slo(_container_ready_query("gpu-operator", "voyage-embedder")),
+            slo=_slo(
+                _container_ready_query(
+                    "llama-cpp", "llama-server", "llama-cpp-embeddings-"
+                )
+            ),
+            metrics=[
+                MetricConfig(
+                    key="mem",
+                    query=_container_memory_mb_query(
+                        "llama-cpp", "llama-cpp-embeddings"
+                    ),
+                    unit=" MB",
+                ),
+            ],
         ),
         # --- context-forge children ---
         NodeConfig(
@@ -212,7 +399,7 @@ TOPOLOGY = TopologyConfig(
             tier="critical",
             group="context-forge",
             description="kubernetes mcp server",
-            slo=_slo(_container_ready_query("mcp", "k8s-mcp")),
+            slo=_slo(_container_ready_query("mcp", "mcp-context-forge")),
         ),
         NodeConfig(
             id="argocd-mcp",
@@ -220,7 +407,7 @@ TOPOLOGY = TopologyConfig(
             tier="critical",
             group="context-forge",
             description="argocd mcp server",
-            slo=_slo(_container_ready_query("mcp", "argocd-mcp")),
+            slo=_slo(_container_ready_query("mcp", "mcp-context-forge")),
         ),
         NodeConfig(
             id="signoz-mcp",
@@ -228,7 +415,7 @@ TOPOLOGY = TopologyConfig(
             tier="critical",
             group="context-forge",
             description="signoz mcp server",
-            slo=_slo(_container_ready_query("mcp", "signoz-mcp")),
+            slo=_slo(_container_ready_query("mcp", "mcp-context-forge")),
         ),
         # --- cluster / infra ---
         NodeConfig(
@@ -238,6 +425,12 @@ TOPOLOGY = TopologyConfig(
             group="cluster",
             description="gitops controller",
             slo=_slo(_container_ready_query("argocd", "application-controller")),
+            metrics=[
+                MetricConfig(
+                    key="apps",
+                    query=_argocd_apps_synced_query(),
+                ),
+            ],
         ),
         NodeConfig(
             id="signoz",
@@ -261,7 +454,7 @@ TOPOLOGY = TopologyConfig(
             tier="infra",
             group="cluster",
             description="distributed storage",
-            slo=_slo(_container_ready_query("longhorn-system", "longhorn-manager")),
+            slo=_slo(_container_ready_query("longhorn", "longhorn-manager")),
         ),
         NodeConfig(
             id="seaweedfs",
@@ -270,6 +463,13 @@ TOPOLOGY = TopologyConfig(
             group="cluster",
             description="object storage",
             slo=_slo(_container_ready_query("seaweedfs", "seaweedfs")),
+            metrics=[
+                MetricConfig(
+                    key="disk",
+                    query=_seaweedfs_disk_query(),
+                    unit=" GB",
+                ),
+            ],
         ),
         NodeConfig(
             id="otel-operator",
@@ -277,9 +477,7 @@ TOPOLOGY = TopologyConfig(
             tier="infra",
             group="cluster",
             description="opentelemetry operator",
-            slo=_slo(
-                _container_ready_query("opentelemetry-operator-system", "manager")
-            ),
+            slo=_slo(_container_ready_query("opentelemetry-operator", "manager")),
         ),
         NodeConfig(
             id="linkerd",
