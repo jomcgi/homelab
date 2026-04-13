@@ -14,6 +14,9 @@ rules:
                       ...
                       $SESSION.add(...)
                       ...
+          - metavariable-regex:
+              metavariable: $SESSION
+              regex: ^(session|db_session|db|sess|Session|async_session)$
       - patterns:
           - pattern: |
               while $COND:
@@ -27,6 +30,9 @@ rules:
                       ...
                       $SESSION.add(...)
                       ...
+          - metavariable-regex:
+              metavariable: $SESSION
+              regex: ^(session|db_session|db|sess|Session|async_session)$
     message: >-
       `$SESSION.add(...)` inside a loop without a `begin_nested()` savepoint.
       Each iteration that fails partway through will roll back all prior adds
