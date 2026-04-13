@@ -15,6 +15,7 @@ from knowledge.router import router as knowledge_router
 from notes.router import router as notes_router
 from chat.router import router as chat_router
 from shared.router import router as schedule_router
+from observability.router import router as observability_router
 
 configure_logging()
 logger = logging.getLogger("monolith.main")
@@ -160,6 +161,7 @@ app.include_router(schedule_router)
 app.include_router(notes_router)
 app.include_router(chat_router)
 app.include_router(knowledge_router)
+app.include_router(observability_router)
 
 
 @app.get("/healthz")

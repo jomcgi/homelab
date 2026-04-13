@@ -49,6 +49,10 @@ spec:
             - name: VAULT_API_URL
               value: {{ .Values.backend.vaultApiUrl | quote }}
             {{- end }}
+            {{- if .Values.backend.clickhouseUrl }}
+            - name: CLICKHOUSE_URL
+              value: {{ .Values.backend.clickhouseUrl | quote }}
+            {{- end }}
             - name: FRONTEND_HEALTH_URL
               value: "http://localhost:3000/"
             {{- if .Values.chat.enabled }}

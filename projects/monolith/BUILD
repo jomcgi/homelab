@@ -2354,6 +2354,18 @@ py_test(
     ],
 )
 
+py_test(
+    name = "observability_router_test",
+    srcs = ["observability/router_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     exclude_rules = [
