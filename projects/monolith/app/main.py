@@ -15,7 +15,7 @@ from knowledge.router import router as knowledge_router
 from notes.router import router as notes_router
 from chat.router import router as chat_router
 from shared.router import router as schedule_router
-from observability.router import router as observability_router
+from observability.router import router as observability_router, warm_cache
 
 configure_logging()
 logger = logging.getLogger("monolith.main")
@@ -135,6 +135,13 @@ async def lifespan(app: FastAPI):
         sweep_task = asyncio.create_task(_lock_sweep_loop())
         sweep_task.add_done_callback(_log_task_exception)
         logger.info("Message lock sweep started (30s interval)")
+
+    # Block readiness until initial topology data is loaded from ClickHouse.
+    # This ensures the frontend SLO page always has data on first request.
+    try:
+        await warm_cache()
+    except Exception:
+        logger.exception("Initial topology cache warm failed — continuing anyway")
 
     logger.info("Monolith started")
     yield
