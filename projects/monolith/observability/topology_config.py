@@ -270,38 +270,44 @@ SELECT round(sum(delta) / 300, 2) AS value FROM c"""
 
 
 def _linkerd_latency_query(src: str, dst_ns: str, dst_svc: str) -> str:
-    """Metric query: average request latency in ms over the last 5 minutes (Linkerd outbound)."""
+    """Metric query: average request latency in ms over the last 5 minutes (Linkerd outbound).
+
+    Note: .sum and .count are separate metrics with disjoint fingerprints in
+    SigNoz, so we aggregate each independently and divide — no fingerprint JOIN.
+    """
     return f"""\
 WITH
 s AS (
-  SELECT fingerprint, max(value) - min(value) AS delta
-  FROM signoz_metrics.distributed_samples_v4
-  WHERE metric_name = 'outbound_http_route_request_duration_seconds.sum'
-    AND fingerprint IN (
-    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+  SELECT sum(delta) AS total FROM (
+    SELECT max(value) - min(value) AS delta
+    FROM signoz_metrics.distributed_samples_v4
     WHERE metric_name = 'outbound_http_route_request_duration_seconds.sum'
-      AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
-      AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
-      AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
-  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
-  GROUP BY fingerprint
+      AND fingerprint IN (
+      SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+      WHERE metric_name = 'outbound_http_route_request_duration_seconds.sum'
+        AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
+        AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
+        AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
+    ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+    GROUP BY fingerprint
+  )
 ),
 c AS (
-  SELECT fingerprint, max(value) - min(value) AS delta
-  FROM signoz_metrics.distributed_samples_v4
-  WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
-    AND fingerprint IN (
-    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+  SELECT sum(delta) AS total FROM (
+    SELECT max(value) - min(value) AS delta
+    FROM signoz_metrics.distributed_samples_v4
     WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
-      AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
-      AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
-      AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
-  ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
-  GROUP BY fingerprint
+      AND fingerprint IN (
+      SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
+      WHERE metric_name = 'outbound_http_route_request_duration_seconds.count'
+        AND JSONExtractString(labels, 'k8s.deployment.name') = '{src}'
+        AND JSONExtractString(labels, 'parent_name') = '{dst_svc}'
+        AND JSONExtractString(labels, 'parent_namespace') = '{dst_ns}'
+    ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL 5 MINUTE) * 1000
+    GROUP BY fingerprint
+  )
 )
-SELECT round(sum(s.delta) / nullIf(sum(c.delta), 0) * 1000, 1) AS value
-FROM s JOIN c ON s.fingerprint = c.fingerprint
-WHERE c.delta > 0"""
+SELECT round(s.total / nullIf(c.total, 0) * 1000, 1) AS value FROM s, c"""
 
 
 def _linkerd_error_rate_query(src: str, dst_ns: str, dst_svc: str) -> str:
