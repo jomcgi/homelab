@@ -92,12 +92,12 @@ class TestAggregateGroup:
         assert rps is not None
         assert float(rps["v"]) == pytest.approx(8.2, abs=0.1)
 
-    def test_max_p99(self):
+    def test_max_latency(self):
         children = [
             {"slo": {"current": 100.0}, "metrics": [{"k": "p99", "v": "42ms"}]},
             {"slo": {"current": 100.0}, "metrics": [{"k": "p99", "v": "180ms"}]},
         ]
         result = aggregate_group(children, target=99.0, window_days=30)
-        p99 = next((m for m in result["metrics"] if m["k"] == "p99"), None)
-        assert p99 is not None
-        assert p99["v"] == "180ms"
+        latency = next((m for m in result["metrics"] if m["k"] == "latency"), None)
+        assert latency is not None
+        assert latency["v"] == "180ms"
