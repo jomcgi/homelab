@@ -84,7 +84,7 @@ def aggregate_group(children: list[dict], target: float, window_days: int) -> di
                 rps_total += float(v)
             except (ValueError, TypeError):
                 pass
-        elif k == "p99":
+        elif k in ("p99", "latency"):
             has_p99 = True
             num = re.sub(r"[^\d.]", "", str(v))
             try:
@@ -98,7 +98,7 @@ def aggregate_group(children: list[dict], target: float, window_days: int) -> di
     if has_rps:
         aggregated_metrics.append({"k": "rps", "v": f"{rps_total:.1f}"})
     if has_p99:
-        aggregated_metrics.append({"k": "p99", "v": p99_label})
+        aggregated_metrics.append({"k": "latency", "v": p99_label})
 
     result: dict = {"status": worst_status, "metrics": aggregated_metrics}
 

@@ -41,18 +41,6 @@ k8s-infra:
             key: cloudflare-client-secret
     config:
       receivers:
-        # Prometheus scraper for NATS JetStream metrics
-        prometheus/nats:
-          config:
-            scrape_configs:
-              - job_name: "nats"
-                scrape_interval: 30s
-                static_configs:
-                  - targets:
-                      - "nats.nats.svc.cluster.local:7777"
-                    labels:
-                      service: nats
-
         # Prometheus scraper for NVIDIA GPU metrics (DCGM exporter)
         prometheus/dcgm:
           config:
@@ -157,7 +145,6 @@ k8s-infra:
           # Add NATS metrics to the scraper pipeline
           metrics/scraper:
             receivers:
-              - prometheus/nats
               - prometheus/dcgm
               - prometheus/cnpg
               - httpcheck/k8s-services

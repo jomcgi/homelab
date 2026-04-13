@@ -23,12 +23,15 @@ server:
     - "--embedding"
     - "--alias"
     - "voyage-4-nano"
+    - "--metrics"
 
 nodeSelector:
   kubernetes.io/hostname: node-4
 
 podAnnotations:
   linkerd.io/inject: disabled
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
 
 runtimeClassName: null
 
