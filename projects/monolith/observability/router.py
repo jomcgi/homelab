@@ -23,6 +23,34 @@ router = APIRouter(prefix="/api/public/observability", tags=["observability"])
 _cache: dict | None = None
 _cache_time: float = 0.0
 _ch_semaphore = asyncio.Semaphore(2)
+_CH_RETRIES = 1
+_CH_RETRY_DELAY = 1.0
+
+
+async def _ch_scalar(client: ClickHouseClient, query: str) -> float | None:
+    """Execute a scalar query with one retry on transient failure."""
+    for attempt in range(_CH_RETRIES + 1):
+        try:
+            async with _ch_semaphore:
+                return await client.query_scalar(query)
+        except Exception:
+            if attempt < _CH_RETRIES:
+                await asyncio.sleep(_CH_RETRY_DELAY)
+            else:
+                raise
+
+
+async def _ch_rows(client: ClickHouseClient, query: str) -> list[dict]:
+    """Execute a rows query with one retry on transient failure."""
+    for attempt in range(_CH_RETRIES + 1):
+        try:
+            async with _ch_semaphore:
+                return await client.query_rows(query)
+        except Exception:
+            if attempt < _CH_RETRIES:
+                await asyncio.sleep(_CH_RETRY_DELAY)
+            else:
+                raise
 
 
 async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
@@ -46,8 +74,7 @@ async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
     availability = None
     if node.slo and node.slo.query:
         try:
-            async with _ch_semaphore:
-                availability = await client.query_scalar(node.slo.query)
+            availability = await _ch_scalar(client, node.slo.query)
         except Exception:
             logger.exception("SLO query failed for %s", node.id)
 
@@ -70,8 +97,7 @@ async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
             metrics.append({"k": m.key, "v": m.static})
         elif m.query:
             try:
-                async with _ch_semaphore:
-                    val = await client.query_scalar(m.query)
+                val = await _ch_scalar(client, m.query)
                 suffix = m.unit or ""
                 v = f"{val}{suffix}" if val is not None else "—"
                 metrics.append({"k": m.key, "v": v})
@@ -87,8 +113,7 @@ async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
     # Spark query
     if node.spark:
         try:
-            async with _ch_semaphore:
-                rows = await client.query_rows(node.spark.query)
+            rows = await _ch_rows(client, node.spark.query)
             result["spark"] = [r.get("value", 0) for r in rows]
         except Exception:
             logger.exception("Spark query failed for %s", node.id)
