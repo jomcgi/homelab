@@ -1,0 +1,48 @@
+rules:
+  - id: session-add-in-loop
+    pattern-either:
+      - patterns:
+          - pattern: |
+              for $X in $ITER:
+                  ...
+                  $SESSION.add(...)
+                  ...
+          - pattern-not: |
+              for $X in $ITER:
+                  ...
+                  with $SESSION.begin_nested():
+                      ...
+                      $SESSION.add(...)
+                      ...
+      - patterns:
+          - pattern: |
+              while $COND:
+                  ...
+                  $SESSION.add(...)
+                  ...
+          - pattern-not: |
+              while $COND:
+                  ...
+                  with $SESSION.begin_nested():
+                      ...
+                      $SESSION.add(...)
+                      ...
+    message: >-
+      `$SESSION.add(...)` inside a loop without a `begin_nested()` savepoint.
+      Each iteration that fails partway through will roll back all prior adds
+      in the same transaction. Wrap the loop body in
+      `with $SESSION.begin_nested(): ...` to create a savepoint per iteration
+      so that successfully inserted rows are not lost on partial failure.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: correctness
+      subcategory: orm
+      cwe: ["CWE-459: Incomplete Cleanup"]
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: HIGH
+      technology: [python, sqlalchemy, sqlmodel]
+      description: >-
+        session.add() inside a loop without a begin_nested() savepoint — partial
+        failures roll back all earlier adds in the same transaction.
