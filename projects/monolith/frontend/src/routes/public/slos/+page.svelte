@@ -2,7 +2,8 @@
   import rough from "roughjs";
   import { fly, fade } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
-  import topology from "./topology.json";
+  let { data } = $props();
+  const topology = data.topology;
   import { computeLayout } from "./layout.js";
 
   // ── Topology (config-driven) ─────────────
