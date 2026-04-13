@@ -4,33 +4,24 @@ import asyncio
 import logging
 import os
 import time
-from pathlib import Path
 
 from fastapi import APIRouter
 
 from observability.clickhouse import ClickHouseClient
-from observability.config import load_config, NodeConfig, GroupConfig, TopologyConfig
+from observability.config import NodeConfig, GroupConfig, TopologyConfig
 from observability.slo import (
     aggregate_group,
     compute_brief,
     compute_budget,
     compute_status,
 )
+from observability.topology_config import TOPOLOGY
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/public/observability", tags=["observability"])
 
 _cache: dict | None = None
 _cache_time: float = 0.0
-_config: TopologyConfig | None = None
-
-
-def _get_config() -> TopologyConfig:
-    global _config
-    if _config is None:
-        config_path = Path(__file__).parent / "topology.yaml"
-        _config = load_config(config_path)
-    return _config
 
 
 async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
@@ -99,7 +90,7 @@ async def _query_node(client: ClickHouseClient, node: NodeConfig) -> dict:
 
 async def build_topology() -> dict:
     """Execute all queries and build the full topology response."""
-    cfg = _get_config()
+    cfg = TOPOLOGY
     ch_url = os.environ.get(
         "CLICKHOUSE_URL",
         "http://chi-signoz-clickhouse-cluster-0-0.signoz.svc.cluster.local:8123",
@@ -169,11 +160,21 @@ async def build_topology() -> dict:
         await client.close()
 
 
+async def warm_cache() -> None:
+    """Build topology and populate the module cache. Called at startup."""
+    global _cache, _cache_time
+    logger.info("Warming topology cache...")
+    result = await build_topology()
+    _cache = result
+    _cache_time = time.monotonic()
+    logger.info("Topology cache warmed (%d nodes)", len(result.get("nodes", [])))
+
+
 @router.get("/topology")
 async def get_topology():
     """Return topology with live metrics, cached for cache_ttl seconds."""
     global _cache, _cache_time
-    cfg = _get_config()
+    cfg = TOPOLOGY
     now = time.monotonic()
     if _cache is not None and (now - _cache_time) < cfg.cache_ttl:
         return _cache
