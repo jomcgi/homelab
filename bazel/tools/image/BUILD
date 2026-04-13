@@ -126,10 +126,6 @@ WRAPPER
 py_venv_binary(
     name = "python_deps",
     main = "python_deps.py",
-    deps = [
-        "@pip//httpx",
-        "@pip//typer",
-    ],
 )
 
 # Per-platform Python runtime + pip deps tars.
@@ -233,7 +229,9 @@ oci_push(
 
 semgrep_target_test(
     name = "python_deps_semgrep_test",
+    lockfiles = ["//bazel/requirements:all.txt"],
     rules = ["//bazel/semgrep/rules:python_rules"],
+    sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":python_deps",
 )
 
