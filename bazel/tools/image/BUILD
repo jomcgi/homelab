@@ -36,6 +36,7 @@ node_tar(name = "node_tar")
 # pnpm is a JS script (cross-platform) that runs on Node.js.
 # Places the package at /usr/local/lib/node_modules/pnpm/
 # with a symlink at /usr/bin/pnpm for PATH discovery.
+# nosemgrep: single-npm-package-in-apko-genrule -- pnpm is self-contained, not a single JS module
 genrule(
     name = "pnpm_tar",
     srcs = ["@pnpm//:pkg"],
@@ -77,6 +78,46 @@ genrule(
     """,
 )
 
+# Package the homelab CLI into the tools image.
+# Source files go into the python_deps runfiles tree so they're importable
+# via the shared Python runtime (tools.cli.main). A wrapper script at
+# /usr/bin/homelab execs the module.
+genrule(
+    name = "homelab_cli_tar",
+    srcs = [
+        "//tools:__init__.py",
+        "//tools/cli:__init__.py",
+        "//tools/cli:auth.py",
+        "//tools/cli:knowledge_cmd.py",
+        "//tools/cli:main.py",
+        "//tools/cli:output.py",
+    ],
+    outs = ["homelab_cli.tar"],
+    cmd = """
+        set -e
+        WORK=$$(mktemp -d)
+        # Place source files in the python_deps runfiles workspace root
+        # so `from tools.cli.main import app` resolves naturally.
+        DEST="$$WORK/bazel/tools/image/python_deps.runfiles/_main"
+        mkdir -p "$$DEST/tools/cli"
+        cp $(location //tools:__init__.py) "$$DEST/tools/__init__.py"
+        cp $(location //tools/cli:__init__.py) "$$DEST/tools/cli/__init__.py"
+        cp $(location //tools/cli:auth.py) "$$DEST/tools/cli/auth.py"
+        cp $(location //tools/cli:knowledge_cmd.py) "$$DEST/tools/cli/knowledge_cmd.py"
+        cp $(location //tools/cli:main.py) "$$DEST/tools/cli/main.py"
+        cp $(location //tools/cli:output.py) "$$DEST/tools/cli/output.py"
+        # Wrapper script
+        mkdir -p "$$WORK/usr/bin"
+        cat > "$$WORK/usr/bin/homelab" << 'WRAPPER'
+#!/usr/bin/env bash
+exec python3 -m tools.cli.main "$$@"
+WRAPPER
+        chmod 755 "$$WORK/usr/bin/homelab"
+        tar -cf $@ -C "$$WORK" .
+        rm -rf "$$WORK"
+    """,
+)
+
 # Shim py_venv_binary that declares all monorepo pip deps.
 # The binary itself does nothing — it exists solely so py_image_layer can
 # package its transitive dependency tree (interpreter + stdlib + pip packages).
@@ -85,6 +126,10 @@ genrule(
 py_venv_binary(
     name = "python_deps",
     main = "python_deps.py",
+    deps = [
+        "@pip//httpx",
+        "@pip//typer",
+    ],
 )
 
 # Per-platform Python runtime + pip deps tars.
@@ -110,6 +155,7 @@ oci_image(
         ":python_tar_linux_amd64",
         ":pnpm_tar",
         ":prettier_tar",
+        ":homelab_cli_tar",
     ],
 )
 
@@ -123,6 +169,7 @@ oci_image(
         ":python_tar_linux_arm64",
         ":pnpm_tar",
         ":prettier_tar",
+        ":homelab_cli_tar",
     ],
 )
 
@@ -136,6 +183,7 @@ oci_image(
         ":python_tar_darwin_arm64",
         ":pnpm_tar",
         ":prettier_tar",
+        ":homelab_cli_tar",
     ],
 )
 
