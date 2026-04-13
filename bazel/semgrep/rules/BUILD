@@ -166,6 +166,22 @@ semgrep_test(
     tags = ["semgrep"],
 )
 
+# no-generic-test-filename uses languages: [generic] so its fixture is a Python file.
+# This test wires the rule to its annotation fixture independently of
+# generic_rules_test (which only scans no-stale-repo-paths fixtures).
+filegroup(
+    name = "no_generic_test_filename_rule",
+    srcs = ["generic/no-generic-test-filename.yaml"],
+)
+
+semgrep_test(
+    name = "no_generic_test_filename_test",
+    srcs = ["//bazel/semgrep/tests:no_generic_test_filename_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":no_generic_test_filename_rule"],
+    tags = ["semgrep"],
+)
+
 # stale-copyright-year uses languages: [generic] so its fixture is a YAML file.
 # This test wires the rule to its annotation fixture independently of
 # golang_rules_test (which only scans *.go sources).
