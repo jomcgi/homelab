@@ -26,7 +26,7 @@ WITH per_minute AS (
   SELECT intDiv(s.unix_milli, 60000) AS mb, max(s.value) AS ready
   FROM signoz_metrics.distributed_samples_v4 s
   WHERE s.fingerprint IN (
-    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
     WHERE metric_name = 'k8s.container.ready'
       AND JSONExtractString(labels, 'k8s.namespace.name') = '{namespace}'
       AND JSONExtractString(labels, 'k8s.container.name') = '{container}'
@@ -44,7 +44,7 @@ bad AS (
   SELECT intDiv(unix_milli, 60000) AS mb, sum(value) AS v
   FROM signoz_metrics.distributed_samples_v4
   WHERE fingerprint IN (
-    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
     WHERE metric_name = 'envoy_cluster_upstream_rq_xx'
       AND JSONExtractString(labels, 'envoy_cluster_name') LIKE '%{cluster_pattern}%'
       AND JSONExtractString(labels, 'envoy_response_code_class') = '5'
@@ -55,7 +55,7 @@ total AS (
   SELECT intDiv(unix_milli, 60000) AS mb, sum(value) AS v
   FROM signoz_metrics.distributed_samples_v4
   WHERE fingerprint IN (
-    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
     WHERE metric_name = 'envoy_cluster_upstream_rq_xx'
       AND JSONExtractString(labels, 'envoy_cluster_name') LIKE '%{cluster_pattern}%'
   ) AND unix_milli >= toUnixTimestamp(now() - INTERVAL {WINDOW_DAYS} DAY) * 1000
@@ -72,7 +72,7 @@ WITH per_minute AS (
   SELECT intDiv(s.unix_milli, 60000) AS mb, max(s.value) AS up
   FROM signoz_metrics.distributed_samples_v4 s
   WHERE s.fingerprint IN (
-    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4
+    SELECT DISTINCT fingerprint FROM signoz_metrics.distributed_time_series_v4_6hrs
     WHERE metric_name = 'cnpg_collector_up'
   ) AND s.unix_milli >= toUnixTimestamp(now() - INTERVAL {WINDOW_DAYS} DAY) * 1000
   GROUP BY mb
