@@ -270,10 +270,15 @@ class TestSavepointRollback:
     def test_grandfather_raws_partial_failure_preserves_first_file(
         self, tmp_path, session
     ):
-        """flush() raising IntegrityError on the 2nd file rolls back only that savepoint.
+        """add() raising IntegrityError on the 2nd file's RawInput rolls back only that savepoint.
 
         The first file's RawInput + Note + AtomRawProvenance rows must survive
         in the session, and the session must remain committable after the error.
+
+        Note: mocking session.flush() to raise is intentionally avoided — a flush
+        failure causes SQLAlchemy to invalidate the entire outer transaction, not
+        just the savepoint.  Raising from session.add() before any flush is issued
+        for the failing savepoint keeps the outer transaction intact.
         """
         # Two files sorted alphabetically so processing order is deterministic.
         _write(
@@ -285,21 +290,22 @@ class TestSavepointRollback:
             "---\ntitle: BBB\n---\nBody B.",
         )
 
-        # Count calls to session.flush(); raise on the second invocation so the
-        # first file's savepoint commits cleanly and the second one rolls back.
-        original_flush = session.flush
-        flush_call_count = 0
+        # Raise IntegrityError on the second RawInput add so the first file's
+        # savepoint commits cleanly and only the second one is rolled back.
+        original_add = session.add
+        raw_add_count = 0
 
-        def failing_flush(*args, **kwargs):
-            nonlocal flush_call_count
-            flush_call_count += 1
-            if flush_call_count >= 2:
-                raise SAIntegrityError(
-                    "mock duplicate", {}, Exception("unique constraint violated")
-                )
-            return original_flush(*args, **kwargs)
+        def failing_add(obj):
+            nonlocal raw_add_count
+            if isinstance(obj, RawInput):
+                raw_add_count += 1
+                if raw_add_count >= 2:
+                    raise SAIntegrityError(
+                        "mock duplicate", {}, Exception("unique constraint violated")
+                    )
+            return original_add(obj)
 
-        with patch.object(session, "flush", side_effect=failing_flush):
+        with patch.object(session, "add", side_effect=failing_add):
             with pytest.raises(SAIntegrityError):
                 _grandfather_raws(tmp_path, session)
 
