@@ -25,6 +25,16 @@ The MCP server exposes these tools for AI agents:
 
 All write operations require a `reason` parameter which becomes part of the git commit message.
 
+### REST API
+
+The server also exposes a REST endpoint for programmatic note creation:
+
+| Method | Path         | Body fields                    | Response                    |
+| ------ | ------------ | ------------------------------ | --------------------------- |
+| `POST` | `/api/notes` | `content` (required), `source` | `{"path": "<created-path>"}` (201) |
+
+This creates a timestamped fleeting note under `Fleeting/<YYYY-MM-DD HHMM>.md` with YAML frontmatter (`tags: fleeting`, `source: <value>`). The `source` field defaults to `"api"` and is recorded in both the frontmatter and the git commit message.
+
 ## Prerequisites
 
 - Kubernetes 1.24+
@@ -95,7 +105,7 @@ A Helm post-install and post-upgrade hook will automatically register the server
 | `gitSidecar.remote`                  | `""`                             | GitHub repo URL for audit trail                       |
 | `gitSidecar.branch`                  | `main`                           | Git branch to push to                                 |
 | `gitSidecar.debounceSeconds`         | `10`                             | Seconds to wait before committing changes             |
-| `vaultMcp.image.repository`          | `ghcr.io/jomcgi/homelab/…`       | vault-mcp container image repository                  |
+| `vaultMcp.image.repository`          | `ghcr.io/jomcgi/homelab/projects/obsidian_vault/image` | vault-mcp container image repository |
 | `vaultMcp.image.tag`                 | `latest`                         | vault-mcp container image tag                         |
 | `vaultMcp.port`                      | `8000`                           | MCP server listen port                                |
 | `persistence.size`                   | `5Gi`                            | PVC size for vault storage                            |
@@ -110,6 +120,7 @@ A Helm post-install and post-upgrade hook will automatically register the server
 | `gateway.image.repository`           | `ghcr.io/ibm/mcp-context-forge`  | Gateway registration init container image repository  |
 | `gateway.image.tag`                  | `v1.0.0-RC1`                     | Gateway registration init container image tag         |
 | `gateway.secret.name`                | `context-forge-gateway`          | Secret name for gateway credentials                   |
+| `secrets.obsidian.name`              | `obsidian`                       | 1Password item name for the Kubernetes secret         |
 | `secrets.obsidian.itemPath`          | `""`                             | 1Password item path for Obsidian/GitHub credentials   |
 
 ### Resource Defaults
