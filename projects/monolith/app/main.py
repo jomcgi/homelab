@@ -199,10 +199,7 @@ _tracer_provider = TracerProvider(
 _tracer_provider.add_span_processor(
     BatchSpanProcessor(
         OTLPSpanExporter(
-            endpoint=os.environ.get(
-                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
-                "http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318/v1/traces",
-            ),
+            endpoint=os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", ""),
         )
     )
 )

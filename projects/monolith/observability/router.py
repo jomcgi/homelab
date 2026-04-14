@@ -151,10 +151,7 @@ async def _query_edge(client: ClickHouseClient, edge: EdgeConfig) -> dict:
 async def build_topology() -> dict:
     """Execute all queries and build the full topology response."""
     cfg = TOPOLOGY
-    ch_url = os.environ.get(
-        "CLICKHOUSE_URL",
-        "http://chi-signoz-clickhouse-cluster-0-0.signoz.svc.cluster.local:8123",
-    )
+    ch_url = os.environ.get("CLICKHOUSE_URL", "")
     client = ClickHouseClient(
         base_url=ch_url,
         user=os.environ.get("CLICKHOUSE_USER", ""),
