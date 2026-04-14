@@ -22,7 +22,10 @@ def bad_os_environ_get():
 
 def bad_os_environ_get_inline():
     # ruleid: no-hardcoded-k8s-service-url
-    url = os.environ.get("OTEL_ENDPOINT", "http://signoz-otel-agent.signoz.svc.cluster.local:4318/v1/traces")
+    url = os.environ.get(
+        "OTEL_ENDPOINT",
+        "http://signoz-otel-agent.signoz.svc.cluster.local:4318/v1/traces",
+    )
     return url
 
 
