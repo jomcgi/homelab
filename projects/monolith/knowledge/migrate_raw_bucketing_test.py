@@ -5,10 +5,16 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy.exc import IntegrityError as SAIntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
-from knowledge.migrate_raw_bucketing import main, run_migration
+from knowledge.migrate_raw_bucketing import (
+    _grandfather_atoms,
+    _grandfather_raws,
+    main,
+    run_migration,
+)
 from knowledge.models import AtomRawProvenance, Note, RawInput
 
 
@@ -250,3 +256,130 @@ class TestMain:
         # Grandfathered file should exist under _raw/grandfathered/.
         gf_files = list((tmp_path / "_raw" / "grandfathered").glob("*.md"))
         assert len(gf_files) == 1
+
+
+class TestSavepointRollback:
+    """Verify that savepoint-wrapped inserts roll back individually on failure.
+
+    commit c0158741 wrapped each session.add() group inside begin_nested() so
+    that a failure on one file/atom leaves previously-processed rows intact and
+    the outer transaction still committable.  These tests exercise that contract
+    directly against the two grandfathering helpers.
+    """
+
+    def test_grandfather_raws_partial_failure_preserves_first_file(
+        self, tmp_path, session
+    ):
+        """flush() raising IntegrityError on the 2nd file rolls back only that savepoint.
+
+        The first file's RawInput + Note + AtomRawProvenance rows must survive
+        in the session, and the session must remain committable after the error.
+        """
+        # Two files sorted alphabetically so processing order is deterministic.
+        _write(
+            tmp_path / "_deleted_with_ttl" / "aaa.md",
+            "---\ntitle: AAA\n---\nBody A.",
+        )
+        _write(
+            tmp_path / "_deleted_with_ttl" / "bbb.md",
+            "---\ntitle: BBB\n---\nBody B.",
+        )
+
+        # Count calls to session.flush(); raise on the second invocation so the
+        # first file's savepoint commits cleanly and the second one rolls back.
+        original_flush = session.flush
+        flush_call_count = 0
+
+        def failing_flush(*args, **kwargs):
+            nonlocal flush_call_count
+            flush_call_count += 1
+            if flush_call_count >= 2:
+                raise SAIntegrityError(
+                    "mock duplicate", {}, Exception("unique constraint violated")
+                )
+            return original_flush(*args, **kwargs)
+
+        with patch.object(session, "flush", side_effect=failing_flush):
+            with pytest.raises(SAIntegrityError):
+                _grandfather_raws(tmp_path, session)
+
+        # The outer transaction must still be committable after savepoint rollback.
+        session.commit()
+
+        # Exactly one RawInput row (for the first file).
+        raws = session.exec(select(RawInput)).all()
+        assert len(raws) == 1, f"expected 1 RawInput, got {len(raws)}"
+
+        # Exactly one mirror Note of type "raw".
+        notes = session.exec(select(Note).where(Note.type == "raw")).all()
+        assert len(notes) == 1, f"expected 1 raw Note, got {len(notes)}"
+
+        # Exactly one raw-sentinel AtomRawProvenance (raw_fk set, atom_fk None).
+        sentinels = session.exec(
+            select(AtomRawProvenance).where(
+                AtomRawProvenance.gardener_version == "pre-migration",
+                AtomRawProvenance.atom_fk.is_(None),
+            )
+        ).all()
+        assert len(sentinels) == 1, f"expected 1 sentinel, got {len(sentinels)}"
+        assert sentinels[0].raw_fk == raws[0].id
+
+    def test_grandfather_atoms_partial_failure_preserves_first_atom(
+        self, tmp_path, session
+    ):
+        """session.add() raising IntegrityError on the 2nd atom rolls back only that savepoint.
+
+        The first atom's AtomRawProvenance row must survive and the session
+        must remain committable after the error.
+        """
+        # Pre-seed two atoms.  IDs are assigned in insertion order so atom1 is
+        # processed first by _grandfather_atoms (SQLite returns rows in rowid
+        # order without an ORDER BY).
+        atom1 = Note(
+            note_id="atom-save-1",
+            path="atoms/save-1.md",
+            title="Save1",
+            content_hash="h1",
+            type="atom",
+        )
+        atom2 = Note(
+            note_id="atom-save-2",
+            path="atoms/save-2.md",
+            title="Save2",
+            content_hash="h2",
+            type="atom",
+        )
+        session.add(atom1)
+        session.add(atom2)
+        session.commit()
+        session.refresh(atom1)
+        session.refresh(atom2)
+
+        # Count session.add() calls for AtomRawProvenance objects; raise on the
+        # second one to trigger savepoint rollback for the second atom.
+        original_add = session.add
+        prov_add_count = 0
+
+        def failing_add(obj):
+            nonlocal prov_add_count
+            if isinstance(obj, AtomRawProvenance):
+                prov_add_count += 1
+                if prov_add_count >= 2:
+                    raise SAIntegrityError(
+                        "mock duplicate", {}, Exception("unique constraint violated")
+                    )
+            return original_add(obj)
+
+        with patch.object(session, "add", side_effect=failing_add):
+            with pytest.raises(SAIntegrityError):
+                _grandfather_atoms(session)
+
+        # The outer transaction must still be committable after savepoint rollback.
+        session.commit()
+
+        # Exactly one AtomRawProvenance row (for the first atom processed).
+        provs = session.exec(select(AtomRawProvenance)).all()
+        assert len(provs) == 1, f"expected 1 provenance row, got {len(provs)}"
+        assert provs[0].atom_fk is not None, "provenance row must link to an atom"
+        assert provs[0].raw_fk is None, "atom sentinel must not have a raw_fk"
+        assert provs[0].gardener_version == "pre-migration"
