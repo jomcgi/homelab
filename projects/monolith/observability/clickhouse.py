@@ -12,7 +12,7 @@ class ClickHouseClient:
 
     def __init__(
         self,
-        base_url: str = "http://chi-signoz-clickhouse-cluster-0-0.signoz.svc.cluster.local:8123",
+        base_url: str = "",
         user: str = "",
         password: str = "",
         transport: httpx.AsyncBaseTransport | None = None,
