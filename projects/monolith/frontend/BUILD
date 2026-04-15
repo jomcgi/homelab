@@ -33,6 +33,8 @@ js_library(
         ":node_modules/roughjs",
         # DAG layout engine
         ":node_modules/@dagrejs/dagre",
+        # Runtime markdown rendering
+        ":node_modules/marked",
         # OpenTelemetry browser tracing
         ":node_modules/@opentelemetry/api",
         ":node_modules/@opentelemetry/sdk-trace-web",
