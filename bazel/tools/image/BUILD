@@ -126,10 +126,6 @@ WRAPPER
 py_venv_binary(
     name = "python_deps",
     main = "python_deps.py",
-    deps = [
-        "@pip//httpx",
-        "@pip//typer",
-    ],
 )
 
 # Per-platform Python runtime + pip deps tars.

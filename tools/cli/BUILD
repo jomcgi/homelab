@@ -1,4 +1,7 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
+load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 # Expose source files for the tools image genrule (//bazel/tools/image:homelab_cli_tar).
 exports_files(
@@ -11,9 +14,6 @@ exports_files(
     ],
     visibility = ["//bazel/tools/image:__pkg__"],
 )
-load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
-load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 py_library(
     name = "cli",
