@@ -2307,6 +2307,18 @@ py_test(
 )
 
 py_test(
+    name = "explorer_test",
+    srcs = ["chat/explorer_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//anyio",
+        "@pip//pydantic_ai_slim",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "knowledge_ingest_queue_router_test",
     srcs = ["knowledge/ingest_queue_router_test.py"],
     imports = ["."],
