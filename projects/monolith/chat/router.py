@@ -1,11 +1,17 @@
-"""Chat API routes -- backfill endpoint."""
+"""Chat API routes -- backfill and explore endpoints."""
 
 import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from chat.backfill import run_backfill
+from chat.explorer import ExplorerDeps, create_explorer_agent
+from chat.sse import SSEEmitter
+from knowledge.store import KnowledgeStore
+from shared.embedding import EmbeddingClient
 
 logger = logging.getLogger(__name__)
 
@@ -36,3 +42,60 @@ async def backfill(request: Request):
 
     channels = [c for g in bot.guilds for c in g.text_channels]
     return {"status": "started", "channels": len(channels)}
+
+
+class ExploreRequest(BaseModel):
+    message: str = Field(min_length=1)
+    history: list[dict] = Field(default_factory=list)
+
+
+_explorer_agent = None
+
+
+def get_explorer_agent():
+    global _explorer_agent
+    if _explorer_agent is None:
+        _explorer_agent = create_explorer_agent()
+    return _explorer_agent
+
+
+@router.post("/explore")
+async def explore(body: ExploreRequest, request: Request):
+    from app.db import get_session
+
+    session = next(get_session())
+    emitter = SSEEmitter()
+    agent = get_explorer_agent()
+
+    deps = ExplorerDeps(
+        store=KnowledgeStore(session),
+        embed_client=EmbeddingClient(),
+        emitter=emitter,
+    )
+
+    # Build message list from history
+    messages = []
+    for turn in body.history:
+        messages.append({"role": turn["role"], "content": turn["content"]})
+
+    async def generate():
+        try:
+            async with agent.run_stream(
+                body.message,
+                message_history=messages if messages else None,
+                deps=deps,
+            ) as stream:
+                async for text in stream.stream_text(delta=True):
+                    emitter.emit("text_chunk", {"text": text})
+
+            emitter.emit("done", {})
+            emitter.close()
+        except Exception as e:
+            logger.exception("Explorer stream failed")
+            emitter.emit("error", {"message": str(e)})
+            emitter.close()
+
+        async for event in emitter.stream():
+            yield event
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
