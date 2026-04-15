@@ -1,7 +1,6 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
 
-# gazelle:exclude python_deps.py
 
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
@@ -126,6 +125,10 @@ WRAPPER
 py_venv_binary(
     name = "python_deps",
     main = "python_deps.py",
+    deps = [
+        "@pip//httpx",
+        "@pip//typer",
+    ],
 )
 
 # Per-platform Python runtime + pip deps tars.
