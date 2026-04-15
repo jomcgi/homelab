@@ -12,6 +12,21 @@
   let selectedNode = $state(null);
   let drawerNote = $state(null);
   let drawerLoading = $state(false);
+  let isDark = $state(false);
+
+  $effect(() => {
+    isDark = localStorage.getItem("theme") === "dark";
+  });
+
+  function toggleTheme() {
+    isDark = !isDark;
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", isDark);
+  }
+
+  $effect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+  });
 
   const graphState = createGraphState();
   let layoutResult = $state({ nodes: [], edges: [], nodeMap: {} });
@@ -316,6 +331,9 @@
   <header class="explorer-header">
     <span class="header-title">KNOWLEDGE EXPLORER</span>
     <span class="header-sub">powered by gemma-4</span>
+    <button class="theme-toggle" onclick={toggleTheme}>
+      {isDark ? "LIGHT" : "DARK"}
+    </button>
   </header>
 
   <div class="chat-card">
@@ -710,5 +728,25 @@
     padding: 2rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+  .theme-toggle {
+    margin-left: auto;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    font-family: monospace;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+  }
+  :global(.dark) .explorer {
+    background: #1a1a1a;
+  }
+  :global(.dark) .graph-rule {
+    border-color: #3a3530;
+  }
+  :global(.dark) .graph-empty {
+    color: #8a8070;
   }
 </style>
