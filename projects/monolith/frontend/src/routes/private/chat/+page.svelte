@@ -1,9 +1,32 @@
 <script>
+  import rough from "roughjs";
+  import { createGraphState } from "./graph-layout.js";
+
   let messages = $state([]);
   let graphEvents = $state([]);
   let inputText = $state("");
   let isStreaming = $state(false);
   let chatLog;
+
+  const graphState = createGraphState();
+  let layoutResult = $state({ nodes: [], edges: [], nodeMap: {} });
+  let svgEl;
+  let processedCount = $state(0);
+
+  const TYPE_COLORS = {
+    note: { fill: "#dbeafe", border: "#3b82f6", pencil: "#93c5fd" },
+    paper: { fill: "#dcfce7", border: "#22c55e", pencil: "#86efac" },
+    article: { fill: "#fef3c7", border: "#f59e0b", pencil: "#fcd34d" },
+    recipe: { fill: "#ffe4e6", border: "#f43f5e", pencil: "#fda4af" },
+  };
+
+  /** Remove all child nodes from an element. */
+  function clearChildren(el) {
+    if (!el) return;
+    while (el.firstChild) {
+      el.removeChild(el.firstChild);
+    }
+  }
 
   function scrollToBottom() {
     if (chatLog) {
@@ -86,6 +109,151 @@
       sendMessage();
     }
   }
+
+  // Process new graph events into layout (declared before drawing effect)
+  $effect(() => {
+    if (graphEvents.length <= processedCount) return;
+
+    for (let i = processedCount; i < graphEvents.length; i++) {
+      const evt = graphEvents[i];
+      if (evt.type === "node_discovered") {
+        graphState.addNode(evt.data);
+        for (const edge of evt.data.edges || []) {
+          graphState.addEdge(
+            evt.data.note_id,
+            edge.target_id,
+            edge.edge_type || "link",
+          );
+        }
+      } else if (evt.type === "edge_traversed") {
+        graphState.addEdge(
+          evt.data.from_id,
+          evt.data.to_id,
+          evt.data.edge_type,
+        );
+      } else if (evt.type === "node_discarded") {
+        graphState.discardNode(evt.data.note_id);
+      }
+    }
+    processedCount = graphEvents.length;
+
+    layoutResult = graphState.layout();
+  });
+
+  // Draw rough.js elements when layout changes
+  $effect(() => {
+    if (!svgEl || layoutResult.nodes.length === 0) return;
+    const rc = rough.svg(svgEl);
+
+    const nodeG = svgEl.querySelector(".graph-nodes");
+    const edgeG = svgEl.querySelector(".graph-edges");
+    const discardG = svgEl.querySelector(".graph-discards");
+    clearChildren(nodeG);
+    clearChildren(edgeG);
+    clearChildren(discardG);
+
+    // Compute viewBox to fit all nodes
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const n of layoutResult.nodes) {
+      minX = Math.min(minX, n.x - n.hw - 10);
+      maxX = Math.max(maxX, n.x + n.hw + 10);
+      minY = Math.min(minY, n.y - 21);
+      maxY = Math.max(maxY, n.y + 21);
+    }
+    const pad = 40;
+    svgEl.setAttribute(
+      "viewBox",
+      `${minX - pad} ${minY - pad} ${maxX - minX + pad * 2} ${maxY - minY + pad * 2}`,
+    );
+
+    // Draw edges
+    for (const edge of layoutResult.edges) {
+      const from = layoutResult.nodeMap[edge.from];
+      const to = layoutResult.nodeMap[edge.to];
+      if (!from?.x || !to?.x) continue;
+
+      const line = rc.line(from.x, from.y, to.x, to.y, {
+        stroke: "#8a8070",
+        strokeWidth: 1.5,
+        roughness: 0.8,
+      });
+      edgeG.appendChild(line);
+
+      const midX = (from.x + to.x) / 2;
+      const midY = (from.y + to.y) / 2;
+      const label = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "text",
+      );
+      label.setAttribute("x", midX);
+      label.setAttribute("y", midY - 6);
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("class", "edge-label");
+      label.textContent = edge.type || "";
+      edgeG.appendChild(label);
+    }
+
+    // Draw nodes
+    for (const node of layoutResult.nodes) {
+      const colors = TYPE_COLORS[node.type] || TYPE_COLORS.note;
+      const w = node.hw * 2 + 12;
+      const h = 42;
+
+      const rect = rc.rectangle(node.x - w / 2, node.y - h / 2, w, h, {
+        fill: node.discarded ? "#e5e5e5" : colors.fill,
+        stroke: node.discarded ? "#999" : colors.border,
+        strokeWidth: 2,
+        roughness: 1,
+        fillStyle: "solid",
+      });
+
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      if (node.isNew) {
+        g.classList.add("node-enter");
+      }
+      g.appendChild(rect);
+
+      const text = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "text",
+      );
+      text.setAttribute("x", node.x);
+      text.setAttribute("y", node.y + 4);
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute(
+        "class",
+        `node-label${node.discarded ? " node-label--discarded" : ""}`,
+      );
+      text.textContent = node.label;
+      g.appendChild(text);
+
+      nodeG.appendChild(g);
+
+      // Discard strikethrough
+      if (node.discarded) {
+        const x1 = node.x - w / 2 + 4;
+        const y1 = node.y - h / 2 + 4;
+        const x2 = node.x + w / 2 - 4;
+        const y2 = node.y + h / 2 - 4;
+
+        const strike1 = rc.line(x1, y1, x2, y2, {
+          stroke: "#dc2626",
+          strokeWidth: 2.5,
+          roughness: 1.5,
+        });
+        const strike2 = rc.line(x2, y1, x1, y2, {
+          stroke: "#dc2626",
+          strokeWidth: 2.5,
+          roughness: 1.5,
+        });
+        discardG.appendChild(strike1);
+        discardG.appendChild(strike2);
+      }
+    }
+  });
 </script>
 
 <svelte:head>
@@ -130,18 +298,14 @@
   <hr class="graph-rule" />
 
   <div class="graph-area">
-    {#if graphEvents.length === 0 && messages.length === 0}
+    {#if graphState.getNodeCount() === 0}
       <p class="graph-empty">Ask a question to start exploring</p>
-    {:else if graphEvents.length > 0}
-      <p class="graph-empty">
-        {graphEvents.filter((e) => e.type === "node_discovered").length} nodes discovered
-        &middot;
-        {graphEvents.filter((e) => e.type === "edge_traversed").length} edges traversed
-        {#if graphEvents.some((e) => e.type === "node_discarded")}
-          &middot;
-          {graphEvents.filter((e) => e.type === "node_discarded").length} discarded
-        {/if}
-      </p>
+    {:else}
+      <svg bind:this={svgEl} class="graph-svg" xmlns="http://www.w3.org/2000/svg">
+        <g class="graph-edges"></g>
+        <g class="graph-nodes"></g>
+        <g class="graph-discards"></g>
+      </svg>
     {/if}
   </div>
 </div>
@@ -277,5 +441,42 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-size: 0.85em;
+  }
+  .graph-svg {
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+  }
+  .node-label {
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 600;
+    fill: #1a1a1a;
+    pointer-events: none;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .node-label--discarded {
+    text-decoration: line-through;
+    opacity: 0.5;
+  }
+  .edge-label {
+    font-family: monospace;
+    font-size: 9px;
+    fill: #8a8070;
+    pointer-events: none;
+  }
+  .node-enter {
+    animation: fadeIn 400ms ease-out;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 </style>
