@@ -1,0 +1,27 @@
+rules:
+  - id: no-hardcoded-k8s-url-in-helm-env
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      Hardcoded Kubernetes in-cluster service URL in a Helm template env var
+      value. When a Helm release is renamed the service DNS prefix changes —
+      hardcoded .svc.cluster.local URLs silently break. Inject the URL via
+      values.yaml and reference it with {{ .Values.serviceUrl | quote }} so
+      operators can override it without touching the chart template.
+    metadata:
+      category: best-practices
+      subcategory: helm
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      technology: [helm, kubernetes]
+    paths:
+      include:
+        - "**/chart/templates/**"
+    patterns:
+      - pattern: |
+          - name: $NAME
+            value: $URL
+      - metavariable-regex:
+          metavariable: $URL
+          regex: '.*\.svc\.cluster\.local.*'
