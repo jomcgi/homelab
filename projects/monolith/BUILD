@@ -2297,6 +2297,16 @@ py_test(
 )
 
 py_test(
+    name = "sse_test",
+    srcs = ["chat/sse_test.py"],
+    imports = ["."],
+    deps = [
+        "@pip//anyio",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "knowledge_ingest_queue_router_test",
     srcs = ["knowledge/ingest_queue_router_test.py"],
     imports = ["."],
