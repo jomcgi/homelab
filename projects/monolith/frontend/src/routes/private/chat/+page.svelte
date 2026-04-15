@@ -1,5 +1,6 @@
 <script>
   import rough from "roughjs";
+  import { marked } from "marked";
   import { createGraphState } from "./graph-layout.js";
 
   let messages = $state([]);
@@ -9,6 +10,8 @@
   let chatLog;
   let hoveredNode = $state(null);
   let selectedNode = $state(null);
+  let drawerNote = $state(null);
+  let drawerLoading = $state(false);
 
   const graphState = createGraphState();
   let layoutResult = $state({ nodes: [], edges: [], nodeMap: {} });
@@ -111,6 +114,31 @@
       sendMessage();
     }
   }
+
+  function onGlobalKeydown(e) {
+    if (e.key === "Escape" && selectedNode) {
+      selectedNode = null;
+    }
+  }
+
+  // Fetch note content when a node is selected
+  $effect(() => {
+    if (!selectedNode) {
+      drawerNote = null;
+      return;
+    }
+    drawerLoading = true;
+    fetch(`/private/chat?note_id=${encodeURIComponent(selectedNode)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((note) => {
+        drawerNote = note;
+        drawerLoading = false;
+      })
+      .catch(() => {
+        drawerNote = null;
+        drawerLoading = false;
+      });
+  });
 
   // Process new graph events into layout (declared before drawing effect)
   $effect(() => {
@@ -278,6 +306,8 @@
   });
 </script>
 
+<svelte:window onkeydown={onGlobalKeydown} />
+
 <svelte:head>
   <title>Knowledge Explorer</title>
 </svelte:head>
@@ -350,6 +380,45 @@
       </svg>
     {/if}
   </div>
+
+  {#if selectedNode}
+    <div
+      class="note-drawer"
+      role="complementary"
+      aria-label="Note details"
+    >
+      <button class="drawer-close" onclick={() => (selectedNode = null)}>
+        &times;
+      </button>
+      {#if drawerLoading}
+        <p class="drawer-loading">Loading...</p>
+      {:else if drawerNote}
+        <h2 class="drawer-title">{drawerNote.title}</h2>
+        <div class="drawer-meta">
+          <span class="drawer-type">{drawerNote.type}</span>
+          {#each drawerNote.tags || [] as tag}
+            <span class="drawer-tag">{tag}</span>
+          {/each}
+        </div>
+        <div class="drawer-content">
+          {@html marked(drawerNote.content || "")}
+        </div>
+        {#if drawerNote.edges?.length > 0}
+          <div class="drawer-edges">
+            <h3 class="drawer-edges-title">EDGES</h3>
+            {#each drawerNote.edges as edge}
+              <div class="drawer-edge">
+                <span class="drawer-edge-type">{edge.edge_type || edge.kind || "link"}</span>
+                <span class="drawer-edge-target">{edge.target_title || edge.target_id}</span>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      {:else}
+        <p class="drawer-loading">Note not found</p>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -520,5 +589,126 @@
       opacity: 1;
       transform: scale(1);
     }
+  }
+  .note-drawer {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 420px;
+    max-width: 90vw;
+    background: #f5f0e8;
+    border-left: 2px solid #1a1a1a;
+    overflow-y: auto;
+    padding: 1.5rem;
+    font-family: monospace;
+    z-index: 100;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+    animation: slideIn 200ms ease-out;
+  }
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  .drawer-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    font-family: monospace;
+    line-height: 1;
+  }
+  .drawer-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.75rem 0;
+  }
+  .drawer-meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .drawer-type {
+    background: #1a1a1a;
+    color: #fff;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .drawer-tag {
+    background: #e5e0d8;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  .drawer-content {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    border-top: 1px solid #c0b8a8;
+    padding-top: 1rem;
+  }
+  .drawer-content :global(h1),
+  .drawer-content :global(h2),
+  .drawer-content :global(h3) {
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 1rem 0 0.5rem 0;
+  }
+  .drawer-content :global(p) {
+    margin: 0.5rem 0;
+  }
+  .drawer-content :global(code) {
+    background: #e5e0d8;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.8rem;
+  }
+  .drawer-content :global(pre) {
+    background: #1a1a1a;
+    color: #f5f0e8;
+    padding: 0.75rem;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    margin: 0.5rem 0;
+  }
+  .drawer-edges {
+    border-top: 1px solid #c0b8a8;
+    padding-top: 1rem;
+    margin-top: 1rem;
+  }
+  .drawer-edges-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.5rem 0;
+    opacity: 0.5;
+  }
+  .drawer-edge {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.25rem 0;
+    font-size: 0.8rem;
+  }
+  .drawer-edge-type {
+    opacity: 0.5;
+    min-width: 80px;
+  }
+  .drawer-loading {
+    text-align: center;
+    opacity: 0.4;
+    padding: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 </style>
