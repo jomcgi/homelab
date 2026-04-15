@@ -126,7 +126,8 @@ WRAPPER
 py_venv_binary(
     name = "python_deps",
     main = "python_deps.py",
-    deps = [  # keep
+    deps = [
+        # keep
         "@pip//httpx",  # keep
         "@pip//typer",  # keep
     ],
