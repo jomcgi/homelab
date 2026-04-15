@@ -2301,6 +2301,7 @@ py_test(
     srcs = ["chat/sse_test.py"],
     imports = ["."],
     deps = [
+        ":monolith_backend",
         "@pip//anyio",
         "@pip//pytest",
     ],
