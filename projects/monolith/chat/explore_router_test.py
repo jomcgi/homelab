@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
-from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.function import DeltaToolCall, DeltaToolCalls, FunctionModel
 
 from app.main import app
 from chat.explorer import create_explorer_agent
@@ -50,56 +50,53 @@ MOCK_NOTE = {
 
 
 # ---------------------------------------------------------------------------
-# FunctionModel — scripts the tool call sequence
+# Scripted tool-call sequence for both function and stream_function
 # ---------------------------------------------------------------------------
 
+_TOOL_STEPS: list[tuple[str, dict, str]] = [
+    ("search_kg", {"query": "kubernetes networking"}, "c1"),
+    ("expand_node", {"note_id": "note-1"}, "c2"),
+    ("discard_node", {"note_id": "note-2", "reason": "not relevant to query"}, "c3"),
+]
 
-def _scripted_model(messages, info):
-    """search_kg -> expand_node -> discard_node -> text answer."""
-    tool_returns = [
-        part
+_FINAL_TEXT = "Kubernetes networking uses CNI plugins and service meshes."
+
+
+def _count_tool_returns(messages) -> int:
+    return sum(
+        1
         for msg in messages
         if hasattr(msg, "parts")
         for part in msg.parts
         if isinstance(part, ToolReturnPart)
-    ]
+    )
 
-    if len(tool_returns) == 0:
+
+def _scripted_model(messages, info):
+    """Non-streaming: search_kg -> expand_node -> discard_node -> text."""
+    n = _count_tool_returns(messages)
+    if n < len(_TOOL_STEPS):
+        name, args, cid = _TOOL_STEPS[n]
         return ModelResponse(
-            parts=[
-                ToolCallPart(
-                    tool_name="search_kg",
-                    args={"query": "kubernetes networking"},
-                    tool_call_id="c1",
-                )
-            ]
+            parts=[ToolCallPart(tool_name=name, args=args, tool_call_id=cid)]
         )
-    elif len(tool_returns) == 1:
-        return ModelResponse(
-            parts=[
-                ToolCallPart(
-                    tool_name="expand_node",
-                    args={"note_id": "note-1"},
-                    tool_call_id="c2",
-                )
-            ]
-        )
-    elif len(tool_returns) == 2:
-        return ModelResponse(
-            parts=[
-                ToolCallPart(
-                    tool_name="discard_node",
-                    args={"note_id": "note-2", "reason": "not relevant to query"},
-                    tool_call_id="c3",
-                )
-            ]
-        )
+    return ModelResponse(parts=[TextPart(_FINAL_TEXT)])
+
+
+async def _scripted_stream(messages, info):
+    """Streaming: yields DeltaToolCalls for tool steps, str for text step."""
+    n = _count_tool_returns(messages)
+    if n < len(_TOOL_STEPS):
+        name, args, cid = _TOOL_STEPS[n]
+        yield {
+            0: DeltaToolCall(
+                name=name,
+                json_args=json.dumps(args),
+                tool_call_id=cid,
+            )
+        }
     else:
-        return ModelResponse(
-            parts=[
-                TextPart("Kubernetes networking uses CNI plugins and service meshes.")
-            ]
-        )
+        yield _FINAL_TEXT
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +148,9 @@ def client(mock_store, mock_embed_client):
         patch("chat.router.KnowledgeStore", return_value=mock_store),
         patch("chat.router.EmbeddingClient", return_value=mock_embed_client),
         patch("app.db.get_session", _mock_get_session),
-        agent.override(model=FunctionModel(_scripted_model)),
+        agent.override(
+            model=FunctionModel(_scripted_model, stream_function=_scripted_stream)
+        ),
     ):
         yield TestClient(app)
 
