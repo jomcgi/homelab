@@ -3,6 +3,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//projects/monolith/frontend:vite/package_json.bzl", vite_bin = "bin")
+load("@npm//projects/monolith/frontend:vitest/package_json.bzl", vitest_bin = "bin")
 load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
 npm_link_all_packages(name = "node_modules")
@@ -17,6 +18,9 @@ js_library(
             "static/**/*",
         ],
         allow_empty = True,
+        exclude = [
+            "src/**/*.test.js",
+        ],
     ) + [
         "package.json",
         "svelte.config.js",
@@ -78,6 +82,32 @@ genrule(
         chown -R 65532:65532 tmp/app 2>/dev/null || true
         tar -C tmp --owner=65532 --group=65532 -cf $@ .
     """,
+)
+
+# Test library
+js_library(
+    name = "test_lib",
+    srcs = glob(
+        ["src/**/*.test.js"],
+        allow_empty = True,
+    ) + [
+        "vitest.config.js",
+    ],
+    deps = [
+        ":node_modules/vitest",
+        ":src",
+    ],
+)
+
+# Run vitest tests
+vitest_bin.vitest_test(
+    name = "test",
+    args = ["run"],
+    chdir = package_name(),
+    data = [
+        ":src",
+        ":test_lib",
+    ],
 )
 
 apko_image(
