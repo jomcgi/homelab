@@ -106,11 +106,14 @@ genrule(
         cp $(location //tools/cli:knowledge_cmd.py) "$$DEST/tools/cli/knowledge_cmd.py"
         cp $(location //tools/cli:main.py) "$$DEST/tools/cli/main.py"
         cp $(location //tools/cli:output.py) "$$DEST/tools/cli/output.py"
-        # Wrapper script
+        # Wrapper script — uses the vendored venv Python so pip packages resolve
         mkdir -p "$$WORK/usr/bin"
         cat > "$$WORK/usr/bin/homelab" << 'WRAPPER'
 #!/usr/bin/env bash
-exec python3 -m tools.cli.main "$$@"
+SCRIPT_DIR="$$(cd "$$(dirname "$$0")/../.." && pwd)"
+RUNFILES="$$SCRIPT_DIR/bazel/tools/image/python_deps.runfiles/_main"
+PYTHON="$$RUNFILES/bazel/tools/image/.python_deps/bin/python3"
+exec env PYTHONPATH="$$RUNFILES" "$$PYTHON" -m tools.cli.main "$$@"
 WRAPPER
         chmod 755 "$$WORK/usr/bin/homelab"
         tar -cf $@ -C "$$WORK" .
