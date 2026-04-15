@@ -67,6 +67,8 @@ spec:
             {{- end }}
             - name: FRONTEND_HEALTH_URL
               value: "http://localhost:3000/"
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: "http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318/v1/traces"
             {{- if .Values.chat.enabled }}
             - name: DISCORD_BOT_TOKEN
               valueFrom:
