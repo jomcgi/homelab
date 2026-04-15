@@ -2391,6 +2391,16 @@ py_test(
 )
 
 py_test(
+    name = "observability_topology_config_test",
+    srcs = ["observability/topology_config_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "observability_router_test",
     srcs = ["observability/router_test.py"],
     imports = ["."],
