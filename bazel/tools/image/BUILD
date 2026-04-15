@@ -1,5 +1,6 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
+load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 # gazelle:exclude python_deps.py
 
@@ -241,6 +242,25 @@ semgrep_target_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":python_deps",
+)
+
+# Unit tests verifying that the pip deps declared in python_deps.py are
+# importable and the key public APIs are constructible.
+py_test(
+    name = "python_deps_test",
+    srcs = ["python_deps_test.py"],
+    deps = [
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//typer",
+    ],
+)
+
+semgrep_test(
+    name = "python_deps_test_semgrep_test",
+    srcs = ["python_deps_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+    tags = ["semgrep"],
 )
 
 bzl_library(
