@@ -28,17 +28,11 @@ spec:
       backendRefs:
         - name: {{ include "monolith.fullname" . }}
           port: {{ .Values.service.apiPort | int }}
-    # Everything else — rewrite to /private/
+    # Everything else — SvelteKit reroute hook maps to /private/ internally
     - matches:
         - path:
             type: PathPrefix
             value: /
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: /private/
       backendRefs:
         - name: {{ include "monolith.fullname" . }}
           port: {{ .Values.cfIngress.private.servicePort | int }}
