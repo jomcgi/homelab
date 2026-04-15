@@ -33,7 +33,7 @@ The server also exposes a REST endpoint for programmatic note creation:
 | ------ | ------------ | ------------------------------ | --------------------------- |
 | `POST` | `/api/notes` | `content` (required), `source` | `{"path": "<created-path>"}` (201) |
 
-This creates a timestamped fleeting note under `Fleeting/<YYYY-MM-DD HHMM>.md` with YAML frontmatter (`tags: fleeting`, `source: <value>`). The `source` field defaults to `"api"` and is recorded in both the frontmatter and the git commit message.
+This creates a timestamped fleeting note under `Fleeting/<YYYY-MM-DD HHMM>.md` with YAML frontmatter (`up:`, `tags: fleeting`, `source: <value>`). The `source` field defaults to `"api"` and is recorded in both the frontmatter and the git commit message.
 
 ## Prerequisites
 
@@ -167,4 +167,4 @@ The vault-mcp container needs significant memory because it loads the embedding 
 - **Soft deletes** — `delete_note` moves files to `_archive/` rather than permanently removing them.
 - **Embedding runs on CPU** — no GPU required. The `nomic-embed-text-v1.5` model runs via [FastEmbed](https://github.com/qdrant/fastembed) with single-threaded inference.
 - **Reconciliation** — a background loop re-indexes changed notes every 5 minutes (configurable). It uses SHA256 content hashing to detect changes efficiently.
-- **Git sidecar script** — the deployed script is sourced from `chart/templates/configmap.yaml`, not from `scripts/git-sidecar.sh`. The ConfigMap version includes additional logic not present in the standalone script: credential helper setup (writing `~/.git-credentials` from `$GITHUB_TOKEN`) and exclusion of `.cache/` from git tracking (to prevent OOM from accidentally committing the FastEmbed model cache).
+- **Git sidecar script** — the deployed script is sourced from `chart/templates/configmap.yaml`, not from `scripts/git-sidecar.sh`. The two scripts differ significantly: the ConfigMap version uses `set -e`, configures `git safe.directory` globally, authenticates via the credential helper (writing `~/.git-credentials` from `$GITHUB_TOKEN`), and excludes `.cache/` from git tracking (to prevent OOM from accidentally committing the FastEmbed model cache). The standalone `scripts/git-sidecar.sh` uses a different authentication approach (embedding the token directly in the remote URL) and lacks the `safe.directory` setup and cache exclusion.
