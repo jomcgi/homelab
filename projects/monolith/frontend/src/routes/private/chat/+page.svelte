@@ -7,6 +7,8 @@
   let inputText = $state("");
   let isStreaming = $state(false);
   let chatLog;
+  let hoveredNode = $state(null);
+  let selectedNode = $state(null);
 
   const graphState = createGraphState();
   let layoutResult = $state({ nodes: [], edges: [], nodeMap: {} });
@@ -140,6 +142,17 @@
     layoutResult = graphState.layout();
   });
 
+  /** Return the set of node IDs connected to focusId (including itself). */
+  function getConnectedNodes(focusId) {
+    if (!focusId) return null;
+    const connected = new Set([focusId]);
+    for (const edge of layoutResult.edges) {
+      if (edge.from === focusId) connected.add(edge.to);
+      if (edge.to === focusId) connected.add(edge.from);
+    }
+    return connected;
+  }
+
   // Draw rough.js elements when layout changes
   $effect(() => {
     if (!svgEl || layoutResult.nodes.length === 0) return;
@@ -151,6 +164,9 @@
     clearChildren(nodeG);
     clearChildren(edgeG);
     clearChildren(discardG);
+
+    const focusId = selectedNode || hoveredNode;
+    const connected = getConnectedNodes(focusId);
 
     // Compute viewBox to fit all nodes
     let minX = Infinity,
@@ -175,11 +191,14 @@
       const to = layoutResult.nodeMap[edge.to];
       if (!from?.x || !to?.x) continue;
 
+      const edgeDimmed =
+        connected && !connected.has(edge.from) && !connected.has(edge.to);
       const line = rc.line(from.x, from.y, to.x, to.y, {
         stroke: "#8a8070",
         strokeWidth: 1.5,
         roughness: 0.8,
       });
+      line.style.opacity = edgeDimmed ? "0.25" : "1";
       edgeG.appendChild(line);
 
       const midX = (from.x + to.x) / 2;
@@ -193,6 +212,7 @@
       label.setAttribute("text-anchor", "middle");
       label.setAttribute("class", "edge-label");
       label.textContent = edge.type || "";
+      label.style.opacity = edgeDimmed ? "0.25" : "1";
       edgeG.appendChild(label);
     }
 
@@ -210,7 +230,9 @@
         fillStyle: "solid",
       });
 
+      const dimmed = connected && !connected.has(node.id);
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.style.opacity = dimmed ? "0.25" : "1";
       if (node.isNew) {
         g.classList.add("node-enter");
       }
@@ -305,6 +327,26 @@
         <g class="graph-edges"></g>
         <g class="graph-nodes"></g>
         <g class="graph-discards"></g>
+        <g class="graph-hit-areas">
+          {#each layoutResult.nodes as node}
+            {#if !node.discarded}
+              <rect
+                x={node.x - (node.hw + 6)}
+                y={node.y - 21}
+                width={(node.hw + 6) * 2}
+                height={42}
+                fill="transparent"
+                style="cursor: pointer;"
+                role="button"
+                tabindex="0"
+                aria-label={node.label}
+                onmouseenter={() => (hoveredNode = node.id)}
+                onmouseleave={() => (hoveredNode = null)}
+                onclick={() => (selectedNode = selectedNode === node.id ? null : node.id)}
+              />
+            {/if}
+          {/each}
+        </g>
       </svg>
     {/if}
   </div>
