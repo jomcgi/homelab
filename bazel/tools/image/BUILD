@@ -251,6 +251,7 @@ py_test(
     srcs = ["python_deps_test.py"],
     deps = [
         "@pip//httpx",
+        "@pip//pytest",
         "@pip//typer",
     ],
 )

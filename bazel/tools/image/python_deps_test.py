@@ -11,16 +11,13 @@ declaration drifts out of sync with what is actually needed.
 
 import importlib
 
-
-def test_httpx_importable():
-    """httpx is needed by the homelab CLI (tools/cli/) at runtime."""
-    mod = importlib.import_module("httpx")
-    assert mod is not None
+import pytest
 
 
-def test_typer_importable():
-    """typer is needed by the homelab CLI (tools/cli/main.py) at runtime."""
-    mod = importlib.import_module("typer")
+@pytest.mark.parametrize("module_name", ["httpx", "typer"])
+def test_dep_importable(module_name: str):
+    """Verify that each pip dep declared in python_deps.py is importable at test time."""
+    mod = importlib.import_module(module_name)
     assert mod is not None
 
 
