@@ -1,0 +1,91 @@
+# Tests for no-httproute-rule-without-timeout rule.
+# HTTPRoute rules with backendRefs must declare a timeouts section so that
+# Envoy's default 15-second timeout does not silently drop long-running
+# requests (streaming, uploads, LLM inference, etc.).
+---
+# ruleid: no-httproute-rule-without-timeout
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: my-service
+spec:
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: my-service
+          port: 8080
+
+---
+# ruleid: no-httproute-rule-without-timeout
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-route
+spec:
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: api-service
+          port: 80
+          weight: 100
+
+---
+# ok: no-httproute-rule-without-timeout — timeouts section present after backendRefs
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: my-service-with-timeout
+spec:
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: my-service
+          port: 8080
+      timeouts:
+        request: 30s
+
+---
+# ok: no-httproute-rule-without-timeout — timeout disabled explicitly (0s) for long-running streams
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: streaming-route
+spec:
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /stream
+      backendRefs:
+        - name: streaming-service
+          port: 8080
+      timeouts:
+        request: 0s
+
+---
+# ok: no-httproute-rule-without-timeout — timeouts section present before backendRefs
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: reverse-order-route
+spec:
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /reverse
+      timeouts:
+        request: 60s
+        backendRequest: 55s
+      backendRefs:
+        - name: reverse-service
+          port: 9090
