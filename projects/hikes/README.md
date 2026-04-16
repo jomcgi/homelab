@@ -91,7 +91,7 @@ The frontend reads `public/config.js` (not environment variables):
 
 ## Architecture Notes
 
-- Uses `requests-cache` for HTTP caching during development
+- Uses `requests-cache` for HTTP caching (avoids re-scraping WalkHighlands.co.uk on repeated runs)
 - `scrape_walkhighlands` uses Pydantic models with SQLite persistence via `pydantic-sqlite`; `update_forecast` reads `walks.db` directly via the stdlib `sqlite3` module
 - Retry decorators for network resilience in the scraper
 - Performance logging for scrape operations
