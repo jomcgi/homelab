@@ -120,6 +120,7 @@ A Helm post-install and post-upgrade hook will automatically register the server
 | `gateway.image.repository`           | `ghcr.io/ibm/mcp-context-forge`  | Gateway registration init container image repository  |
 | `gateway.image.tag`                  | `v1.0.0-RC1`                     | Gateway registration init container image tag         |
 | `gateway.secret.name`                | `context-forge-gateway`          | Secret name for gateway credentials                   |
+| `gateway.secret.itemPath`            | `""`                             | 1Password item path for gateway credentials           |
 | `secrets.obsidian.name`              | `obsidian`                       | 1Password item name for the Kubernetes secret         |
 | `secrets.obsidian.itemPath`          | `""`                             | 1Password item path for Obsidian/GitHub credentials   |
 
