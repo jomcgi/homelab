@@ -188,7 +188,7 @@ spec:
             - name: API_BASE
               value: "http://localhost:8000"
             - name: OTEL_COLLECTOR_HTTP_URL
-              value: "http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318"
+              value: {{ .Values.frontend.otelCollectorUrl | quote }}
           livenessProbe:
             tcpSocket:
               port: http

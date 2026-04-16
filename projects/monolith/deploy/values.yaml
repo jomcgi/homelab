@@ -10,6 +10,9 @@ backend:
     limits:
       memory: "512Mi"
 
+frontend:
+  otelCollectorUrl: "http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318"
+
 postgres:
   instances: 1
   storage:
