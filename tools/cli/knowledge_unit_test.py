@@ -67,6 +67,15 @@ class TestClientHelper:
             finally:
                 client.close()
 
+    def test_follow_redirects_is_false(self):
+        """_client() disables automatic redirect following so 3xx responses are surfaced."""
+        with patch("tools.cli.knowledge_cmd.get_cf_token", return_value="test-token"):
+            client = knowledge_cmd._client()
+            try:
+                assert client.follow_redirects is False
+            finally:
+                client.close()
+
 
 # ---------------------------------------------------------------------------
 # Helpers: mock _client() as a context manager
@@ -198,3 +207,120 @@ class TestReplayNon404ErrorHandling:
         assert result.exit_code == 1
         assert "42" in result.output
         assert "not found" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# _request() wrapper
+#
+# _request() calls _client() as a context manager.  On a non-redirect response
+# it returns immediately.  On a 3xx (is_redirect=True) it calls clear_cf_token()
+# and retries with a fresh client.  All kwargs are forwarded to the underlying
+# httpx method.
+# ---------------------------------------------------------------------------
+
+
+def _make_single_response_client(is_redirect: bool = False) -> object:
+    """Return a _client factory whose HTTP methods return one fixed response."""
+    mock_resp = MagicMock()
+    mock_resp.is_redirect = is_redirect
+    mock_client = MagicMock()
+    mock_client.get.return_value = mock_resp
+    mock_client.post.return_value = mock_resp
+
+    @contextmanager
+    def _ctx():
+        yield mock_client
+
+    def _factory():
+        return _ctx()
+
+    return _factory, mock_client, mock_resp
+
+
+def _make_redirect_then_ok_client():
+    """Return a _client factory: first call returns 3xx, second returns 200."""
+    responses = [
+        MagicMock(is_redirect=True),
+        MagicMock(is_redirect=False),
+    ]
+    call_idx = [0]
+
+    def _factory():
+        resp = responses[call_idx[0]]
+        call_idx[0] = min(call_idx[0] + 1, len(responses) - 1)
+        mock_client = MagicMock()
+        mock_client.get.return_value = resp
+        mock_client.post.return_value = resp
+
+        @contextmanager
+        def _ctx():
+            yield mock_client
+
+        return _ctx()
+
+    return _factory, responses
+
+
+class TestRequest:
+    """Tests for _request() — the HTTP wrapper with auto re-auth on 3xx."""
+
+    def test_non_redirect_response_returned_as_is(self):
+        """A 2xx response is returned directly without calling clear_cf_token."""
+        factory, mock_client, mock_resp = _make_single_response_client(is_redirect=False)
+        with (
+            patch("tools.cli.knowledge_cmd._client", factory),
+            patch("tools.cli.knowledge_cmd.clear_cf_token") as mock_clear,
+        ):
+            result = knowledge_cmd._request("get", "/api/knowledge/search")
+
+        assert result is mock_resp
+        mock_clear.assert_not_called()
+
+    def test_redirect_triggers_clear_cf_token(self):
+        """A 3xx response causes clear_cf_token() to be called before retrying."""
+        factory, responses = _make_redirect_then_ok_client()
+        with (
+            patch("tools.cli.knowledge_cmd._client", factory),
+            patch("tools.cli.knowledge_cmd.clear_cf_token") as mock_clear,
+        ):
+            knowledge_cmd._request("get", "/api/knowledge/search")
+
+        mock_clear.assert_called_once()
+
+    def test_redirect_returns_retry_response(self):
+        """After a 3xx, the response from the retry request is returned."""
+        factory, responses = _make_redirect_then_ok_client()
+        with (
+            patch("tools.cli.knowledge_cmd._client", factory),
+            patch("tools.cli.knowledge_cmd.clear_cf_token"),
+        ):
+            result = knowledge_cmd._request("get", "/api/knowledge/search")
+
+        # The second (non-redirect) response should be returned
+        assert result is responses[1]
+
+    def test_kwargs_forwarded_to_client_method(self):
+        """Extra kwargs (e.g. params) are passed through to the underlying httpx method."""
+        factory, mock_client, mock_resp = _make_single_response_client(is_redirect=False)
+        params = {"q": "test query", "limit": 5}
+        with (
+            patch("tools.cli.knowledge_cmd._client", factory),
+            patch("tools.cli.knowledge_cmd.clear_cf_token"),
+        ):
+            knowledge_cmd._request("get", "/api/knowledge/search", params=params)
+
+        mock_client.get.assert_called_once_with("/api/knowledge/search", params=params)
+
+    def test_post_kwargs_forwarded_to_client_method(self):
+        """kwargs are forwarded correctly for POST requests too."""
+        factory, mock_client, mock_resp = _make_single_response_client(is_redirect=False)
+        json_body = {"key": "value"}
+        with (
+            patch("tools.cli.knowledge_cmd._client", factory),
+            patch("tools.cli.knowledge_cmd.clear_cf_token"),
+        ):
+            knowledge_cmd._request("post", "/api/knowledge/dead-letter/1/replay", json=json_body)
+
+        mock_client.post.assert_called_once_with(
+            "/api/knowledge/dead-letter/1/replay", json=json_body
+        )

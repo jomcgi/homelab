@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tools.cli.auth import _read_token, get_cf_token
+from tools.cli.auth import _read_token, clear_cf_token, get_cf_token
 
 
 class TestGetCfToken:
@@ -178,3 +178,62 @@ class TestReadToken:
         with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
             result = _read_token("my.hostname.com")
         assert result is None
+
+
+class TestClearCfToken:
+    """Tests for clear_cf_token() — removes cached CF token files for a hostname."""
+
+    def test_deletes_matching_token_file(self, tmp_path):
+        """Matching token file is removed from CF_TOKEN_DIR."""
+        token_file = tmp_path / "private.jomcgi.dev-token"
+        token_file.write_text("stale-token")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            clear_cf_token()
+        assert not token_file.exists()
+
+    def test_deletes_multiple_matching_files(self, tmp_path):
+        """All files matching the hostname glob are deleted."""
+        file_a = tmp_path / "private.jomcgi.dev-old"
+        file_b = tmp_path / "private.jomcgi.dev-new"
+        file_a.write_text("old-token")
+        file_b.write_text("new-token")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            clear_cf_token()
+        assert not file_a.exists()
+        assert not file_b.exists()
+
+    def test_no_op_when_cf_token_dir_does_not_exist(self, tmp_path):
+        """Does not raise when CF_TOKEN_DIR doesn't exist."""
+        nonexistent = tmp_path / "no-such-dir"
+        with patch("tools.cli.auth.CF_TOKEN_DIR", nonexistent):
+            clear_cf_token()  # must not raise
+
+    def test_no_op_when_no_files_match_hostname(self, tmp_path):
+        """No files are deleted when none match the hostname."""
+        unrelated = tmp_path / "other.example.com-token"
+        unrelated.write_text("unrelated-token")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            clear_cf_token("private.jomcgi.dev")
+        assert unrelated.exists()
+
+    def test_does_not_delete_unrelated_files(self, tmp_path):
+        """Only files containing the hostname are deleted; others remain."""
+        match = tmp_path / "private.jomcgi.dev-token"
+        no_match = tmp_path / "other.example.com-token"
+        match.write_text("my-token")
+        no_match.write_text("other-token")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            clear_cf_token("private.jomcgi.dev")
+        assert not match.exists()
+        assert no_match.exists()
+
+    def test_custom_hostname_deletes_only_matching_files(self, tmp_path):
+        """Custom hostname targets only files containing that hostname."""
+        target = tmp_path / "custom.example.com-access"
+        other = tmp_path / "private.jomcgi.dev-token"
+        target.write_text("custom-token")
+        other.write_text("default-token")
+        with patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path):
+            clear_cf_token("custom.example.com")
+        assert not target.exists()
+        assert other.exists()
