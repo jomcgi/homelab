@@ -170,6 +170,10 @@ app.include_router(chat_router)
 app.include_router(knowledge_router)
 app.include_router(observability_router)
 
+from knowledge.mcp import mcp as knowledge_mcp
+
+app.mount("/mcp", knowledge_mcp.http_app())
+
 
 @app.get("/healthz")
 def healthz():
