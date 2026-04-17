@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -116,7 +114,7 @@ class TestGetNote:
         note_file.parent.mkdir(parents=True)
         note_file.write_text("# Attention\n\nSelf-attention mechanism.")
 
-        monkeypatch.setenv("KNOWLEDGE_VAULT_ROOT", str(vault_dir))
+        monkeypatch.setenv("VAULT_ROOT", str(vault_dir))
 
         mock_session = MagicMock()
         with (
@@ -149,7 +147,7 @@ class TestGetNote:
     async def test_missing_vault_file_returns_error(self, tmp_path, monkeypatch):
         vault_dir = tmp_path / "vault"
         vault_dir.mkdir()
-        monkeypatch.setenv("KNOWLEDGE_VAULT_ROOT", str(vault_dir))
+        monkeypatch.setenv("VAULT_ROOT", str(vault_dir))
 
         mock_session = MagicMock()
         with (
