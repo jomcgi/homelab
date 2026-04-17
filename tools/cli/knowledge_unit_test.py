@@ -266,7 +266,9 @@ class TestRequest:
 
     def test_non_redirect_response_returned_as_is(self):
         """A 2xx response is returned directly without calling clear_cf_token."""
-        factory, mock_client, mock_resp = _make_single_response_client(is_redirect=False)
+        factory, mock_client, mock_resp = _make_single_response_client(
+            is_redirect=False
+        )
         with (
             patch("tools.cli.knowledge_cmd._client", factory),
             patch("tools.cli.knowledge_cmd.clear_cf_token") as mock_clear,
@@ -301,7 +303,9 @@ class TestRequest:
 
     def test_kwargs_forwarded_to_client_method(self):
         """Extra kwargs (e.g. params) are passed through to the underlying httpx method."""
-        factory, mock_client, mock_resp = _make_single_response_client(is_redirect=False)
+        factory, mock_client, mock_resp = _make_single_response_client(
+            is_redirect=False
+        )
         params = {"q": "test query", "limit": 5}
         with (
             patch("tools.cli.knowledge_cmd._client", factory),
@@ -313,13 +317,17 @@ class TestRequest:
 
     def test_post_kwargs_forwarded_to_client_method(self):
         """kwargs are forwarded correctly for POST requests too."""
-        factory, mock_client, mock_resp = _make_single_response_client(is_redirect=False)
+        factory, mock_client, mock_resp = _make_single_response_client(
+            is_redirect=False
+        )
         json_body = {"key": "value"}
         with (
             patch("tools.cli.knowledge_cmd._client", factory),
             patch("tools.cli.knowledge_cmd.clear_cf_token"),
         ):
-            knowledge_cmd._request("post", "/api/knowledge/dead-letter/1/replay", json=json_body)
+            knowledge_cmd._request(
+                "post", "/api/knowledge/dead-letter/1/replay", json=json_body
+            )
 
         mock_client.post.assert_called_once_with(
             "/api/knowledge/dead-letter/1/replay", json=json_body
