@@ -8,7 +8,7 @@ from typing import Annotated, Optional
 import httpx
 import typer
 
-from tools.cli.auth import get_cf_token
+from tools.cli.auth import clear_cf_token, get_cf_token
 from tools.cli.output import compact_line, format_edges, search_line, write_to_tmpfile
 
 API_BASE = "https://private.jomcgi.dev"
@@ -25,8 +25,23 @@ def _client() -> httpx.Client:
     return httpx.Client(
         base_url=API_BASE,
         cookies={"CF_Authorization": token},
+        follow_redirects=False,
         timeout=30.0,
     )
+
+
+def _request(method: str, path: str, **kwargs) -> httpx.Response:
+    """Make a request with automatic re-auth on 3xx (expired CF token)."""
+    with _client() as client:
+        resp = getattr(client, method)(path, **kwargs)
+
+    if resp.is_redirect:
+        typer.echo("Token expired, re-authenticating...", err=True)
+        clear_cf_token()
+        with _client() as client:
+            resp = getattr(client, method)(path, **kwargs)
+
+    return resp
 
 
 @knowledge_app.command()
@@ -45,9 +60,8 @@ def search(
     if type:
         params["type"] = type
 
-    with _client() as client:
-        resp = client.get("/api/knowledge/search", params=params)
-        resp.raise_for_status()
+    resp = _request("get", "/api/knowledge/search", params=params)
+    resp.raise_for_status()
 
     data = resp.json()
     if json_output:
@@ -79,9 +93,8 @@ def note(
     ] = False,
 ) -> None:
     """Fetch a note and write its content to a tmpfile."""
-    with _client() as client:
-        resp = client.get(f"/api/knowledge/notes/{note_id}")
-        resp.raise_for_status()
+    resp = _request("get", f"/api/knowledge/notes/{note_id}")
+    resp.raise_for_status()
 
     data = resp.json()
     if json_output:
@@ -108,9 +121,8 @@ def dead_letters(
     ] = False,
 ) -> None:
     """List raws that exhausted all retry attempts."""
-    with _client() as client:
-        resp = client.get("/api/knowledge/dead-letter")
-        resp.raise_for_status()
+    resp = _request("get", "/api/knowledge/dead-letter")
+    resp.raise_for_status()
 
     data = resp.json()
     if json_output:
@@ -139,9 +151,7 @@ def replay(
     raw_id: Annotated[int, typer.Argument(help="Raw ID to replay")],
 ) -> None:
     """Replay a dead-lettered raw so the gardener retries it."""
-    with _client() as client:
-        resp = client.post(f"/api/knowledge/dead-letter/{raw_id}/replay")
-
+    resp = _request("post", f"/api/knowledge/dead-letter/{raw_id}/replay")
     if resp.status_code == 404:
         typer.echo(f"Raw {raw_id} not found or not dead-lettered.", err=True)
         raise typer.Exit(1)
