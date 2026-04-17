@@ -6,7 +6,9 @@ import httpx
 
 def bad_client_cf_auth_follows_redirects(url: str, token: str):
     # ruleid: httpx-cf-auth-must-disable-redirects
-    client = httpx.Client(base_url=url, cookies={"CF_Authorization": token}, timeout=30.0)
+    client = httpx.Client(
+        base_url=url, cookies={"CF_Authorization": token}, timeout=30.0
+    )
     return client
 
 
@@ -23,5 +25,7 @@ def ok_client_cf_auth_no_redirects(url: str, token: str):
 
 async def ok_async_client_cf_auth_no_redirects(token: str):
     # ok: AsyncClient also safe when follow_redirects=False
-    client = httpx.AsyncClient(cookies={"CF_Authorization": token}, follow_redirects=False)
+    client = httpx.AsyncClient(
+        cookies={"CF_Authorization": token}, follow_redirects=False
+    )
     return client
