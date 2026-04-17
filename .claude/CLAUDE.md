@@ -108,15 +108,23 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 ## Cluster Investigation
 
-Use `kubectl` for cluster reads and `bb` CLI for BuildBuddy CI investigation.
+MCP tools (via Context Forge) and `kubectl` are both available for cluster reads. Use `ToolSearch` with `+kubernetes`, `+argocd`, or `+signoz` to load MCP tools. Tool names below are shortened — actual IDs have the `mcp__claude_ai_Homelab__` prefix (e.g., `mcp__claude_ai_Homelab__kubernetes-mcp-resources-list`).
 
-| Need              | Tool                                                                              |
-| ----------------- | --------------------------------------------------------------------------------- |
-| **K8s resources** | `kubectl get`, `kubectl describe`                                                 |
-| **K8s logs**      | `kubectl logs` (recent), SigNoz (historical)                                      |
-| **K8s metrics**   | `kubectl top`                                                                     |
-| **ArgoCD apps**   | `kubectl get applications -n argocd`                                              |
-| **BuildBuddy CI** | Use `bb` CLI directly (`bb view`, `bb print`, `bb ask`) — see `/buildbuddy` skill |
+| Need                 | Tool                                                                                                      |
+| -------------------- | --------------------------------------------------------------------------------------------------------- |
+| **K8s resources**    | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list`               |
+| **K8s logs**         | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                                             |
+| **K8s metrics**      | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                                     |
+| **ArgoCD apps**      | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application`               |
+| **ArgoCD resources** | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`                |
+| **BuildBuddy CI**    | Use `bb` CLI directly (`bb view`, `bb print`, `bb ask`) — see `/buildbuddy` skill                         |
+| **Logs**             | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`                            |
+| **Traces**           | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`                  |
+| **Metrics**          | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                                 |
+| **Services**         | `signoz-list-services`, `signoz-get-service-top-operations`                                               |
+| **Dashboards**       | `signoz-list-dashboards`, `signoz-get-dashboard`                                                          |
+| **Alerts**           | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                                      |
+| **Agent jobs**       | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job` |
 
 ## Kubernetes Operations (kubectl)
 

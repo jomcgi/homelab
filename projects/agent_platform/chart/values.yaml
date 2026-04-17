@@ -17,6 +17,45 @@ networkPolicy:
   # this range instead of 0.0.0.0/0. Leave empty to allow any destination on
   # ports 443/6443 (less restrictive but works on any cluster).
   apiServerCidr: ""
+  # Context Forge gateway location — used by MCP server registration egress,
+  # MCP server ingress, and sandbox egress NetworkPolicies.
+  # Set to empty/null to disable gateway-related policies.
+  gateway:
+    namespace: mcp
+    podLabels:
+      - mcpcontextforge
+      - mcp-stack-mcpcontextforge
+    ports:
+      - 80
+      - 8000
+
+# ── Subchart: agent-platform-mcp-servers ─────────────────────────────────────
+# Deploys MCP servers with optional protocol translation and gateway registration.
+agent-platform-mcp-servers:
+  enabled: true
+  translate:
+    image:
+      repository: ghcr.io/ibm/mcp-context-forge
+      tag: "v1.0.0-RC1"
+      pullPolicy: IfNotPresent
+  gateway:
+    url: ""
+    secret:
+      name: context-forge-gateway
+      itemPath: ""
+  alertDefaults:
+    evalWindow: "10m0s"
+    frequency: "2m0s"
+    matchType: "5"
+    severity: "critical"
+    channels: []
+  imageUpdater:
+    gitRepository: ""
+    gitBranch: ""
+    gitSecret: ""
+    applicationName: ""
+    writeBackTarget: ""
+  servers: []
 
 # ── Subchart: agent-orchestrator ─────────────────────────────────────────────
 # Orchestrates Goose agent jobs via REST API backed by NATS JetStream.

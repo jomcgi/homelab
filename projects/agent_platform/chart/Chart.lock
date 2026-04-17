@@ -1,4 +1,7 @@
 dependencies:
+- name: agent-platform-mcp-servers
+  repository: file://./mcp-servers
+  version: 0.1.0
 - name: goose-sandboxes
   repository: file://./sandboxes
   version: 0.1.0
@@ -11,5 +14,5 @@ dependencies:
 - name: agent-sandbox
   repository: file://./agent-sandbox
   version: 0.1.0
-digest: sha256:96d4fd37664eb0702beeb0e763d92f9ec5d2b4addebfb54b236c9bfb659ebab1
-generated: "2026-04-16T22:01:47.149642-07:00"
+digest: sha256:7a68befcd1722f095e5306d7409fa044beee22f522462987ac7d9bf457e5675c
+generated: "2026-04-16T22:22:07.655021-07:00"

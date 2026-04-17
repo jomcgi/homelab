@@ -1,0 +1,9 @@
+dependencies:
+- name: mcp-stack
+  repository: oci://ghcr.io/jomcgi/homelab/charts
+  version: 1.0.0-RC-1
+- name: homelab-library
+  repository: file://../../../shared/helm/homelab-library/chart
+  version: 0.4.0
+digest: sha256:0ffe24a4ec303fff74a59711df67c8a48b78dec29214f63cead664d8c310b896
+generated: "2026-03-21T21:23:04.153159-07:00"
