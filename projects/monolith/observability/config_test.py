@@ -10,9 +10,10 @@ class TestTopologyConfig:
         assert TOPOLOGY.cache_ttl == 900
 
     def test_has_groups(self):
-        assert len(TOPOLOGY.groups) == 2
+        assert len(TOPOLOGY.groups) == 3
         ids = [g.id for g in TOPOLOGY.groups]
         assert "monolith" in ids
+        assert "context-forge" in ids
         assert "cluster" in ids
 
     def test_group_children_reference_valid_nodes(self):
@@ -24,7 +25,7 @@ class TestTopologyConfig:
                 )
 
     def test_has_nodes(self):
-        assert len(TOPOLOGY.nodes) == 18
+        assert len(TOPOLOGY.nodes) == 21
 
     def test_external_nodes_have_no_slo(self):
         ext = next(n for n in TOPOLOGY.nodes if n.id == "external")
@@ -39,7 +40,7 @@ class TestTopologyConfig:
                 assert n.slo.window_days == 30
 
     def test_edges(self):
-        assert len(TOPOLOGY.edges) == 12
+        assert len(TOPOLOGY.edges) == 15
 
     def test_edge_references_valid_nodes(self):
         node_ids = {n.id for n in TOPOLOGY.nodes}

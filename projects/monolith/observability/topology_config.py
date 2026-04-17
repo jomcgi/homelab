@@ -410,6 +410,15 @@ TOPOLOGY = TopologyConfig(
             slo=SloConfig(target=SLO_TARGET, window_days=WINDOW_DAYS),
         ),
         GroupConfig(
+            id="context-forge",
+            label="CONTEXT FORGE",
+            tier="critical",
+            ingress=True,
+            description="mcp gateway",
+            children=["k8s-mcp", "argocd-mcp", "signoz-mcp"],
+            slo=SloConfig(target=SLO_TARGET, window_days=WINDOW_DAYS),
+        ),
+        GroupConfig(
             id="cluster",
             label="CLUSTER",
             tier="infra",
@@ -591,6 +600,31 @@ TOPOLOGY = TopologyConfig(
                 ),
             ],
         ),
+        # --- context-forge children ---
+        NodeConfig(
+            id="k8s-mcp",
+            label="K8S",
+            tier="critical",
+            group="context-forge",
+            description="kubernetes mcp server",
+            slo=_slo(_container_ready_query("mcp", "mcp-context-forge")),
+        ),
+        NodeConfig(
+            id="argocd-mcp",
+            label="ARGOCD",
+            tier="critical",
+            group="context-forge",
+            description="argocd mcp server",
+            slo=_slo(_container_ready_query("mcp", "mcp-context-forge")),
+        ),
+        NodeConfig(
+            id="signoz-mcp",
+            label="SIGNOZ",
+            tier="critical",
+            group="context-forge",
+            description="signoz mcp server",
+            slo=_slo(_container_ready_query("mcp", "mcp-context-forge")),
+        ),
         # --- cluster / infra ---
         NodeConfig(
             id="argocd",
@@ -683,5 +717,8 @@ TOPOLOGY = TopologyConfig(
         ),
         EdgeConfig(source="chat", target="discord"),
         EdgeConfig(source="nats", target="agent-platform", bidi=True),
+        EdgeConfig(source="agent-platform", target="k8s-mcp"),
+        EdgeConfig(source="agent-platform", target="argocd-mcp"),
+        EdgeConfig(source="agent-platform", target="signoz-mcp"),
     ],
 )
