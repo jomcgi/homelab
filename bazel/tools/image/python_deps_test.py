@@ -25,7 +25,7 @@ def test_httpx_client_constructible():
     """Sanity-check that httpx.Client can be instantiated (not just imported)."""
     import httpx
 
-    client = httpx.Client()
+    client = httpx.Client(timeout=5.0)
     assert client is not None
     client.close()
 
