@@ -18,3 +18,22 @@ rules:
       impact: HIGH
       technology: [python, httpx]
       description: httpx.AsyncClient missing timeout parameter — will hang forever
+  - id: httpx-client-no-timeout
+    patterns:
+      - pattern: httpx.Client(...)
+      - pattern-not: httpx.Client(..., timeout=..., ...)
+    message: >
+      `httpx.Client()` created without a `timeout=` parameter. Without an
+      explicit timeout the client will hang forever on unresponsive servers,
+      eventually exhausting connection pools.
+      Add `timeout=httpx.Timeout(30.0)` or a suitable value.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: correctness
+      subcategory: networking
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: HIGH
+      technology: [python, httpx]
+      description: httpx.Client missing timeout parameter — will hang forever
