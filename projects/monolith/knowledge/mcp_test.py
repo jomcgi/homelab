@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from knowledge.mcp import get_note, mcp, search_knowledge
+from knowledge.mcp import get_note, search_knowledge
 
 FAKE_EMBEDDING = [0.1] * 1024
 

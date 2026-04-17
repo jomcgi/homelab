@@ -170,9 +170,11 @@ app.include_router(chat_router)
 app.include_router(knowledge_router)
 app.include_router(observability_router)
 
-from knowledge.mcp import mcp as knowledge_mcp
+import knowledge.mcp  # noqa: F401 — registers tools on shared MCP instance
 
-app.mount("/mcp", knowledge_mcp.http_app())
+from app.mcp import mcp as monolith_mcp
+
+app.mount("/mcp", monolith_mcp.http_app())
 
 
 @app.get("/healthz")

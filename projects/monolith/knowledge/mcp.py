@@ -1,7 +1,7 @@
 """MCP tools for knowledge graph search and note retrieval.
 
-Exposes two FastMCP tools that call KnowledgeStore directly (no HTTP
-round-trip). Mounted as a sub-app on the monolith at ``/mcp``.
+Registers ``search_knowledge`` and ``get_note`` on the shared monolith
+MCP instance.  Tools call KnowledgeStore directly (no HTTP round-trip).
 """
 
 from __future__ import annotations
@@ -10,17 +10,15 @@ import logging
 import os
 from pathlib import Path
 
-from fastmcp import FastMCP
 from sqlmodel import Session
 
 from app.db import get_engine
+from app.mcp import mcp
 from knowledge.service import DEFAULT_VAULT_ROOT, VAULT_ROOT_ENV
 from knowledge.store import KnowledgeStore
 from shared.embedding import EmbeddingClient
 
 logger = logging.getLogger(__name__)
-
-mcp = FastMCP("Knowledge")
 
 
 @mcp.tool
