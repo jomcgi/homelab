@@ -68,6 +68,7 @@ py_library(
         "@pip//discord_py",
         "@pip//dulwich",
         "@pip//fastapi",
+        "@pip//fastmcp",
         "@pip//httpx",
         "@pip//icalendar",
         "@pip//lxml_html_clean",  # explicit: overrides.txt strips lxml[html-clean] extra
