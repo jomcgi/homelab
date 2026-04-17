@@ -56,7 +56,6 @@ multirun(
         "//projects/monolith/obsidian-image:image.push",
         "//projects/monolith:image.push",
         "//projects/obsidian_vault/chart:chart.push",
-        "//projects/obsidian_vault/image:image.push",
         "//projects/operators/cloudflare:image.push",
         "//projects/operators/oci-model-cache/helm/oci-model-cache-operator:chart.push",
         "//projects/operators/oci-model-cache:image.push",

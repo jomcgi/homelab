@@ -10,7 +10,7 @@ Hosted at **https://github.com/jomcgi/homelab**. The `gh` CLI is authenticated.
 homelab/
 ├── projects/            # All services, operators, websites — colocated with deploy configs
 │   ├── platform/          # Cluster-critical infra (ArgoCD, Linkerd, SigNoz, etc.)
-│   ├── agent_platform/    # Agent services (Context Forge, MCP servers, orchestrator)
+│   ├── agent_platform/    # Agent services (orchestrator, sandboxes)
 │   ├── {service}/         # Each service has chart/, deploy/, backend/ as needed
 │   │   ├── chart/         # Helm chart (if custom)
 │   │   └── deploy/        # ArgoCD Application, values, kustomization
@@ -108,33 +108,21 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 ## Cluster Investigation
 
-**MCP-first.** PreToolUse hooks enforce using MCP tools (via Context Forge) instead of CLI commands. Use `ToolSearch` with `+kubernetes`, `+argocd`, or `+signoz` to load tools. Tool names below are shortened — actual IDs have the `mcp__claude_ai_Homelab__` prefix (e.g., `mcp__claude_ai_Homelab__kubernetes-mcp-resources-list`).
+Use `kubectl` for cluster reads and `bb` CLI for BuildBuddy CI investigation.
 
-| Need                 | Tool                                                                                                      |
-| -------------------- | --------------------------------------------------------------------------------------------------------- |
-| **K8s resources**    | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list`               |
-| **K8s logs**         | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                                             |
-| **K8s metrics**      | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                                     |
-| **ArgoCD apps**      | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application`               |
-| **ArgoCD resources** | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`                |
-| **BuildBuddy CI**    | Use `bb` CLI directly (`bb view`, `bb print`, `bb ask`) — see `/buildbuddy` skill                         |
-| **Logs**             | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`                            |
-| **Traces**           | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`                  |
-| **Metrics**          | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                                 |
-| **Services**         | `signoz-list-services`, `signoz-get-service-top-operations`                                               |
-| **Dashboards**       | `signoz-list-dashboards`, `signoz-get-dashboard`                                                          |
-| **Alerts**           | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                                      |
-| **Agent jobs**       | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job` |
+| Need              | Tool                                                                              |
+| ----------------- | --------------------------------------------------------------------------------- |
+| **K8s resources** | `kubectl get`, `kubectl describe`                                                 |
+| **K8s logs**      | `kubectl logs` (recent), SigNoz (historical)                                      |
+| **K8s metrics**   | `kubectl top`                                                                     |
+| **ArgoCD apps**   | `kubectl get applications -n argocd`                                              |
+| **BuildBuddy CI** | Use `bb` CLI directly (`bb view`, `bb print`, `bb ask`) — see `/buildbuddy` skill |
 
 ## Kubernetes Operations (kubectl)
 
-**CRITICAL: This cluster is managed via GitOps. MCP tools are primary for reads — hooks enforce this.**
-
-Allowed kubectl commands (not covered by MCP): `explain`, `api-resources`, `port-forward`, `exec`, `cp`, `run`, `label`, `annotate`, `auth`, `config`, `version`, `wait`
+**CRITICAL: This cluster is managed via GitOps.**
 
 **FORBIDDEN** — modify Git instead: `apply`, `patch`, `edit`, `scale`, `delete`
-
-**Redirected to MCP** — hooks block these: `get`, `describe`, `logs`, `top`
 
 To make changes: edit `projects/<service>/deploy/values.yaml` → commit → push → ArgoCD auto-syncs (~5-10s).
 
@@ -175,7 +163,6 @@ Static sites deploy via `bazel run //projects/websites:push_all_pages` on main b
 - **Pushing commits just to trigger CI tests** — use `bb remote test` to iterate on fixes, only push when tests pass
 - **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
 - **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating a custom one
-- **Using kubectl/argocd CLI for cluster reads** — use MCP tools via Context Forge; PreToolUse hooks enforce this
 - **Hardcoding `.svc.cluster.local` URLs in Go defaults** — when a Helm release is renamed the service name prefix changes silently; set via `envOr("URL", "")` (no default) and configure in `values.yaml`; semgrep rule `no-hardcoded-k8s-service-url` catches this in CI
 - **Manually pinning `@sha256:` image digests in values files** — digests go stale after CI rebuilds, causing `ImagePullBackOff`; the Bazel pipeline manages pinning automatically; semgrep rule `no-hardcoded-image-digest` catches this in CI
 - **Bumping `Chart.yaml` without `application.yaml`** — the `chart-version-bot` keeps these in sync, but manual bumps must update both `chart/Chart.yaml` version AND `deploy/application.yaml` `targetRevision`; a mismatch means ArgoCD keeps deploying the old chart version with stale image digests

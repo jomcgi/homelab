@@ -1,19 +1,14 @@
 apiVersion: v2
 name: agent-platform
-description: Agent platform — umbrella chart bundling goose sandboxes, MCP servers, and supporting components
+description: Agent platform — umbrella chart bundling goose sandboxes and supporting components
 type: application
-version: 0.35.8
+version: 0.36.0
 appVersion: "0.2.0"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
   org.opencontainers.image.url: "https://github.com/jomcgi/homelab/tree/main/projects/agent_platform/chart"
   org.opencontainers.image.licenses: "MPL-2.0"
 dependencies:
-  - name: agent-platform-mcp-servers
-    version: "0.1.0"
-    repository: "file://./mcp-servers"
-    condition: agent-platform-mcp-servers.enabled
-
   - name: goose-sandboxes
     version: "0.1.0"
     repository: "file://./sandboxes"
