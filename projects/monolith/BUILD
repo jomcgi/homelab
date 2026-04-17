@@ -2197,6 +2197,19 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_mcp_test",
+    srcs = ["knowledge/mcp_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastmcp",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "knowledge_ingest_queue_test",
     srcs = ["knowledge/ingest_queue_test.py"],
     imports = ["."],
