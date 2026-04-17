@@ -13,12 +13,6 @@ gitSidecar:
   branch: "main"
   debounceSeconds: 10
 
-vaultMcp:
-  image:
-    repository: ghcr.io/jomcgi/homelab/projects/obsidian_vault/image
-    tag: "latest"
-  port: 8000
-
 persistence:
   size: 5Gi
   storageClass: ""
@@ -55,40 +49,5 @@ resources:
       cpu: "10m"
     limits:
       memory: "1Gi"
-  vaultMcp:
-    requests:
-      memory: "8Gi"
-      cpu: "100m"
-    limits:
-      memory: "16Gi"
-
-gateway:
-  url: ""
-  image:
-    repository: ghcr.io/ibm/mcp-context-forge
-    tag: v1.0.0-RC1
-    pullPolicy: IfNotPresent
-  secret:
-    name: context-forge-gateway
-    itemPath: ""
 
 podAnnotations: {}
-
-# Embedding
-embedding:
-  qdrantCollection: obsidian_vault
-  model: nomic-ai/nomic-embed-text-v1.5
-  cacheDir: /vault/.cache/fastembed
-  reconcileIntervalSeconds: 300
-
-# Qdrant subchart
-qdrant:
-  replicaCount: 1
-  persistence:
-    size: 2Gi
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "100m"
-    limits:
-      memory: "512Mi"

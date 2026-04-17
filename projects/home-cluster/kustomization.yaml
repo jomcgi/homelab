@@ -4,7 +4,6 @@ kind: Kustomization
 
 resources:
   - ../../projects/agent_platform
-  - ../../projects/mcp/context-forge-gateway/deploy
   - ../../projects/monolith/deploy
   - ../../projects/obsidian_vault/deploy
   - ../../projects/operators/oci-model-cache/deploy
