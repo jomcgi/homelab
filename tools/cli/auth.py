@@ -44,6 +44,14 @@ def get_cf_token(hostname: str = DEFAULT_HOSTNAME) -> str:
     return token
 
 
+def clear_cf_token(hostname: str = DEFAULT_HOSTNAME) -> None:
+    """Remove cached token files for *hostname* so the next call re-auths."""
+    if not CF_TOKEN_DIR.is_dir():
+        return
+    for path in CF_TOKEN_DIR.glob(f"*{hostname}*"):
+        path.unlink(missing_ok=True)
+
+
 def _read_token(hostname: str) -> str | None:
     """Read the most recent token file matching *hostname*."""
     if not CF_TOKEN_DIR.is_dir():
