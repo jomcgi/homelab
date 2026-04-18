@@ -123,12 +123,12 @@ async def _fetch_commits_since(
     return resp.json()
 
 
-def _filter_changelog_commits(commits: list[dict]) -> list[dict]:
-    """Keep only feat conventional commits."""
+def _filter_changelog_commits(commits: list[dict], pattern: re.Pattern) -> list[dict]:
+    """Keep only commits matching the given pattern."""
     result = []
     for c in commits:
         msg = c["commit"]["message"].split("\n", 1)[0]
-        if _CHANGELOG_TYPES.match(msg):
+        if pattern.match(msg):
             result.append(c)
     return result
 
@@ -167,6 +167,7 @@ def _build_embed(
 async def run_changelog_iteration(
     bot: discord.Client,
     llm_call: Callable[[str], Awaitable[str]],
+    config: ChangelogConfig,
     store_message: "Callable[[str, str, str, str, str], Awaitable[None]] | None" = None,
 ) -> None:
     """Single iteration: fetch recent commits, summarize, post to Discord.
@@ -175,54 +176,65 @@ async def run_changelog_iteration(
     user_id, username, content) after a successful send so the changelog message
     is searchable in history.
     """
-    channel_id = os.environ.get("CHANGELOG_CHANNEL_ID", "")
     github_token = os.environ.get("GITHUB_TOKEN", "")
-    github_repo = os.environ.get("CHANGELOG_GITHUB_REPO", "")
 
-    if not all([channel_id, github_token, github_repo]):
-        logger.warning("Changelog disabled: missing env vars")
+    if not github_token:
+        logger.warning("Changelog[%s] disabled: missing GITHUB_TOKEN", config.name)
         return
 
-    since = datetime.now(timezone.utc) - timedelta(hours=1)
+    since = datetime.now(timezone.utc) - timedelta(hours=config.interval_hours)
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
-        commits = await _fetch_commits_since(client, github_repo, github_token, since)
+        commits = await _fetch_commits_since(
+            client, config.github_repo, github_token, since
+        )
 
         if not commits:
-            logger.info("Changelog: no new commits in the last hour")
+            logger.info(
+                "Changelog[%s]: no new commits in the last %dh",
+                config.name,
+                config.interval_hours,
+            )
             return
 
-        changelog_commits = _filter_changelog_commits(commits)
+        if config.commit_filter is not None:
+            commits = _filter_changelog_commits(commits, config.commit_filter)
 
-    if not changelog_commits:
-        logger.info("Changelog: %d new commits but none are feat", len(commits))
+    if not commits:
+        logger.info("Changelog[%s]: commits found but none match filter", config.name)
         return
 
-    summary = await _summarize_with_gemma(
-        changelog_commits, llm_call, PROMPTS["professional"]
-    )
+    prompt_template = PROMPTS[config.prompt]
+    summary = await _summarize_with_gemma(commits, llm_call, prompt_template)
     embed = _build_embed(
-        summary, len(changelog_commits), title="Homelab Changelog", color=0x2ECC71
+        summary, len(commits), title=config.embed_title, color=config.embed_color
     )
 
-    channel = bot.get_channel(int(channel_id))
+    channel = bot.get_channel(int(config.channel_id))
     if channel:
         sent = await channel.send(embed=embed)
         logger.info(
-            "Changelog: posted %d changes to channel %s",
-            len(changelog_commits),
-            channel_id,
+            "Changelog[%s]: posted %d changes to channel %s",
+            config.name,
+            len(commits),
+            config.channel_id,
         )
         if store_message is not None and bot.user is not None:
             try:
                 await store_message(
                     str(sent.id),
-                    channel_id,
+                    config.channel_id,
                     str(bot.user.id),
                     bot.user.display_name,
-                    f"Homelab Changelog\n{summary}",
+                    f"{config.embed_title}\n{summary}",
                 )
             except Exception:
-                logger.exception("Changelog: failed to store sent message %s", sent.id)
+                logger.exception(
+                    "Changelog[%s]: failed to store sent message %s",
+                    config.name,
+                    sent.id,
+                )
     else:
-        logger.warning("Changelog: channel %s not found", channel_id)
+        logger.warning(
+            "Changelog[%s]: channel %s not found", config.name, config.channel_id
+        )

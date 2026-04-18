@@ -1,6 +1,7 @@
 """Tests for the hourly changelog notifier module."""
 
 import json
+import re
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
@@ -9,6 +10,7 @@ import pytest
 from chat.changelog import (
     ChangelogConfig,
     PROMPTS,
+    _CHANGELOG_TYPES,
     _auth_headers,
     _build_embed,
     _filter_changelog_commits,
@@ -98,6 +100,22 @@ def _make_commit(message: str, author: str = "Alice") -> dict:
     }
 
 
+def _make_config(**overrides) -> ChangelogConfig:
+    """Helper to build a ChangelogConfig with sensible defaults."""
+    defaults = {
+        "name": "test",
+        "github_repo": "owner/repo",
+        "channel_id": "123",
+        "prompt": "professional",
+        "embed_title": "Test Changelog",
+        "embed_color": 0x2ECC71,
+        "interval_hours": 1,
+        "commit_filter": None,
+    }
+    defaults.update(overrides)
+    return ChangelogConfig(**defaults)
+
+
 # ---------------------------------------------------------------------------
 # _filter_changelog_commits
 # ---------------------------------------------------------------------------
@@ -106,62 +124,62 @@ def _make_commit(message: str, author: str = "Alice") -> dict:
 class TestFilterChangelogCommits:
     def test_empty_list_returns_empty(self):
         """Empty input returns empty list."""
-        assert _filter_changelog_commits([]) == []
+        assert _filter_changelog_commits([], _CHANGELOG_TYPES) == []
 
     def test_feat_commit_passes(self):
         """feat: commits are included."""
         commits = [_make_commit("feat: add dark mode")]
-        assert len(_filter_changelog_commits(commits)) == 1
+        assert len(_filter_changelog_commits(commits, _CHANGELOG_TYPES)) == 1
 
     def test_fix_commit_excluded(self):
         """fix: commits are excluded (feat-only filter)."""
         commits = [_make_commit("fix: correct typo in footer")]
-        assert _filter_changelog_commits(commits) == []
+        assert _filter_changelog_commits(commits, _CHANGELOG_TYPES) == []
 
     def test_chore_commit_excluded(self):
         """chore: commits are not included."""
         commits = [_make_commit("chore: update dependencies")]
-        assert _filter_changelog_commits(commits) == []
+        assert _filter_changelog_commits(commits, _CHANGELOG_TYPES) == []
 
     def test_docs_commit_excluded(self):
         """docs: commits are not included."""
         commits = [_make_commit("docs: improve README")]
-        assert _filter_changelog_commits(commits) == []
+        assert _filter_changelog_commits(commits, _CHANGELOG_TYPES) == []
 
     def test_refactor_commit_excluded(self):
         """refactor: commits are not included."""
         commits = [_make_commit("refactor: extract helper function")]
-        assert _filter_changelog_commits(commits) == []
+        assert _filter_changelog_commits(commits, _CHANGELOG_TYPES) == []
 
     def test_ci_commit_excluded(self):
         """ci: commits are not included."""
         commits = [_make_commit("ci: add lint step")]
-        assert _filter_changelog_commits(commits) == []
+        assert _filter_changelog_commits(commits, _CHANGELOG_TYPES) == []
 
     def test_feat_with_scope_passes(self):
         """feat(auth): scoped feature commits are included."""
         commits = [_make_commit("feat(auth): add OAuth2 support")]
-        assert len(_filter_changelog_commits(commits)) == 1
+        assert len(_filter_changelog_commits(commits, _CHANGELOG_TYPES)) == 1
 
     def test_feat_breaking_change_passes(self):
         """feat!: breaking change feature commits are included."""
         commits = [_make_commit("feat!: redesign auth token format")]
-        assert len(_filter_changelog_commits(commits)) == 1
+        assert len(_filter_changelog_commits(commits, _CHANGELOG_TYPES)) == 1
 
     def test_feat_scope_breaking_change_passes(self):
         """feat(auth)!: scoped breaking change is included."""
         commits = [_make_commit("feat(auth)!: drop legacy token support")]
-        assert len(_filter_changelog_commits(commits)) == 1
+        assert len(_filter_changelog_commits(commits, _CHANGELOG_TYPES)) == 1
 
     def test_multiline_commit_uses_first_line_only(self):
         """Only the subject line (before first newline) is matched."""
         commits = [_make_commit("feat: add feature\n\nLong description here.")]
-        assert len(_filter_changelog_commits(commits)) == 1
+        assert len(_filter_changelog_commits(commits, _CHANGELOG_TYPES)) == 1
 
     def test_multiline_commit_fix_excluded(self):
         """fix: with body is still excluded even when body mentions feat."""
         commits = [_make_commit("fix: patch crash\n\nfeat: unrelated note")]
-        assert _filter_changelog_commits(commits) == []
+        assert _filter_changelog_commits(commits, _CHANGELOG_TYPES) == []
 
     def test_mixed_commits_returns_only_feat(self):
         """Only feat commits are returned from a mixed list."""
@@ -171,7 +189,7 @@ class TestFilterChangelogCommits:
             _make_commit("chore: bump versions"),
             _make_commit("feat(ui): dark mode toggle"),
         ]
-        result = _filter_changelog_commits(commits)
+        result = _filter_changelog_commits(commits, _CHANGELOG_TYPES)
         assert len(result) == 2
         assert result[0]["commit"]["message"] == "feat: new dashboard"
         assert result[1]["commit"]["message"] == "feat(ui): dark mode toggle"
@@ -179,12 +197,12 @@ class TestFilterChangelogCommits:
     def test_partial_word_feat_excluded(self):
         """A commit message starting with 'feature:' (not 'feat:') is excluded."""
         commits = [_make_commit("feature: add something")]
-        assert _filter_changelog_commits(commits) == []
+        assert _filter_changelog_commits(commits, _CHANGELOG_TYPES) == []
 
     def test_feat_without_colon_excluded(self):
         """'feat add something' (no colon) is excluded."""
         commits = [_make_commit("feat add something")]
-        assert _filter_changelog_commits(commits) == []
+        assert _filter_changelog_commits(commits, _CHANGELOG_TYPES) == []
 
 
 # ---------------------------------------------------------------------------
@@ -356,39 +374,17 @@ class TestSummarizeWithGemma:
 
 class TestRunChangelogIteration:
     @pytest.mark.asyncio
-    async def test_missing_all_env_vars_returns_early(self):
-        """When all env vars are absent the function exits without error."""
+    async def test_missing_github_token_returns_early(self):
+        """When GITHUB_TOKEN is absent the function exits without error."""
         bot = MagicMock(spec=discord.Client)
         mock_llm = AsyncMock()
+        config = _make_config()
 
         with patch.dict("os.environ", {}, clear=True):
-            # Remove relevant keys if present
             import os
 
-            for key in (
-                "CHANGELOG_CHANNEL_ID",
-                "GITHUB_TOKEN",
-                "CHANGELOG_GITHUB_REPO",
-            ):
-                os.environ.pop(key, None)
-
-            await run_changelog_iteration(bot, mock_llm)
-
-        mock_llm.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_missing_single_env_var_returns_early(self):
-        """Missing just one env var causes early return (AND logic)."""
-        bot = MagicMock(spec=discord.Client)
-        mock_llm = AsyncMock()
-
-        env = {
-            "CHANGELOG_CHANNEL_ID": "123456",
-            "GITHUB_TOKEN": "ghp_xxx",
-            # CHANGELOG_GITHUB_REPO intentionally omitted
-        }
-        with patch.dict("os.environ", env, clear=True):
-            await run_changelog_iteration(bot, mock_llm)
+            os.environ.pop("GITHUB_TOKEN", None)
+            await run_changelog_iteration(bot, mock_llm, config)
 
         mock_llm.assert_not_called()
 
@@ -397,12 +393,7 @@ class TestRunChangelogIteration:
         """When GitHub returns no commits, no Discord message is sent."""
         bot = MagicMock(spec=discord.Client)
         mock_llm = AsyncMock()
-
-        env = {
-            "CHANGELOG_CHANNEL_ID": "111",
-            "GITHUB_TOKEN": "ghp_tok",
-            "CHANGELOG_GITHUB_REPO": "owner/repo",
-        }
+        config = _make_config(channel_id="111")
 
         mock_response = MagicMock()
         mock_response.json.return_value = []
@@ -413,24 +404,22 @@ class TestRunChangelogIteration:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch.dict("os.environ", env):
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_tok"}):
             with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
-                await run_changelog_iteration(bot, mock_llm)
+                await run_changelog_iteration(bot, mock_llm, config)
 
         mock_llm.assert_not_called()
         bot.get_channel.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_no_matching_commits_returns_early(self):
-        """When commits exist but none are feat, no Discord message is sent."""
+        """When commits exist but none match filter, no Discord message is sent."""
         bot = MagicMock(spec=discord.Client)
         mock_llm = AsyncMock()
-
-        env = {
-            "CHANGELOG_CHANNEL_ID": "111",
-            "GITHUB_TOKEN": "ghp_tok",
-            "CHANGELOG_GITHUB_REPO": "owner/repo",
-        }
+        config = _make_config(
+            channel_id="111",
+            commit_filter=re.compile(r"^(feat)(\(.+?\))?!?:\s"),
+        )
 
         commits = [
             _make_commit("fix: patch null pointer"),
@@ -445,27 +434,53 @@ class TestRunChangelogIteration:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch.dict("os.environ", env):
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_tok"}):
             with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
-                await run_changelog_iteration(bot, mock_llm)
+                await run_changelog_iteration(bot, mock_llm, config)
 
         mock_llm.assert_not_called()
         bot.get_channel.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_successful_post_sends_embed(self):
-        """With valid env vars and feat commits, an embed is posted to Discord."""
+    async def test_no_filter_passes_all_commits(self):
+        """When commit_filter is None, all commits are included."""
         mock_channel = AsyncMock()
         bot = MagicMock(spec=discord.Client)
         bot.get_channel.return_value = mock_channel
+        mock_llm = AsyncMock(return_value="Summary of all commits.")
+        config = _make_config(channel_id="999", commit_filter=None)
 
+        commits = [
+            _make_commit("fix: patch null pointer", "Alice"),
+            _make_commit("chore: update deps", "Bob"),
+        ]
+        mock_response = MagicMock()
+        mock_response.json.return_value = commits
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_tok"}):
+            with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
+                await run_changelog_iteration(bot, mock_llm, config)
+
+        mock_llm.assert_called_once()
+        mock_channel.send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_successful_post_sends_embed(self):
+        """With valid config and matching commits, an embed is posted to Discord."""
+        mock_channel = AsyncMock()
+        bot = MagicMock(spec=discord.Client)
+        bot.get_channel.return_value = mock_channel
         mock_llm = AsyncMock(return_value="Added a great new feature.")
-
-        env = {
-            "CHANGELOG_CHANNEL_ID": "999",
-            "GITHUB_TOKEN": "ghp_tok",
-            "CHANGELOG_GITHUB_REPO": "owner/repo",
-        }
+        config = _make_config(
+            channel_id="999",
+            commit_filter=re.compile(r"^(feat)(\(.+?\))?!?:\s"),
+        )
 
         commits = [_make_commit("feat: amazing new feature", "Alice")]
         mock_response = MagicMock()
@@ -477,9 +492,9 @@ class TestRunChangelogIteration:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch.dict("os.environ", env):
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_tok"}):
             with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
-                await run_changelog_iteration(bot, mock_llm)
+                await run_changelog_iteration(bot, mock_llm, config)
 
         bot.get_channel.assert_called_once_with(999)
         mock_channel.send.assert_called_once()
@@ -492,14 +507,8 @@ class TestRunChangelogIteration:
         """When bot.get_channel returns None, no error is raised."""
         bot = MagicMock(spec=discord.Client)
         bot.get_channel.return_value = None
-
         mock_llm = AsyncMock(return_value="Summary text.")
-
-        env = {
-            "CHANGELOG_CHANNEL_ID": "888",
-            "GITHUB_TOKEN": "ghp_tok",
-            "CHANGELOG_GITHUB_REPO": "owner/repo",
-        }
+        config = _make_config(channel_id="888")
 
         commits = [_make_commit("feat: something cool", "Dave")]
         mock_response = MagicMock()
@@ -511,11 +520,10 @@ class TestRunChangelogIteration:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch.dict("os.environ", env):
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_tok"}):
             with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
-                await run_changelog_iteration(bot, mock_llm)
+                await run_changelog_iteration(bot, mock_llm, config)
 
-        # Should log a warning but not crash
         bot.get_channel.assert_called_once_with(888)
 
     @pytest.mark.asyncio
@@ -535,12 +543,7 @@ class TestRunChangelogIteration:
 
         mock_llm = AsyncMock(return_value="A great new feature landed.")
         store_message = AsyncMock()
-
-        env = {
-            "CHANGELOG_CHANNEL_ID": "777",
-            "GITHUB_TOKEN": "ghp_tok",
-            "CHANGELOG_GITHUB_REPO": "owner/repo",
-        }
+        config = _make_config(channel_id="777", embed_title="Test Changelog")
 
         commits = [_make_commit("feat: cool thing", "Alice")]
         mock_response = MagicMock()
@@ -552,10 +555,10 @@ class TestRunChangelogIteration:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch.dict("os.environ", env):
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_tok"}):
             with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
                 await run_changelog_iteration(
-                    bot, mock_llm, store_message=store_message
+                    bot, mock_llm, config, store_message=store_message
                 )
 
         store_message.assert_called_once()
@@ -576,12 +579,7 @@ class TestRunChangelogIteration:
 
         mock_llm = AsyncMock(return_value="Summary.")
         store_message = AsyncMock()
-
-        env = {
-            "CHANGELOG_CHANNEL_ID": "777",
-            "GITHUB_TOKEN": "ghp_tok",
-            "CHANGELOG_GITHUB_REPO": "owner/repo",
-        }
+        config = _make_config(channel_id="777")
 
         commits = [_make_commit("feat: thing", "Alice")]
         mock_response = MagicMock()
@@ -593,10 +591,10 @@ class TestRunChangelogIteration:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch.dict("os.environ", env):
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_tok"}):
             with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
                 await run_changelog_iteration(
-                    bot, mock_llm, store_message=store_message
+                    bot, mock_llm, config, store_message=store_message
                 )
 
         store_message.assert_not_called()
