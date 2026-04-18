@@ -24,7 +24,7 @@ On-cluster Gemma 4 for chat and voyage-4-nano for embeddings, both served via ll
 
 ### Build system
 
-Custom Bazel rules for Helm (`bazel/helm/`), Semgrep (`bazel/semgrep/`), and Cloudflare Pages (`bazel/wrangler/`). Hermetic Semgrep SAST runs as native Bazel tests with semgrep-core vendored as OCI artifacts. All builds and tests run remotely via BuildBuddy RBE — no local Bazel needed. Container images use apko (not Dockerfiles), dual-arch (x86*64 + aarch64), non-root by default. \_Demonstrates: supply-chain-secure, hermetic, remotely executed builds.*
+Custom Bazel rules for Helm (`bazel/helm/`), Semgrep (`bazel/semgrep/`), and Cloudflare Pages (`bazel/wrangler/`). Hermetic Semgrep SAST runs as native Bazel tests with semgrep-core vendored as OCI artifacts. All builds and tests run remotely via BuildBuddy RBE — no local Bazel needed. Container images use apko (not Dockerfiles), dual-arch (`x86_64` + `aarch64`), non-root by default. _Demonstrates: supply-chain-secure, hermetic, remotely executed builds._
 
 ## Applications
 
