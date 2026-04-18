@@ -1,7 +1,7 @@
 # Roast Changelog for ColinCee/homelab
 
 **Date**: 2026-04-16
-**Status**: Proposed
+**Status**: Approved
 
 ## Problem
 
@@ -9,7 +9,7 @@ We have hourly changelog summaries for jomcgi/homelab that post to Discord. We w
 
 ## Approach
 
-Generalize `run_changelog_iteration()` to accept a config object instead of reading env vars. Register two scheduled jobs with different configs.
+Generalize `run_changelog_iteration()` to accept a config object instead of reading env vars. Use a list-based config in Helm values with a single `CHANGELOG_CONFIGS` JSON env var. Prompts are referenced by key and defined in Python code.
 
 ## Design
 
@@ -20,36 +20,83 @@ New frozen dataclass in `changelog.py`:
 ```python
 @dataclasses.dataclass(frozen=True)
 class ChangelogConfig:
+    name: str
     github_repo: str
     channel_id: str
-    system_prompt: str
+    prompt: str              # key into PROMPTS dict
     embed_title: str
     embed_color: int
-    lookback_hours: int = 1
+    interval_hours: int = 1
     commit_filter: re.Pattern | None = None  # None = all commits
 ```
 
-### Two configs
+### Prompt registry
 
-**Existing changelog** (unchanged behavior):
+Prompts live in Python code, referenced by key from config:
 
-- `github_repo`: from `CHANGELOG_GITHUB_REPO` env var
-- `channel_id`: from `CHANGELOG_CHANNEL_ID` env var
-- `system_prompt`: existing professional changelog prompt
-- `embed_title`: "Homelab Changelog"
-- `embed_color`: `0x2ECC71` (green)
-- `lookback_hours`: 1
-- `commit_filter`: `re.compile(r"^(feat)(\(.+?\))?!?:\s")` (feat only)
+```python
+PROMPTS: dict[str, str] = {
+    "professional": "You are a changelog writer for a Kubernetes homelab project...",
+    "roast": "You are Colin's close friend and a cynical senior engineer...",
+}
+```
 
-**Roast changelog** (new):
+The prompt template uses `{commits}` as a placeholder for the formatted commit list.
 
-- `github_repo`: from `ROAST_CHANGELOG_GITHUB_REPO` env var
-- `channel_id`: from `ROAST_CHANGELOG_CHANNEL_ID` env var
-- `system_prompt`: roast prompt (see below)
-- `embed_title`: "Colin's Homelab Roast"
-- `embed_color`: `0xE74C3C` (red)
-- `lookback_hours`: 3
-- `commit_filter`: `None` (all commits)
+### Refactored functions
+
+`_summarize_with_gemma` takes the prompt template from `PROMPTS[config.prompt]` instead of hardcoding it.
+
+`_build_embed` takes `title` and `color` parameters instead of hardcoding them.
+
+`run_changelog_iteration` takes a `ChangelogConfig` instead of reading env vars. Uses `config.interval_hours` for lookback, applies `config.commit_filter` if set.
+
+### Config loading
+
+`load_changelog_configs()` parses `CHANGELOG_CONFIGS` env var (JSON list) into `list[ChangelogConfig]`. Each entry maps to the dataclass fields. The `commitFilter` field in JSON is optional — when present, it's compiled to a regex pattern.
+
+### Scheduled jobs
+
+One job registered per config entry in `summarizer.py`:
+
+- Job name: `f"chat.changelog.{config.name}"` (e.g. `chat.changelog.homelab`, `chat.changelog.roast`)
+- Interval: `config.interval_hours * 3600`
+- Aligned to interval boundaries
+
+### Helm values
+
+```yaml
+chat:
+  changelogs:
+    - name: "homelab"
+      channelId: "1491186550472708117"
+      githubRepo: "jomcgi/homelab"
+      prompt: "professional"
+      embedTitle: "Homelab Changelog"
+      embedColor: "0x2ECC71"
+      intervalHours: 1
+      commitFilter: "^(feat)(\\(.+?\\))?!?:\\s"
+    - name: "roast"
+      channelId: "1491186550472708117"
+      githubRepo: "ColinCee/homelab"
+      prompt: "roast"
+      embedTitle: "Colin's Homelab Roast"
+      embedColor: "0xE74C3C"
+      intervalHours: 3
+```
+
+### Deployment template
+
+Replaces `CHANGELOG_CHANNEL_ID` + `CHANGELOG_GITHUB_REPO` with a single JSON env var:
+
+```yaml
+{{- if .Values.chat.changelogs }}
+- name: CHANGELOG_CONFIGS
+  value: {{ .Values.chat.changelogs | toJson | quote }}
+{{- end }}
+```
+
+`GITHUB_TOKEN` stays as-is — shared across all changelog configs.
 
 ### Roast prompt
 
@@ -60,7 +107,7 @@ in the group chat. He can take it — don't soften anything.
 
 Below are his recent commits:
 <commits>
-{{COMMITS}}
+{commits}
 </commits>
 
 Write a changelog-style roast. Format:
@@ -94,63 +141,14 @@ Rules:
 Optionally end with one entry in square brackets, e.g. [No breaking changes. Nothing worked in the first place.]
 ```
 
-### Refactored function signature
-
-`run_changelog_iteration()` changes to:
-
-```python
-async def run_changelog_iteration(
-    bot: discord.Client,
-    llm_call: Callable[[str], Awaitable[str]],
-    config: ChangelogConfig,
-    store_message: Callable[..., Awaitable[None]] | None = None,
-) -> None:
-```
-
-- Uses `config.lookback_hours` for the `timedelta`
-- Applies `config.commit_filter` if set, otherwise passes all commits
-- Passes `config.system_prompt` to `_summarize_with_gemma` (which loses its hardcoded prompt)
-- Uses `config.embed_title` and `config.embed_color` in `_build_embed`
-
-### Scheduled jobs
-
-**Existing** (`chat.changelog`): 3600s interval, aligned to hour boundaries. Unchanged.
-
-**New** (`chat.changelog_roast`): 10800s interval, aligned to 3-hour boundaries (0:00, 3:00, 6:00, etc.).
-
-Both registered in `summarizer.py` with the same `store_message` pattern.
-
-### Helm values
-
-```yaml
-chat:
-  changelog:
-    enabled: true
-    channelId: "1491186550472708117"
-    githubRepo: "jomcgi/homelab"
-  roastChangelog:
-    enabled: true
-    channelId: "1491186550472708117"
-    githubRepo: "ColinCee/homelab"
-```
-
-### Deployment template additions
-
-New env vars under `chat.roastChangelog.enabled`:
-
-- `ROAST_CHANGELOG_CHANNEL_ID` from `chat.roastChangelog.channelId`
-- `ROAST_CHANGELOG_GITHUB_REPO` from `chat.roastChangelog.githubRepo`
-
-Reuses existing `GITHUB_TOKEN` (public repo, token just avoids rate limits).
-
 ### Silent when empty
 
 Same as existing — if no commits in the lookback window, no message posted.
 
 ## Files changed
 
-1. `projects/monolith/chat/changelog.py` — add `ChangelogConfig`, refactor functions to use it
-2. `projects/monolith/chat/summarizer.py` — register second scheduled job
-3. `projects/monolith/chart/templates/deployment.yaml` — add roast env vars
-4. `projects/monolith/deploy/values.yaml` — add `roastChangelog` config
-5. `projects/monolith/chat/changelog_test.py` — update tests for new signature, add roast config tests
+1. `projects/monolith/chat/changelog.py` — add `ChangelogConfig`, `PROMPTS`, `load_changelog_configs()`, refactor functions to use config
+2. `projects/monolith/chat/summarizer.py` — loop over configs, register one job per entry
+3. `projects/monolith/chart/templates/deployment.yaml` — replace old env vars with `CHANGELOG_CONFIGS`
+4. `projects/monolith/deploy/values.yaml` — replace `changelog` block with `changelogs` list
+5. `projects/monolith/chat/changelog_test.py` — update tests for new signature, add config loading tests
