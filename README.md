@@ -1,6 +1,6 @@
 # Homelab
 
-A single-person production platform. Production-grade infrastructure — GitOps, mTLS, hermetic remote builds — paired with AI-native systems: on-cluster LLM inference, autonomous agents, and an LLM-powered knowledge graph. Built so I can take an idea to a running, observable, securely-deployed service in under an hour.
+I fight complexity so other engineers don't have to think about it.
 
 28 services · 64 deployments · ~30k vessel positions tracked live · 1,300+ knowledge-graph facts from on-cluster LLM inference · in production since January 2025
 
