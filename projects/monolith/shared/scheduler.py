@@ -15,6 +15,7 @@ logger = logging.getLogger("monolith.scheduler")
 _HOSTNAME = platform.node()
 
 
+# nosemgrep: sqlmodel-datetime-without-factory (last_run_at/locked_at are intentionally NULL until set)
 class ScheduledJob(SQLModel, table=True):
     __tablename__ = "scheduled_jobs"
     __table_args__ = {"schema": "scheduler", "extend_existing": True}
@@ -67,6 +68,20 @@ def register_job(
     logger.info(
         "Registered job %s (interval=%ds, ttl=%ds)", name, interval_secs, ttl_secs
     )
+
+
+def purge_stale_jobs(session: Session) -> None:
+    """Delete DB rows for jobs that have no registered handler.
+
+    Call after all register_job() calls are complete to clean up jobs
+    from previous configs (e.g. removed changelog channels).
+    """
+    all_jobs = session.exec(select(ScheduledJob)).all()
+    for job in all_jobs:
+        if job.name not in _registry:
+            logger.info("Purging stale job %s (no handler registered)", job.name)
+            session.delete(job)
+    session.commit()
 
 
 async def run_scheduler_loop(poll_interval: int = 30) -> None:
