@@ -2,10 +2,10 @@ rules:
   - id: httpx-cf-auth-must-disable-redirects
     patterns:
       - pattern-either:
-          - pattern: httpx.Client(..., cookies={..., "CF_Authorization": ..., ...}, ...)
-          - pattern: httpx.AsyncClient(..., cookies={..., "CF_Authorization": ..., ...}, ...)
-      - pattern-not: httpx.Client(..., follow_redirects=False, ...)
-      - pattern-not: httpx.AsyncClient(..., follow_redirects=False, ...)
+          - pattern: 'httpx.Client(..., cookies={..., "CF_Authorization": ..., ...}, ...)'
+          - pattern: 'httpx.AsyncClient(..., cookies={..., "CF_Authorization": ..., ...}, ...)'
+      - pattern-not: "httpx.Client(..., follow_redirects=False, ...)"
+      - pattern-not: "httpx.AsyncClient(..., follow_redirects=False, ...)"
     message: >
       `httpx.Client` or `httpx.AsyncClient` with a `CF_Authorization` cookie must
       set `follow_redirects=False`. When a Cloudflare Access token expires the
