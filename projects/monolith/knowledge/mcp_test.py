@@ -1,4 +1,4 @@
-"""Unit tests for knowledge/mcp.py — MCP tools for knowledge search and retrieval."""
+"""Unit tests for knowledge/mcp.py — MCP tools for knowledge search, notes, and tasks."""
 
 from __future__ import annotations
 
@@ -10,8 +10,13 @@ from knowledge.mcp import (
     create_note,
     delete_note,
     edit_note,
+    get_daily_tasks,
     get_note,
+    get_weekly_tasks,
+    list_tasks,
     search_knowledge,
+    search_tasks,
+    update_task,
 )
 
 FAKE_EMBEDDING = [0.1] * 1024
@@ -349,3 +354,206 @@ class TestDeleteNoteTool:
         MockStore.return_value.delete_note.assert_called_once_with(
             "papers/attention.md"
         )
+
+
+# ---------------------------------------------------------------------------
+# Task tool tests
+# ---------------------------------------------------------------------------
+
+CANNED_TASKS = [
+    {
+        "note_id": "t1",
+        "title": "Fix auth bug",
+        "tags": ["backend"],
+        "status": "todo",
+        "due": "2026-04-20",
+        "size": "small",
+        "blocked_by": [],
+        "task_completed": None,
+    },
+]
+
+
+class TestListTasks:
+    """Tests for the list_tasks MCP tool."""
+
+    @pytest.mark.asyncio
+    async def test_returns_tasks(self):
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.list_tasks.return_value = CANNED_TASKS
+            result = await list_tasks()
+
+        assert len(result["tasks"]) == 1
+        assert result["tasks"][0]["note_id"] == "t1"
+        MockStore.return_value.list_tasks.assert_called_once_with(
+            statuses=None,
+            due_before=None,
+            due_after=None,
+            sizes=None,
+            include_someday=False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_forwards_filters(self):
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.list_tasks.return_value = []
+            await list_tasks(
+                status="todo,in-progress",
+                due_before="2026-04-25",
+                due_after="2026-04-18",
+                size="small,medium",
+                include_someday=True,
+            )
+
+            MockStore.return_value.list_tasks.assert_called_once_with(
+                statuses=["todo", "in-progress"],
+                due_before="2026-04-25",
+                due_after="2026-04-18",
+                sizes=["small", "medium"],
+                include_someday=True,
+            )
+
+
+class TestSearchTasks:
+    """Tests for the search_tasks MCP tool."""
+
+    @pytest.mark.asyncio
+    async def test_returns_results(self):
+        mock_session = MagicMock()
+        mock_embed = AsyncMock()
+        mock_embed.embed.return_value = FAKE_EMBEDDING
+
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.EmbeddingClient", return_value=mock_embed),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.search_tasks.return_value = CANNED_TASKS
+            result = await search_tasks("fix auth")
+
+        assert len(result["tasks"]) == 1
+        assert result["tasks"][0]["note_id"] == "t1"
+
+    @pytest.mark.asyncio
+    async def test_short_query_returns_empty(self):
+        result = await search_tasks("a")
+        assert result == {"tasks": []}
+
+    @pytest.mark.asyncio
+    async def test_forwards_filters(self):
+        mock_session = MagicMock()
+        mock_embed = AsyncMock()
+        mock_embed.embed.return_value = FAKE_EMBEDDING
+
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.EmbeddingClient", return_value=mock_embed),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.search_tasks.return_value = []
+            await search_tasks(
+                "auth", status="todo,in-progress", include_someday=True, limit=5
+            )
+
+            MockStore.return_value.search_tasks.assert_called_once_with(
+                query_embedding=FAKE_EMBEDDING,
+                statuses=["todo", "in-progress"],
+                include_someday=True,
+                limit=5,
+            )
+
+    @pytest.mark.asyncio
+    async def test_embedding_failure_returns_error(self):
+        mock_embed = AsyncMock()
+        mock_embed.embed.side_effect = RuntimeError("boom")
+
+        with (
+            patch("knowledge.mcp.Session"),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.EmbeddingClient", return_value=mock_embed),
+        ):
+            result = await search_tasks("hello world")
+
+        assert "error" in result
+
+
+class TestUpdateTask:
+    """Tests for the update_task MCP tool."""
+
+    @pytest.mark.asyncio
+    async def test_successful_update(self):
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            result = await update_task("t1", {"status": "done"})
+
+        assert result == {"updated": True, "note_id": "t1"}
+        MockStore.return_value.patch_task.assert_called_once_with(
+            "t1", {"status": "done"}
+        )
+
+    @pytest.mark.asyncio
+    async def test_not_found_returns_error(self):
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.patch_task.side_effect = ValueError(
+                "Task not found: nope"
+            )
+            result = await update_task("nope", {"status": "done"})
+
+        assert result == {"error": "Task not found: nope"}
+
+
+class TestGetDailyTasks:
+    """Tests for the get_daily_tasks MCP tool."""
+
+    @pytest.mark.asyncio
+    async def test_returns_daily_tasks(self):
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.list_tasks_daily.return_value = CANNED_TASKS
+            result = await get_daily_tasks()
+
+        assert len(result["tasks"]) == 1
+        MockStore.return_value.list_tasks_daily.assert_called_once()
+
+
+class TestGetWeeklyTasks:
+    """Tests for the get_weekly_tasks MCP tool."""
+
+    @pytest.mark.asyncio
+    async def test_returns_weekly_tasks(self):
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.list_tasks_weekly.return_value = CANNED_TASKS
+            result = await get_weekly_tasks()
+
+        assert len(result["tasks"]) == 1
+        MockStore.return_value.list_tasks_weekly.assert_called_once()

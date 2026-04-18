@@ -1,7 +1,9 @@
-"""MCP tools for knowledge graph search and note retrieval.
+"""MCP tools for knowledge graph search, note management, and task tracking.
 
-Registers ``search_knowledge``, ``get_note``, ``create_note``,
-``edit_note``, and ``delete_note`` on the shared monolith MCP instance.
+Registers note tools (``search_knowledge``, ``get_note``, ``create_note``,
+``edit_note``, ``delete_note``) and task tools (``list_tasks``,
+``search_tasks``, ``update_task``, ``get_daily_tasks``, ``get_weekly_tasks``)
+on the shared monolith MCP instance.
 Tools call KnowledgeStore directly (no HTTP round-trip).
 """
 
@@ -223,3 +225,124 @@ async def delete_note(note_id: str) -> dict:
 
         store.delete_note(note["path"])
         return {"deleted": True, "note_id": note_id}
+
+
+# ---------------------------------------------------------------------------
+# Task tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool
+async def list_tasks(
+    status: str | None = None,
+    due_before: str | None = None,
+    due_after: str | None = None,
+    size: str | None = None,
+    include_someday: bool = False,
+) -> dict:
+    """List tasks with optional filters.
+
+    Returns tasks sorted by most recently indexed. Someday tasks are
+    excluded by default.
+
+    Args:
+        status: Comma-separated status filter (e.g. "todo,in-progress").
+        due_before: ISO date — only tasks due on or before this date.
+        due_after: ISO date — only tasks due on or after this date.
+        size: Comma-separated size filter (e.g. "small,medium").
+        include_someday: Include tasks with status "someday" (default false).
+    """
+    with Session(get_engine()) as session:
+        tasks = KnowledgeStore(session).list_tasks(
+            statuses=status.split(",") if status else None,
+            due_before=due_before,
+            due_after=due_after,
+            sizes=size.split(",") if size else None,
+            include_someday=include_someday,
+        )
+    return {"tasks": tasks}
+
+
+@mcp.tool
+async def search_tasks(
+    query: str,
+    status: str | None = None,
+    include_someday: bool = False,
+    limit: int = 20,
+) -> dict:
+    """Semantic search over tasks.
+
+    Embeds the query and searches task notes by cosine similarity.
+
+    Args:
+        query: Natural language search query (minimum 2 characters).
+        status: Comma-separated status filter (e.g. "todo,in-progress").
+        include_someday: Include tasks with status "someday" (default false).
+        limit: Maximum results to return (default 20).
+    """
+    if len(query) < 2:
+        return {"tasks": []}
+
+    embed_client = EmbeddingClient()
+    try:
+        vector = await embed_client.embed(query)
+    except Exception:
+        logger.exception("tasks mcp: embedding call failed")
+        return {"error": "embedding unavailable"}
+
+    with Session(get_engine()) as session:
+        tasks = KnowledgeStore(session).search_tasks(
+            query_embedding=vector,
+            statuses=status.split(",") if status else None,
+            include_someday=include_someday,
+            limit=limit,
+        )
+    return {"tasks": tasks}
+
+
+@mcp.tool
+async def update_task(
+    note_id: str,
+    fields: dict,
+) -> dict:
+    """Update fields on a task.
+
+    Merges the provided fields into the task's metadata. Automatically
+    sets ``task-completed`` date when status transitions to done/cancelled,
+    and clears it when moving away from those statuses.
+
+    Args:
+        note_id: The stable task identifier.
+        fields: Dictionary of fields to update (e.g. {"status": "done"}).
+    """
+    with Session(get_engine()) as session:
+        store = KnowledgeStore(session)
+        try:
+            store.patch_task(note_id, fields)
+        except ValueError as exc:
+            return {"error": str(exc)}
+    return {"updated": True, "note_id": note_id}
+
+
+@mcp.tool
+async def get_daily_tasks() -> dict:
+    """Get tasks due today or overdue.
+
+    Returns tasks with a due date on or before today, excluding
+    someday tasks.
+    """
+    with Session(get_engine()) as session:
+        tasks = KnowledgeStore(session).list_tasks_daily()
+    return {"tasks": tasks}
+
+
+@mcp.tool
+async def get_weekly_tasks() -> dict:
+    """Get tasks due this week.
+
+    Returns tasks with a due date between now and the end of the
+    current week (Sunday), excluding someday tasks.
+    """
+    with Session(get_engine()) as session:
+        tasks = KnowledgeStore(session).list_tasks_weekly()
+    return {"tasks": tasks}
