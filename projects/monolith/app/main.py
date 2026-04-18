@@ -158,19 +158,28 @@ async def lifespan(app: FastAPI):
     logger.info("Monolith shutting down")
 
 
-app = FastAPI(title="Monolith", lifespan=lifespan)
+import knowledge.mcp  # noqa: F401 — registers tools on shared MCP instance
+
+from app.mcp_app import mcp as monolith_mcp
+
+_mcp_app = monolith_mcp.http_app(transport="sse", path="/")
+
+
+@asynccontextmanager
+async def _combined_lifespan(app: FastAPI):
+    async with lifespan(app):
+        async with _mcp_app.lifespan(app):
+            yield
+
+
+app = FastAPI(title="Monolith", lifespan=_combined_lifespan)
 
 app.include_router(schedule_router)
 app.include_router(chat_router)
 app.include_router(knowledge_router)
 app.include_router(tasks_router)
 app.include_router(observability_router)
-
-import knowledge.mcp  # noqa: F401 — registers tools on shared MCP instance
-
-from app.mcp_app import mcp as monolith_mcp
-
-app.mount("/mcp", monolith_mcp.http_app())
+app.mount("/mcp", _mcp_app)
 
 
 @app.get("/healthz")
