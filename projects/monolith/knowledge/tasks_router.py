@@ -52,6 +52,18 @@ async def list_tasks(
     return {"tasks": tasks}
 
 
+@router.get("/daily")
+def list_tasks_daily(session: Session = Depends(get_session)) -> dict:
+    store = KnowledgeStore(session)
+    return {"tasks": store.list_tasks_daily()}
+
+
+@router.get("/weekly")
+def list_tasks_weekly(session: Session = Depends(get_session)) -> dict:
+    store = KnowledgeStore(session)
+    return {"tasks": store.list_tasks_weekly()}
+
+
 @router.patch("/{note_id}")
 def patch_task(
     note_id: str,
