@@ -434,6 +434,70 @@ class KnowledgeStore:
             )
         return results
 
+    def search_tasks(
+        self,
+        query_embedding: list[float],
+        *,
+        statuses: list[str] | None = None,
+        include_someday: bool = False,
+        limit: int = 20,
+    ) -> list[dict]:
+        """Semantic search over task notes (type='active').
+
+        Runs a vector search scoped to active notes, then applies
+        status filtering in Python (same strategy as list_tasks).
+        """
+        distance = Chunk.embedding.cosine_distance(query_embedding)
+        len_penalty = func.least(
+            1.0,
+            func.length(Chunk.chunk_text) / float(_CHUNK_LEN_RAMP),
+        )
+        adjusted = (1 - distance) * len_penalty
+        best_score = func.max(adjusted).label("score")
+
+        stmt = (
+            select(
+                Note.note_id,
+                Note.title,
+                Note.tags,
+                Note.extra,
+                best_score,
+            )
+            .join(Chunk, Chunk.note_fk == Note.id)
+            .where(Note.type == "active")
+            .group_by(Note.id)
+            .having(func.max(adjusted) >= MIN_SEARCH_SCORE)
+            .order_by(best_score.desc())
+            .limit(limit)
+        )
+
+        rows = self.session.execute(stmt).all()
+
+        results: list[dict] = []
+        for row in rows:
+            extra = row.extra or {}
+            status = extra.get("status", "")
+
+            if not include_someday and status == "someday":
+                continue
+            if statuses is not None and status not in statuses:
+                continue
+
+            results.append(
+                {
+                    "note_id": row.note_id,
+                    "title": row.title,
+                    "tags": list(row.tags or []),
+                    "status": status,
+                    "due": extra.get("due"),
+                    "size": extra.get("size"),
+                    "blocked_by": extra.get("blocked-by", []),
+                    "task_completed": extra.get("task-completed"),
+                    "score": float(row.score),
+                }
+            )
+        return results
+
     def patch_task(self, note_id: str, fields: dict) -> None:
         """Update JSONB extra fields on a task note.
 
