@@ -1,5 +1,7 @@
 """Hourly changelog notifier — polls GitHub for new feat commits, summarizes via Gemma, posts to Discord."""
 
+import dataclasses
+import json
 import logging
 import os
 import re
@@ -16,6 +18,89 @@ _CHANGELOG_TYPES = re.compile(r"^(feat)(\(.+?\))?!?:\s")
 
 GITHUB_API = "https://api.github.com"
 _GITHUB_HEADERS = {"Accept": "application/vnd.github+json"}
+
+
+@dataclasses.dataclass(frozen=True)
+class ChangelogConfig:
+    name: str
+    github_repo: str
+    channel_id: str
+    prompt: str
+    embed_title: str
+    embed_color: int
+    interval_hours: int = 1
+    commit_filter: re.Pattern | None = None
+
+
+PROMPTS: dict[str, str] = {
+    "professional": (
+        "You are a changelog writer for a Kubernetes homelab project.\n"
+        "Below are recent git commits (new features only).\n"
+        "Write a concise changelog summarizing what changed. "
+        "For each item, explain what it does in "
+        "one clear sentence — don't just repeat the commit message. "
+        "Use plain language. No markdown headers, just plain text with bullet points.\n\n"
+        "Commits:\n{commits}"
+    ),
+    "roast": (
+        "You are Colin's close friend and a cynical senior engineer who has seen\n"
+        "too many homelabs. You're reviewing his recent git commits to roast him\n"
+        "in the group chat. He can take it — don't soften anything.\n\n"
+        "Below are his recent commits:\n"
+        "<commits>\n{commits}\n</commits>\n\n"
+        "Write a changelog-style roast. Format:\n\n"
+        "Colin homelab changelog:\n"
+        "- <entry>\n- <entry>\n- <entry>\n\n"
+        "3-5 entries. Each one is a single line written as if it's a real\n"
+        "changelog bullet, but the content is the roast. Examples of the shape:\n"
+        '- "Added three ADRs to justify turning a Beelink on."\n'
+        '- "Replaced working Grafana dashboard with a worse one. Wrote a runbook about it."\n'
+        '- "Four commits to fix one typo. Copilot did the last three."\n\n'
+        "Target specific things in the commits — pretentious messages, features\n"
+        "added then ripped out, yak-shaving, ADRs for three lines of YAML,\n"
+        "Copilot cleaning up after him, enterprise patterns on a mini-PC,\n"
+        "README brags that are one commit old, bike-shedding. Name the thing.\n\n"
+        "Rules:\n"
+        '- Past tense, declarative, changelog voice. No "Colin did X" — the\n'
+        "  entries are the changes themselves, deadpan.\n"
+        '- Punch at choices, not at him. "Docker Swarm in 2026" is fair.\n'
+        "  Personal attacks are lazy.\n"
+        "- Dry > loud. A good callback to an earlier entry beats exclamation marks.\n"
+        '- No hedging, no "but seriously", no constructive feedback.\n'
+        "- No markdown headers, no emoji, no preamble or outro. Just the header\n"
+        "  line and bullets.\n"
+        "- If a commit is genuinely boring, skip it. Don't manufacture heat.\n"
+        "Optionally end with one entry in square brackets, e.g. "
+        "[No breaking changes. Nothing worked in the first place.]"
+    ),
+}
+
+
+def load_changelog_configs(raw: str) -> list[ChangelogConfig]:
+    """Parse a JSON string into a list of ChangelogConfig objects."""
+    if not raw:
+        return []
+    entries = json.loads(raw)
+    configs = []
+    for entry in entries:
+        commit_filter = None
+        if "commitFilter" in entry:
+            commit_filter = re.compile(entry["commitFilter"])
+        configs.append(
+            ChangelogConfig(
+                name=entry["name"],
+                github_repo=entry["githubRepo"],
+                channel_id=entry["channelId"],
+                prompt=entry["prompt"],
+                embed_title=entry["embedTitle"],
+                embed_color=int(entry["embedColor"], 16)
+                if isinstance(entry["embedColor"], str)
+                else entry["embedColor"],
+                interval_hours=entry.get("intervalHours", 1),
+                commit_filter=commit_filter,
+            )
+        )
+    return configs
 
 
 def _auth_headers(token: str) -> dict[str, str]:

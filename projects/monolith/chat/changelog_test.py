@@ -1,17 +1,91 @@
 """Tests for the hourly changelog notifier module."""
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
 
 from chat.changelog import (
+    ChangelogConfig,
+    PROMPTS,
     _auth_headers,
     _build_embed,
     _filter_changelog_commits,
     _summarize_with_gemma,
+    load_changelog_configs,
     run_changelog_iteration,
 )
+
+
+class TestChangelogConfig:
+    def test_load_configs_from_json(self):
+        """JSON list is parsed into ChangelogConfig objects."""
+        raw = json.dumps(
+            [
+                {
+                    "name": "test",
+                    "channelId": "123",
+                    "githubRepo": "owner/repo",
+                    "prompt": "professional",
+                    "embedTitle": "Test",
+                    "embedColor": "0x2ECC71",
+                    "intervalHours": 1,
+                }
+            ]
+        )
+        configs = load_changelog_configs(raw)
+        assert len(configs) == 1
+        assert configs[0].name == "test"
+        assert configs[0].github_repo == "owner/repo"
+        assert configs[0].channel_id == "123"
+        assert configs[0].embed_color == 0x2ECC71
+        assert configs[0].interval_hours == 1
+        assert configs[0].commit_filter is None
+
+    def test_load_configs_with_commit_filter(self):
+        """commitFilter string is compiled to a regex pattern."""
+        raw = json.dumps(
+            [
+                {
+                    "name": "filtered",
+                    "channelId": "123",
+                    "githubRepo": "owner/repo",
+                    "prompt": "professional",
+                    "embedTitle": "Test",
+                    "embedColor": "0x2ECC71",
+                    "intervalHours": 1,
+                    "commitFilter": "^(feat)(\\(.+?\\))?!?:\\s",
+                }
+            ]
+        )
+        configs = load_changelog_configs(raw)
+        assert configs[0].commit_filter is not None
+        assert configs[0].commit_filter.match("feat: something")
+        assert not configs[0].commit_filter.match("fix: something")
+
+    def test_load_configs_empty_json(self):
+        """Empty JSON list returns empty config list."""
+        assert load_changelog_configs("[]") == []
+
+    def test_load_configs_empty_string(self):
+        """Empty string returns empty config list."""
+        assert load_changelog_configs("") == []
+
+    def test_prompts_registry_has_professional(self):
+        """PROMPTS dict contains 'professional' key."""
+        assert "professional" in PROMPTS
+
+    def test_prompts_registry_has_roast(self):
+        """PROMPTS dict contains 'roast' key."""
+        assert "roast" in PROMPTS
+
+    def test_prompts_contain_commits_placeholder(self):
+        """All prompts contain {commits} placeholder."""
+        for key, prompt in PROMPTS.items():
+            assert "{commits}" in prompt, (
+                f"Prompt '{key}' missing {{commits}} placeholder"
+            )
 
 
 def _make_commit(message: str, author: str = "Alice") -> dict:
