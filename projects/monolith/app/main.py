@@ -55,6 +55,7 @@ def _log_task_exception(task: "asyncio.Task[object]") -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.db import get_engine
+    from knowledge.service import vault_backup_handler
     from shared.scheduler import purge_stale_jobs, run_scheduler_loop
     from sqlmodel import Session
 
@@ -171,8 +172,6 @@ async def lifespan(app: FastAPI):
 
     # Best-effort vault backup — preserve any uncommitted changes before the pod dies.
     try:
-        from knowledge.service import vault_backup_handler
-
         await vault_backup_handler()
     except Exception:
         logger.warning("Shutdown vault backup failed", exc_info=True)
