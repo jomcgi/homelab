@@ -1,31 +1,26 @@
 # Homelab
 
-Personal monorepo. The goal is to make shipping a new service as low-friction as possible, so that I can bring my ideas into contact with reality.
+Production Kubernetes cluster running on bare metal with GPU inference, autonomous AI agents, an LLM-powered knowledge graph, and custom operators — all deployed via GitOps with remote build execution. The goal is to make shipping a new service as low-friction as possible, so that I can bring my ideas into contact with reality.
 
-## Tooling
+## Systems
 
-### sextant
+### Knowledge pipeline
 
-`projects/sextant/` - Every operator I wrote had the same category of bugs: invalid state transitions, missing observability, hand-rolled switch statements. So I built a generator to eliminate the category. Define states and transitions in YAML, get Go code with compiler-enforced transitions, sealed interfaces, and OpenTelemetry tracing. Used by both operators below.
-
-### Operators
-
-- `projects/operators/cloudflare` - Manages Cloudflare Tunnel routing, DNS records, and Zero Trust policies from Kubernetes annotations via Gateway API
-- `projects/operators/oci-model-cache` - Syncs HuggingFace models to OCI registries using a `ModelCache` CRD
-
-### Bazel rules
-
-- `bazel/helm/` - Helm chart lint, template, package, and OCI push as Bazel targets. Includes an ArgoCD application macro with live diff support
-- `bazel/semgrep/` - Hermetic Semgrep scanning as native Bazel tests. Vendors semgrep-core as OCI artifacts, supports Pro rules, auto-generates scan targets via Gazelle
-- `bazel/wrangler/` - Cloudflare Pages deployment via Wrangler as Bazel targets
-
-## Projects
-
-See [docs/services.md](docs/services.md) for everything running in the cluster.
+`projects/monolith/knowledge/` - An LLM-powered knowledge graph that turns unstructured notes into a searchable, interconnected knowledge base. Raw markdown is ingested, decomposed into structured facts by a Gemma-4 gardener running on-cluster (with self-critique for quality), embedded with voyage-4-nano via llama.cpp, and stored in pgvector for semantic search. Includes a dead-letter queue for failed ingest, a reconciler for incremental re-embedding, and MCP tool exposure so AI agents can query the graph. Fronted by a SvelteKit app with a `Cmd+K` search overlay.
 
 ### Agent platform
 
-`projects/agent_platform/` - Full autonomous agent infrastructure. Claude and Goose agents run in isolated Kubernetes sandbox pods, dispatched by an orchestrator over NATS JetStream, with tool access governed by Context Forge (IBM's MCP gateway) and RBAC-scoped per team. Includes MCP servers for ArgoCD, Kubernetes, SigNoz, and BuildBuddy — so agents can investigate CI failures, query observability data, and manage deployments without direct cluster access. See [docs/agents.md](docs/agents.md) for the full architecture.
+`projects/agent_platform/` - Full autonomous agent infrastructure. Claude and Goose agents run in isolated Kubernetes sandbox pods, dispatched by a Go orchestrator over NATS JetStream, with tool access governed by Context Forge (IBM's MCP gateway) and RBAC-scoped per team. External access is authenticated via Cloudflare Managed OAuth. Includes MCP servers for ArgoCD, Kubernetes, SigNoz, and BuildBuddy — so agents can investigate CI failures, query observability data, and manage deployments without direct cluster access. See [docs/agents.md](docs/agents.md) for the full architecture.
+
+### OCI Model Cache operator
+
+`projects/operators/oci-model-cache/` - Custom Kubernetes operator that syncs ML models from HuggingFace to OCI registries using a `ModelCache` CRD. Uses compiler-enforced state machine transitions with sealed interfaces and OpenTelemetry tracing baked into every phase change.
+
+### Build system
+
+Custom Bazel rules for Helm (`bazel/helm/`), Semgrep (`bazel/semgrep/`), and Cloudflare Pages (`bazel/wrangler/`). Hermetic Semgrep SAST runs as native Bazel tests with semgrep-core vendored as OCI artifacts. All builds run remotely via BuildBuddy RBE — no local Bazel install needed. Container images use apko (not Dockerfiles), dual-arch (x86_64 + aarch64), non-root by default.
+
+## Applications
 
 ### Marine tracking
 
@@ -53,10 +48,6 @@ AI-assisted D&D campaign manager.
 
 - `projects/grimoire/api/` - Go REST API with Firestore persistence, campaign/character/encounter management
 
-### Monolith
-
-`projects/monolith/` - Consolidated homelab web services. SvelteKit frontend with a FastAPI backend that bundles several modules: notes (markdown note-taking with full-text search), chat (Discord bot with AI responses, embeddings, channel summarization, vision, and web search), and application logging/observability dashboards.
-
 ### Hiking routes
 
 Scottish route finder with weather-aware surfacing.
@@ -76,10 +67,11 @@ See [docs/security.md](docs/security.md) for the defense-in-depth model and [doc
 | Policy        | Kyverno - enforces non-root (uid 65532), read-only filesystems                               |
 | Secrets       | 1Password Operator - OnePasswordItem CRDs, nothing in Git                                    |
 | Storage       | Longhorn for persistent volumes, SeaweedFS for S3-compatible object storage                  |
-| Messaging     | NATS JetStream - pub/sub backbone for AIS data, trip points, events                          |
+| Messaging     | NATS JetStream - pub/sub backbone for AIS data, trip points, agent jobs                      |
+| GPU           | NVIDIA GPU Operator - Gemma 4 (chat) and voyage-4-nano (embeddings) on-cluster via llama.cpp |
 | Images        | apko + rules_apko - no Dockerfiles, dual-arch (x86_64 + aarch64), non-root                   |
-| CI            | BuildBuddy Workflows - format check + `bazel test //...` + image push on main                |
-| GitOps        | ArgoCD syncs from `projects/home-cluster` → colocated `deploy/` dirs. `kubectl` is read-only |
+| CI            | BuildBuddy Workflows - remote build execution, format check, `bazel test //...`, image push  |
+| GitOps        | ArgoCD syncs from `projects/home-cluster` - colocated `deploy/` dirs. `kubectl` is read-only |
 
 ## Repo layout
 
@@ -87,15 +79,14 @@ See [docs/security.md](docs/security.md) for the defense-in-depth model and [doc
 projects/             # All services, operators, websites — colocated with deploy configs
 ├── platform/         #   Cluster-critical infrastructure (ArgoCD, Linkerd, SigNoz, etc.)
 ├── agent_platform/   #   Agent services (Context Forge, MCP servers, orchestrator, etc.)
+├── monolith/         #   Knowledge graph, Discord bot, task management, frontend
 ├── ships/            #   Marine vessel tracking
 ├── trips/            #   Trip tracker
 ├── grimoire/         #   D&D campaign manager
-├── monolith/         #   Consolidated web services (notes, chat, frontend)
 ├── stargazer/        #   Dark sky finder
 ├── hikes/            #   Scottish hiking routes
 ├── operators/        #   Custom Kubernetes operators
 ├── websites/         #   Static sites (VitePress, Astro)
-├── sextant/          #   State machine code generator
 └── home-cluster/     #   Auto-generated ArgoCD root kustomization
 bazel/                # Build infrastructure (rules, tools, images, semgrep)
 docs/                 # Design docs, ADRs, and plans
