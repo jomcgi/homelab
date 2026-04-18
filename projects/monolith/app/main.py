@@ -14,7 +14,11 @@ from knowledge.router import router as knowledge_router
 from knowledge.tasks_router import router as tasks_router
 from chat.router import router as chat_router
 from shared.router import router as schedule_router
-from observability.router import router as observability_router, warm_cache
+from observability.router import (
+    router as observability_router,
+    warm_cache,
+    warm_stats_cache,
+)
 
 configure_logging()
 logger = logging.getLogger("monolith.main")
@@ -143,6 +147,13 @@ async def lifespan(app: FastAPI):
         await warm_cache()
     except Exception:
         logger.exception("Initial topology cache warm failed — continuing anyway")
+
+    # Warm the public stats cache (k8s + knowledge counts).
+    # Non-blocking: failures are logged but don't prevent startup.
+    try:
+        await warm_stats_cache()
+    except Exception:
+        logger.exception("Initial stats cache warm failed — continuing anyway")
 
     logger.info("Monolith started")
     yield

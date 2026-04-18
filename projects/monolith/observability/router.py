@@ -15,6 +15,7 @@ from observability.slo import (
     compute_budget,
     compute_status,
 )
+from observability.stats import get_cached_stats, warm_stats_cache
 from observability.topology_config import TOPOLOGY
 
 logger = logging.getLogger(__name__)
@@ -240,6 +241,12 @@ async def warm_cache() -> None:
     _cache = result
     _cache_time = time.monotonic()
     logger.info("Topology cache warmed (%d nodes)", len(result.get("nodes", [])))
+
+
+@router.get("/stats", tags=["stats"])
+async def get_stats():
+    """Return public platform stats, cached for 24 hours."""
+    return await get_cached_stats()
 
 
 @router.get("/topology")
