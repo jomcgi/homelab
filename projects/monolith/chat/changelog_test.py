@@ -264,9 +264,9 @@ class TestBuildEmbed:
     def test_custom_title_and_color(self):
         """Custom title and color are used in the embed."""
         embed = _build_embed(
-            "Roast", commit_count=1, title="Colin's Homelab Roast", color=0xE74C3C
+            "Roast", commit_count=1, title="Colin's Homelab Changelog", color=0xE74C3C
         )
-        assert embed.title == "Colin's Homelab Roast"
+        assert embed.title == "Colin's Homelab Changelog"
         assert embed.colour.value == 0xE74C3C
 
 
