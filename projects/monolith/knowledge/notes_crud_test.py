@@ -90,6 +90,21 @@ class TestCreateNote:
         fm = yaml.safe_load(parts[1])
         assert fm["title"] == content[:60]
 
+    def test_create_note_collision_appends_suffix(self, client, tmp_path):
+        """POST with title that collides gets a -1 suffix."""
+        # Pre-create the file at the expected slug path
+        (tmp_path / "my-note.md").write_text("existing")
+
+        r = client.post(
+            "/api/knowledge/notes",
+            json={"content": "New content", "title": "My Note"},
+        )
+
+        assert r.status_code == 201
+        path = r.json().get("path", "")
+        assert path == "my-note-1.md"
+        assert (tmp_path / path).exists()
+
 
 class TestDeleteNote:
     """Tests for DELETE /api/knowledge/notes/{note_id}."""

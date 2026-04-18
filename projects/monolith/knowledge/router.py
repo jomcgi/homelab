@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
+from knowledge import frontmatter
 from knowledge.gardener import Gardener, _slugify
 from knowledge.ingest_queue import IngestQueueItem
 from knowledge.models import AtomRawProvenance, RawInput
@@ -135,10 +136,8 @@ def edit_note(
     if not resolved.is_relative_to(vault_root) or not resolved.is_file():
         raise HTTPException(status_code=404, detail="vault file missing")
 
-    from knowledge.frontmatter import parse as parse_frontmatter
-
     existing_raw = resolved.read_text()
-    parsed, body = parse_frontmatter(existing_raw)
+    parsed, body = frontmatter.parse(existing_raw)
 
     # Merge provided fields into the parsed frontmatter
     if data.title is not None:
@@ -214,24 +213,25 @@ class CreateNoteRequest(BaseModel):
 @router.post("/notes", status_code=201)
 def create_note(data: CreateNoteRequest) -> dict:
     """Create a new markdown note in the vault with YAML frontmatter."""
-    if not data.content.strip():
+    content = data.content.strip()
+    if not content:
         raise HTTPException(status_code=400, detail="content must not be empty")
 
-    title = data.title or data.content.strip()[:60]
+    title = data.title or content[:60]
 
     # Build frontmatter dict (only include provided fields)
-    frontmatter: dict = {"title": title}
+    fm_dict: dict = {"title": title}
     if data.source is not None:
-        frontmatter["source"] = data.source
+        fm_dict["source"] = data.source
     if data.tags is not None:
-        frontmatter["tags"] = data.tags
+        fm_dict["tags"] = data.tags
     if data.type is not None:
-        frontmatter["type"] = data.type
+        fm_dict["type"] = data.type
 
-    fm_str = yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)
-    file_content = f"---\n{fm_str}---\n\n{data.content.strip()}\n"
+    fm_str = yaml.dump(fm_dict, default_flow_style=False, sort_keys=False)
+    file_content = f"---\n{fm_str}---\n\n{content}\n"
 
-    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
     slug = _slugify(title)
     filename = f"{slug}.md"
 
