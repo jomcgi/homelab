@@ -8,7 +8,7 @@ import os
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
@@ -119,6 +119,7 @@ class GardenStats:
     reconciled: int = 0
     resolved: int = 0
     distilled: int = 0
+    consolidated: int = 0
 
 
 def _split_frontmatter(raw: str) -> tuple[dict, str]:
@@ -308,6 +309,8 @@ class Gardener:
         distilled, distill_failed = await self._distill_completed_tasks()
         failed += distill_failed
 
+        consolidated = self._consolidate_task_views()
+
         stats = GardenStats(
             ingested=ingested,
             failed=failed,
@@ -316,9 +319,10 @@ class Gardener:
             reconciled=(reconcile_stats.inserted if reconcile_stats else 0),
             resolved=resolved_count,
             distilled=distilled,
+            consolidated=consolidated,
         )
         logger.info(
-            "knowledge.garden: resolved=%d moved=%d deduped=%d reconciled=%d ingested=%d failed=%d distilled=%d",
+            "knowledge.garden: resolved=%d moved=%d deduped=%d reconciled=%d ingested=%d failed=%d distilled=%d consolidated=%d",
             stats.resolved,
             stats.moved,
             stats.deduped,
@@ -326,8 +330,157 @@ class Gardener:
             stats.ingested,
             stats.failed,
             stats.distilled,
+            stats.consolidated,
         )
         return stats
+
+    def _consolidate_task_views(self) -> int:
+        """Generate daily and weekly task rollup notes in _processed/.
+
+        Returns the number of files written.
+        """
+        if self.session is None:
+            return 0
+
+        from knowledge.store import KnowledgeStore
+
+        store = KnowledgeStore(self.session)
+        today = date.today()
+        today_iso = today.isoformat()
+        # ISO week: 2026-W16
+        week_str = f"{today.isocalendar()[0]}-W{today.isocalendar()[1]:02d}"
+
+        _SIZE_ORDER = {"small": 0, "medium": 1, "large": 2, "unknown": 3}
+
+        def _size_sort_key(task: dict) -> int:
+            s = task.get("size")
+            if s is None:
+                return 4
+            return _SIZE_ORDER.get(s, 4)
+
+        def _size_summary(tasks: list[dict]) -> str:
+            counts: dict[str, int] = {}
+            for t in tasks:
+                s = t.get("size")
+                if s is not None:
+                    counts[s] = counts.get(s, 0) + 1
+            parts = []
+            for label in ["small", "medium", "large", "unknown"]:
+                if label in counts:
+                    parts.append(f"{counts[label]} {label}")
+            return ", ".join(parts) if parts else "none"
+
+        def _format_task_line(task: dict, *, show_due: bool = True) -> str:
+            note_id = task["note_id"]
+            title = task["title"]
+            size = task.get("size")
+            due = task.get("due")
+            status = task.get("status", "")
+            blocked_by = task.get("blocked_by", [])
+
+            size_str = f"{size}" if size else ""
+            parts = [p for p in [size_str] if p]
+            if show_due and due:
+                parts.append(f"due {due}")
+            meta = ", ".join(parts)
+            meta_str = f" ({meta})" if meta else ""
+
+            suffix = ""
+            if status == "blocked" and blocked_by:
+                blockers = ", ".join(blocked_by)
+                suffix = f" \U0001f512 blocked by {blockers}"
+            elif due and due < today_iso:
+                suffix = " \u26a0\ufe0f overdue"
+
+            return f"- [ ] **{note_id}** \u2014 {title}{meta_str}{suffix}"
+
+        # --- Fetch all tasks with due dates ---
+        all_tasks = store.list_tasks(include_someday=False)
+        tasks_with_due = [t for t in all_tasks if t.get("due") is not None]
+
+        written = 0
+        self.processed_root.mkdir(parents=True, exist_ok=True)
+
+        # --- Daily note: due today or overdue ---
+        daily_tasks = [t for t in tasks_with_due if t["due"] <= today_iso]
+        daily_tasks.sort(key=_size_sort_key)
+
+        daily_lines = [
+            "---",
+            f"id: tasks-daily-{today_iso}",
+            f'title: "Daily Tasks \u2014 {today_iso}"',
+            "type: fact",
+            "tags: [tasks, daily]",
+            "---",
+            "",
+            "## Due Today / Overdue",
+            "",
+        ]
+        for t in daily_tasks:
+            daily_lines.append(_format_task_line(t))
+        daily_lines.append("")
+        daily_lines.append(f"**Summary:** {_size_summary(daily_tasks)}")
+        daily_lines.append("")
+
+        daily_path = self.processed_root / f"tasks-daily-{today_iso}.md"
+        daily_path.write_text("\n".join(daily_lines))
+        written += 1
+
+        # --- Weekly note: tasks due this week grouped by day ---
+        monday = today - timedelta(days=today.weekday())
+        sunday = monday + timedelta(days=6)
+        monday_iso = monday.isoformat()
+        sunday_iso = sunday.isoformat()
+
+        weekly_tasks = [
+            t for t in tasks_with_due if monday_iso <= t["due"] <= sunday_iso
+        ]
+        # Also include overdue tasks (before monday)
+        overdue_tasks = [t for t in tasks_with_due if t["due"] < monday_iso]
+        all_weekly = overdue_tasks + weekly_tasks
+
+        # Group by due date
+        by_day: dict[str, list[dict]] = {}
+        for t in all_weekly:
+            by_day.setdefault(t["due"], []).append(t)
+
+        weekly_lines = [
+            "---",
+            f"id: tasks-weekly-{week_str}",
+            f'title: "Weekly Tasks \u2014 {week_str}"',
+            "type: fact",
+            "tags: [tasks, weekly]",
+            "---",
+            "",
+        ]
+
+        day_names = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
+        for day_str in sorted(by_day.keys()):
+            d = date.fromisoformat(day_str)
+            day_name = day_names[d.weekday()]
+            weekly_lines.append(f"## {day_str} ({day_name})")
+            weekly_lines.append("")
+            day_tasks = sorted(by_day[day_str], key=_size_sort_key)
+            for t in day_tasks:
+                weekly_lines.append(_format_task_line(t, show_due=False))
+            weekly_lines.append("")
+
+        weekly_lines.append(f"**Summary:** {_size_summary(all_weekly)}")
+        weekly_lines.append("")
+
+        weekly_path = self.processed_root / f"tasks-weekly-{week_str}.md"
+        weekly_path.write_text("\n".join(weekly_lines))
+        written += 1
+
+        return written
 
     async def _distill_completed_tasks(self) -> tuple[int, int]:
         """Distill learnings from completed tasks into knowledge atoms.
