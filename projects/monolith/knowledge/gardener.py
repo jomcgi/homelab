@@ -24,7 +24,7 @@ _EXCLUDED_DIRS = {"_processed", "_raw", ".obsidian", ".trash"}
 
 # Version stamp recorded on every provenance row the gardener produces.
 # Bump this when the prompt or model changes to trigger a manual reprocess.
-GARDENER_VERSION = "claude-sonnet-4-6@v1"
+GARDENER_VERSION = "claude-sonnet-4-6@v2"
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
@@ -40,6 +40,22 @@ Steps:
 3. Read related notes from {processed_root}/ using the Read tool.
 4. Create each atomic note as a new file in {processed_root}/ using the Write tool.
    Allowed types: atom (concept/principle), fact (verifiable claim), active (journal/TODO).
+
+   For `active` (task) notes, include these additional frontmatter fields:
+   - status: active | someday | blocked   (required for tasks)
+   - size: small | medium | large | unknown   (estimate complexity; use unknown if ambiguous)
+   - due: <ISO date or omit>   (only if a deadline is mentioned or implied)
+   - blocked-by: [<note-ids>]   (only if the task depends on another specific piece of work)
+
+   Size estimation guide:
+   - small: single-step, config change, no dependencies
+   - medium: multi-step but well-understood, few edges
+   - large: cross-cutting, multiple dependencies, significant scope
+   - unknown: ambiguous — flag for manual review
+
+   Recognise task-shaped content: phrases like "should deploy", "need to", "TODO",
+   "blocked on", "once X lands" indicate actionable work that should become an active note.
+
 5. Each file must start with YAML frontmatter:
 ---
 id: <slug-of-title>
