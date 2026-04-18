@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from app.log import configure_logging
 from home.router import router as home_router
 from knowledge.router import router as knowledge_router
+from knowledge.tasks_router import router as tasks_router
 from notes.router import router as notes_router
 from chat.router import router as chat_router
 from shared.router import router as schedule_router
@@ -168,6 +169,7 @@ app.include_router(schedule_router)
 app.include_router(notes_router)
 app.include_router(chat_router)
 app.include_router(knowledge_router)
+app.include_router(tasks_router)
 app.include_router(observability_router)
 
 import knowledge.mcp  # noqa: F401 — registers tools on shared MCP instance

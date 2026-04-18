@@ -2210,6 +2210,18 @@ py_test(
 )
 
 py_test(
+    name = "tasks_router_test",
+    srcs = ["knowledge/tasks_router_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "knowledge_ingest_queue_test",
     srcs = ["knowledge/ingest_queue_test.py"],
     imports = ["."],
