@@ -158,3 +158,8 @@ def replay(
 
     resp.raise_for_status()
     typer.echo(f"Replayed raw {raw_id}. It will be retried on the next gardener cycle.")
+
+
+from tools.cli.tasks_cmd import tasks_app  # noqa: E402
+
+knowledge_app.add_typer(tasks_app)

@@ -11,6 +11,7 @@ exports_files(
         "knowledge_cmd.py",
         "main.py",
         "output.py",
+        "tasks_cmd.py",
     ],
     visibility = ["//bazel/tools/image:__pkg__"],
 )
@@ -23,6 +24,7 @@ py_library(
         "knowledge_cmd.py",
         "main.py",
         "output.py",
+        "tasks_cmd.py",
     ],
     visibility = ["//:__subpackages__"],
     deps = [
@@ -113,6 +115,23 @@ semgrep_test(
 semgrep_test(
     name = "output_test_semgrep_test",
     srcs = ["output_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "tasks_test",
+    srcs = ["tasks_test.py"],
+    deps = [
+        ":cli",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//typer",
+    ],
+)
+
+semgrep_test(
+    name = "tasks_test_semgrep_test",
+    srcs = ["tasks_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
