@@ -146,7 +146,6 @@ class TestLifespanAppStateBotAssignment:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 # During the lifespan body, app.state.bot must be the created bot

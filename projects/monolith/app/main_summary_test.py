@@ -132,7 +132,6 @@ class TestChatStartupHook:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass

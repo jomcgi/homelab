@@ -152,7 +152,6 @@ class TestSweepTaskRegistration:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -180,7 +179,6 @@ class TestSweepTaskRegistration:
             patches[3],
             patches[4],
             patches[5],
-            patches[6],
             patches[6],
             patch("app.main.logger") as mock_logger,
         ):
@@ -258,7 +256,6 @@ class TestLockSweepLoopNoExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -313,7 +310,6 @@ class TestLockSweepLoopNoExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -365,7 +361,6 @@ class TestLockSweepLoopNoExpiredLocks:
             patches[3],
             patches[4],
             patches[5],
-            patches[6],
             patches[6],
         ):
             async with lifespan(app):
@@ -422,7 +417,6 @@ class TestLockSweepLoopNoExpiredLocks:
             patches[3],
             patches[4],
             patches[5],
-            patches[6],
             patches[6],
         ):
             async with lifespan(app):
@@ -488,7 +482,6 @@ class TestLockSweepLoopWithExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -547,7 +540,6 @@ class TestLockSweepLoopWithExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -605,7 +597,6 @@ class TestLockSweepLoopWithExpiredLocks:
             patches[3],
             patches[4],
             patches[5],
-            patches[6],
             patches[6],
         ):
             async with lifespan(app):
@@ -668,7 +659,6 @@ class TestLockSweepLoopExceptionHandling:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -727,7 +717,6 @@ class TestLockSweepLoopExceptionHandling:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -782,7 +771,6 @@ class TestLockSweepLoopExceptionHandling:
             patches[3],
             patches[4],
             patches[5],
-            patches[6],
             patches[6],
         ):
             async with lifespan(app):

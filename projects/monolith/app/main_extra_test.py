@@ -85,7 +85,6 @@ class TestLifespanBotCloseException:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             with pytest.raises(RuntimeError, match="Discord connection lost"):
                 async with lifespan(app):
@@ -109,7 +108,6 @@ class TestLifespanBotCloseException:
             patches[3],
             patches[4],
             patches[5],
-            patches[6],
             patches[6],
         ):
             try:
@@ -213,7 +211,6 @@ class TestLifespanBotStartException:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 started = True
@@ -239,7 +236,6 @@ class TestLifespanBotStartException:
             patches[3],
             patches[4],
             patches[5],
-            patches[6],
             patches[6],
         ):
             async with lifespan(app):
