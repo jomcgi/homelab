@@ -80,6 +80,26 @@ Title: {title}
 
 """
 
+_DISTILL_PROMPT = """\
+You are a knowledge gardener. A task has been completed. Extract any reusable
+learnings, patterns, or facts from the task note into new atomic knowledge artifacts.
+
+Completed task: {note_id}
+
+Steps:
+1. Read the completed task note from {note_path} using the Read tool.
+2. Identify any reusable learnings, patterns, gotchas, or facts worth preserving.
+3. If there are learnings worth preserving, create atomic notes in {processed_root}/.
+4. If the task was routine with no notable learnings, create no new notes.
+5. Each new note must have YAML frontmatter with:
+   - id, title, type (atom or fact), tags
+   - edges: derives_from: [{note_id}]
+6. Do NOT create a new active/task note. Only create atom or fact notes.
+
+Title: {title}
+
+"""
+
 _CLAUDE_TIMEOUT_SECS = 900
 
 
@@ -98,6 +118,7 @@ class GardenStats:
     deduped: int = 0
     reconciled: int = 0
     resolved: int = 0
+    distilled: int = 0
 
 
 def _split_frontmatter(raw: str) -> tuple[dict, str]:
@@ -284,6 +305,9 @@ class Gardener:
                 logger.exception("gardener: failed to ingest %s", raw.path)
                 failed += 1
 
+        distilled, distill_failed = await self._distill_completed_tasks()
+        failed += distill_failed
+
         stats = GardenStats(
             ingested=ingested,
             failed=failed,
@@ -291,17 +315,119 @@ class Gardener:
             deduped=move_stats.deduped,
             reconciled=(reconcile_stats.inserted if reconcile_stats else 0),
             resolved=resolved_count,
+            distilled=distilled,
         )
         logger.info(
-            "knowledge.garden: resolved=%d moved=%d deduped=%d reconciled=%d ingested=%d failed=%d",
+            "knowledge.garden: resolved=%d moved=%d deduped=%d reconciled=%d ingested=%d failed=%d distilled=%d",
             stats.resolved,
             stats.moved,
             stats.deduped,
             stats.reconciled,
             stats.ingested,
             stats.failed,
+            stats.distilled,
         )
         return stats
+
+    async def _distill_completed_tasks(self) -> tuple[int, int]:
+        """Distill learnings from completed tasks into knowledge atoms.
+
+        Returns (distilled, failed) counts.
+        """
+        if self.session is None:
+            return 0, 0
+
+        # Query all active-type notes, then filter for done status in Python
+        # (avoids JSONB dialect differences between Postgres and SQLite).
+        active_notes = self.session.exec(
+            select(Note).where(Note.type == "active")
+        ).all()
+        done_tasks = [
+            n
+            for n in active_notes
+            if isinstance(n.extra, dict) and n.extra.get("status") == "done"
+        ]
+
+        distilled = 0
+        failed = 0
+
+        for note in done_tasks:
+            # Check if already distilled (provenance exists for this note+version)
+            existing = self.session.exec(
+                select(AtomRawProvenance).where(
+                    and_(
+                        AtomRawProvenance.atom_fk == note.id,
+                        AtomRawProvenance.gardener_version == GARDENER_VERSION,
+                    )
+                )
+            ).first()
+            if existing is not None:
+                continue
+
+            # Read the vault file
+            vault_path = self.vault_root / note.path
+            if not vault_path.is_file():
+                continue
+
+            try:
+                await self._distill_one(note, vault_path)
+                distilled += 1
+            except Exception:
+                logger.exception("Distillation failed for %s", note.note_id)
+                failed += 1
+
+        return distilled, failed
+
+    async def _distill_one(self, note: Note, vault_path: Path) -> None:
+        """Distill learnings from a single completed task."""
+        prompt = _DISTILL_PROMPT.format(
+            note_id=note.note_id,
+            note_path=str(vault_path),
+            processed_root=str(self.processed_root),
+            title=note.title,
+        )
+
+        # Capture files before
+        before = (
+            set(self.processed_root.glob("*.md"))
+            if self.processed_root.is_dir()
+            else set()
+        )
+
+        await self._run_claude_subprocess(prompt)
+
+        # Capture files after
+        after = (
+            set(self.processed_root.glob("*.md"))
+            if self.processed_root.is_dir()
+            else set()
+        )
+        new_files = after - before
+
+        # Record provenance for each new note
+        if self.session is not None:
+            for f in new_files:
+                meta, _ = _split_frontmatter(f.read_text())
+                derived_id = meta.get("id", f.stem)
+                self.session.add(
+                    AtomRawProvenance(
+                        atom_fk=note.id,
+                        gardener_version=GARDENER_VERSION,
+                        derived_note_id=derived_id,
+                    )
+                )
+
+            # If no new notes, still record provenance to avoid re-distilling
+            if not new_files:
+                self.session.add(
+                    AtomRawProvenance(
+                        atom_fk=note.id,
+                        gardener_version=GARDENER_VERSION,
+                        derived_note_id="no-new-notes",
+                    )
+                )
+
+            self.session.commit()
 
     def _discover_raw_files(self) -> list[Path]:
         """Find .md files in the vault root that are not in excluded directories."""
