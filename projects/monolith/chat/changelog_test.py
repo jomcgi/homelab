@@ -195,39 +195,61 @@ class TestFilterChangelogCommits:
 class TestBuildEmbed:
     def test_embed_title(self):
         """Embed title is 'Homelab Changelog'."""
-        embed = _build_embed("Some summary", commit_count=3)
+        embed = _build_embed(
+            "Some summary", commit_count=3, title="Homelab Changelog", color=0x2ECC71
+        )
         assert embed.title == "Homelab Changelog"
 
     def test_embed_color(self):
         """Embed color is 0x2ECC71 (green)."""
-        embed = _build_embed("Some summary", commit_count=3)
+        embed = _build_embed(
+            "Some summary", commit_count=3, title="Homelab Changelog", color=0x2ECC71
+        )
         assert embed.colour.value == 0x2ECC71
 
     def test_embed_description_matches_summary(self):
         """Embed description equals the provided summary string."""
         summary = "Added dark mode and fixed login bug."
-        embed = _build_embed(summary, commit_count=2)
+        embed = _build_embed(
+            summary, commit_count=2, title="Homelab Changelog", color=0x2ECC71
+        )
         assert embed.description == summary
 
     def test_embed_footer_singular(self):
         """Footer text shows commit count."""
-        embed = _build_embed("x", commit_count=1)
+        embed = _build_embed(
+            "x", commit_count=1, title="Homelab Changelog", color=0x2ECC71
+        )
         assert embed.footer.text == "1 commit(s)"
 
     def test_embed_footer_plural(self):
         """Footer text with multiple commits."""
-        embed = _build_embed("x", commit_count=5)
+        embed = _build_embed(
+            "x", commit_count=5, title="Homelab Changelog", color=0x2ECC71
+        )
         assert embed.footer.text == "5 commit(s)"
 
     def test_embed_has_timestamp(self):
         """Embed has a timestamp set."""
-        embed = _build_embed("x", commit_count=1)
+        embed = _build_embed(
+            "x", commit_count=1, title="Homelab Changelog", color=0x2ECC71
+        )
         assert embed.timestamp is not None
 
     def test_embed_returns_discord_embed(self):
         """Return type is discord.Embed."""
-        embed = _build_embed("x", commit_count=1)
+        embed = _build_embed(
+            "x", commit_count=1, title="Homelab Changelog", color=0x2ECC71
+        )
         assert isinstance(embed, discord.Embed)
+
+    def test_custom_title_and_color(self):
+        """Custom title and color are used in the embed."""
+        embed = _build_embed(
+            "Roast", commit_count=1, title="Colin's Homelab Roast", color=0xE74C3C
+        )
+        assert embed.title == "Colin's Homelab Roast"
+        assert embed.colour.value == 0xE74C3C
 
 
 # ---------------------------------------------------------------------------
@@ -272,7 +294,7 @@ class TestSummarizeWithGemma:
         commits = [_make_commit("feat: add search", "Bob")]
         mock_llm = AsyncMock(return_value="Added search functionality.")
 
-        await _summarize_with_gemma(commits, mock_llm)
+        await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
 
         call_args = mock_llm.call_args[0][0]
         assert "feat: add search" in call_args
@@ -283,7 +305,7 @@ class TestSummarizeWithGemma:
         commits = [_make_commit("feat: add feature", "Charlie")]
         mock_llm = AsyncMock(return_value="Added a feature.")
 
-        await _summarize_with_gemma(commits, mock_llm)
+        await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
 
         call_args = mock_llm.call_args[0][0]
         assert "Charlie" in call_args
@@ -295,7 +317,7 @@ class TestSummarizeWithGemma:
         expected = "Users can now toggle dark mode."
         mock_llm = AsyncMock(return_value=expected)
 
-        result = await _summarize_with_gemma(commits, mock_llm)
+        result = await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
 
         assert result == expected
 
@@ -305,7 +327,7 @@ class TestSummarizeWithGemma:
         commits = [_make_commit("feat: a"), _make_commit("feat: b")]
         mock_llm = AsyncMock(return_value="summary")
 
-        await _summarize_with_gemma(commits, mock_llm)
+        await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
 
         mock_llm.assert_called_once()
 
@@ -318,7 +340,7 @@ class TestSummarizeWithGemma:
         ]
         mock_llm = AsyncMock(return_value="Two features added.")
 
-        await _summarize_with_gemma(commits, mock_llm)
+        await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
 
         call_args = mock_llm.call_args[0][0]
         assert "feat: feature A" in call_args
