@@ -123,7 +123,6 @@ py_test(
     srcs = ["tasks_test.py"],
     deps = [
         ":cli",
-        "@pip//httpx",
         "@pip//pytest",
         "@pip//typer",
     ],
