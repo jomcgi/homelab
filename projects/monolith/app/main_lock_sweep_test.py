@@ -52,7 +52,6 @@ def _lifespan_patches_with_discord(mock_bot):
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("chat.summarizer.on_startup"),
@@ -69,7 +68,6 @@ def _lifespan_patches_no_discord():
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
     ]
@@ -154,7 +152,7 @@ class TestSweepTaskRegistration:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -183,7 +181,7 @@ class TestSweepTaskRegistration:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
             patch("app.main.logger") as mock_logger,
         ):
             async with lifespan(app):
@@ -219,7 +217,6 @@ class TestSweepTaskRegistration:
             patches[1],
             patches[2],
             patches[3],
-            patches[4],
             patch("app.main.logger") as mock_logger,
         ):
             async with lifespan(app):
@@ -261,7 +258,7 @@ class TestLockSweepLoopNoExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -316,7 +313,7 @@ class TestLockSweepLoopNoExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -369,7 +366,7 @@ class TestLockSweepLoopNoExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -426,7 +423,7 @@ class TestLockSweepLoopNoExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -491,7 +488,7 @@ class TestLockSweepLoopWithExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -550,7 +547,7 @@ class TestLockSweepLoopWithExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -609,7 +606,7 @@ class TestLockSweepLoopWithExpiredLocks:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -671,7 +668,7 @@ class TestLockSweepLoopExceptionHandling:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -730,7 +727,7 @@ class TestLockSweepLoopExceptionHandling:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -786,7 +783,7 @@ class TestLockSweepLoopExceptionHandling:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass

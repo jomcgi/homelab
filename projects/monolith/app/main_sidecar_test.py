@@ -58,7 +58,6 @@ def _lifespan_patches_with_discord(mock_bot):
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("chat.summarizer.on_startup"),
@@ -74,7 +73,6 @@ def _lifespan_patches_no_discord():
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
     ]
@@ -470,7 +468,6 @@ async def test_start_bot_when_ready_not_scheduled_when_no_token():
         patches[1],
         patches[2],
         patches[3],
-        patches[4],
     ):
         async with lifespan(app):
             pass

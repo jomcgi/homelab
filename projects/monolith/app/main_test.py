@@ -87,14 +87,6 @@ def test_healthz_content_type_is_json(client):
 # ---------------------------------------------------------------------------
 
 
-def test_home_router_registered():
-    """Home router is included — routes with /api/home prefix exist in the app."""
-    paths = [getattr(route, "path", "") for route in app.routes]
-    assert any(p.startswith("/api/home") for p in paths), (
-        "No /api/home routes found; home_router may not be included"
-    )
-
-
 def test_schedule_router_registered():
     """Schedule router is included — routes with /api/schedule prefix exist."""
     paths = [getattr(route, "path", "") for route in app.routes]
@@ -109,12 +101,6 @@ def test_notes_router_registered():
     assert any(p.startswith("/api/notes") for p in paths), (
         "No /api/notes routes found; notes_router may not be included"
     )
-
-
-def test_home_router_daily_endpoint_responds(client):
-    """GET /api/home/daily from the home router returns a 200 response."""
-    response = client.get("/api/home/daily")
-    assert response.status_code == 200
 
 
 def test_schedule_router_today_endpoint_responds(client):
@@ -167,7 +153,6 @@ def _lifespan_patches_no_discord():
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
     ]
@@ -189,7 +174,7 @@ async def test_lifespan_creates_one_background_task_on_startup():
 
     patches = _lifespan_patches_no_discord()
     with patch("asyncio.create_task", side_effect=capture_create_task):
-        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        with patches[0], patches[1], patches[2], patches[3]:
             async with lifespan(app):
                 pass
 
@@ -212,7 +197,7 @@ async def test_lifespan_cancels_all_tasks_on_shutdown():
 
     patches = _lifespan_patches_no_discord()
     with patch("asyncio.create_task", side_effect=capture_create_task):
-        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        with patches[0], patches[1], patches[2], patches[3]:
             async with lifespan(app):
                 pass
 
@@ -237,7 +222,7 @@ async def test_lifespan_no_tasks_cancelled_before_shutdown():
 
     patches = _lifespan_patches_no_discord()
     with patch("asyncio.create_task", side_effect=capture_create_task):
-        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        with patches[0], patches[1], patches[2], patches[3]:
             async with lifespan(app):
                 assert len(mock_tasks) == 1
                 for task in mock_tasks:
@@ -269,12 +254,11 @@ async def test_lifespan_scheduler_task_is_run_scheduler_loop():
                 __exit__=MagicMock(return_value=False),
             ),
         ),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", mock_scheduler),
     ]
     with patch("asyncio.create_task", side_effect=capture_create_task):
-        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        with patches[0], patches[1], patches[2], patches[3]:
             async with lifespan(app):
                 pass
 
@@ -366,7 +350,7 @@ async def test_lifespan_logs_monolith_started_on_startup():
 
     patches = _lifespan_patches_no_discord()
     with patch("asyncio.create_task", side_effect=capture_create_task):
-        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        with patches[0], patches[1], patches[2], patches[3]:
             with patch("app.main.logger") as mock_logger:
                 async with lifespan(app):
                     pass
@@ -389,7 +373,7 @@ async def test_lifespan_logs_shutting_down_on_exit():
 
     patches = _lifespan_patches_no_discord()
     with patch("asyncio.create_task", side_effect=capture_create_task):
-        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        with patches[0], patches[1], patches[2], patches[3]:
             with patch("app.main.logger") as mock_logger:
                 async with lifespan(app):
                     pass
@@ -413,7 +397,6 @@ def _lifespan_patches_with_discord(mock_bot):
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("chat.summarizer.on_startup"),
@@ -453,7 +436,6 @@ async def test_lifespan_registers_done_callback_on_bot_task_when_token_set():
                 patches[4],
                 patches[5],
                 patches[6],
-                patches[7],
             ):
                 async with lifespan(app):
                     pass
@@ -485,7 +467,6 @@ async def test_lifespan_logs_discord_bot_starting_when_token_set():
                 patches[4],
                 patches[5],
                 patches[6],
-                patches[7],
             ):
                 with patch("app.main.logger") as mock_logger:
                     async with lifespan(app):
@@ -525,7 +506,6 @@ async def test_lifespan_creates_three_tasks_when_discord_token_set():
                 patches[4],
                 patches[5],
                 patches[6],
-                patches[7],
             ):
                 async with lifespan(app):
                     pass
@@ -550,7 +530,7 @@ async def test_lifespan_does_not_log_discord_bot_starting_when_token_absent():
     patches = _lifespan_patches_no_discord()
     with patch.dict(os.environ, env_without_token, clear=True):
         with patch("asyncio.create_task", side_effect=capture_create_task):
-            with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 with patch("app.main.logger") as mock_logger:
                     async with lifespan(app):
                         pass

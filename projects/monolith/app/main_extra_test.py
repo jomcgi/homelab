@@ -39,7 +39,6 @@ def _lifespan_patches_no_discord():
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
     ]
@@ -53,7 +52,6 @@ def _lifespan_patches_with_discord(mock_bot):
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("chat.summarizer.on_startup"),
@@ -87,7 +85,7 @@ class TestLifespanBotCloseException:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             with pytest.raises(RuntimeError, match="Discord connection lost"):
                 async with lifespan(app):
@@ -112,7 +110,7 @@ class TestLifespanBotCloseException:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             try:
                 async with lifespan(app):
@@ -146,7 +144,6 @@ class TestLifespanRunSchedulerLoopException:
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": ""}),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session),
-            patch("home.service.on_startup"),
             patch("shared.service.on_startup"),
             patch(
                 "shared.scheduler.run_scheduler_loop",
@@ -176,7 +173,6 @@ class TestLifespanRunSchedulerLoopException:
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": ""}),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session),
-            patch("home.service.on_startup"),
             patch("shared.service.on_startup"),
             patch(
                 "shared.scheduler.run_scheduler_loop",
@@ -217,7 +213,7 @@ class TestLifespanBotStartException:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 started = True
@@ -244,7 +240,7 @@ class TestLifespanBotStartException:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
