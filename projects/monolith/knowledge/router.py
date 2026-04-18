@@ -109,10 +109,10 @@ def edit_note(
     if not resolved.is_relative_to(vault_root) or not resolved.is_file():
         raise HTTPException(status_code=404, detail="vault file missing")
 
-    from knowledge import frontmatter
+    from knowledge.frontmatter import parse as parse_frontmatter
 
     existing_raw = resolved.read_text()
-    parsed, body = frontmatter.parse(existing_raw)
+    parsed, body = parse_frontmatter(existing_raw)
 
     # Merge provided fields into the parsed frontmatter
     if data.title is not None:
