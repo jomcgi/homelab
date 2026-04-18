@@ -91,6 +91,71 @@ class TestCreateNote:
         assert fm["title"] == content[:60]
 
 
+class TestDeleteNote:
+    """Tests for DELETE /api/knowledge/notes/{note_id}."""
+
+    def test_delete_note_removes_file_and_db(self, client, tmp_path):
+        """DELETE existing note returns 200, removes file, and calls store.delete_note."""
+        note_path = "delete-me.md"
+        (tmp_path / note_path).write_text("---\ntitle: Doomed\n---\n\nGoodbye\n")
+
+        mock_note = {
+            "note_id": "del123",
+            "title": "Doomed",
+            "path": note_path,
+            "type": "note",
+            "tags": [],
+        }
+
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            instance = MockStore.return_value
+            instance.get_note_by_id.return_value = mock_note
+
+            r = client.delete("/api/knowledge/notes/del123")
+
+        assert r.status_code == 200
+        body = r.json()
+        assert body["deleted"] is True
+        assert body["note_id"] == "del123"
+        assert not (tmp_path / note_path).exists()
+        instance.delete_note.assert_called_once_with(note_path)
+
+    def test_delete_note_not_found(self, client):
+        """DELETE for nonexistent note_id returns 404."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.get_note_by_id.return_value = None
+
+            r = client.delete("/api/knowledge/notes/nonexistent")
+
+        assert r.status_code == 404
+        assert "note not found" in r.json().get("detail", "")
+
+    def test_delete_note_missing_file_still_cleans_db(self, client, tmp_path):
+        """DELETE when file is already gone still returns 200 and cleans DB."""
+        note_path = "already-gone.md"
+        # Don't create the file — simulate it being deleted externally.
+
+        mock_note = {
+            "note_id": "gone456",
+            "title": "Ghost",
+            "path": note_path,
+            "type": "note",
+            "tags": [],
+        }
+
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            instance = MockStore.return_value
+            instance.get_note_by_id.return_value = mock_note
+
+            r = client.delete("/api/knowledge/notes/gone456")
+
+        assert r.status_code == 200
+        body = r.json()
+        assert body["deleted"] is True
+        assert body["note_id"] == "gone456"
+        instance.delete_note.assert_called_once_with(note_path)
+
+
 class TestEditNote:
     """Tests for PUT /api/knowledge/notes/{note_id}."""
 
