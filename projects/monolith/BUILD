@@ -66,6 +66,7 @@ py_library(
         "@pip//fastmcp",
         "@pip//httpx",
         "@pip//icalendar",
+        "@pip//kubernetes_asyncio",
         "@pip//lxml_html_clean",  # explicit: overrides.txt strips lxml[html-clean] extra
         "@pip//opentelemetry_exporter_otlp_proto_http",
         "@pip//opentelemetry_instrumentation_fastapi",
@@ -2363,4 +2364,28 @@ semgrep_target_test(
     ],
     rules = ["//bazel/semgrep/rules:python_rules"],
     target = ":main",
+)
+
+py_test(
+    name = "stats_test",
+    srcs = ["observability/stats_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "kubernetes_client_test",
+    srcs = ["shared/kubernetes_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//kubernetes_asyncio",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
 )
