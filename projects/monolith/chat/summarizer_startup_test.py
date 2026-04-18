@@ -1,15 +1,31 @@
 """Tests covering the on_startup branches that were not exercised in startup_test.py:
 - llm_call=None triggers build_llm_caller() internally
-- the _changelog_handler returns a next-hour-aligned datetime
+- the _changelog_handler returns an interval-aligned datetime
 """
 
+import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from chat import summarizer
+from chat.changelog import ChangelogConfig
 from shared.scheduler import _registry
+
+_TEST_CHANGELOG_CONFIGS = json.dumps(
+    [
+        {
+            "name": "test",
+            "channelId": "123",
+            "githubRepo": "owner/repo",
+            "prompt": "professional",
+            "embedTitle": "Test",
+            "embedColor": "0x2ECC71",
+            "intervalHours": 1,
+        }
+    ]
+)
 
 
 @pytest.fixture(autouse=True)
@@ -66,9 +82,9 @@ class TestOnStartupWithNullLlmCall:
 
 class TestChangelogHandlerReturnValue:
     @pytest.mark.asyncio
-    async def test_changelog_handler_returns_next_hour_boundary(self):
+    async def test_changelog_handler_returns_next_interval_boundary(self):
         """The _changelog_handler returned by on_startup returns a datetime aligned to
-        the start of the next full UTC hour."""
+        the next interval boundary from midnight."""
         session = MagicMock()
         bot = MagicMock()
         llm_call = AsyncMock()
@@ -81,10 +97,11 @@ class TestChangelogHandlerReturnValue:
         with (
             patch("shared.scheduler.register_job", side_effect=_capture_register),
             patch("chat.changelog.run_changelog_iteration", new_callable=AsyncMock),
+            patch.dict("os.environ", {"CHANGELOG_CONFIGS": _TEST_CHANGELOG_CONFIGS}),
         ):
             summarizer.on_startup(session, bot=bot, llm_call=llm_call)
 
-        handler = captured_handlers["chat.changelog"]
+        handler = captured_handlers["chat.changelog.test"]
         result = await handler(session)
 
         assert result is not None
@@ -95,14 +112,14 @@ class TestChangelogHandlerReturnValue:
         now = datetime.now(timezone.utc)
         assert result > now
 
-        # Must be at exactly HH:00:00 (next whole hour)
+        # Must be at an interval boundary (minute=0, second=0 for 1h interval)
         assert result.minute == 0
         assert result.second == 0
         assert result.microsecond == 0
 
     @pytest.mark.asyncio
-    async def test_changelog_handler_next_hour_at_most_one_hour_away(self):
-        """The next-hour boundary returned is within 60 minutes of now."""
+    async def test_changelog_handler_next_boundary_at_most_one_interval_away(self):
+        """The next boundary returned is within one interval of now."""
         session = MagicMock()
         bot = MagicMock()
         llm_call = AsyncMock()
@@ -115,20 +132,21 @@ class TestChangelogHandlerReturnValue:
         with (
             patch("shared.scheduler.register_job", side_effect=_capture_register),
             patch("chat.changelog.run_changelog_iteration", new_callable=AsyncMock),
+            patch.dict("os.environ", {"CHANGELOG_CONFIGS": _TEST_CHANGELOG_CONFIGS}),
         ):
             summarizer.on_startup(session, bot=bot, llm_call=llm_call)
 
-        handler = captured_handlers["chat.changelog"]
+        handler = captured_handlers["chat.changelog.test"]
         now_before = datetime.now(timezone.utc)
         result = await handler(session)
         now_after = datetime.now(timezone.utc)
 
-        # result must be within (now, now + 3600s]
+        # result must be within (now, now + 3600s] for a 1h interval
         assert result <= now_after + timedelta(seconds=3600)
 
     @pytest.mark.asyncio
     async def test_changelog_handler_calls_run_changelog_iteration(self):
-        """The _changelog_handler invokes run_changelog_iteration with bot and llm_call."""
+        """The _changelog_handler invokes run_changelog_iteration with bot, llm_call, and config."""
         session = MagicMock()
         bot = MagicMock()
         llm_call = AsyncMock()
@@ -143,11 +161,15 @@ class TestChangelogHandlerReturnValue:
             patch(
                 "chat.changelog.run_changelog_iteration", new_callable=AsyncMock
             ) as mock_iter,
+            patch.dict("os.environ", {"CHANGELOG_CONFIGS": _TEST_CHANGELOG_CONFIGS}),
         ):
             summarizer.on_startup(session, bot=bot, llm_call=llm_call)
-            await captured_handlers["chat.changelog"](session)
+            await captured_handlers["chat.changelog.test"](session)
 
         mock_iter.assert_called_once()
         args, kwargs = mock_iter.call_args
-        assert args == (bot, llm_call)
+        assert args[0] is bot
+        assert args[1] is llm_call
+        assert isinstance(args[2], ChangelogConfig)
+        assert args[2].name == "test"
         assert callable(kwargs.get("store_message"))
