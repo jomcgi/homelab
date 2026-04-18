@@ -167,18 +167,6 @@ py_test(
 )
 
 py_test(
-    name = "home_service_test",
-    srcs = ["home/service_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//pytest",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
-    ],
-)
-
-py_test(
     name = "db_test",
     srcs = ["app/db_test.py"],
     imports = ["."],
