@@ -367,7 +367,7 @@ class TestVaultBackupHandler:
     async def test_skips_when_no_git_dir(self, monkeypatch, tmp_path):
         """vault_backup_handler skips when vault has no .git directory."""
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
-        result = await service.vault_backup_handler(MagicMock())
+        result = await service.vault_backup_handler()
         assert result is None
 
     @pytest.mark.asyncio
@@ -376,7 +376,7 @@ class TestVaultBackupHandler:
         monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
         (tmp_path / ".git").mkdir()
         with patch("knowledge.service.porcelain.status", return_value=_empty_status()):
-            result = await service.vault_backup_handler(MagicMock())
+            result = await service.vault_backup_handler()
         assert result is None
 
     @pytest.mark.asyncio
@@ -394,7 +394,7 @@ class TestVaultBackupHandler:
             patch("knowledge.service.porcelain.commit") as mock_commit,
             patch("knowledge.service.porcelain.push") as mock_push,
         ):
-            result = await service.vault_backup_handler(MagicMock())
+            result = await service.vault_backup_handler()
         assert result is None
         mock_add.assert_called_once_with(str(tmp_path))
         mock_commit.assert_called_once_with(
@@ -422,7 +422,7 @@ class TestVaultBackupHandler:
             patch("knowledge.service.porcelain.commit"),
             patch("knowledge.service.porcelain.push"),
         ):
-            await service.vault_backup_handler(MagicMock())
+            await service.vault_backup_handler()
         mock_add.assert_called_once()
 
     @pytest.mark.asyncio
@@ -444,7 +444,7 @@ class TestVaultBackupHandler:
             ),
             caplog.at_level(logging.WARNING, logger="knowledge.service"),
         ):
-            await service.vault_backup_handler(MagicMock())
+            await service.vault_backup_handler()
         assert any("push failed" in r.message.lower() for r in caplog.records)
 
     @pytest.mark.asyncio
@@ -462,7 +462,7 @@ class TestVaultBackupHandler:
             patch("knowledge.service.porcelain.commit"),
             patch("knowledge.service.porcelain.push") as mock_push,
         ):
-            await service.vault_backup_handler(MagicMock())
+            await service.vault_backup_handler()
         mock_push.assert_called_once_with(
             str(tmp_path), username="x-access-token", password="ghp_secret"
         )
@@ -495,7 +495,7 @@ class TestVaultSyncGate:
     async def test_backup_defers_when_sync_not_ready(self, caplog):
         with patch("knowledge.service._vault_sync_ready", return_value=False):
             with caplog.at_level(logging.INFO, logger="knowledge.service"):
-                result = await service.vault_backup_handler(MagicMock())
+                result = await service.vault_backup_handler()
         assert result is None
         assert any(
             "vault sync not ready" in m for m in [r.message for r in caplog.records]

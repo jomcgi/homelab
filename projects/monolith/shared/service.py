@@ -93,8 +93,8 @@ async def poll_calendar() -> None:
         logger.exception("Failed to fetch calendar feed")
 
 
-async def calendar_poll_handler(session: Session) -> None:
-    """Scheduler handler for calendar polling. Session unused (stateless HTTP fetch)."""
+async def calendar_poll_handler() -> None:
+    """Scheduler handler for calendar polling (stateless HTTP fetch)."""
     await poll_calendar()
     return None
 
