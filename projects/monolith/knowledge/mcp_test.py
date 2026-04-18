@@ -6,7 +6,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from knowledge.mcp import get_note, search_knowledge
+from knowledge.mcp import (
+    create_note,
+    delete_note,
+    edit_note,
+    get_note,
+    search_knowledge,
+)
 
 FAKE_EMBEDDING = [0.1] * 1024
 
@@ -162,3 +168,184 @@ class TestGetNote:
             result = await get_note("n1")
 
         assert "error" in result
+
+
+class TestCreateNoteTool:
+    """Tests for the create_note MCP tool."""
+
+    @pytest.mark.asyncio
+    async def test_creates_file(self, tmp_path, monkeypatch):
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        monkeypatch.setenv("VAULT_ROOT", str(vault_dir))
+
+        result = await create_note(
+            content="Some note body",
+            title="My Test Note",
+            tags=["test"],
+            type="concept",
+        )
+
+        assert "path" in result
+        assert result["path"] == "my-test-note.md"
+        created = vault_dir / result["path"]
+        assert created.is_file()
+        text = created.read_text()
+        assert "title: My Test Note" in text
+        assert "Some note body" in text
+
+    @pytest.mark.asyncio
+    async def test_empty_content_returns_error(self):
+        result = await create_note(content="")
+        assert result == {"error": "content must not be empty"}
+
+    @pytest.mark.asyncio
+    async def test_whitespace_content_returns_error(self):
+        result = await create_note(content="   \n  ")
+        assert result == {"error": "content must not be empty"}
+
+    @pytest.mark.asyncio
+    async def test_collision_handling(self, tmp_path, monkeypatch):
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        monkeypatch.setenv("VAULT_ROOT", str(vault_dir))
+
+        (vault_dir / "my-note.md").write_text("existing")
+
+        result = await create_note(content="body", title="My Note")
+        assert result["path"] == "my-note-1.md"
+
+    @pytest.mark.asyncio
+    async def test_default_title_from_content(self, tmp_path, monkeypatch):
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        monkeypatch.setenv("VAULT_ROOT", str(vault_dir))
+
+        result = await create_note(content="Short body")
+        created = vault_dir / result["path"]
+        text = created.read_text()
+        assert "title: Short body" in text
+
+
+class TestEditNoteTool:
+    """Tests for the edit_note MCP tool."""
+
+    @pytest.mark.asyncio
+    async def test_updates_content(self, tmp_path, monkeypatch):
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        note_file = vault_dir / "papers" / "attention.md"
+        note_file.parent.mkdir(parents=True)
+        note_file.write_text("---\ntitle: Original\n---\nOld body")
+
+        monkeypatch.setenv("VAULT_ROOT", str(vault_dir))
+
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.get_note_by_id.return_value = SAMPLE_NOTE
+            result = await edit_note("n1", content="New body", title="Updated Title")
+
+        assert result == {"path": "papers/attention.md", "note_id": "n1"}
+        text = note_file.read_text()
+        assert "title: Updated Title" in text
+        assert "New body" in text
+        assert "Old body" not in text
+
+    @pytest.mark.asyncio
+    async def test_not_found_returns_error(self):
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.get_note_by_id.return_value = None
+            result = await edit_note("nonexistent", content="x")
+
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_missing_file_returns_error(self, tmp_path, monkeypatch):
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        monkeypatch.setenv("VAULT_ROOT", str(vault_dir))
+
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.get_note_by_id.return_value = {
+                **SAMPLE_NOTE,
+                "path": "gone/missing.md",
+            }
+            result = await edit_note("n1", content="x")
+
+        assert "error" in result
+
+
+class TestDeleteNoteTool:
+    """Tests for the delete_note MCP tool."""
+
+    @pytest.mark.asyncio
+    async def test_deletes_file_and_db(self, tmp_path, monkeypatch):
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        note_file = vault_dir / "papers" / "attention.md"
+        note_file.parent.mkdir(parents=True)
+        note_file.write_text("# Attention")
+
+        monkeypatch.setenv("VAULT_ROOT", str(vault_dir))
+
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.get_note_by_id.return_value = SAMPLE_NOTE
+            result = await delete_note("n1")
+
+        assert result == {"deleted": True, "note_id": "n1"}
+        assert not note_file.exists()
+        MockStore.return_value.delete_note.assert_called_once_with(
+            "papers/attention.md"
+        )
+
+    @pytest.mark.asyncio
+    async def test_not_found_returns_error(self):
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.get_note_by_id.return_value = None
+            result = await delete_note("nonexistent")
+
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_already_deleted_file_still_cleans_db(self, tmp_path, monkeypatch):
+        vault_dir = tmp_path / "vault"
+        vault_dir.mkdir()
+        monkeypatch.setenv("VAULT_ROOT", str(vault_dir))
+
+        mock_session = MagicMock()
+        with (
+            patch("knowledge.mcp.Session", return_value=mock_session),
+            patch("knowledge.mcp.get_engine"),
+            patch("knowledge.mcp.KnowledgeStore") as MockStore,
+        ):
+            MockStore.return_value.get_note_by_id.return_value = SAMPLE_NOTE
+            result = await delete_note("n1")
+
+        assert result == {"deleted": True, "note_id": "n1"}
+        MockStore.return_value.delete_note.assert_called_once_with(
+            "papers/attention.md"
+        )
