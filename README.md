@@ -1,8 +1,10 @@
 # Homelab
 
-A single-person production platform. GitOps-only deploys, automatic mTLS, policy-enforced non-root containers, hermetic remote builds, autonomous AI agents, on-cluster LLM inference — the same patterns staff engineers advocate for at large companies, applied with more rigour because nothing ships without them. Built so I can take an idea to a running, observable, securely-deployed service in under an hour.
+A single-person production platform. Production-grade infrastructure — GitOps, mTLS, hermetic remote builds — paired with AI-native systems: on-cluster LLM inference, autonomous agents, and an LLM-powered knowledge graph. Built so I can take an idea to a running, observable, securely-deployed service in under an hour.
 
-**If you're here to evaluate:** start with [`agent_platform/`](projects/agent_platform/) (distributed agent orchestration with sandboxing and RBAC-scoped tool access), [`monolith/knowledge/`](projects/monolith/knowledge/) (LLM-powered knowledge graph with on-cluster inference), and [`operators/oci-model-cache/`](projects/operators/oci-model-cache/) (custom Kubernetes operator with compiler-enforced state machines).
+4 nodes (3 control-plane, 1 GPU) · 28 ArgoCD apps · 64 deployments · ~112 GiB RAM, 52 cores, 1 GPU · running since September 2025
+
+**If you're here to evaluate:** start with [`agent_platform/`](projects/agent_platform/) (distributed agent orchestration with sandboxing and RBAC-scoped tool access), [`monolith/knowledge/`](projects/monolith/knowledge/) (LLM-powered knowledge graph with on-cluster inference), [`operators/oci-model-cache/`](projects/operators/oci-model-cache/) (custom Kubernetes operator with compiler-enforced state machines), and [`ships/`](projects/ships/) (end-to-end: real-time data pipeline → WebSocket API → MapLibre frontend).
 
 ## Systems
 
@@ -14,7 +16,7 @@ On-cluster Gemma 4 for chat and voyage-4-nano for embeddings, both served via ll
 
 - **Agent platform** (`projects/agent_platform/`) — Claude and Goose agents run in isolated Kubernetes sandbox pods, dispatched by a Go orchestrator over NATS JetStream, with tool access governed by Context Forge (IBM's MCP gateway) and RBAC-scoped per team. External access is authenticated via Cloudflare Managed OAuth. Includes MCP servers for ArgoCD, Kubernetes, SigNoz, and BuildBuddy — so agents can investigate CI failures, query observability data, and manage deployments without direct cluster access. _Demonstrates: distributed systems design — sandboxing, job queues, auth, tool governance._ See [docs/agents.md](docs/agents.md).
 
-- **Discord bot** (`projects/monolith/chat/`) — AI-powered responses with embeddings, vision, web search, channel summarisation, and history backfill. Queries the knowledge graph for context. _Demonstrates: the knowledge pipeline and agent infrastructure aren't demos — they serve real daily use._
+- **Discord bot** (`projects/monolith/chat/`) — AI-powered responses with embeddings, vision, web search, channel summarisation, and history backfill. Queries the knowledge graph for context.
 
 ### OCI Model Cache operator
 
@@ -22,7 +24,7 @@ On-cluster Gemma 4 for chat and voyage-4-nano for embeddings, both served via ll
 
 ### Build system
 
-Custom Bazel rules for Helm (`bazel/helm/`), Semgrep (`bazel/semgrep/`), and Cloudflare Pages (`bazel/wrangler/`). Hermetic Semgrep SAST runs as native Bazel tests with semgrep-core vendored as OCI artifacts. All builds and tests run remotely via BuildBuddy RBE — no local Bazel needed. Container images use apko (not Dockerfiles), dual-arch (x86_64 + aarch64), non-root by default. _Demonstrates: build-system engineering beyond "run the tests in CI" — supply chain security, hermeticity, remote execution._
+Custom Bazel rules for Helm (`bazel/helm/`), Semgrep (`bazel/semgrep/`), and Cloudflare Pages (`bazel/wrangler/`). Hermetic Semgrep SAST runs as native Bazel tests with semgrep-core vendored as OCI artifacts. All builds and tests run remotely via BuildBuddy RBE — no local Bazel needed. Container images use apko (not Dockerfiles), dual-arch (x86*64 + aarch64), non-root by default. \_Demonstrates: supply-chain-secure, hermetic, remotely executed builds.*
 
 ## Applications
 
@@ -32,9 +34,7 @@ Proof-of-platform — each one ships on infrastructure most startups don't have.
 
 - **Trip tracker** (`projects/trips/`) — Photo-based GPS trip logging. Upload travel photos, reconstruct the route from EXIF data, enrich with elevation from NRCan CDEM API. Timeline view with day-by-day maps and elevation profiles.
 
-- **Stargazer** (`projects/stargazer/`) — Finds the best stargazing spots in Scotland for the next 72 hours. Multi-phase pipeline: light pollution atlas + OSM road data → dark zones near roads → weather forecast scoring.
-
-- **Grimoire** (`projects/grimoire/`) — AI-assisted D&D campaign manager. Go REST API with Firestore persistence.
+- **Stargazer** (`projects/stargazer/`) — Finds the best stargazing spots in Scotland for the next 72 hours. Multi-phase pipeline: light pollution atlas + OSM road data, dark zones near roads, weather forecast scoring.
 
 - **Hiking routes** (`projects/hikes/`) — Scottish route finder. Scrapes WalkHighlands, enriches with weather forecasts, surfaces hikes with good conditions.
 
@@ -65,7 +65,6 @@ projects/             # All services, operators, websites — colocated with dep
 ├── monolith/         #   Knowledge graph, Discord bot, task management, frontend
 ├── ships/            #   Marine vessel tracking
 ├── trips/            #   Trip tracker
-├── grimoire/         #   D&D campaign manager
 ├── stargazer/        #   Dark sky finder
 ├── hikes/            #   Scottish hiking routes
 ├── operators/        #   Custom Kubernetes operators
@@ -79,10 +78,12 @@ See [docs/contributing.md](docs/contributing.md) for the full structure. Archite
 
 ## What's next
 
-- **Semgrep rule generation** — RL-finetuned local model for generating Semgrep rules from CVE descriptions
-- **Knowledge graph expansion** — Ingest D&D sourcebooks and repo documentation into the knowledge pipeline
-- Backlog and architecture decisions: [docs/decisions/](docs/decisions/)
+- **Semgrep rule generation** — RL-finetuned local model for generating Semgrep rules from CVE descriptions. The build system already runs hermetic Semgrep; this closes the loop by generating the rules themselves.
+- **Knowledge graph expansion** — Ingest D&D sourcebooks (via Marker parsing) and repo documentation into the knowledge pipeline, making ADRs and design docs semantically searchable alongside notes.
+- **Repo docs knowledge sync** — OCI artifact of repo markdown mounted in the monolith for gardener processing, so the platform's own documentation feeds back into the knowledge graph.
 
-## License
+Full backlog and architecture decisions: [docs/decisions/](docs/decisions/)
 
-[MPL-2.0](LICENSE)
+---
+
+Built by [Joe McGinley](https://github.com/jomcgi). [MPL-2.0](LICENSE).
