@@ -2115,6 +2115,21 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_notes_crud_test",
+    srcs = ["knowledge/notes_crud_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pyyaml",
+        "@pip//sqlmodel",
+        "@pip//tzdata",
+    ],
+)
+
+py_test(
     name = "knowledge_mcp_test",
     srcs = ["knowledge/mcp_test.py"],
     imports = ["."],
