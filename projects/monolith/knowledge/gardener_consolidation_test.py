@@ -69,7 +69,7 @@ def _make_task(
     return note
 
 
-FAKE_TODAY = date(2026, 4, 17)  # Thursday, week W16
+FAKE_TODAY = date(2026, 4, 17)  # Friday, week W16
 
 
 class TestGeneratesDailyNote:

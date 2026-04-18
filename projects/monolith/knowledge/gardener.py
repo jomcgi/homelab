@@ -367,7 +367,8 @@ class Gardener:
             parts = []
             for label in ["small", "medium", "large", "unknown"]:
                 if label in counts:
-                    parts.append(f"{counts[label]} {label}")
+                    suffix = " (review these)" if label == "unknown" else ""
+                    parts.append(f"{counts[label]} {label}{suffix}")
             return ", ".join(parts) if parts else "none"
 
         def _format_task_line(task: dict, *, show_due: bool = True) -> str:
