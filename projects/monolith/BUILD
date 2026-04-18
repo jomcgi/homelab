@@ -33,7 +33,6 @@ py_venv_binary(
             "app/**/*.py",
             "chat/**/*.py",
             "knowledge/**/*.py",
-
             "observability/**/*.py",
             "shared/**/*.py",
         ],
@@ -54,7 +53,6 @@ py_library(
             "app/**/*.py",
             "chat/**/*.py",
             "knowledge/**/*.py",
-
             "observability/**/*.py",
             "shared/**/*.py",
         ],
