@@ -218,46 +218,62 @@ def on_startup(
     )
 
     if bot is not None:
-        from chat.changelog import run_changelog_iteration
+        from chat.changelog import (
+            ChangelogConfig,
+            load_changelog_configs,
+            run_changelog_iteration,
+        )
         from shared.embedding import EmbeddingClient
 
-        async def _changelog_handler(session: "Session") -> datetime | None:
-            from chat.store import MessageStore
-
-            embed_client = EmbeddingClient()
-
-            async def _store_message(
-                discord_message_id: str,
-                channel_id: str,
-                user_id: str,
-                username: str,
-                content: str,
-            ) -> None:
-                store = MessageStore(session=session, embed_client=embed_client)
-                await store.save_message(
-                    discord_message_id=discord_message_id,
-                    channel_id=channel_id,
-                    user_id=user_id,
-                    username=username,
-                    content=content,
-                    is_bot=True,
-                )
-
-            await run_changelog_iteration(bot, llm_call, store_message=_store_message)
-            # Always align to the next hour boundary
-            now = datetime.now(timezone.utc)
-            next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(
-                hours=1
-            )
-            return next_hour
-
-        register_job(
-            session,
-            name="chat.changelog",
-            interval_secs=3600,
-            handler=_changelog_handler,
-            ttl_secs=300,
+        changelog_configs = load_changelog_configs(
+            os.environ.get("CHANGELOG_CONFIGS", "")
         )
+
+        for cfg in changelog_configs:
+
+            def _make_handler(config: ChangelogConfig):
+                async def _changelog_handler(session: "Session") -> datetime | None:
+                    from chat.store import MessageStore
+
+                    embed_client = EmbeddingClient()
+
+                    async def _store_message(
+                        discord_message_id: str,
+                        channel_id: str,
+                        user_id: str,
+                        username: str,
+                        content: str,
+                    ) -> None:
+                        store = MessageStore(session=session, embed_client=embed_client)
+                        await store.save_message(
+                            discord_message_id=discord_message_id,
+                            channel_id=channel_id,
+                            user_id=user_id,
+                            username=username,
+                            content=content,
+                            is_bot=True,
+                        )
+
+                    await run_changelog_iteration(
+                        bot, llm_call, config, store_message=_store_message
+                    )
+                    # Align to next interval boundary
+                    now = datetime.now(timezone.utc)
+                    interval = timedelta(hours=config.interval_hours)
+                    epoch = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                    elapsed = now - epoch
+                    periods = int(elapsed / interval) + 1
+                    return epoch + interval * periods
+
+                return _changelog_handler
+
+            register_job(
+                session,
+                name=f"chat.changelog.{cfg.name}",
+                interval_secs=cfg.interval_hours * 3600,
+                handler=_make_handler(cfg),
+                ttl_secs=300,
+            )
 
 
 _RETRYABLE_STATUS_CODES = {502, 503, 504}
