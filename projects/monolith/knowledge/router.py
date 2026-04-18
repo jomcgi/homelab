@@ -18,12 +18,13 @@ import os
 from pathlib import Path
 from typing import Literal
 
+import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
-from knowledge.gardener import Gardener
+from knowledge.gardener import Gardener, _slugify
 from knowledge.ingest_queue import IngestQueueItem
 from knowledge.models import AtomRawProvenance, RawInput
 from knowledge.service import DEFAULT_VAULT_ROOT, VAULT_ROOT_ENV
@@ -107,6 +108,50 @@ def queue_ingest(
     session.add(item)
     session.commit()
     return {"queued": True}
+
+
+class CreateNoteRequest(BaseModel):
+    content: str
+    title: str | None = None
+    source: str | None = None
+    tags: list[str] | None = None
+    type: str | None = None
+
+
+@router.post("/notes", status_code=201)
+def create_note(data: CreateNoteRequest) -> dict:
+    """Create a new markdown note in the vault with YAML frontmatter."""
+    if not data.content.strip():
+        raise HTTPException(status_code=400, detail="content must not be empty")
+
+    title = data.title or data.content.strip()[:60]
+
+    # Build frontmatter dict (only include provided fields)
+    frontmatter: dict = {"title": title}
+    if data.source is not None:
+        frontmatter["source"] = data.source
+    if data.tags is not None:
+        frontmatter["tags"] = data.tags
+    if data.type is not None:
+        frontmatter["type"] = data.type
+
+    fm_str = yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)
+    file_content = f"---\n{fm_str}---\n\n{data.content.strip()}\n"
+
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
+    slug = _slugify(title)
+    filename = f"{slug}.md"
+
+    # Handle collisions
+    dest = vault_root / filename
+    counter = 1
+    while dest.exists():
+        filename = f"{slug}-{counter}.md"
+        dest = vault_root / filename
+        counter += 1
+
+    dest.write_text(file_content)
+    return {"path": filename}
 
 
 @router.get("/dead-letter")
