@@ -136,6 +136,7 @@ def _filter_changelog_commits(commits: list[dict]) -> list[dict]:
 async def _summarize_with_gemma(
     commits: list[dict],
     llm_call: Callable[[str], Awaitable[str]],
+    prompt_template: str,
 ) -> str:
     """Ask Gemma to produce a concise changelog from commit data."""
     commit_descriptions = []
@@ -145,24 +146,18 @@ async def _summarize_with_gemma(
         commit_descriptions.append(f"- {msg} (by {author})")
 
     commits_text = "\n".join(commit_descriptions)
-    prompt = (
-        "You are a changelog writer for a Kubernetes homelab project.\n"
-        "Below are recent git commits (new features only).\n"
-        "Write a concise changelog summarizing what changed. "
-        "For each item, explain what it does in "
-        "one clear sentence — don't just repeat the commit message. "
-        "Use plain language. No markdown headers, just plain text with bullet points.\n\n"
-        f"Commits:\n{commits_text}"
-    )
+    prompt = prompt_template.format(commits=commits_text)
     return await llm_call(prompt)
 
 
-def _build_embed(summary: str, commit_count: int) -> discord.Embed:
+def _build_embed(
+    summary: str, commit_count: int, title: str, color: int
+) -> discord.Embed:
     """Build a Discord embed for the changelog notification."""
     embed = discord.Embed(
-        title="Homelab Changelog",
+        title=title,
         description=summary,
-        color=0x2ECC71,
+        color=color,
         timestamp=datetime.now(timezone.utc),
     )
     embed.set_footer(text=f"{commit_count} commit(s)")
@@ -203,8 +198,12 @@ async def run_changelog_iteration(
         logger.info("Changelog: %d new commits but none are feat", len(commits))
         return
 
-    summary = await _summarize_with_gemma(changelog_commits, llm_call)
-    embed = _build_embed(summary, len(changelog_commits))
+    summary = await _summarize_with_gemma(
+        changelog_commits, llm_call, PROMPTS["professional"]
+    )
+    embed = _build_embed(
+        summary, len(changelog_commits), title="Homelab Changelog", color=0x2ECC71
+    )
 
     channel = bot.get_channel(int(channel_id))
     if channel:
