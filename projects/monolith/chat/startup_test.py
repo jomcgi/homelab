@@ -1,9 +1,25 @@
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from chat import summarizer
+from chat.changelog import ChangelogConfig
 from shared.scheduler import _registry
+
+_TEST_CHANGELOG_CONFIGS = json.dumps(
+    [
+        {
+            "name": "test",
+            "channelId": "123",
+            "githubRepo": "owner/repo",
+            "prompt": "professional",
+            "embedTitle": "Test",
+            "embedColor": "0x2ECC71",
+            "intervalHours": 1,
+        }
+    ]
+)
 
 
 @pytest.fixture(autouse=True)
@@ -27,18 +43,34 @@ def test_on_startup_without_bot_skips_changelog():
     assert call_kwargs[1]["name"] == "chat.summary_generation"
 
 
-def test_on_startup_with_bot_registers_both():
-    """Calling on_startup with bot registers both summary_generation and changelog."""
+def test_on_startup_with_bot_registers_changelog_per_config():
+    """Calling on_startup with bot registers summary_generation + one job per changelog config."""
     session = MagicMock()
     bot = MagicMock()
     llm_call = AsyncMock()
 
-    with patch("shared.scheduler.register_job") as mock_register:
-        summarizer.on_startup(session, bot=bot, llm_call=llm_call)
+    with patch.dict("os.environ", {"CHANGELOG_CONFIGS": _TEST_CHANGELOG_CONFIGS}):
+        with patch("shared.scheduler.register_job") as mock_register:
+            summarizer.on_startup(session, bot=bot, llm_call=llm_call)
 
     assert mock_register.call_count == 2
     names = {call[1]["name"] for call in mock_register.call_args_list}
-    assert names == {"chat.summary_generation", "chat.changelog"}
+    assert names == {"chat.summary_generation", "chat.changelog.test"}
+
+
+def test_on_startup_with_bot_no_configs_registers_only_summary():
+    """With bot but empty CHANGELOG_CONFIGS, only summary_generation is registered."""
+    session = MagicMock()
+    bot = MagicMock()
+    llm_call = AsyncMock()
+
+    with patch.dict("os.environ", {"CHANGELOG_CONFIGS": "[]"}):
+        with patch("shared.scheduler.register_job") as mock_register:
+            summarizer.on_startup(session, bot=bot, llm_call=llm_call)
+
+    assert mock_register.call_count == 1
+    names = {call[1]["name"] for call in mock_register.call_args_list}
+    assert names == {"chat.summary_generation"}
 
 
 @pytest.mark.asyncio
@@ -71,7 +103,7 @@ async def test_summary_handler_calls_generate_functions():
 
 @pytest.mark.asyncio
 async def test_changelog_handler_calls_run_changelog_iteration():
-    """The changelog handler calls run_changelog_iteration with bot and llm_call."""
+    """The changelog handler calls run_changelog_iteration with bot, llm_call, and config."""
     session = MagicMock()
     bot = MagicMock()
     llm_call = AsyncMock()
@@ -79,18 +111,22 @@ async def test_changelog_handler_calls_run_changelog_iteration():
     with patch(
         "chat.changelog.run_changelog_iteration", new_callable=AsyncMock
     ) as mock_iter:
-        with patch(
-            "shared.scheduler.register_job",
-            side_effect=lambda _s, **kw: _registry.__setitem__(
-                kw["name"], kw["handler"]
-            ),
-        ):
-            summarizer.on_startup(session, bot=bot, llm_call=llm_call)
+        with patch.dict("os.environ", {"CHANGELOG_CONFIGS": _TEST_CHANGELOG_CONFIGS}):
+            with patch(
+                "shared.scheduler.register_job",
+                side_effect=lambda _s, **kw: _registry.__setitem__(
+                    kw["name"], kw["handler"]
+                ),
+            ):
+                summarizer.on_startup(session, bot=bot, llm_call=llm_call)
 
-        handler = _registry["chat.changelog"]
+        handler = _registry["chat.changelog.test"]
         await handler(session)
 
     mock_iter.assert_called_once()
     args, kwargs = mock_iter.call_args
-    assert args == (bot, llm_call)
+    assert args[0] is bot
+    assert args[1] is llm_call
+    assert isinstance(args[2], ChangelogConfig)
+    assert args[2].name == "test"
     assert callable(kwargs.get("store_message"))
