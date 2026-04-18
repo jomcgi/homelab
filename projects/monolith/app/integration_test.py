@@ -6,13 +6,13 @@ Boots the complete app via TestClient with all external dependencies mocked:
 - Discord: DISCORD_BOT_TOKEN unset
 - STATIC_DIR: unset (no static mount)
 - iCal feed: ICAL_FEED_URL unset (poll_calendar is a no-op)
-- Vault MCP: httpx POST mocked to return {"id": "test-note"}
+- Knowledge notes: writes to tmp vault root
 """
 
 from __future__ import annotations
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -74,7 +74,6 @@ def client_fixture(session):
     """TestClient with:
     - DB dependency overridden to use in-memory SQLite
     - asyncio.create_task patched to prevent real background tasks
-    - Vault httpx POST mocked
     """
 
     def get_session_override():
@@ -82,19 +81,9 @@ def client_fixture(session):
 
     app.dependency_overrides[get_session] = get_session_override
 
-    mock_vault_response = MagicMock()
-    mock_vault_response.json.return_value = {"id": "test-note"}
-    mock_vault_response.raise_for_status = MagicMock()
-
-    mock_async_client = AsyncMock()
-    mock_async_client.__aenter__ = AsyncMock(return_value=mock_async_client)
-    mock_async_client.__aexit__ = AsyncMock(return_value=None)
-    mock_async_client.post = AsyncMock(return_value=mock_vault_response)
-
     with patch("asyncio.create_task", side_effect=_make_create_task_patcher()):
-        with patch("notes.service.httpx.AsyncClient", return_value=mock_async_client):
-            client = TestClient(app, raise_server_exceptions=False)
-            yield client
+        client = TestClient(app, raise_server_exceptions=False)
+        yield client
 
     app.dependency_overrides.clear()
 
@@ -124,26 +113,33 @@ def test_get_schedule_today_returns_list(client):
 
 
 # ---------------------------------------------------------------------------
-# Notes route
+# Knowledge notes route
 # ---------------------------------------------------------------------------
 
 
-def test_post_note_returns_201(client):
-    """POST /api/notes with content → 201 and vault response body."""
-    response = client.post("/api/notes", json={"content": "test note"})
+def test_post_note_returns_201(client, tmp_path, monkeypatch):
+    """POST /api/knowledge/notes with content → 201 and file written to vault."""
+    monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+    response = client.post(
+        "/api/knowledge/notes",
+        json={"content": "test note", "title": "Test Note"},
+    )
     assert response.status_code == 201
-    assert response.json() == {"id": "test-note"}
+    path = response.json().get("path", "")
+    assert path.endswith(".md")
 
 
-def test_post_note_empty_content_returns_400(client):
-    """POST /api/notes with empty content → 400."""
-    response = client.post("/api/notes", json={"content": ""})
+def test_post_note_empty_content_returns_400(client, tmp_path, monkeypatch):
+    """POST /api/knowledge/notes with empty content → 400."""
+    monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+    response = client.post("/api/knowledge/notes", json={"content": ""})
     assert response.status_code == 400
 
 
-def test_post_note_whitespace_content_returns_400(client):
-    """POST /api/notes with whitespace-only content → 400."""
-    response = client.post("/api/notes", json={"content": "   "})
+def test_post_note_whitespace_content_returns_400(client, tmp_path, monkeypatch):
+    """POST /api/knowledge/notes with whitespace-only content → 400."""
+    monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+    response = client.post("/api/knowledge/notes", json={"content": "   "})
     assert response.status_code == 400
 
 

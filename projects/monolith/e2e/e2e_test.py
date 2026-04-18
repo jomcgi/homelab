@@ -39,19 +39,27 @@ class TestHealthz:
 
 
 class TestNotesAPI:
-    def test_create_note(self, client):
-        """POST returns 201 (vault mocked in conftest)."""
-        response = client.post("/api/notes", json={"content": "Test fleeting note"})
+    def test_create_note(self, client, tmp_path, monkeypatch):
+        """POST returns 201 and writes file to vault."""
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        response = client.post(
+            "/api/knowledge/notes",
+            json={"content": "Test fleeting note", "title": "Test Note"},
+        )
         assert response.status_code == 201
+        path = response.json().get("path", "")
+        assert path.endswith(".md")
 
-    def test_empty_content_returns_400(self, client):
+    def test_empty_content_returns_400(self, client, tmp_path, monkeypatch):
         """Empty content returns 400."""
-        response = client.post("/api/notes", json={"content": ""})
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        response = client.post("/api/knowledge/notes", json={"content": ""})
         assert response.status_code == 400
 
-    def test_whitespace_content_returns_400(self, client):
+    def test_whitespace_content_returns_400(self, client, tmp_path, monkeypatch):
         """Whitespace-only content returns 400."""
-        response = client.post("/api/notes", json={"content": "   \n\t  "})
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        response = client.post("/api/knowledge/notes", json={"content": "   \n\t  "})
         assert response.status_code == 400
 
 

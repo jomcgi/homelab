@@ -379,7 +379,7 @@ def _make_create_task_patcher():
 
 @pytest.fixture()
 def client(session):
-    """TestClient with DB override, mocked vault, and suppressed background tasks."""
+    """TestClient with DB override and suppressed background tasks."""
     from app.db import get_session  # noqa: E402
     from app.main import app  # noqa: E402
 
@@ -388,20 +388,10 @@ def client(session):
 
     app.dependency_overrides[get_session] = get_session_override
 
-    mock_vault_response = MagicMock()
-    mock_vault_response.json.return_value = {"id": "test-note"}
-    mock_vault_response.raise_for_status = MagicMock()
-
-    mock_async_client = AsyncMock()
-    mock_async_client.__aenter__ = AsyncMock(return_value=mock_async_client)
-    mock_async_client.__aexit__ = AsyncMock(return_value=None)
-    mock_async_client.post = AsyncMock(return_value=mock_vault_response)
-
     with patch("asyncio.create_task", side_effect=_make_create_task_patcher()):
-        with patch("notes.service.httpx.AsyncClient", return_value=mock_async_client):
-            from fastapi.testclient import TestClient
+        from fastapi.testclient import TestClient
 
-            yield TestClient(app, raise_server_exceptions=False)
+        yield TestClient(app, raise_server_exceptions=False)
 
     app.dependency_overrides.clear()
 
