@@ -33,7 +33,7 @@ py_venv_binary(
             "app/**/*.py",
             "chat/**/*.py",
             "knowledge/**/*.py",
-            "notes/**/*.py",
+
             "observability/**/*.py",
             "shared/**/*.py",
         ],
@@ -54,7 +54,7 @@ py_library(
             "app/**/*.py",
             "chat/**/*.py",
             "knowledge/**/*.py",
-            "notes/**/*.py",
+
             "observability/**/*.py",
             "shared/**/*.py",
         ],
@@ -169,40 +169,14 @@ py_test(
 )
 
 py_test(
-    name = "notes_router_test",
-    srcs = ["notes/router_test.py"],
+    name = "home_service_test",
+    srcs = ["home/service_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
-        "@pip//fastapi",
-        "@pip//httpx",
         "@pip//pytest",
         "@pip//sqlmodel",
         "@pip//tzdata",
-    ],
-)
-
-py_test(
-    name = "notes_service_test",
-    srcs = ["notes/service_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//httpx",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
-    ],
-)
-
-py_test(
-    name = "notes_service_network_errors_test",
-    srcs = ["notes/service_network_errors_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//httpx",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
 
@@ -2226,20 +2200,6 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//pytest",
-    ],
-)
-
-py_test(
-    name = "notes_router_whitespace_test",
-    srcs = ["notes/router_whitespace_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//fastapi",
-        "@pip//httpx",
-        "@pip//pytest",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
     ],
 )
 
