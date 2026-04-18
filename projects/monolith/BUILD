@@ -2373,6 +2373,19 @@ py_test(
 )
 
 py_test(
+    name = "tasks_store_test",
+    srcs = ["knowledge/tasks_store_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "observability_clickhouse_test",
     srcs = ["observability/clickhouse_test.py"],
     imports = ["."],

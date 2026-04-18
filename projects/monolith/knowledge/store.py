@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import func
+from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import Session, delete, select
 
 from knowledge.frontmatter import ParsedFrontmatter
@@ -374,4 +375,92 @@ class KnowledgeStore:
         self.session.execute(delete(Chunk).where(Chunk.note_fk == existing))
         self.session.execute(delete(NoteLink).where(NoteLink.src_note_fk == existing))
         self.session.execute(delete(Note).where(Note.id == existing))
+        self.session.commit()
+
+    def list_tasks(
+        self,
+        *,
+        statuses: list[str] | None = None,
+        due_before: str | None = None,
+        due_after: str | None = None,
+        sizes: list[str] | None = None,
+        include_someday: bool = False,
+    ) -> list[dict]:
+        """Return task notes (type='active') with optional filters.
+
+        Filtering is done in Python to avoid JSONB dialect differences
+        between Postgres and SQLite (used in tests). Task counts are
+        always small (< 1000) so this is fine.
+        """
+        stmt = (
+            select(Note).where(Note.type == "active").order_by(Note.indexed_at.desc())
+        )
+        notes = self.session.execute(stmt).scalars().all()
+
+        results: list[dict] = []
+        for note in notes:
+            extra = note.extra or {}
+            status = extra.get("status", "")
+            due = extra.get("due")
+            size = extra.get("size")
+
+            # Exclude someday by default.
+            if not include_someday and status == "someday":
+                continue
+
+            if statuses is not None and status not in statuses:
+                continue
+
+            if due_before is not None and (due is None or due >= due_before):
+                continue
+
+            if due_after is not None and (due is None or due <= due_after):
+                continue
+
+            if sizes is not None and size not in sizes:
+                continue
+
+            results.append(
+                {
+                    "note_id": note.note_id,
+                    "title": note.title,
+                    "tags": list(note.tags or []),
+                    "status": status,
+                    "due": due,
+                    "size": size,
+                    "blocked_by": extra.get("blocked-by"),
+                    "task_completed": extra.get("task-completed"),
+                }
+            )
+        return results
+
+    def patch_task(self, note_id: str, fields: dict) -> None:
+        """Update JSONB extra fields on a task note.
+
+        Raises ValueError if the note_id does not exist or is not type='active'.
+        Auto-sets ``task-completed`` to today when status transitions to
+        done/cancelled, and clears it when moving away from those statuses.
+        """
+        note = self.session.execute(
+            select(Note).where(Note.note_id == note_id, Note.type == "active")
+        ).scalar_one_or_none()
+        if note is None:
+            raise ValueError(f"Task not found: {note_id}")
+
+        extra = dict(note.extra or {})
+
+        # Detect status transitions for auto-completing.
+        done_statuses = {"done", "cancelled"}
+        old_status = extra.get("status", "")
+        new_status = fields.get("status", old_status)
+
+        extra.update(fields)
+
+        if new_status in done_statuses and old_status not in done_statuses:
+            extra["task-completed"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        elif new_status not in done_statuses and old_status in done_statuses:
+            extra.pop("task-completed", None)
+
+        note.extra = extra
+        flag_modified(note, "extra")
         self.session.commit()
