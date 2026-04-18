@@ -68,9 +68,16 @@ while IFS= read -r subject; do
 	esac
 
 	# Check for breaking change (! before colon)
+	# Pre-1.0: breaking changes bump minor (semver allows breaking changes in 0.x)
+	# Post-1.0: breaking changes bump major
 	BREAKING_RE='^[a-z]+(\([^)]*\))?!:'
 	if [[ "$subject" =~ $BREAKING_RE ]]; then
-		BUMP="major"
+		IFS='.' read -r CUR_MAJOR _ _ <<<"$CURRENT_VERSION"
+		if [[ "$CUR_MAJOR" -ge 1 ]]; then
+			BUMP="major"
+		else
+			BUMP="minor"
+		fi
 		break # Can't go higher
 	fi
 
