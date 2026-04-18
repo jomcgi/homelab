@@ -92,10 +92,22 @@ chat:
   llamaCppUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
   embeddingUrl: "http://llama-cpp-embeddings.llama-cpp.svc.cluster.local:8080"
   searxngUrl: "http://monolith-searxng:8080"
-  changelog:
-    enabled: true
-    channelId: "1491186550472708117"
-    githubRepo: "jomcgi/homelab"
+  changelogs:
+    - name: "homelab"
+      channelId: "1491186550472708117"
+      githubRepo: "jomcgi/homelab"
+      prompt: "professional"
+      embedTitle: "Homelab Changelog"
+      embedColor: "0x2ECC71"
+      intervalHours: 1
+      commitFilter: "^(feat)(\\(.+?\\))?!?:\\s"
+    - name: "roast"
+      channelId: "1491186550472708117"
+      githubRepo: "ColinCee/homelab"
+      prompt: "roast"
+      embedTitle: "Colin's Homelab Roast"
+      embedColor: "0xE74C3C"
+      intervalHours: 3
   onepassword:
     itemPath: "vaults/k8s-homelab/items/discord-bot"
 
