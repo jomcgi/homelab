@@ -411,10 +411,10 @@ class KnowledgeStore:
             if statuses is not None and status not in statuses:
                 continue
 
-            if due_before is not None and (due is None or due >= due_before):
+            if due_before is not None and (due is None or due > due_before):
                 continue
 
-            if due_after is not None and (due is None or due <= due_after):
+            if due_after is not None and (due is None or due < due_after):
                 continue
 
             if sizes is not None and size not in sizes:
@@ -428,7 +428,7 @@ class KnowledgeStore:
                     "status": status,
                     "due": due,
                     "size": size,
-                    "blocked_by": extra.get("blocked-by"),
+                    "blocked_by": extra.get("blocked-by", []),
                     "task_completed": extra.get("task-completed"),
                 }
             )
