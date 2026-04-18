@@ -44,6 +44,28 @@ def format_edges(edges: list[dict]) -> str:
     return ", ".join(f"{e['edge_type']}→{e['target_id']}" for e in typed)
 
 
+def task_line(
+    note_id: str,
+    title: str,
+    status: str,
+    size: str | None = None,
+    due: str | None = None,
+    blocked_by: list[str] | None = None,
+) -> str:
+    """One-line summary of a task."""
+    parts = []
+    if size:
+        parts.append(size)
+    if due:
+        parts.append(f"due {due}")
+    detail = f" ({', '.join(parts)})" if parts else ""
+    line = f"[{status}]  {note_id} — {title}{detail}"
+    if blocked_by:
+        blockers = ", ".join(f"blocked-by→{b}" for b in blocked_by)
+        line += f"\n  {blockers}"
+    return line
+
+
 def write_to_tmpfile(name: str, content: str) -> Path:
     """Write content to a tmpfile and return the path."""
     TMPDIR.mkdir(parents=True, exist_ok=True)
