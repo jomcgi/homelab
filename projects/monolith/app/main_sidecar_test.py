@@ -62,6 +62,7 @@ def _lifespan_patches_with_discord(mock_bot):
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("chat.summarizer.on_startup"),
         patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
+        patch("chat.bot.create_bot", return_value=mock_bot),
     ]
 
 

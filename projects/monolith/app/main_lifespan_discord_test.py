@@ -69,7 +69,6 @@ class TestLifespanWithDiscordToken:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -103,7 +102,6 @@ class TestLifespanWithDiscordToken:
             patches[4],
             patches[5],
             patches[6],
-            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -135,7 +133,6 @@ class TestLifespanWithDiscordToken:
             patches[3],
             patches[4],
             patches[5],
-            patches[6],
             patches[6],
         ):
             async with lifespan(app):
