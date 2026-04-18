@@ -57,10 +57,6 @@ AI-assisted D&D campaign manager.
 
 `projects/monolith/` - Consolidated homelab web services. SvelteKit frontend with a FastAPI backend that bundles several modules: notes (markdown note-taking with full-text search), chat (Discord bot with AI responses, embeddings, channel summarization, vision, and web search), and application logging/observability dashboards.
 
-### Obsidian vault
-
-`projects/obsidian_vault/` - Deploys an Obsidian vault to Kubernetes with semantic search over note embeddings (Qdrant + nomic-embed-text), git-based version history, and an MCP server so AI agents can read, write, and search notes.
-
 ### Hiking routes
 
 Scottish route finder with weather-aware surfacing.
@@ -95,7 +91,6 @@ projects/             # All services, operators, websites — colocated with dep
 ├── trips/            #   Trip tracker
 ├── grimoire/         #   D&D campaign manager
 ├── monolith/         #   Consolidated web services (notes, chat, frontend)
-├── obsidian_vault/   #   Obsidian vault with semantic search + MCP server
 ├── stargazer/        #   Dark sky finder
 ├── hikes/            #   Scottish hiking routes
 ├── operators/        #   Custom Kubernetes operators
