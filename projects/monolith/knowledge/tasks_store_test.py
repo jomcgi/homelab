@@ -37,11 +37,11 @@ def _make_task(
     note_id: str,
     title: str = "Task",
     *,
-    status: str = "todo",
+    status: str = "active",
     due: str | None = None,
     size: str | None = None,
     tags: list[str] | None = None,
-    blocked_by: str | None = None,
+    blocked_by: list[str] | None = None,
     note_type: str = "active",
 ) -> Note:
     extra: dict = {"status": status}
@@ -77,14 +77,15 @@ class TestListTasks:
         assert tasks[0]["note_id"] == "t1"
 
     def test_filters_by_status(self, session):
-        _make_task(session, "t1", status="todo")
-        _make_task(session, "t2", status="in-progress")
+        _make_task(session, "t1", status="active")
+        _make_task(session, "t2", status="blocked")
         _make_task(session, "t3", status="done")
 
         store = KnowledgeStore(session)
-        tasks = store.list_tasks(statuses=["todo"])
-        assert len(tasks) == 1
-        assert tasks[0]["note_id"] == "t1"
+        tasks = store.list_tasks(statuses=["active", "blocked"])
+        assert len(tasks) == 2
+        ids = {t["note_id"] for t in tasks}
+        assert ids == {"t1", "t2"}
 
     def test_filters_by_due_before(self, session):
         _make_task(session, "t1", due="2026-04-10")
@@ -96,18 +97,35 @@ class TestListTasks:
         assert len(tasks) == 1
         assert tasks[0]["note_id"] == "t1"
 
+    def test_due_before_is_inclusive(self, session):
+        _make_task(session, "t1", due="2026-04-15")
+
+        store = KnowledgeStore(session)
+        tasks = store.list_tasks(due_before="2026-04-15")
+        assert len(tasks) == 1
+
+    def test_filters_by_due_after(self, session):
+        _make_task(session, "t1", due="2026-04-10")
+        _make_task(session, "t2", due="2026-04-20")
+        _make_task(session, "t3")  # no due date
+
+        store = KnowledgeStore(session)
+        tasks = store.list_tasks(due_after="2026-04-15")
+        assert len(tasks) == 1
+        assert tasks[0]["note_id"] == "t2"
+
     def test_filters_by_size(self, session):
-        _make_task(session, "t1", size="S")
-        _make_task(session, "t2", size="L")
+        _make_task(session, "t1", size="small")
+        _make_task(session, "t2", size="large")
         _make_task(session, "t3")  # no size
 
         store = KnowledgeStore(session)
-        tasks = store.list_tasks(sizes=["S"])
+        tasks = store.list_tasks(sizes=["small"])
         assert len(tasks) == 1
         assert tasks[0]["note_id"] == "t1"
 
     def test_excludes_someday_by_default(self, session):
-        _make_task(session, "t1", status="todo")
+        _make_task(session, "t1", status="active")
         _make_task(session, "t2", status="someday")
 
         store = KnowledgeStore(session)
@@ -116,7 +134,7 @@ class TestListTasks:
         assert tasks[0]["note_id"] == "t1"
 
     def test_includes_someday_when_requested(self, session):
-        _make_task(session, "t1", status="todo")
+        _make_task(session, "t1", status="active")
         _make_task(session, "t2", status="someday")
 
         store = KnowledgeStore(session)
@@ -130,11 +148,11 @@ class TestListTasks:
             session,
             "t1",
             "My Task",
-            status="in-progress",
+            status="active",
             due="2026-05-01",
-            size="M",
+            size="medium",
             tags=["project-x"],
-            blocked_by="t0",
+            blocked_by=["t0"],
         )
 
         store = KnowledgeStore(session)
@@ -144,16 +162,16 @@ class TestListTasks:
         assert task["note_id"] == "t1"
         assert task["title"] == "My Task"
         assert task["tags"] == ["project-x"]
-        assert task["status"] == "in-progress"
+        assert task["status"] == "active"
         assert task["due"] == "2026-05-01"
-        assert task["size"] == "M"
-        assert task["blocked_by"] == "t0"
+        assert task["size"] == "medium"
+        assert task["blocked_by"] == ["t0"]
         assert task["task_completed"] is None
 
 
 class TestPatchTask:
     def test_patch_status_to_done_sets_completed_date(self, session):
-        _make_task(session, "t1", status="todo")
+        _make_task(session, "t1", status="active")
 
         store = KnowledgeStore(session)
         store.patch_task("t1", {"status": "done"})
@@ -165,14 +183,14 @@ class TestPatchTask:
         datetime.strptime(tasks[0]["task_completed"], "%Y-%m-%d")
 
     def test_patch_arbitrary_fields(self, session):
-        _make_task(session, "t1", status="todo")
+        _make_task(session, "t1", status="active")
 
         store = KnowledgeStore(session)
-        store.patch_task("t1", {"size": "L", "due": "2026-06-01"})
+        store.patch_task("t1", {"size": "large", "due": "2026-06-01"})
 
         tasks = store.list_tasks()
         assert len(tasks) == 1
-        assert tasks[0]["size"] == "L"
+        assert tasks[0]["size"] == "large"
         assert tasks[0]["due"] == "2026-06-01"
 
     def test_patch_nonexistent_task_raises(self, session):
@@ -181,7 +199,7 @@ class TestPatchTask:
             store.patch_task("nonexistent", {"status": "done"})
 
     def test_patch_done_to_todo_clears_completed(self, session):
-        _make_task(session, "t1", status="todo")
+        _make_task(session, "t1", status="active")
 
         store = KnowledgeStore(session)
         store.patch_task("t1", {"status": "done"})
@@ -189,8 +207,8 @@ class TestPatchTask:
         tasks = store.list_tasks(statuses=["done"])
         assert tasks[0]["task_completed"] is not None
 
-        # Move back to todo — completed should be cleared.
-        store.patch_task("t1", {"status": "todo"})
-        tasks = store.list_tasks(statuses=["todo"])
+        # Move back to active — completed should be cleared.
+        store.patch_task("t1", {"status": "active"})
+        tasks = store.list_tasks(statuses=["active"])
         assert len(tasks) == 1
         assert tasks[0]["task_completed"] is None
