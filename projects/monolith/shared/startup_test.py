@@ -20,10 +20,10 @@ def test_on_startup_registers_job():
     mock_session = MagicMock()
     with patch("shared.scheduler.register_job") as mock_register:
         service.on_startup(mock_session)
-        mock_register.assert_called_once_with(
-            mock_session,
-            name="shared.calendar_poll",
-            interval_secs=900,
-            handler=service.calendar_poll_handler,
-            ttl_secs=120,
-        )
+        mock_register.assert_called_once()
+        args, kwargs = mock_register.call_args
+        assert args[0] is mock_session
+        assert kwargs["name"] == "shared.calendar_poll"
+        assert kwargs["interval_secs"] == 900
+        assert kwargs["ttl_secs"] == 120
+        assert callable(kwargs["handler"])

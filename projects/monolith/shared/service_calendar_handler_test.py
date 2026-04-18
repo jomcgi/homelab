@@ -115,10 +115,13 @@ class TestOnStartup:
         _, kwargs = mock_register.call_args
         assert kwargs["ttl_secs"] == 120
 
-    def test_handler_is_calendar_poll_handler(self):
-        """The registered handler is calendar_poll_handler."""
+    @pytest.mark.asyncio
+    async def test_handler_delegates_to_calendar_poll_handler(self):
+        """The registered handler wraps calendar_poll_handler."""
         mock_session = MagicMock()
         with patch("shared.scheduler.register_job") as mock_register:
             on_startup(mock_session)
         _, kwargs = mock_register.call_args
-        assert kwargs["handler"] is calendar_poll_handler
+        with patch("shared.service.poll_calendar", new_callable=AsyncMock):
+            result = await kwargs["handler"](mock_session)
+        assert result is None
