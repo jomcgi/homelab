@@ -51,7 +51,7 @@ def _log_task_exception(task: "asyncio.Task[object]") -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.db import get_engine
-    from shared.scheduler import run_scheduler_loop
+    from shared.scheduler import purge_stale_jobs, run_scheduler_loop
     from sqlmodel import Session
 
     app.state.bot = None
@@ -93,6 +93,10 @@ async def lifespan(app: FastAPI):
     from knowledge.service import clone_vault
 
     await clone_vault()
+
+    # Purge stale jobs from DB (e.g. removed changelog channels)
+    with Session(get_engine()) as session:
+        purge_stale_jobs(session)
 
     # Start the shared scheduler loop (replaces 4 separate asyncio tasks)
     scheduler_task = asyncio.create_task(run_scheduler_loop())
