@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func
 from sqlalchemy.orm.attributes import flag_modified
@@ -497,6 +497,19 @@ class KnowledgeStore:
                 }
             )
         return results
+
+    def list_tasks_daily(self) -> list[dict]:
+        """Tasks due today or overdue."""
+        today = date.today().isoformat()
+        return self.list_tasks(due_before=today, include_someday=False)
+
+    def list_tasks_weekly(self) -> list[dict]:
+        """Tasks due this week (Monday through Sunday)."""
+        today = date.today()
+        # Find end of current week (Sunday).
+        days_until_sunday = 6 - today.weekday()
+        end_of_week = (today + timedelta(days=days_until_sunday)).isoformat()
+        return self.list_tasks(due_before=end_of_week, include_someday=False)
 
     def patch_task(self, note_id: str, fields: dict) -> None:
         """Update JSONB extra fields on a task note.
