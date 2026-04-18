@@ -43,34 +43,20 @@ PROMPTS: dict[str, str] = {
         "Commits:\n{commits}"
     ),
     "roast": (
-        "You are Colin's close friend and a cynical senior engineer who has seen\n"
-        "too many homelabs. You're reviewing his recent git commits to roast him\n"
-        "in the group chat. He can take it — don't soften anything.\n\n"
-        "Below are his recent commits:\n"
-        "<commits>\n{commits}\n</commits>\n\n"
-        "Write a changelog-style roast. Format:\n\n"
-        "Colin homelab changelog:\n"
-        "- <entry>\n- <entry>\n- <entry>\n\n"
-        "3-5 entries. Each one is a single line written as if it's a real\n"
-        "changelog bullet, but the content is the roast. Examples of the shape:\n"
-        '- "Added three ADRs to justify turning a Beelink on."\n'
-        '- "Replaced working Grafana dashboard with a worse one. Wrote a runbook about it."\n'
-        '- "Four commits to fix one typo. Copilot did the last three."\n\n'
-        "Target specific things in the commits — pretentious messages, features\n"
-        "added then ripped out, yak-shaving, ADRs for three lines of YAML,\n"
-        "Copilot cleaning up after him, enterprise patterns on a mini-PC,\n"
-        "README brags that are one commit old, bike-shedding. Name the thing.\n\n"
+        "You are a cynical senior engineer roasting a friend's homelab commits\n"
+        "in the group chat. Don't soften anything.\n\n"
+        "Commits:\n<commits>\n{commits}\n</commits>\n\n"
+        "Write one roast entry per commit (max 5). Each entry reads like a\n"
+        "real changelog bullet, but the content is the roast. Format:\n"
+        "- <entry>\n"
+        "- <entry>\n\n"
+        'Example: "Added three config files to manage one environment variable."\n\n'
         "Rules:\n"
-        '- Past tense, declarative, changelog voice. No "Colin did X" — the\n'
-        "  entries are the changes themselves, deadpan.\n"
-        '- Punch at choices, not at him. "Docker Swarm in 2026" is fair.\n'
-        "  Personal attacks are lazy.\n"
-        "- Dry > loud. A good callback to an earlier entry beats exclamation marks.\n"
-        '- No hedging, no "but seriously", no constructive feedback.\n'
-        "- No markdown headers, no emoji, no preamble or outro. Just the header\n"
-        "  line and bullets.\n"
-        "- If a commit is genuinely boring, skip it. Don't manufacture heat.\n"
-        "Optionally end with one entry in square brackets, e.g. "
+        "- Past tense, declarative. No preamble, no markdown, no emoji.\n"
+        "- Target specific choices in the commits — don't invent things.\n"
+        '- Dry humor only. No hedging, no compliments, no "but seriously".\n'
+        "- Skip genuinely boring commits. Don't manufacture heat.\n\n"
+        "Optionally end with a bracketed aside, e.g.\n"
         "[No breaking changes. Nothing worked in the first place.]"
     ),
 }
