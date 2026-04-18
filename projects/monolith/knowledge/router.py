@@ -92,6 +92,67 @@ def get_knowledge_note(
     return {**note, "content": resolved.read_text(), "edges": edges}
 
 
+@router.put("/notes/{note_id}")
+def edit_note(
+    note_id: str,
+    data: EditNoteRequest,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Update an existing note's frontmatter and/or body in the vault."""
+    store = KnowledgeStore(session)
+    note = store.get_note_by_id(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="note not found")
+
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
+    resolved = (vault_root / note["path"]).resolve()
+    if not resolved.is_relative_to(vault_root) or not resolved.is_file():
+        raise HTTPException(status_code=404, detail="vault file missing")
+
+    from knowledge import frontmatter
+
+    existing_raw = resolved.read_text()
+    parsed, body = frontmatter.parse(existing_raw)
+
+    # Merge provided fields into the parsed frontmatter
+    if data.title is not None:
+        parsed.title = data.title
+    if data.tags is not None:
+        parsed.tags = data.tags
+    if data.content is not None:
+        body = data.content.strip()
+
+    # Re-serialize frontmatter
+    fm_dict: dict = {}
+    if parsed.note_id is not None:
+        fm_dict["id"] = parsed.note_id
+    if parsed.title is not None:
+        fm_dict["title"] = parsed.title
+    if parsed.type is not None:
+        fm_dict["type"] = parsed.type
+    if parsed.status is not None:
+        fm_dict["status"] = parsed.status
+    if parsed.source is not None:
+        fm_dict["source"] = parsed.source
+    if parsed.tags:
+        fm_dict["tags"] = parsed.tags
+    if parsed.aliases:
+        fm_dict["aliases"] = parsed.aliases
+    if parsed.edges:
+        fm_dict["edges"] = parsed.edges
+    if parsed.created is not None:
+        fm_dict["created"] = parsed.created.isoformat()
+    if parsed.updated is not None:
+        fm_dict["updated"] = parsed.updated.isoformat()
+    fm_dict.update(parsed.extra)
+
+    fm_str = yaml.dump(fm_dict, default_flow_style=False, sort_keys=False)
+    file_content = f"---\n{fm_str}---\n\n{body}\n"
+    resolved.write_text(file_content)
+
+    return {"path": note["path"], "note_id": note_id}
+
+
 class IngestRequest(BaseModel):
     url: str
     source_type: Literal["youtube", "webpage"]
@@ -108,6 +169,12 @@ def queue_ingest(
     session.add(item)
     session.commit()
     return {"queued": True}
+
+
+class EditNoteRequest(BaseModel):
+    content: str | None = None
+    title: str | None = None
+    tags: list[str] | None = None
 
 
 class CreateNoteRequest(BaseModel):

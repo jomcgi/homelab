@@ -1,6 +1,6 @@
-"""Unit tests for POST /api/knowledge/notes — note creation endpoint."""
+"""Unit tests for knowledge notes CRUD endpoints."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
@@ -89,3 +89,77 @@ class TestCreateNote:
         parts = written.split("---\n")
         fm = yaml.safe_load(parts[1])
         assert fm["title"] == content[:60]
+
+
+class TestEditNote:
+    """Tests for PUT /api/knowledge/notes/{note_id}."""
+
+    def test_edit_note_updates_content(self, client, tmp_path):
+        """PUT with new content+title returns 200 and updates the file."""
+        # Create an existing vault file with frontmatter
+        note_path = "my-note.md"
+        original = "---\ntitle: Original Title\ntags:\n- old\n---\n\nOriginal body\n"
+        (tmp_path / note_path).write_text(original)
+
+        mock_note = {
+            "note_id": "abc123",
+            "title": "Original Title",
+            "path": note_path,
+            "type": "note",
+            "tags": ["old"],
+        }
+
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.get_note_by_id.return_value = mock_note
+
+            r = client.put(
+                "/api/knowledge/notes/abc123",
+                json={"content": "Updated body", "title": "Updated Title"},
+            )
+
+        assert r.status_code == 200
+        body = r.json()
+        assert body["note_id"] == "abc123"
+        assert body["path"] == note_path
+
+        # Verify file was updated
+        written = (tmp_path / note_path).read_text()
+        parts = written.split("---\n")
+        assert len(parts) >= 3
+        fm = yaml.safe_load(parts[1])
+        assert fm["title"] == "Updated Title"
+        assert "Updated body" in parts[2]
+
+    def test_edit_note_not_found(self, client):
+        """PUT for nonexistent note_id returns 404."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.get_note_by_id.return_value = None
+
+            r = client.put(
+                "/api/knowledge/notes/nonexistent",
+                json={"content": "New content"},
+            )
+
+        assert r.status_code == 404
+        assert "note not found" in r.json().get("detail", "")
+
+    def test_edit_note_missing_vault_file(self, client, tmp_path):
+        """PUT when note exists in DB but vault file is gone returns 404."""
+        mock_note = {
+            "note_id": "abc123",
+            "title": "Ghost Note",
+            "path": "gone.md",
+            "type": "note",
+            "tags": [],
+        }
+
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.get_note_by_id.return_value = mock_note
+
+            r = client.put(
+                "/api/knowledge/notes/abc123",
+                json={"title": "New Title"},
+            )
+
+        assert r.status_code == 404
+        assert "vault file missing" in r.json().get("detail", "")
