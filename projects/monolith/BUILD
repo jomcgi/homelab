@@ -1918,6 +1918,19 @@ py_test(
 )
 
 py_test(
+    name = "gardener_consolidation_test",
+    srcs = ["knowledge/gardener_consolidation_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "knowledge_reconciler_coverage_test",
     srcs = ["knowledge/reconciler_coverage_test.py"],
     imports = ["."],
