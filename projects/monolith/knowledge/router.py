@@ -92,6 +92,32 @@ def get_knowledge_note(
     return {**note, "content": resolved.read_text(), "edges": edges}
 
 
+@router.delete("/notes/{note_id}")
+def delete_note_endpoint(
+    note_id: str,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Delete a note from the vault and clean up DB records."""
+    store = KnowledgeStore(session)
+    note = store.get_note_by_id(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="note not found")
+
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
+    resolved = (vault_root / note["path"]).resolve()
+    if not resolved.is_relative_to(vault_root):
+        raise HTTPException(status_code=400, detail="invalid note path")
+
+    # Remove the file if it exists — don't error if already gone.
+    if resolved.is_file():
+        resolved.unlink()
+
+    # Always clean up DB records (Note, Chunk, NoteLink).
+    store.delete_note(note["path"])
+
+    return {"deleted": True, "note_id": note_id}
+
+
 @router.put("/notes/{note_id}")
 def edit_note(
     note_id: str,
