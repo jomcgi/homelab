@@ -20,7 +20,6 @@ def _lifespan_patches_no_discord():
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
     ]
@@ -34,7 +33,6 @@ def _lifespan_patches_with_discord(mock_bot):
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("chat.summarizer.on_startup"),
@@ -71,7 +69,7 @@ class TestLifespanWithDiscordToken:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -105,7 +103,7 @@ class TestLifespanWithDiscordToken:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -138,7 +136,7 @@ class TestLifespanWithDiscordToken:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -172,7 +170,6 @@ class TestLifespanWithDiscordToken:
             patches[1],
             patches[2],
             patches[3],
-            patches[4],
         ):
             async with lifespan(app):
                 pass
@@ -199,7 +196,6 @@ async def test_lifespan_calls_tracer_provider_shutdown_on_exit():
         patches[1],
         patches[2],
         patches[3],
-        patches[4],
     ):
         async with lifespan(app):
             mock_tracer_provider.shutdown.assert_not_called()

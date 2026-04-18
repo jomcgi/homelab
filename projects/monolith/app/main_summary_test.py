@@ -48,7 +48,6 @@ def _lifespan_patches_with_discord(mock_bot):
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("chat.summarizer.on_startup"),
@@ -65,7 +64,6 @@ def _lifespan_patches_no_discord():
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("home.service.on_startup"),
         patch("shared.service.on_startup"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
     ]
@@ -95,7 +93,6 @@ class TestChatStartupHook:
             patch("asyncio.create_task", side_effect=capture),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session),
-            patch("home.service.on_startup"),
             patch("shared.service.on_startup"),
             patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
             patch("chat.summarizer.on_startup", mock_chat_startup),
@@ -135,7 +132,7 @@ class TestChatStartupHook:
             patches[4],
             patches[5],
             patches[6],
-            patches[7],
+            patches[6],
         ):
             async with lifespan(app):
                 pass
@@ -177,7 +174,6 @@ class TestSummaryLoopLogging:
             patch("asyncio.create_task", side_effect=capture),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session),
-            patch("home.service.on_startup"),
             patch("shared.service.on_startup"),
             patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         ):

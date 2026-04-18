@@ -19,7 +19,6 @@ async def test_lifespan_calls_clone_vault():
         patch("app.main._wait_for_sidecar", new_callable=AsyncMock),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("app.db.get_engine"),
-        patch("home.service.on_startup"),
         patch("knowledge.service.on_startup"),
         patch("shared.service.on_startup"),
     ):

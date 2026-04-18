@@ -1,7 +1,6 @@
 # gazelle:exclude chat
 # gazelle:exclude app
 # gazelle:exclude e2e
-# gazelle:exclude home
 # gazelle:exclude knowledge
 # gazelle:exclude notes
 # gazelle:exclude scripts
@@ -33,7 +32,6 @@ py_venv_binary(
         [
             "app/**/*.py",
             "chat/**/*.py",
-            "home/**/*.py",
             "knowledge/**/*.py",
             "notes/**/*.py",
             "observability/**/*.py",
@@ -55,7 +53,6 @@ py_library(
         [
             "app/**/*.py",
             "chat/**/*.py",
-            "home/**/*.py",
             "knowledge/**/*.py",
             "notes/**/*.py",
             "observability/**/*.py",
@@ -103,7 +100,7 @@ py3_image(
     binary = "//projects/monolith:main",
     env = {
         # py3_image sets PYTHONPATH to the workspace root (_main/) but this
-        # project's sibling packages (app/, home/) need the package directory
+        # project's sibling packages (app/, knowledge/) need the package directory
         # on the path too, matching the imports = ["."] used by py_venv_binary.
         "PYTHONPATH": "/projects/monolith/main.runfiles/_main:/projects/monolith/main.runfiles/_main/projects/monolith",
         # The minimal ubuntu base image has no CA certificates; point OpenSSL
@@ -114,33 +111,6 @@ py3_image(
     multiarch_tars = ["@claude_code//:tar"],
     repository = "ghcr.io/jomcgi/homelab/projects/monolith/backend",
     tars = [":knowledge_tools_tar"],
-)
-
-py_test(
-    name = "home_router_test",
-    srcs = ["home/router_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//fastapi",
-        "@pip//httpx",
-        "@pip//pytest",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
-    ],
-)
-
-py_test(
-    name = "home_startup_test",
-    srcs = ["home/startup_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
-    ],
 )
 
 py_test(
@@ -237,18 +207,6 @@ py_test(
 )
 
 py_test(
-    name = "home_service_test",
-    srcs = ["home/service_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//pytest",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
-    ],
-)
-
-py_test(
     name = "db_test",
     srcs = ["app/db_test.py"],
     imports = ["."],
@@ -287,17 +245,6 @@ py_test(
         "@pip//pytest",
         "@pip//sqlmodel",
         "@pip//tzdata",
-    ],
-)
-
-py_test(
-    name = "models_test",
-    srcs = ["home/models_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//pytest",
-        "@pip//sqlmodel",
     ],
 )
 
@@ -500,8 +447,8 @@ py_test(
 )
 
 py_test(
-    name = "main_coverage_test",
-    srcs = ["app/main_coverage_test.py"],
+    name = "main_lifespan_discord_test",
+    srcs = ["app/main_lifespan_discord_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -1615,20 +1562,6 @@ py_test(
 )
 
 py_test(
-    name = "home_router_archive_test",
-    srcs = ["home/router_archive_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//fastapi",
-        "@pip//httpx",
-        "@pip//pytest",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
-    ],
-)
-
-py_test(
     name = "main_lock_sweep_test",
     srcs = ["app/main_lock_sweep_test.py"],
     imports = ["."],
@@ -1727,20 +1660,6 @@ py_test(
         "@pip//pytest",
         "@pip//pytest_asyncio",
         "@pip//sqlmodel",
-    ],
-)
-
-py_test(
-    name = "home_router_archive_date_format_test",
-    srcs = ["home/router_archive_date_format_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//fastapi",
-        "@pip//httpx",
-        "@pip//pytest",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
     ],
 )
 
@@ -2083,33 +2002,6 @@ py_test(
         ":monolith_backend",
         "@pip//pytest",
         "@pip//pyyaml",
-    ],
-)
-
-py_test(
-    name = "home_service_extra_test",
-    srcs = ["home/service_extra_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
-    ],
-)
-
-py_test(
-    name = "home_router_extra_test",
-    srcs = ["home/router_extra_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//fastapi",
-        "@pip//httpx",
-        "@pip//pytest",
-        "@pip//sqlmodel",
-        "@pip//tzdata",
     ],
 )
 

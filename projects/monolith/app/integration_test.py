@@ -12,7 +12,6 @@ Boots the complete app via TestClient with all external dependencies mocked:
 from __future__ import annotations
 
 import os
-from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -113,99 +112,6 @@ def test_healthz_returns_ok(client):
 
 
 # ---------------------------------------------------------------------------
-# Home routes — individual endpoints
-# ---------------------------------------------------------------------------
-
-
-def test_get_daily_returns_list(client):
-    """GET /api/home/daily → 200, list of TaskResponse."""
-    response = client.get("/api/home/daily")
-    assert response.status_code == 200
-    data = response.json()
-    assert isinstance(data, list)
-    assert all("task" in item and "done" in item for item in data)
-
-
-def test_get_weekly_returns_task_response(client):
-    """GET /api/home/weekly → 200, TaskResponse."""
-    response = client.get("/api/home/weekly")
-    assert response.status_code == 200
-    data = response.json()
-    assert "task" in data
-    assert "done" in data
-
-
-def test_get_home_returns_todo_data(client):
-    """GET /api/home → 200, TodoData with weekly + daily keys."""
-    response = client.get("/api/home")
-    assert response.status_code == 200
-    data = response.json()
-    assert "weekly" in data
-    assert "daily" in data
-    assert isinstance(data["daily"], list)
-
-
-def test_get_dates_returns_list(client):
-    """GET /api/home/dates → 200, list of date strings including today."""
-    response = client.get("/api/home/dates")
-    assert response.status_code == 200
-    dates = response.json()
-    assert isinstance(dates, list)
-    assert date.today().isoformat() in dates
-
-
-def test_get_archive_not_found(client):
-    """GET /api/home/archive/{date} → 404 when no archive exists."""
-    response = client.get("/api/home/archive/2020-01-01")
-    assert response.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# Home routes — PUT then verify
-# ---------------------------------------------------------------------------
-
-
-def test_put_creates_tasks_verified_by_get(client):
-    """PUT /api/home → 200; subsequent GET /api/home reflects saved tasks."""
-    todo = {
-        "weekly": {"task": "Ship the release", "done": False},
-        "daily": [
-            {"task": "Write integration test", "done": True},
-            {"task": "Review PR", "done": False},
-            {"task": "Deploy to prod", "done": False},
-        ],
-    }
-    put_response = client.put("/api/home", json=todo)
-    assert put_response.status_code == 200
-
-    get_response = client.get("/api/home")
-    assert get_response.status_code == 200
-    data = get_response.json()
-    assert data["weekly"]["task"] == "Ship the release"
-    assert data["weekly"]["done"] is False
-    assert len(data["daily"]) == 3
-    assert data["daily"][0]["task"] == "Write integration test"
-    assert data["daily"][0]["done"] is True
-
-
-# ---------------------------------------------------------------------------
-# Reset routes
-# ---------------------------------------------------------------------------
-
-
-def test_reset_daily_returns_200(client):
-    """POST /api/home/reset/daily → 200."""
-    response = client.post("/api/home/reset/daily")
-    assert response.status_code == 200
-
-
-def test_reset_weekly_returns_200(client):
-    """POST /api/home/reset/weekly → 200."""
-    response = client.post("/api/home/reset/weekly")
-    assert response.status_code == 200
-
-
-# ---------------------------------------------------------------------------
 # Schedule route
 # ---------------------------------------------------------------------------
 
@@ -242,69 +148,3 @@ def test_post_note_whitespace_content_returns_400(client):
 
 
 # ---------------------------------------------------------------------------
-# CRUD flow: PUT → GET → reset daily → GET archive dates
-# ---------------------------------------------------------------------------
-
-
-def test_reset_weekly_clears_weekly_task(client):
-    """POST /api/home/reset/weekly actually clears the weekly task text."""
-    client.put(
-        "/api/home",
-        json={"weekly": {"task": "Weekly goal", "done": False}, "daily": []},
-    )
-    resp = client.post("/api/home/reset/weekly")
-    assert resp.status_code == 200
-    data = client.get("/api/home").json()
-    assert data["weekly"]["task"] == ""
-
-
-def test_get_archive_invalid_date_returns_400(client):
-    """GET /api/home/archive/{date} with invalid date string → 400."""
-    assert client.get("/api/home/archive/not-a-date").status_code == 400
-
-
-def test_crud_flow_put_get_reset_archive(client):
-    """Full CRUD flow: PUT tasks → GET to verify → reset daily → GET archive dates."""
-    # 1. PUT tasks
-    todo = {
-        "weekly": {"task": "Weekly goal", "done": False},
-        "daily": [
-            {"task": "Daily task A", "done": True},
-            {"task": "Daily task B", "done": False},
-            {"task": "Daily task C", "done": False},
-        ],
-    }
-    put_resp = client.put("/api/home", json=todo)
-    assert put_resp.status_code == 200
-
-    # 2. GET to verify tasks are persisted
-    get_resp = client.get("/api/home")
-    assert get_resp.status_code == 200
-    data = get_resp.json()
-    assert data["weekly"]["task"] == "Weekly goal"
-    assert data["daily"][0]["task"] == "Daily task A"
-    assert data["daily"][0]["done"] is True
-
-    # 3. Reset daily (archives today's state, preserves weekly)
-    reset_resp = client.post("/api/home/reset/daily")
-    assert reset_resp.status_code == 200
-
-    # 4. After reset: weekly preserved, daily slots cleared
-    after_resp = client.get("/api/home")
-    assert after_resp.status_code == 200
-    after_data = after_resp.json()
-    assert after_data["weekly"]["task"] == "Weekly goal"
-    assert all(d["task"] == "" for d in after_data["daily"])
-
-    # 5. Archive dates should include today
-    dates_resp = client.get("/api/home/dates")
-    assert dates_resp.status_code == 200
-    assert date.today().isoformat() in dates_resp.json()
-
-    # 6. GET archive for today should return content with the tasks we put
-    today = date.today().isoformat()
-    archive_resp = client.get(f"/api/home/archive/{today}")
-    assert archive_resp.status_code == 200
-    content = archive_resp.json()["content"]
-    assert "Weekly goal" in content
-    assert "Daily task A" in content

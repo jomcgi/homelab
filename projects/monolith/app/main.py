@@ -10,7 +10,6 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.log import configure_logging
-from home.router import router as home_router
 from knowledge.router import router as knowledge_router
 from knowledge.tasks_router import router as tasks_router
 from notes.router import router as notes_router
@@ -61,11 +60,9 @@ async def lifespan(app: FastAPI):
 
     # Register all scheduled jobs
     with Session(get_engine()) as session:
-        from home.service import on_startup as home_startup
         from knowledge.service import on_startup as knowledge_startup
         from shared.service import on_startup as shared_startup
 
-        home_startup(session)
         knowledge_startup(session)
         shared_startup(session)
 
@@ -164,7 +161,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Monolith", lifespan=lifespan)
 
-app.include_router(home_router)
 app.include_router(schedule_router)
 app.include_router(notes_router)
 app.include_router(chat_router)
