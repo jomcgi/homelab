@@ -13,7 +13,7 @@ from pathlib import Path
 from sqlmodel import Session
 
 from app.db import get_engine
-from app.mcp import mcp
+from app.mcp_app import mcp
 from knowledge.service import DEFAULT_VAULT_ROOT, VAULT_ROOT_ENV
 from knowledge.store import KnowledgeStore
 from shared.embedding import EmbeddingClient

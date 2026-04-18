@@ -172,7 +172,7 @@ app.include_router(observability_router)
 
 import knowledge.mcp  # noqa: F401 — registers tools on shared MCP instance
 
-from app.mcp import mcp as monolith_mcp
+from app.mcp_app import mcp as monolith_mcp
 
 app.mount("/mcp", monolith_mcp.http_app())
 
