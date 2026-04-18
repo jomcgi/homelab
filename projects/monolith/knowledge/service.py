@@ -213,7 +213,7 @@ def on_startup(session: Session) -> None:
         session,
         name="knowledge.vault-backup",
         interval_secs=_BACKUP_INTERVAL_SECS,
-        handler=vault_backup_handler,
+        handler=lambda _: vault_backup_handler(),
         ttl_secs=_BACKUP_TTL_SECS,
     )
 

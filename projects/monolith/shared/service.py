@@ -107,6 +107,6 @@ def on_startup(session: Session) -> None:
         session,
         name="shared.calendar_poll",
         interval_secs=900,  # 15 minutes
-        handler=calendar_poll_handler,
+        handler=lambda _: calendar_poll_handler(),
         ttl_secs=120,
     )

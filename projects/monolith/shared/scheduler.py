@@ -1,7 +1,6 @@
 """Postgres-backed job scheduler with distributed locking."""
 
 import asyncio
-import inspect
 import logging
 import platform
 from collections.abc import Awaitable, Callable
@@ -31,13 +30,13 @@ class ScheduledJob(SQLModel, table=True):
     ttl_secs: int = Field(default=300)
 
 
-# Handler signatures: jobs that need Postgres get a Session; stateless jobs take no args.
-SimpleHandler = Callable[[], Awaitable[datetime | None]]
-PgHandler = Callable[[Session], Awaitable[datetime | None]]
-Handler = SimpleHandler | PgHandler
+# Handler signature: receives a Session, returns optional next_run_at override.
+# Stateless handlers that don't need a session should be wrapped at the call
+# site (e.g. ``handler=lambda _: my_handler()``).
+Handler = Callable[[Session], Awaitable[datetime | None]]
 
-# Internal registry always stores PgHandler (SimpleHandlers are wrapped at registration).
-_registry: dict[str, PgHandler] = {}
+# In-memory handler registry (populated at startup)
+_registry: dict[str, Handler] = {}
 
 
 def register_job(
@@ -49,12 +48,7 @@ def register_job(
     ttl_secs: int = 300,
 ) -> None:
     """Register a job handler and upsert its row in the database."""
-    # Wrap SimpleHandlers so _tick() can always call handler(session) uniformly.
-    if len(inspect.signature(handler).parameters) == 0:
-        simple = handler  # capture for closure
-        _registry[name] = lambda _session, _h=simple: _h()  # type: ignore[assignment]
-    else:
-        _registry[name] = handler  # type: ignore[assignment]
+    _registry[name] = handler
 
     now = datetime.now(timezone.utc)
     # Upsert: insert if new, update interval/ttl if changed, preserve timing
