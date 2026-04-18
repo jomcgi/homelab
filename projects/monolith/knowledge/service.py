@@ -81,8 +81,11 @@ def _has_changes(vault_root: Path) -> bool:
     return has_staged or bool(status.unstaged) or bool(status.untracked)
 
 
-async def vault_backup_handler(session: Session) -> datetime | None:
-    """Scheduler handler: commit and push vault changes to GitHub."""
+async def vault_backup_handler() -> datetime | None:
+    """Commit and push vault changes to GitHub (best-effort).
+
+    Called by the scheduler and during shutdown.
+    """
     if not _vault_sync_ready():
         logger.info("knowledge.vault-backup: vault sync not ready, deferring")
         return None

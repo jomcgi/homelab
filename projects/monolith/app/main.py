@@ -168,6 +168,15 @@ async def lifespan(app: FastAPI):
     if bot_task:
         bot_task.cancel()
     scheduler_task.cancel()
+
+    # Best-effort vault backup — preserve any uncommitted changes before the pod dies.
+    try:
+        from knowledge.service import vault_backup_handler
+
+        await vault_backup_handler()
+    except Exception:
+        logger.warning("Shutdown vault backup failed", exc_info=True)
+
     if _tracer_provider is not None:
         _tracer_provider.shutdown()
     logger.info("Monolith shutting down")

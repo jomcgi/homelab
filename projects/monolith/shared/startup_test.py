@@ -10,7 +10,7 @@ async def test_calendar_poll_handler_calls_poll_calendar():
     """calendar_poll_handler delegates to poll_calendar and returns None."""
     with patch.object(service, "poll_calendar") as mock_poll:
         mock_poll.return_value = None
-        result = await service.calendar_poll_handler(MagicMock())
+        result = await service.calendar_poll_handler()
         mock_poll.assert_called_once()
         assert result is None
 
