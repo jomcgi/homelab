@@ -2,7 +2,7 @@
 
 A single-person production platform. Production-grade infrastructure — GitOps, mTLS, hermetic remote builds — paired with AI-native systems: on-cluster LLM inference, autonomous agents, and an LLM-powered knowledge graph. Built so I can take an idea to a running, observable, securely-deployed service in under an hour.
 
-4 nodes (3 control-plane, 1 GPU) · 28 ArgoCD apps · 64 deployments · ~112 GiB RAM, 52 cores, 1 GPU · running since September 2025
+28 services · 64 deployments · ~30k vessel positions tracked live · 1,300+ knowledge-graph facts from on-cluster LLM inference · in production since January 2025
 
 **If you're here to evaluate:** start with [`agent_platform/`](projects/agent_platform/) (distributed agent orchestration with sandboxing and RBAC-scoped tool access), [`monolith/knowledge/`](projects/monolith/knowledge/) (LLM-powered knowledge graph with on-cluster inference), [`operators/oci-model-cache/`](projects/operators/oci-model-cache/) (custom Kubernetes operator with compiler-enforced state machines), and [`ships/`](projects/ships/) (end-to-end: real-time data pipeline → WebSocket API → MapLibre frontend).
 
@@ -28,7 +28,7 @@ Custom Bazel rules for Helm (`bazel/helm/`), Semgrep (`bazel/semgrep/`), and Clo
 
 ## Applications
 
-Proof-of-platform — each one ships on infrastructure most startups don't have.
+Proof-of-platform — each ships on the infrastructure described above.
 
 - **Marine tracking** (`projects/ships/`) — Real-time AIS vessel tracking. Streams position reports, stores in SQLite (7-day retention), serves REST + WebSocket API with moored-vessel deduplication. MapLibre GL frontend with live vessel positions, types, and courses.
 
@@ -80,7 +80,6 @@ See [docs/contributing.md](docs/contributing.md) for the full structure. Archite
 
 - **Semgrep rule generation** — RL-finetuned local model for generating Semgrep rules from CVE descriptions. The build system already runs hermetic Semgrep; this closes the loop by generating the rules themselves.
 - **Knowledge graph expansion** — Ingest D&D sourcebooks (via Marker parsing) and repo documentation into the knowledge pipeline, making ADRs and design docs semantically searchable alongside notes.
-- **Repo docs knowledge sync** — OCI artifact of repo markdown mounted in the monolith for gardener processing, so the platform's own documentation feeds back into the knowledge graph.
 
 Full backlog and architecture decisions: [docs/decisions/](docs/decisions/)
 
