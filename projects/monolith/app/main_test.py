@@ -95,11 +95,11 @@ def test_schedule_router_registered():
     )
 
 
-def test_notes_router_registered():
-    """Notes router is included — routes with /api/notes prefix exist in the app."""
+def test_knowledge_router_registered():
+    """Knowledge router is included — routes with /api/knowledge prefix exist in the app."""
     paths = [getattr(route, "path", "") for route in app.routes]
-    assert any(p.startswith("/api/notes") for p in paths), (
-        "No /api/notes routes found; notes_router may not be included"
+    assert any(p.startswith("/api/knowledge") for p in paths), (
+        "No /api/knowledge routes found; knowledge_router may not be included"
     )
 
 
