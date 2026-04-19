@@ -10,15 +10,10 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.log import configure_logging
-from knowledge.router import router as knowledge_router
-from knowledge.tasks_router import router as tasks_router
-from chat.router import router as chat_router
-from shared.router import router as schedule_router
-from observability.router import (
-    router as observability_router,
-    warm_cache,
-    warm_stats_cache,
-)
+import chat
+import home
+import knowledge
+from home.observability.router import warm_cache, warm_stats_cache
 
 configure_logging()
 logger = logging.getLogger("monolith.main")
@@ -65,10 +60,9 @@ async def lifespan(app: FastAPI):
     # Register all scheduled jobs
     with Session(get_engine()) as session:
         from knowledge.service import on_startup as knowledge_startup
-        from shared.service import on_startup as shared_startup
 
         knowledge_startup(session)
-        shared_startup(session)
+        home.on_startup_jobs(session)
 
     # Start Discord bot + chat jobs if configured
     bot = None
@@ -197,11 +191,9 @@ async def _combined_lifespan(app: FastAPI):
 
 app = FastAPI(title="Monolith", lifespan=_combined_lifespan)
 
-app.include_router(schedule_router)
-app.include_router(chat_router)
-app.include_router(knowledge_router)
-app.include_router(tasks_router)
-app.include_router(observability_router)
+home.register(app)
+chat.register(app)
+knowledge.register(app)
 app.mount("/mcp", _mcp_app)
 
 
