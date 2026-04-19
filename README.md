@@ -6,33 +6,18 @@ Personal monorepo. Dev tooling and deployment for my projects.
 
 ## Systems
 
-### AI platform
-
-On-cluster Gemma 4 for chat and voyage-4-nano for embeddings, both served via llama.cpp on a dedicated GPU node. These power three interconnected systems:
-
-- [**Knowledge pipeline**](projects/monolith/knowledge/) — Markdown ingested, decomposed into structured facts by Gemma-4 (with self-critique), embedded with voyage-4-nano, stored in pgvector. Dead-letter queue, incremental re-embedding reconciler, MCP tool exposure for AI agents. SvelteKit frontend with `Cmd+K` search.
-
-- [**Agent platform**](projects/agent_platform/) — Claude and Goose agents in isolated Kubernetes sandbox pods, dispatched by a Go orchestrator over NATS JetStream. Tool access governed by Context Forge (IBM's MCP gateway), RBAC-scoped per team. Cloudflare Managed OAuth for external access. MCP servers for ArgoCD, Kubernetes, SigNoz, and BuildBuddy. See [docs/agents.md](docs/agents.md).
-
-- [**Discord bot**](projects/monolith/chat/) — AI-powered responses with embeddings, vision, web search, channel summarisation, and history backfill. Queries the knowledge graph for context.
-
-### [OCI Model Cache operator](projects/operators/oci-model-cache/)
-
-Custom Kubernetes operator that syncs ML models from HuggingFace to OCI registries using a `ModelCache` CRD. Compiler-enforced state machine transitions with sealed interfaces and OpenTelemetry tracing.
-
-### Build system
-
-Custom Bazel rules for [Helm](bazel/helm/), [Semgrep](bazel/semgrep/), and [Cloudflare Pages](bazel/wrangler/). Hermetic Semgrep SAST runs as native Bazel tests with semgrep-core vendored as OCI artifacts. All builds run remotely via BuildBuddy RBE. Container images use apko (not Dockerfiles), dual-arch (`x86_64` + `aarch64`), non-root by default.
+- [**Knowledge pipeline**](projects/monolith/knowledge/) — On-cluster LLM decomposes markdown into structured facts, embeds them, stores in pgvector. Searchable via MCP tools and a SvelteKit frontend.
+- [**Agent platform**](projects/agent_platform/) — AI agents in sandboxed Kubernetes pods with RBAC-scoped tool access over NATS JetStream. [Architecture](docs/agents.md).
+- [**Discord bot**](projects/monolith/chat/) — LLM-powered chat with vision, web search, and knowledge graph context.
+- [**OCI Model Cache**](projects/operators/oci-model-cache/) — Kubernetes operator that syncs ML models from HuggingFace to OCI registries. Compiler-enforced state machines.
+- [**Build system**](bazel/) — Custom Bazel rules for Helm, Semgrep SAST, and Cloudflare Pages. All builds run remotely via BuildBuddy RBE.
 
 ## Applications
 
-- [**Marine tracking**](projects/ships/) — Real-time AIS vessel tracking. Streams position reports, stores in SQLite, serves REST + WebSocket API. MapLibre GL frontend with live vessel positions.
-
-- [**Trip tracker**](projects/trips/) — Photo-based GPS trip logging. Reconstructs routes from EXIF data, enriches with elevation from NRCan CDEM API. Timeline view with day-by-day maps.
-
-- [**Stargazer**](projects/stargazer/) — Best stargazing spots in Scotland for the next 72 hours. Light pollution atlas + OSM road data, dark zones near roads, weather forecast scoring.
-
-- [**Hiking routes**](projects/hikes/) — Scottish route finder. Scrapes WalkHighlands, enriches with weather forecasts, surfaces hikes with good conditions.
+- [**Marine tracking**](projects/ships/) — Real-time AIS vessel tracking with a MapLibre GL frontend.
+- [**Trip tracker**](projects/trips/) — Reconstruct travel routes from photo EXIF data with elevation profiles.
+- [**Stargazer**](projects/stargazer/) — Best stargazing spots in Scotland for the next 72 hours.
+- [**Hiking routes**](projects/hikes/) — Scottish route finder with weather-based recommendations.
 
 ## Infrastructure patterns
 
