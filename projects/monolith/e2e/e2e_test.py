@@ -66,7 +66,7 @@ class TestNotesAPI:
 class TestScheduleAPI:
     def test_today_returns_list(self, client):
         """Returns list (iCal mocked/empty)."""
-        response = client.get("/api/schedule/today")
+        response = client.get("/api/home/schedule/today")
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 

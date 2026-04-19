@@ -88,10 +88,10 @@ def test_healthz_content_type_is_json(client):
 
 
 def test_schedule_router_registered():
-    """Schedule router is included — routes with /api/schedule prefix exist."""
+    """Schedule router is included — routes with /api/home prefix exist."""
     paths = [getattr(route, "path", "") for route in app.routes]
-    assert any(p.startswith("/api/schedule") for p in paths), (
-        "No /api/schedule routes found; schedule_router may not be included"
+    assert any(p.startswith("/api/home") for p in paths), (
+        "No /api/home routes found; home router may not be included"
     )
 
 
@@ -104,8 +104,8 @@ def test_knowledge_router_registered():
 
 
 def test_schedule_router_today_endpoint_responds(client):
-    """GET /api/schedule/today from the schedule router returns a 200 response."""
-    response = client.get("/api/schedule/today")
+    """GET /api/home/schedule/today from the home router returns a 200 response."""
+    response = client.get("/api/home/schedule/today")
     assert response.status_code == 200
 
 

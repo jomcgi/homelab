@@ -3,7 +3,7 @@ const API_BASE = process.env.API_BASE || "http://localhost:8000";
 export async function load({ fetch }) {
   const [todoRes, scheduleRes] = await Promise.all([
     fetch(`${API_BASE}/api/home`, { signal: AbortSignal.timeout(10000) }),
-    fetch(`${API_BASE}/api/schedule/today`, {
+    fetch(`${API_BASE}/api/home/schedule/today`, {
       signal: AbortSignal.timeout(10000),
     }).catch(() => ({ ok: false })),
   ]);

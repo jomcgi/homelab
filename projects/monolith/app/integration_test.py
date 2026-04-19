@@ -106,8 +106,8 @@ def test_healthz_returns_ok(client):
 
 
 def test_get_schedule_today_returns_list(client):
-    """GET /api/schedule/today → 200, list (may be empty)."""
-    response = client.get("/api/schedule/today")
+    """GET /api/home/schedule/today → 200, list (may be empty)."""
+    response = client.get("/api/home/schedule/today")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
