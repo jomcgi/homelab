@@ -153,7 +153,7 @@ def _lifespan_patches_no_discord():
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("shared.service.on_startup"),
+        patch("home.on_startup_jobs"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
     ]
 
@@ -254,7 +254,7 @@ async def test_lifespan_scheduler_task_is_run_scheduler_loop():
                 __exit__=MagicMock(return_value=False),
             ),
         ),
-        patch("shared.service.on_startup"),
+        patch("home.on_startup_jobs"),
         patch("shared.scheduler.run_scheduler_loop", mock_scheduler),
     ]
     with patch("asyncio.create_task", side_effect=capture_create_task):
@@ -397,7 +397,7 @@ def _lifespan_patches_with_discord(mock_bot):
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("shared.service.on_startup"),
+        patch("home.on_startup_jobs"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("chat.summarizer.on_startup"),
         patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
