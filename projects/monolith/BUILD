@@ -4,7 +4,7 @@
 # gazelle:exclude knowledge
 # gazelle:exclude notes
 # gazelle:exclude scripts
-# gazelle:exclude observability
+# gazelle:exclude home
 # gazelle:exclude shared
 # gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,sqlmodel-datetime-without-factory,tainted-fastapi-http-request-httpx,tainted-path-traversal-stdlib-fastapi
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
@@ -33,7 +33,7 @@ py_venv_binary(
             "app/**/*.py",
             "chat/**/*.py",
             "knowledge/**/*.py",
-            "observability/**/*.py",
+            "home/**/*.py",
             "shared/**/*.py",
         ],
         exclude = ["**/*_test.py"],
@@ -53,7 +53,7 @@ py_library(
             "app/**/*.py",
             "chat/**/*.py",
             "knowledge/**/*.py",
-            "observability/**/*.py",
+            "home/**/*.py",
             "shared/**/*.py",
         ],
         exclude = ["**/*_test.py"],
@@ -127,8 +127,8 @@ py_test(
 )
 
 py_test(
-    name = "shared_service_test",
-    srcs = ["shared/service_test.py"],
+    name = "home_schedule_test",
+    srcs = ["home/schedule_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -141,8 +141,8 @@ py_test(
 )
 
 py_test(
-    name = "shared_service_extra_test",
-    srcs = ["shared/service_extra_test.py"],
+    name = "home_schedule_extra_test",
+    srcs = ["home/schedule_extra_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -155,8 +155,8 @@ py_test(
 )
 
 py_test(
-    name = "shared_router_test",
-    srcs = ["shared/router_test.py"],
+    name = "home_schedule_router_test",
+    srcs = ["home/schedule_router_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -1613,18 +1613,6 @@ py_test(
 )
 
 py_test(
-    name = "shared_startup_test",
-    srcs = ["shared/startup_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
-        "@pip//sqlmodel",
-    ],
-)
-
-py_test(
     name = "main_log_coverage_test",
     srcs = ["app/main_log_coverage_test.py"],
     imports = ["."],
@@ -1640,8 +1628,8 @@ py_test(
 )
 
 py_test(
-    name = "shared_service_calendar_handler_test",
-    srcs = ["shared/service_calendar_handler_test.py"],
+    name = "home_schedule_calendar_handler_test",
+    srcs = ["home/schedule_calendar_handler_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -1980,8 +1968,8 @@ py_test(
 )
 
 py_test(
-    name = "shared_service_naive_dtend_test",
-    srcs = ["shared/service_naive_dtend_test.py"],
+    name = "home_schedule_naive_dtend_test",
+    srcs = ["home/schedule_naive_dtend_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -2291,8 +2279,8 @@ py_test(
 )
 
 py_test(
-    name = "observability_clickhouse_test",
-    srcs = ["observability/clickhouse_test.py"],
+    name = "home_observability_clickhouse_test",
+    srcs = ["home/observability/clickhouse_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -2303,8 +2291,8 @@ py_test(
 )
 
 py_test(
-    name = "observability_config_test",
-    srcs = ["observability/config_test.py"],
+    name = "home_observability_config_test",
+    srcs = ["home/observability/config_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -2313,8 +2301,8 @@ py_test(
 )
 
 py_test(
-    name = "observability_slo_test",
-    srcs = ["observability/slo_test.py"],
+    name = "home_observability_slo_test",
+    srcs = ["home/observability/slo_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -2323,8 +2311,8 @@ py_test(
 )
 
 py_test(
-    name = "observability_topology_config_test",
-    srcs = ["observability/topology_config_test.py"],
+    name = "home_observability_topology_config_test",
+    srcs = ["home/observability/topology_config_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -2333,8 +2321,8 @@ py_test(
 )
 
 py_test(
-    name = "observability_router_test",
-    srcs = ["observability/router_test.py"],
+    name = "home_observability_router_test",
+    srcs = ["home/observability/router_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
@@ -2367,8 +2355,8 @@ semgrep_target_test(
 )
 
 py_test(
-    name = "stats_test",
-    srcs = ["observability/stats_test.py"],
+    name = "home_observability_stats_test",
+    srcs = ["home/observability/stats_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
