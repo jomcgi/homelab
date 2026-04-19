@@ -4,39 +4,35 @@ Personal monorepo. Dev tooling and deployment for my projects.
 
 28 services · 64 deployments · ~30k vessel positions tracked live · 1,300+ knowledge-graph facts from on-cluster LLM inference · in production since January 2025
 
-**If you're here to evaluate:** start with [`agent_platform/`](projects/agent_platform/) (distributed agent orchestration with sandboxing and RBAC-scoped tool access), [`monolith/knowledge/`](projects/monolith/knowledge/) (LLM-powered knowledge graph with on-cluster inference), [`operators/oci-model-cache/`](projects/operators/oci-model-cache/) (custom Kubernetes operator with compiler-enforced state machines), and [`ships/`](projects/ships/) (end-to-end: real-time data pipeline → WebSocket API → MapLibre frontend).
-
 ## Systems
 
 ### AI platform
 
 On-cluster Gemma 4 for chat and voyage-4-nano for embeddings, both served via llama.cpp on a dedicated GPU node. These power three interconnected systems:
 
-- **Knowledge pipeline** (`projects/monolith/knowledge/`) — Raw markdown is ingested, decomposed into structured facts by a Gemma-4 gardener (with self-critique for quality), embedded with voyage-4-nano, and stored in pgvector for semantic search. Includes a dead-letter queue for failed ingest, a reconciler for incremental re-embedding, and MCP tool exposure so AI agents can query the graph. Fronted by a SvelteKit app with a `Cmd+K` search overlay. _Demonstrates: ML data pipeline design with local inference, not just API calls to hosted models._
+- [**Knowledge pipeline**](projects/monolith/knowledge/) — Markdown ingested, decomposed into structured facts by Gemma-4 (with self-critique), embedded with voyage-4-nano, stored in pgvector. Dead-letter queue, incremental re-embedding reconciler, MCP tool exposure for AI agents. SvelteKit frontend with `Cmd+K` search.
 
-- **Agent platform** (`projects/agent_platform/`) — Claude and Goose agents run in isolated Kubernetes sandbox pods, dispatched by a Go orchestrator over NATS JetStream, with tool access governed by Context Forge (IBM's MCP gateway) and RBAC-scoped per team. External access is authenticated via Cloudflare Managed OAuth. Includes MCP servers for ArgoCD, Kubernetes, SigNoz, and BuildBuddy — so agents can investigate CI failures, query observability data, and manage deployments without direct cluster access. _Demonstrates: distributed systems design — sandboxing, job queues, auth, tool governance._ See [docs/agents.md](docs/agents.md).
+- [**Agent platform**](projects/agent_platform/) — Claude and Goose agents in isolated Kubernetes sandbox pods, dispatched by a Go orchestrator over NATS JetStream. Tool access governed by Context Forge (IBM's MCP gateway), RBAC-scoped per team. Cloudflare Managed OAuth for external access. MCP servers for ArgoCD, Kubernetes, SigNoz, and BuildBuddy. See [docs/agents.md](docs/agents.md).
 
-- **Discord bot** (`projects/monolith/chat/`) — AI-powered responses with embeddings, vision, web search, channel summarisation, and history backfill. Queries the knowledge graph for context.
+- [**Discord bot**](projects/monolith/chat/) — AI-powered responses with embeddings, vision, web search, channel summarisation, and history backfill. Queries the knowledge graph for context.
 
-### OCI Model Cache operator
+### [OCI Model Cache operator](projects/operators/oci-model-cache/)
 
-`projects/operators/oci-model-cache/` — Custom Kubernetes operator that syncs ML models from HuggingFace to OCI registries using a `ModelCache` CRD. Compiler-enforced state machine transitions with sealed interfaces and OpenTelemetry tracing baked into every phase change. _Demonstrates: CRD design, controller patterns, and the kind of state-machine rigour that eliminates categories of bugs._
+Custom Kubernetes operator that syncs ML models from HuggingFace to OCI registries using a `ModelCache` CRD. Compiler-enforced state machine transitions with sealed interfaces and OpenTelemetry tracing.
 
 ### Build system
 
-Custom Bazel rules for Helm (`bazel/helm/`), Semgrep (`bazel/semgrep/`), and Cloudflare Pages (`bazel/wrangler/`). Hermetic Semgrep SAST runs as native Bazel tests with semgrep-core vendored as OCI artifacts. All builds and tests run remotely via BuildBuddy RBE — no local Bazel needed. Container images use apko (not Dockerfiles), dual-arch (`x86_64` + `aarch64`), non-root by default. _Demonstrates: supply-chain-secure, hermetic, remotely executed builds._
+Custom Bazel rules for [Helm](bazel/helm/), [Semgrep](bazel/semgrep/), and [Cloudflare Pages](bazel/wrangler/). Hermetic Semgrep SAST runs as native Bazel tests with semgrep-core vendored as OCI artifacts. All builds run remotely via BuildBuddy RBE. Container images use apko (not Dockerfiles), dual-arch (`x86_64` + `aarch64`), non-root by default.
 
 ## Applications
 
-Proof-of-platform — each ships on the infrastructure described above.
+- [**Marine tracking**](projects/ships/) — Real-time AIS vessel tracking. Streams position reports, stores in SQLite, serves REST + WebSocket API. MapLibre GL frontend with live vessel positions.
 
-- **Marine tracking** (`projects/ships/`) — Real-time AIS vessel tracking. Streams position reports, stores in SQLite (7-day retention), serves REST + WebSocket API with moored-vessel deduplication. MapLibre GL frontend with live vessel positions, types, and courses.
+- [**Trip tracker**](projects/trips/) — Photo-based GPS trip logging. Reconstructs routes from EXIF data, enriches with elevation from NRCan CDEM API. Timeline view with day-by-day maps.
 
-- **Trip tracker** (`projects/trips/`) — Photo-based GPS trip logging. Upload travel photos, reconstruct the route from EXIF data, enrich with elevation from NRCan CDEM API. Timeline view with day-by-day maps and elevation profiles.
+- [**Stargazer**](projects/stargazer/) — Best stargazing spots in Scotland for the next 72 hours. Light pollution atlas + OSM road data, dark zones near roads, weather forecast scoring.
 
-- **Stargazer** (`projects/stargazer/`) — Finds the best stargazing spots in Scotland for the next 72 hours. Multi-phase pipeline: light pollution atlas + OSM road data, dark zones near roads, weather forecast scoring.
-
-- **Hiking routes** (`projects/hikes/`) — Scottish route finder. Scrapes WalkHighlands, enriches with weather forecasts, surfaces hikes with good conditions.
+- [**Hiking routes**](projects/hikes/) — Scottish route finder. Scrapes WalkHighlands, enriches with weather forecasts, surfaces hikes with good conditions.
 
 ## Infrastructure patterns
 
