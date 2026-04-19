@@ -2,8 +2,6 @@
 
 Personal monorepo. Dev tooling and deployment for my projects.
 
-28 services · 64 deployments · ~30k vessel positions tracked live · 1,300+ knowledge-graph facts from on-cluster LLM inference · in production since January 2025
-
 ## Systems
 
 - [**Knowledge pipeline**](projects/monolith/knowledge/) — On-cluster LLM decomposes markdown into structured facts, embeds them, stores in pgvector. Searchable via MCP tools and a SvelteKit frontend.
