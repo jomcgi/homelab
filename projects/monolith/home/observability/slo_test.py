@@ -1,6 +1,6 @@
 import pytest
 
-from observability.slo import (
+from home.observability.slo import (
     compute_status,
     compute_budget,
     compute_brief,

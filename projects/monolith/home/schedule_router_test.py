@@ -17,8 +17,8 @@ def client_fixture():
 
 
 def test_schedule_today_returns_events(client):
-    with patch("shared.router.get_today_events", return_value=MOCK_EVENTS):
-        response = client.get("/api/schedule/today")
+    with patch("home.schedule_router.get_today_events", return_value=MOCK_EVENTS):
+        response = client.get("/api/home/schedule/today")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
@@ -27,7 +27,7 @@ def test_schedule_today_returns_events(client):
 
 
 def test_schedule_today_empty(client):
-    with patch("shared.router.get_today_events", return_value=[]):
-        response = client.get("/api/schedule/today")
+    with patch("home.schedule_router.get_today_events", return_value=[]):
+        response = client.get("/api/home/schedule/today")
     assert response.status_code == 200
     assert response.json() == []

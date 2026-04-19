@@ -97,16 +97,3 @@ async def calendar_poll_handler() -> None:
     """Scheduler handler for calendar polling (stateless HTTP fetch)."""
     await poll_calendar()
     return None
-
-
-def on_startup(session: Session) -> None:
-    """Register shared jobs with the scheduler."""
-    from shared.scheduler import register_job
-
-    register_job(
-        session,
-        name="shared.calendar_poll",
-        interval_secs=900,  # 15 minutes
-        handler=lambda _: calendar_poll_handler(),
-        ttl_secs=120,
-    )

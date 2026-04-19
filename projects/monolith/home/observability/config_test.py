@@ -1,5 +1,5 @@
-from observability.config import TopologyConfig
-from observability.topology_config import TOPOLOGY
+from home.observability.config import TopologyConfig
+from home.observability.topology_config import TOPOLOGY
 
 
 class TestTopologyConfig:

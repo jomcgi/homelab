@@ -7,19 +7,24 @@ import time
 
 from fastapi import APIRouter
 
-from observability.clickhouse import ClickHouseClient
-from observability.config import EdgeConfig, GroupConfig, NodeConfig, TopologyConfig
-from observability.slo import (
+from home.observability.clickhouse import ClickHouseClient
+from home.observability.config import (
+    EdgeConfig,
+    GroupConfig,
+    NodeConfig,
+    TopologyConfig,
+)
+from home.observability.slo import (
     aggregate_group,
     compute_brief,
     compute_budget,
     compute_status,
 )
-from observability.stats import get_cached_stats, warm_stats_cache
-from observability.topology_config import TOPOLOGY
+from home.observability.stats import get_cached_stats, warm_stats_cache
+from home.observability.topology_config import TOPOLOGY
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/public/observability", tags=["observability"])
+router = APIRouter(prefix="/api/home/observability", tags=["observability"])
 
 _cache: dict | None = None
 _cache_time: float = 0.0

@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
-from .service import get_today_events
+from home.schedule import get_today_events
 
-router = APIRouter(prefix="/api/schedule", tags=["schedule"])
+router = APIRouter(prefix="/api/home/schedule", tags=["schedule"])
 
 
 @router.get("/today")
