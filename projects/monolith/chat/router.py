@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from chat.backfill import run_backfill
 from chat.explorer import ExplorerDeps, create_explorer_agent
 from chat.sse import SSEEmitter
-from knowledge.store import KnowledgeStore
+from knowledge import get_store
 from shared.embedding import EmbeddingClient
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ async def explore(body: ExploreRequest, request: Request):
     agent = get_explorer_agent()
 
     deps = ExplorerDeps(
-        store=KnowledgeStore(session),
+        store=get_store(session),
         embed_client=EmbeddingClient(),
         emitter=emitter,
     )
