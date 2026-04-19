@@ -3,7 +3,7 @@
 
 Produces a dashboard with Rate, Errors, and Duration panels filtered by a
 sub-service template variable.  The variable is a CUSTOM dropdown whose
-values are the known route prefixes (e.g. /api/home, /api/schedule).
+values are the known route prefixes (e.g. /api/home, /api/notes).
 
 Usage:
     python3 generate-red-dashboard.py > ../chart/dashboards/monolith-red.json
@@ -16,7 +16,6 @@ import uuid
 # Add new entries here when a new router is added to main.py.
 SUB_SERVICES = {
     "home": "/api/home",
-    "schedule": "/api/schedule",
     "notes": "/api/notes",
     "chat": "/api/chat",
 }

@@ -1,7 +1,7 @@
 const API_BASE = process.env.API_BASE || "http://localhost:8000";
 
 export async function load({ fetch, setHeaders }) {
-  const resp = await fetch(`${API_BASE}/api/public/observability/topology`, {
+  const resp = await fetch(`${API_BASE}/api/home/observability/topology`, {
     signal: AbortSignal.timeout(10_000),
   });
   if (!resp.ok) {
