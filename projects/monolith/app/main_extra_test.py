@@ -39,7 +39,7 @@ def _lifespan_patches_no_discord():
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("shared.service.on_startup"),
+        patch("home.on_startup_jobs"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
     ]
 
@@ -52,7 +52,7 @@ def _lifespan_patches_with_discord(mock_bot):
     return [
         patch("app.db.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
-        patch("shared.service.on_startup"),
+        patch("home.on_startup_jobs"),
         patch("shared.scheduler.run_scheduler_loop", new_callable=AsyncMock),
         patch("chat.summarizer.on_startup"),
         patch("chat.summarizer.build_llm_caller", return_value=MagicMock()),
@@ -142,7 +142,7 @@ class TestLifespanRunSchedulerLoopException:
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": ""}),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session),
-            patch("shared.service.on_startup"),
+            patch("home.on_startup_jobs"),
             patch(
                 "shared.scheduler.run_scheduler_loop",
                 new=failing_run_scheduler_loop,
@@ -171,7 +171,7 @@ class TestLifespanRunSchedulerLoopException:
             patch.dict(os.environ, {"DISCORD_BOT_TOKEN": ""}),
             patch("app.db.get_engine", return_value=MagicMock()),
             patch("sqlmodel.Session", return_value=mock_session),
-            patch("shared.service.on_startup"),
+            patch("home.on_startup_jobs"),
             patch(
                 "shared.scheduler.run_scheduler_loop",
                 new=failing_run_scheduler_loop,
