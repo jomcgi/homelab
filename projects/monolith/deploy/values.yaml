@@ -101,13 +101,15 @@ chat:
       embedColor: "0x2ECC71"
       intervalHours: 1
       commitFilter: "^(feat)(\\(.+?\\))?!?:\\s"
-    - name: "roast"
+      roastChance: 0.1
+    - name: "colin-homelab"
       channelId: "1491186550472708117"
       githubRepo: "ColinCee/homelab"
-      prompt: "roast"
+      prompt: "professional"
       embedTitle: "Colin's Homelab Changelog"
-      embedColor: "0xE74C3C"
+      embedColor: "0x2ECC71"
       intervalHours: 1
+      roastChance: 0.1
   onepassword:
     itemPath: "vaults/k8s-homelab/items/discord-bot"
 

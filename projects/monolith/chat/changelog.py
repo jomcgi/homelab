@@ -4,6 +4,7 @@ import dataclasses
 import json
 import logging
 import os
+import random
 import re
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
@@ -30,6 +31,7 @@ class ChangelogConfig:
     embed_color: int
     interval_hours: int = 1
     commit_filter: re.Pattern | None = None
+    roast_chance: float = 0.0
 
 
 PROMPTS: dict[str, str] = {
@@ -84,6 +86,7 @@ def load_changelog_configs(raw: str) -> list[ChangelogConfig]:
                 else entry["embedColor"],
                 interval_hours=entry.get("intervalHours", 1),
                 commit_filter=commit_filter,
+                roast_chance=entry.get("roastChance", 0.0),
             )
         )
     return configs
@@ -190,7 +193,11 @@ async def run_changelog_iteration(
         logger.info("Changelog[%s]: commits found but none match filter", config.name)
         return
 
-    prompt_template = PROMPTS[config.prompt]
+    prompt_key = config.prompt
+    if config.roast_chance > 0 and random.random() < config.roast_chance:
+        prompt_key = "roast"
+        logger.info("Changelog[%s]: roast mode activated", config.name)
+    prompt_template = PROMPTS[prompt_key]
     summary = await _summarize_with_gemma(commits, llm_call, prompt_template)
     embed = _build_embed(
         summary, len(commits), title=config.embed_title, color=config.embed_color

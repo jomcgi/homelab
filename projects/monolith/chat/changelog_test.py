@@ -44,6 +44,7 @@ class TestChangelogConfig:
         assert configs[0].embed_color == 0x2ECC71
         assert configs[0].interval_hours == 1
         assert configs[0].commit_filter is None
+        assert configs[0].roast_chance == 0.0
 
     def test_load_configs_with_commit_filter(self):
         """commitFilter string is compiled to a regex pattern."""
@@ -73,6 +74,24 @@ class TestChangelogConfig:
     def test_load_configs_empty_string(self):
         """Empty string returns empty config list."""
         assert load_changelog_configs("") == []
+
+    def test_load_configs_with_roast_chance(self):
+        """roastChance is parsed into roast_chance float."""
+        raw = json.dumps(
+            [
+                {
+                    "name": "test",
+                    "channelId": "123",
+                    "githubRepo": "owner/repo",
+                    "prompt": "professional",
+                    "embedTitle": "Test",
+                    "embedColor": "0x2ECC71",
+                    "roastChance": 0.1,
+                }
+            ]
+        )
+        configs = load_changelog_configs(raw)
+        assert configs[0].roast_chance == 0.1
 
     def test_prompts_registry_has_professional(self):
         """PROMPTS dict contains 'professional' key."""
@@ -598,3 +617,56 @@ class TestRunChangelogIteration:
                 )
 
         store_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_roast_chance_triggers_roast_prompt(self):
+        """When random roll is below roast_chance, the roast prompt is used."""
+        mock_channel = AsyncMock()
+        bot = MagicMock(spec=discord.Client)
+        bot.get_channel.return_value = mock_channel
+        mock_llm = AsyncMock(return_value="Roasted.")
+        config = _make_config(channel_id="999", roast_chance=1.0)
+
+        commits = [_make_commit("feat: add thing", "Alice")]
+        mock_response = MagicMock()
+        mock_response.json.return_value = commits
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_tok"}):
+            with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
+                await run_changelog_iteration(bot, mock_llm, config)
+
+        prompt_used = mock_llm.call_args[0][0]
+        assert "roasting" in prompt_used
+
+    @pytest.mark.asyncio
+    async def test_roast_chance_zero_uses_normal_prompt(self):
+        """When roast_chance is 0, the configured prompt is always used."""
+        mock_channel = AsyncMock()
+        bot = MagicMock(spec=discord.Client)
+        bot.get_channel.return_value = mock_channel
+        mock_llm = AsyncMock(return_value="Normal changelog.")
+        config = _make_config(channel_id="999", roast_chance=0.0)
+
+        commits = [_make_commit("feat: add thing", "Alice")]
+        mock_response = MagicMock()
+        mock_response.json.return_value = commits
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_tok"}):
+            with patch("chat.changelog.httpx.AsyncClient", return_value=mock_client):
+                await run_changelog_iteration(bot, mock_llm, config)
+
+        prompt_used = mock_llm.call_args[0][0]
+        assert "roasting" not in prompt_used
+        assert "changelog writer" in prompt_used
