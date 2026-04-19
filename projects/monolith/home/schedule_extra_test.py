@@ -1,12 +1,12 @@
-"""Extra coverage tests for shared/service.py — timezone-aware events,
+"""Extra coverage tests for home/schedule.py — timezone-aware events,
 date-type DTEND, get_today_events(), and DTSTART with no value."""
 
 from datetime import date
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
-import shared.service as svc
-from shared.service import get_today_events, parse_events_for_date
+import home.schedule as svc
+from home.schedule import get_today_events, parse_events_for_date
 
 TZ = ZoneInfo("America/Vancouver")
 

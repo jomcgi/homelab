@@ -1,7 +1,7 @@
 import pytest
 import httpx
 
-from observability.clickhouse import ClickHouseClient
+from home.observability.clickhouse import ClickHouseClient
 
 
 @pytest.fixture

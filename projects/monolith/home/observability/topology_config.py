@@ -6,7 +6,7 @@ definition stays concise.
 
 from __future__ import annotations
 
-from observability.config import (
+from home.observability.config import (
     EdgeConfig,
     GroupConfig,
     LinkerdEdge,

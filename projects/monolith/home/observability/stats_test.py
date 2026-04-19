@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from observability import stats
+from home.observability import stats
 
 
 @pytest.fixture(autouse=True)
@@ -54,8 +54,8 @@ async def test_build_stats_returns_expected_shape():
     mock_session = _mock_session()
 
     with (
-        patch("observability.stats.KubernetesClient", return_value=mock_client),
-        patch("observability.stats.get_engine", return_value=MagicMock()),
+        patch("home.observability.stats.KubernetesClient", return_value=mock_client),
+        patch("home.observability.stats.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
     ):
         mock_session.__enter__ = MagicMock(return_value=mock_session)
@@ -92,7 +92,7 @@ async def test_get_cached_stats_refreshes_after_ttl():
 
     new_stats = {"cluster": {}, "cached_at": "new"}
     with patch(
-        "observability.stats.build_stats",
+        "home.observability.stats.build_stats",
         new_callable=AsyncMock,
         return_value=new_stats,
     ):
@@ -109,7 +109,7 @@ async def test_cluster_counts_handles_k8s_errors():
     mock_client.count_deployments = AsyncMock(return_value=5)
     mock_client.count_argocd_applications = AsyncMock(return_value=2)
 
-    with patch("observability.stats.KubernetesClient", return_value=mock_client):
+    with patch("home.observability.stats.KubernetesClient", return_value=mock_client):
         result = await stats._query_cluster_counts()
 
     assert result["nodes"] == 0  # failed, falls back to 0

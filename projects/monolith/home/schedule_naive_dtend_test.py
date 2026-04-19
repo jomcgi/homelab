@@ -1,12 +1,12 @@
-"""Tests for naive (no-tzinfo) DTEND datetime handling in shared/service.py.
+"""Tests for naive (no-tzinfo) DTEND datetime handling in home/schedule.py.
 
 The ``parse_events_for_date`` function handles three DTEND variants:
-  1. timezone-aware datetime  → ``dte.astimezone(tz)``   (covered in service_extra_test.py)
-  2. date object (not datetime) → ``end_str = None``     (covered in service_extra_test.py)
-  3. naive datetime (tzinfo is None) → ``dte.replace(tzinfo=tz)``   ← THIS FILE
+  1. timezone-aware datetime  -> ``dte.astimezone(tz)``   (covered in schedule_extra_test.py)
+  2. date object (not datetime) -> ``end_str = None``     (covered in schedule_extra_test.py)
+  3. naive datetime (tzinfo is None) -> ``dte.replace(tzinfo=tz)``   <- THIS FILE
 
-The third path is the ``if dte.tzinfo is None:`` branch at lines 58–59 of
-service.py.  It was identified as an untested branch in the coverage review.
+The third path is the ``if dte.tzinfo is None:`` branch at lines 58-59 of
+schedule.py.  It was identified as an untested branch in the coverage review.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import date
 from zoneinfo import ZoneInfo
 
-from shared.service import parse_events_for_date
+from home.schedule import parse_events_for_date
 
 TZ = ZoneInfo("America/Vancouver")
 
@@ -22,7 +22,7 @@ TZ = ZoneInfo("America/Vancouver")
 # ICS fixtures
 # ---------------------------------------------------------------------------
 
-# Naive DTSTART and naive DTEND (no timezone indicator — no trailing Z, no
+# Naive DTSTART and naive DTEND (no timezone indicator -- no trailing Z, no
 # TZID parameter).  icalendar parses these as naive datetime objects.
 NAIVE_DTEND_ICS = """\
 BEGIN:VCALENDAR
@@ -62,7 +62,7 @@ END:VCALENDAR
 """
 
 # Naive DTSTART that, after replace(tzinfo=tz), matches a different date than
-# the naive dt.date() value — verifies the correct branch is exercised for the
+# the naive dt.date() value -- verifies the correct branch is exercised for the
 # event's timezone-aware date comparison.  For simplicity we put the event on
 # the target date with no cross-day shift.
 NAIVE_DTEND_EXPLICIT_ICS = """\
@@ -129,7 +129,7 @@ class TestNaiveDtend:
 
     def test_naive_dtend_cross_midnight_start_time_correct(self):
         """A cross-midnight event with naive DTSTART/DTEND has the right start time."""
-        # DTSTART is 23:00 on 2026-03-30 (naive → replace with TZ → still same date)
+        # DTSTART is 23:00 on 2026-03-30 (naive -> replace with TZ -> still same date)
         events = parse_events_for_date(
             NAIVE_DTEND_CROSS_MIDNIGHT_ICS, date(2026, 3, 30), TZ
         )

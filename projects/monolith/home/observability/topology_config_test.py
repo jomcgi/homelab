@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from observability.config import LinkerdEdge, SloConfig
-from observability.topology_config import (
+from home.observability.config import LinkerdEdge, SloConfig
+from home.observability.topology_config import (
     WINDOW_DAYS,
     SLO_TARGET,
     _argocd_apps_synced_query,
