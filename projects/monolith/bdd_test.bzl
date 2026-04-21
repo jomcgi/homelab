@@ -25,7 +25,7 @@ def bdd_test(name, srcs, playwright = False, size = "large", timeout = "moderate
 
     py_test(
         name = name,
-        srcs = srcs,
+        srcs = srcs + ["//projects/monolith:conftest.py"],
         data = data,
         imports = ["."],
         tags = tags,
