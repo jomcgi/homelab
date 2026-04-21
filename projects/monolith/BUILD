@@ -2400,28 +2400,28 @@ bdd_test(
     name = "home_bdd_api_test",
     srcs = [
         "home/tests/__init__.py",
-        "home/tests/conftest.py",
         "home/tests/bdd_api_test.py",
+        "home/tests/conftest.py",
     ],
 )
 
 bdd_test(
     name = "home_bdd_playwright_test",
+    timeout = "long",
     srcs = [
         "home/tests/__init__.py",
-        "home/tests/conftest.py",
         "home/tests/bdd_playwright_test.py",
+        "home/tests/conftest.py",
     ],
     playwright = True,
-    timeout = "long",
 )
 
 bdd_test(
     name = "home_bdd_public_test",
     srcs = [
         "home/tests/__init__.py",
-        "home/tests/conftest.py",
         "home/tests/bdd_public_test.py",
+        "home/tests/conftest.py",
     ],
 )
 
@@ -2429,8 +2429,8 @@ bdd_test(
     name = "chat_bdd_api_test",
     srcs = [
         "chat/tests/__init__.py",
-        "chat/tests/conftest.py",
         "chat/tests/bdd_api_test.py",
+        "chat/tests/conftest.py",
     ],
 )
 
@@ -2438,40 +2438,40 @@ bdd_test(
     name = "knowledge_bdd_api_test",
     srcs = [
         "knowledge/tests/__init__.py",
-        "knowledge/tests/conftest.py",
         "knowledge/tests/bdd_api_test.py",
+        "knowledge/tests/conftest.py",
     ],
 )
 
 bdd_test(
     name = "knowledge_bdd_playwright_test",
+    timeout = "long",
     srcs = [
         "knowledge/tests/__init__.py",
-        "knowledge/tests/conftest.py",
         "knowledge/tests/bdd_playwright_test.py",
+        "knowledge/tests/conftest.py",
     ],
     playwright = True,
-    timeout = "long",
 )
 
 bdd_test(
     name = "knowledge_bdd_public_test",
     srcs = [
         "knowledge/tests/__init__.py",
-        "knowledge/tests/conftest.py",
         "knowledge/tests/bdd_public_test.py",
+        "knowledge/tests/conftest.py",
     ],
 )
 
 py_test(
     name = "bdd_completeness_test",
+    size = "small",
     srcs = [
         "app/__init__.py",
         "app/bdd_completeness_test.py",
     ],
     data = glob(["*/tests/*_test.py"]),
     imports = ["."],
-    size = "small",
     tags = ["bdd"],
     deps = [
         ":monolith_backend",
