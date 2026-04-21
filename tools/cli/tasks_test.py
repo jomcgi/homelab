@@ -117,7 +117,9 @@ class TestListTasksFilters:
 
     def test_status_and_json_combined(self, runner):
         """`knowledge tasks --status blocked --json` passes status param and returns JSON."""
-        data = {"tasks": [{"note_id": "task-7", "title": "Blocked", "status": "blocked"}]}
+        data = {
+            "tasks": [{"note_id": "task-7", "title": "Blocked", "status": "blocked"}]
+        }
         resp = _mock_response(data)
         with patch("tools.cli.tasks_cmd._request", return_value=resp) as mock_req:
             result = runner.invoke(
