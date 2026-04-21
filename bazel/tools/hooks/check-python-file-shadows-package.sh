@@ -58,7 +58,8 @@ fi
 
 # Parse [project.dependencies] from pyproject.toml with an inline Python script.
 # Normalize hyphens → underscores for comparison (PEP 503 canonical form).
-MATCHED=$(python3 - "$STEM" "$PYPROJECT" <<'PYTHON'
+MATCHED=$(
+	python3 - "$STEM" "$PYPROJECT" <<'PYTHON'
 import sys
 import re
 
