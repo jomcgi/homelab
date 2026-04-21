@@ -1,3 +1,1 @@
-"""E2E test fixtures — delegated to shared.testing.plugin."""
-
-pytest_plugins = ["shared.testing.plugin"]
+"""E2E test fixtures — loaded via PYTEST_ADDOPTS=-p shared.testing.plugin."""
