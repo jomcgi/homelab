@@ -2462,3 +2462,20 @@ bdd_test(
         "knowledge/tests/bdd_public_test.py",
     ],
 )
+
+py_test(
+    name = "bdd_completeness_test",
+    srcs = [
+        "app/__init__.py",
+        "app/bdd_completeness_test.py",
+    ],
+    data = glob(["*/tests/*_test.py"]),
+    imports = ["."],
+    size = "small",
+    tags = ["bdd"],
+    deps = [
+        ":monolith_backend",
+        ":shared_testing",
+        "@pip//pytest",
+    ],
+)
