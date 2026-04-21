@@ -6,7 +6,8 @@ Photo-based GPS trip logging with elevation enrichment.
 
 | Component    | Description                                                                                |
 | ------------ | ------------------------------------------------------------------------------------------ |
-| **backend**  | Extracts GPS coordinates from photo EXIF data, enriches with elevation from NRCan CDEM API |
+| **backend**  | FastAPI server that replays trip data from NATS JetStream and serves REST + WebSocket APIs |
 | **frontend** | Timeline view with day-by-day maps and elevation profiles                                  |
-| **tools**    | Utilities for data processing and import                                                   |
+| **tools**    | CLI tools for EXIF extraction, elevation enrichment, trip management, and data import      |
 | **chart**    | Helm chart for Kubernetes deployment                                                       |
+| **deploy**   | ArgoCD Application, kustomization, and cluster-specific values                             |
