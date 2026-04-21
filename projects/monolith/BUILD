@@ -109,6 +109,15 @@ py_library(
     ],
 )
 
+# Top-level conftest that registers the shared testing plugin.
+# Included in bdd_test srcs so it lands at the Bazel runfiles root,
+# satisfying pytest 8.x's requirement that pytest_plugins is declared
+# in a top-level conftest.
+exports_files(
+    ["conftest.py"],
+    visibility = ["//:__subpackages__"],
+)
+
 tar(
     name = "knowledge_tools_tar",
     srcs = ["knowledge/tools/knowledge-search"],
