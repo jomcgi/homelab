@@ -2433,3 +2433,32 @@ bdd_test(
         "chat/tests/bdd_api_test.py",
     ],
 )
+
+bdd_test(
+    name = "knowledge_bdd_api_test",
+    srcs = [
+        "knowledge/tests/__init__.py",
+        "knowledge/tests/conftest.py",
+        "knowledge/tests/bdd_api_test.py",
+    ],
+)
+
+bdd_test(
+    name = "knowledge_bdd_playwright_test",
+    srcs = [
+        "knowledge/tests/__init__.py",
+        "knowledge/tests/conftest.py",
+        "knowledge/tests/bdd_playwright_test.py",
+    ],
+    playwright = True,
+    timeout = "long",
+)
+
+bdd_test(
+    name = "knowledge_bdd_public_test",
+    srcs = [
+        "knowledge/tests/__init__.py",
+        "knowledge/tests/conftest.py",
+        "knowledge/tests/bdd_public_test.py",
+    ],
+)
