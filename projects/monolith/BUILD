@@ -11,7 +11,7 @@ load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
 load("//bazel/tools/js:exec_filegroup.bzl", "exec_filegroup")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
@@ -108,7 +108,6 @@ py_library(
         "@pip//sqlmodel",
     ],
 )
-
 
 tar(
     name = "knowledge_tools_tar",
@@ -2490,7 +2489,6 @@ py_test(
         "@pip//pytest",
     ],
 )
-
 
 py_library(
     name = "conftest",
