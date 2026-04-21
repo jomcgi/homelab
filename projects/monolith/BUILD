@@ -1381,6 +1381,7 @@ py_test(
     tags = ["e2e"],
     deps = [
         ":monolith_backend",
+        ":shared_testing",
         "@pip//fastapi",
         "@pip//httpx",
         "@pip//psycopg",
@@ -1415,6 +1416,7 @@ py_test(
     ],
     deps = [
         ":monolith_backend",
+        ":shared_testing",
         "@pip//fastapi",
         "@pip//httpx",
         "@pip//psycopg",
