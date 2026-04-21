@@ -2480,7 +2480,7 @@ py_test(
         "app/bdd_completeness_test.py",
     ],
     data = glob(["*/tests/*_test.py"]),
-    env = {"PYTEST_ADDOPTS": "--override-ini='collect_ignore_glob=*/tests/*_test.py'"},
+    env = {"PYTEST_ADDOPTS": "--import-mode=importlib"},
     imports = ["."],
     tags = ["bdd"],
     deps = [
