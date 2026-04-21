@@ -2489,10 +2489,3 @@ py_test(
         "@pip//pytest",
     ],
 )
-
-py_library(
-    name = "conftest",
-    testonly = True,
-    srcs = ["conftest.py"],
-    visibility = ["//:__subpackages__"],
-)
