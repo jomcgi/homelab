@@ -153,7 +153,7 @@ def main():
     settings = Settings()
     configure(settings)
 
-    app = mcp.http_app()
+    app = mcp.http_app(transport="sse")
 
     async def healthz(request):
         from starlette.responses import JSONResponse
