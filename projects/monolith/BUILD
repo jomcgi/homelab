@@ -56,7 +56,10 @@ py_library(
             "home/**/*.py",
             "shared/**/*.py",
         ],
-        exclude = ["**/*_test.py"],
+        exclude = [
+            "**/*_test.py",
+            "shared/testing/**/*.py",
+        ],
     ),
     visibility = ["//:__subpackages__"],
     deps = [
@@ -83,6 +86,20 @@ py_library(
         "@pip//tzdata",
         "@pip//uvicorn",
         "@pip//youtube_transcript_api",
+    ],
+)
+
+py_library(
+    name = "shared_testing",
+    srcs = glob(["shared/testing/**/*.py"]),
+    imports = ["."],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
     ],
 )
 
