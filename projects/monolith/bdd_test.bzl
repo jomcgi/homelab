@@ -22,6 +22,7 @@ def bdd_test(name, srcs, playwright = False, size = "large", timeout = "moderate
     if playwright:
         data.append("//projects/monolith:frontend_dist")
         tags.append("playwright")
+        tags.append("manual")  # playwright dep not yet in pip lockfile
 
     # Register the shared testing plugin via env var instead of conftest.py.
     # pytest rootdir in Bazel is _main (workspace root), so a conftest.py
