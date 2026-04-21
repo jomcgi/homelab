@@ -1,0 +1,29 @@
+"""BDD tests for home domain API routes."""
+
+import httpx
+
+from shared.testing.markers import covers_route
+
+
+class TestScheduleAPI:
+    @covers_route("/api/home/schedule/today")
+    def test_returns_list_of_events(self, live_server):
+        r = httpx.get(f"{live_server}/api/home/schedule/today")
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+
+
+class TestObservabilityAPI:
+    @covers_route("/api/home/observability/topology")
+    def test_returns_topology_structure(self, live_server):
+        r = httpx.get(f"{live_server}/api/home/observability/topology")
+        assert r.status_code == 200
+        data = r.json()
+        assert "nodes" in data
+        assert "edges" in data
+        assert "groups" in data
+
+    @covers_route("/api/home/observability/stats")
+    def test_returns_stats(self, live_server):
+        r = httpx.get(f"{live_server}/api/home/observability/stats")
+        assert r.status_code == 200
