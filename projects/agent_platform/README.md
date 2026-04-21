@@ -13,8 +13,10 @@ See [docs/agents.md](../../docs/agents.md) for the full architecture.
 | **orchestrator**         | Go service that dispatches agent jobs via NATS JetStream |
 | **sandboxes**            | Isolated Kubernetes pod definitions for agent execution  |
 | **cluster_agents**       | Agent configurations for cluster-scoped operations       |
-| **api_gateway**          | Context Forge MCP gateway with RBAC-scoped tool access   |
-| **goose_agent**          | Goose agent container and configuration                  |
-| **llama_cpp**            | On-cluster LLM inference (Gemma 4)                       |
-| **llama_cpp_embeddings** | On-cluster embedding inference (voyage-4-nano)           |
-| **vllm**                 | Alternative LLM serving backend                          |
+| **api_gateway**          | Nginx-based API gateway with route-based backend selection for api.jomcgi.dev |
+| **goose_agent**          | Goose agent container and configuration                                        |
+| **llama_cpp**            | On-cluster LLM inference (Gemma 4)                                             |
+| **llama_cpp_embeddings** | On-cluster embedding inference (voyage-4-nano)                                 |
+| **vllm**                 | Alternative LLM serving backend                                                |
+| **chart**                | Umbrella Helm chart for all agent platform components                          |
+| **deploy**               | ArgoCD Application, kustomization, and cluster-specific values                 |
