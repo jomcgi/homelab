@@ -73,6 +73,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-unnecessary-chart-bump.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-python-file-shadows-package.sh",
+            "timeout": 10
           }
         ]
       }

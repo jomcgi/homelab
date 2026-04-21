@@ -9,3 +9,9 @@ sh_test(
     srcs = ["prefer-bb-remote_test.sh"],
     data = [":prefer-bb-remote.sh"],
 )
+
+sh_test(
+    name = "check_python_file_shadows_package_test",
+    srcs = ["check-python-file-shadows-package_test.sh"],
+    data = [":check-python-file-shadows-package.sh"],
+)
