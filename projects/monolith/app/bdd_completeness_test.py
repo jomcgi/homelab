@@ -33,6 +33,10 @@ _PUBLIC_EXCLUSIONS: set[str] = {
     "home.register",
     "chat.register",
     "knowledge.register",
+    # FastAPI class is re-exported by domains, not a domain function
+    "home.FastAPI",
+    "chat.FastAPI",
+    "knowledge.FastAPI",
 }
 
 

@@ -2480,7 +2480,7 @@ py_test(
         "app/bdd_completeness_test.py",
     ],
     data = glob(["*/tests/*_test.py"]),
-    env = {"PYTEST_ADDOPTS": "--import-mode=importlib"},
+    env = {"PYTEST_ADDOPTS": "--import-mode=importlib --ignore=projects/monolith/home/tests --ignore=projects/monolith/chat/tests --ignore=projects/monolith/knowledge/tests"},
     imports = ["."],
     tags = ["bdd"],
     deps = [
