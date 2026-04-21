@@ -23,14 +23,21 @@ def bdd_test(name, srcs, playwright = False, size = "large", timeout = "moderate
         data.append("//projects/monolith:frontend_dist")
         tags.append("playwright")
 
+    # Register the shared testing plugin via env var instead of conftest.py.
+    # pytest rootdir in Bazel is _main (workspace root), so a conftest.py
+    # inside projects/monolith/ is "non-top-level" and rejected by pytest 8.x.
+    env = kwargs.pop("env", {})
+    env.setdefault("PYTEST_ADDOPTS", "-p shared.testing.plugin")
+
     py_test(
         name = name,
-        srcs = srcs + ["//projects/monolith:conftest.py"],
+        srcs = srcs,
         data = data,
         imports = ["."],
         tags = tags,
         size = size,
         timeout = timeout,
+        env = env,
         deps = [
             "//projects/monolith:shared_testing",
             "//projects/monolith:monolith_backend",

@@ -109,14 +109,6 @@ py_library(
     ],
 )
 
-# Top-level conftest that registers the shared testing plugin.
-# Included in bdd_test srcs so it lands at the Bazel runfiles root,
-# satisfying pytest 8.x's requirement that pytest_plugins is declared
-# in a top-level conftest.
-exports_files(
-    ["conftest.py"],
-    visibility = ["//:__subpackages__"],
-)
 
 tar(
     name = "knowledge_tools_tar",
@@ -1377,6 +1369,7 @@ py_test(
         "//projects/monolith/chart:migrations",
         "@postgres_test//:postgres",
     ],
+    env = {"PYTEST_ADDOPTS": "-p shared.testing.plugin"},
     imports = ["."],
     tags = ["e2e"],
     deps = [
@@ -1408,6 +1401,7 @@ py_test(
         "//projects/monolith/chart:migrations",
         "@postgres_test//:postgres",
     ],
+    env = {"PYTEST_ADDOPTS": "-p shared.testing.plugin"},
     imports = ["."],
     tags = [
         "e2e",
@@ -2487,6 +2481,7 @@ py_test(
         "app/bdd_completeness_test.py",
     ],
     data = glob(["*/tests/*_test.py"]),
+    env = {"PYTEST_ADDOPTS": "--override-ini='collect_ignore_glob=*/tests/*_test.py'"},
     imports = ["."],
     tags = ["bdd"],
     deps = [
@@ -2496,17 +2491,6 @@ py_test(
     ],
 )
 
-semgrep_test(
-    name = "conftest_semgrep_test",
-    srcs = ["conftest.py"],
-    exclude_rules = [
-        "avoid-sqlalchemy-text",
-        "sqlmodel-datetime-without-factory",
-        "tainted-fastapi-http-request-httpx",
-        "tainted-path-traversal-stdlib-fastapi",
-    ],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
 
 py_library(
     name = "conftest",
