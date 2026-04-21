@@ -37,7 +37,11 @@ py_venv_binary(
             "home/**/*.py",
             "shared/**/*.py",
         ],
-        exclude = ["**/*_test.py"],
+        exclude = [
+            "**/*_test.py",
+            "*/tests/**/*.py",
+            "shared/testing/**/*.py",
+        ],
     ),
     data = [":frontend_dist"],
     imports = ["."],  # keep
@@ -59,6 +63,7 @@ py_library(
         ],
         exclude = [
             "**/*_test.py",
+            "*/tests/**/*.py",
             "shared/testing/**/*.py",
         ],
     ),
