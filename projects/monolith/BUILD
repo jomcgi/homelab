@@ -15,6 +15,7 @@ load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test")
 load("//bazel/tools/js:exec_filegroup.bzl", "exec_filegroup")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
+load("//projects/monolith:bdd_test.bzl", "bdd_test")
 
 # Pin the frontend build to the exec (host) platform. The vite output is
 # just static HTML/CSS/JS — it's arch-independent — but py3_image's
@@ -2392,5 +2393,43 @@ py_test(
         "@pip//kubernetes_asyncio",
         "@pip//pytest",
         "@pip//pytest_asyncio",
+    ],
+)
+
+bdd_test(
+    name = "home_bdd_api_test",
+    srcs = [
+        "home/tests/__init__.py",
+        "home/tests/conftest.py",
+        "home/tests/bdd_api_test.py",
+    ],
+)
+
+bdd_test(
+    name = "home_bdd_playwright_test",
+    srcs = [
+        "home/tests/__init__.py",
+        "home/tests/conftest.py",
+        "home/tests/bdd_playwright_test.py",
+    ],
+    playwright = True,
+    timeout = "long",
+)
+
+bdd_test(
+    name = "home_bdd_public_test",
+    srcs = [
+        "home/tests/__init__.py",
+        "home/tests/conftest.py",
+        "home/tests/bdd_public_test.py",
+    ],
+)
+
+bdd_test(
+    name = "chat_bdd_api_test",
+    srcs = [
+        "chat/tests/__init__.py",
+        "chat/tests/conftest.py",
+        "chat/tests/bdd_api_test.py",
     ],
 )
