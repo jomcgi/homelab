@@ -13,7 +13,7 @@ modelVolume:
 
 server:
   nGpuLayers: 999
-  ctxSize: 65536
+  ctxSize: 32768
   flashAttn: "on"
   cacheTypeK: "f16"
   cacheTypeV: "q8_0"
@@ -30,7 +30,11 @@ server:
     - "--alias"
     - "qwen3.6-27b"
     - "--reasoning-budget"
-    - "8192"
+    - "2048"
+    - "--spec-type"
+    - "ngram-simple"
+    - "--draft"
+    - "8"
     - "--cache-ram"
     - "4096"
 
