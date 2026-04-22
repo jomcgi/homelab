@@ -24,7 +24,7 @@ agent-platform-mcp-servers:
 # ── Agent Orchestrator ───────────────────────────────────────────────────────
 agent-orchestrator:
   config:
-    openaiBaseUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
+    openaiBaseUrl: "http://inference.inference.svc.cluster.local:8080"
     openaiModel: "qwen3.6-27b"
     sandboxTemplate: "goose-agent"
     jobInactivityTimeout: "30m"

@@ -8,7 +8,7 @@ spec:
   sources:
     # Reuses the llama-cpp chart (shared Helm chart, separate values).
     - repoURL: https://github.com/jomcgi/homelab.git
-      path: projects/agent_platform/llama_cpp/deploy
+      path: projects/agent_platform/inference/deploy
       targetRevision: HEAD
       helm:
         releaseName: llama-cpp-embeddings

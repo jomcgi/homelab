@@ -1,7 +1,10 @@
-fullnameOverride: "llama-cpp"
+fullnameOverride: "inference"
+
+backend: "llama-cpp"
 
 image:
-  tag: "server-cuda-b8643"
+  llamaCpp:
+    tag: "server-cuda-b8643"
 
 imagePullSecret:
   enabled: true
@@ -11,7 +14,7 @@ modelVolume:
   reference: "ghcr.io/jomcgi/models/qwen/qwen3.6-27b:unsloth-gguf-q4-k-m-mmproj"
   mountPath: "/model-image"
 
-server:
+llamaCpp:
   nGpuLayers: 999
   ctxSize: 32768
   flashAttn: "on"

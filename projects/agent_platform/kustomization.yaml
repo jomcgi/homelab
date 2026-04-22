@@ -6,5 +6,5 @@ resources:
   - ./api_gateway/deploy
 
   - ./cluster_agents/deploy
-  - ./llama_cpp/deploy
+  - ./inference/deploy
   - ./llama_cpp_embeddings/deploy
