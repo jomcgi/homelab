@@ -81,12 +81,6 @@ chmod +x "${TEST_TMPDIR}/bin/jq"
 export PATH="${TEST_TMPDIR}/bin:${PATH}"
 
 # ---------------------------------------------------------------------------
-# Temp directory for BUILD file fixtures
-# ---------------------------------------------------------------------------
-BUILDS_DIR="${TEST_TMPDIR}/builds"
-mkdir -p "$BUILDS_DIR"
-
-# ---------------------------------------------------------------------------
 # Test helpers
 # ---------------------------------------------------------------------------
 PASS=0
@@ -130,11 +124,14 @@ run_test() {
 }
 
 # ---------------------------------------------------------------------------
-# Tests using actual temp files (hook reads file when no content field)
+# Tests using actual temp files (hook reads file when no content field).
+# Each test case uses its own subdirectory so filenames are exactly BUILD
+# or BUILD.bazel (the hook checks basename strictly).
 # ---------------------------------------------------------------------------
 
 # 1. BUILD file with shared.testing.plugin but no :shared_testing dep → warns
-cat >"$BUILDS_DIR/missing_dep_BUILD" <<'EOF'
+mkdir -p "${TEST_TMPDIR}/t1"
+cat >"${TEST_TMPDIR}/t1/BUILD" <<'EOF'
 py_test(
     name = "test_suite",
     srcs = glob(["**/*_test.py"]),
@@ -144,11 +141,12 @@ py_test(
 )
 EOF
 run_test "missing_shared_testing_dep_warns" \
-	"{\"tool_input\":{\"file_path\":\"$BUILDS_DIR/missing_dep_BUILD\"}}" \
+	"{\"tool_input\":{\"file_path\":\"${TEST_TMPDIR}/t1/BUILD\"}}" \
 	0 "WARNING.*shared_testing"
 
 # 2. BUILD file with both shared.testing.plugin and :shared_testing dep → no warning
-cat >"$BUILDS_DIR/has_dep_BUILD" <<'EOF'
+mkdir -p "${TEST_TMPDIR}/t2"
+cat >"${TEST_TMPDIR}/t2/BUILD" <<'EOF'
 py_test(
     name = "test_suite",
     srcs = glob(["**/*_test.py"]),
@@ -162,19 +160,21 @@ py_test(
 )
 EOF
 run_test "has_shared_testing_dep_no_warning" \
-	"{\"tool_input\":{\"file_path\":\"$BUILDS_DIR/has_dep_BUILD\"}}" \
+	"{\"tool_input\":{\"file_path\":\"${TEST_TMPDIR}/t2/BUILD\"}}" \
 	0 ""
 
 # 3. Non-BUILD file → skip even if content references shared.testing.plugin
-cat >"$BUILDS_DIR/conftest.py" <<'EOF'
+mkdir -p "${TEST_TMPDIR}/t3"
+cat >"${TEST_TMPDIR}/t3/conftest.py" <<'EOF'
 pytest_plugins = ["shared.testing.plugin"]
 EOF
 run_test "non_build_file_skipped" \
-	"{\"tool_input\":{\"file_path\":\"$BUILDS_DIR/conftest.py\"}}" \
+	"{\"tool_input\":{\"file_path\":\"${TEST_TMPDIR}/t3/conftest.py\"}}" \
 	0 ""
 
 # 4. BUILD file without shared.testing.plugin → no warning
-cat >"$BUILDS_DIR/plain_BUILD" <<'EOF'
+mkdir -p "${TEST_TMPDIR}/t4"
+cat >"${TEST_TMPDIR}/t4/BUILD" <<'EOF'
 py_test(
     name = "test_suite",
     srcs = glob(["**/*_test.py"]),
@@ -182,7 +182,7 @@ py_test(
 )
 EOF
 run_test "no_plugin_no_warning" \
-	"{\"tool_input\":{\"file_path\":\"$BUILDS_DIR/plain_BUILD\"}}" \
+	"{\"tool_input\":{\"file_path\":\"${TEST_TMPDIR}/t4/BUILD\"}}" \
 	0 ""
 
 # 5. Empty JSON (no tool_input) → skip
@@ -191,7 +191,8 @@ run_test "empty_json_allowed" \
 	0 ""
 
 # 6. BUILD.bazel filename variant — also checked
-cat >"$BUILDS_DIR/missing_dep_BUILD.bazel" <<'EOF'
+mkdir -p "${TEST_TMPDIR}/t6"
+cat >"${TEST_TMPDIR}/t6/BUILD.bazel" <<'EOF'
 py_test(
     name = "test_suite",
     srcs = ["test.py"],
@@ -199,7 +200,7 @@ py_test(
 )
 EOF
 run_test "build_bazel_filename_warns" \
-	"{\"tool_input\":{\"file_path\":\"$BUILDS_DIR/missing_dep_BUILD.bazel\"}}" \
+	"{\"tool_input\":{\"file_path\":\"${TEST_TMPDIR}/t6/BUILD.bazel\"}}" \
 	0 "WARNING.*shared_testing"
 
 # ---------------------------------------------------------------------------
