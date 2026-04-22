@@ -6,7 +6,7 @@ image:
   llamaCpp:
     tag: "server-cuda-b8643"
   vllm:
-    tag: "v0.9.1"
+    tag: "v0.19.1"
 
 imagePullSecret:
   enabled: true
