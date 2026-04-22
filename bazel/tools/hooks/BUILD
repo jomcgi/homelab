@@ -15,3 +15,9 @@ sh_test(
     srcs = ["check-python-file-shadows-package_test.sh"],
     data = [":check-python-file-shadows-package.sh"],
 )
+
+sh_test(
+    name = "check_bdd_shared_testing_dep_test",
+    srcs = ["check-bdd-shared-testing-dep_test.sh"],
+    data = [":check-bdd-shared-testing-dep.sh"],
+)
