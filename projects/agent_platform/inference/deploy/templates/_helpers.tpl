@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "llama-cpp.name" -}}
+{{- define "inference.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "llama-cpp.fullname" -}}
+{{- define "inference.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "llama-cpp.chart" -}}
+{{- define "inference.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "llama-cpp.labels" -}}
-helm.sh/chart: {{ include "llama-cpp.chart" . }}
-{{ include "llama-cpp.selectorLabels" . }}
+{{- define "inference.labels" -}}
+helm.sh/chart: {{ include "inference.chart" . }}
+{{ include "inference.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -43,15 +43,15 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "llama-cpp.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "llama-cpp.name" . }}
+{{- define "inference.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "inference.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 llama-server CLI arguments (shared between direct args and auto-discovery shell modes).
 */}}
-{{- define "llama-cpp.serverArgs" -}}
+{{- define "inference.llamaCppArgs" -}}
 --n-gpu-layers {{ .Values.server.nGpuLayers | quote }} \
 --ctx-size {{ .Values.server.ctxSize | quote }} \
 {{- if .Values.server.flashAttn }}
