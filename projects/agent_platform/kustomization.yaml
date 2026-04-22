@@ -7,4 +7,3 @@ resources:
 
   - ./cluster_agents/deploy
   - ./inference/deploy
-  - ./llama_cpp_embeddings/deploy

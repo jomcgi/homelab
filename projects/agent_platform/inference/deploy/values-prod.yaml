@@ -57,3 +57,37 @@ resources:
   limits:
     memory: "16Gi"
     nvidia.com/gpu: 1
+
+embeddings:
+  enabled: true
+  image:
+    tag: "server-cuda-b8643"
+  modelVolume:
+    enabled: true
+    reference: "ghcr.io/jomcgi/models/voyageai/voyage-4-nano:jsonmartin-gguf-q8-0"
+    mountPath: "/model-image"
+  llamaCpp:
+    nGpuLayers: 0
+    ctxSize: 8192
+    flashAttn: "off"
+    cacheTypeK: "f16"
+    cacheTypeV: "f16"
+    threads: 4
+    jinja: false
+    extraArgs:
+      - "--embedding"
+      - "--alias"
+      - "voyage-4-nano"
+      - "--metrics"
+  nodeSelector:
+    kubernetes.io/hostname: node-4
+  podAnnotations:
+    linkerd.io/inject: disabled
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+  resources:
+    requests:
+      cpu: 2
+      memory: "2Gi"
+    limits:
+      memory: "4Gi"
