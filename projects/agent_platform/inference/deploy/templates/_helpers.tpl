@@ -52,21 +52,41 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 llama-server CLI arguments (shared between direct args and auto-discovery shell modes).
 */}}
 {{- define "inference.llamaCppArgs" -}}
---n-gpu-layers {{ .Values.server.nGpuLayers | quote }} \
---ctx-size {{ .Values.server.ctxSize | quote }} \
-{{- if .Values.server.flashAttn }}
---flash-attn {{ .Values.server.flashAttn | quote }} \
+--n-gpu-layers {{ .Values.llamaCpp.nGpuLayers | quote }} \
+--ctx-size {{ .Values.llamaCpp.ctxSize | quote }} \
+{{- if .Values.llamaCpp.flashAttn }}
+--flash-attn {{ .Values.llamaCpp.flashAttn | quote }} \
 {{- end }}
---cache-type-k {{ .Values.server.cacheTypeK | quote }} \
---cache-type-v {{ .Values.server.cacheTypeV | quote }} \
---threads {{ .Values.server.threads | quote }} \
-{{- if .Values.server.jinja }}
+--cache-type-k {{ .Values.llamaCpp.cacheTypeK | quote }} \
+--cache-type-v {{ .Values.llamaCpp.cacheTypeV | quote }} \
+--threads {{ .Values.llamaCpp.threads | quote }} \
+{{- if .Values.llamaCpp.jinja }}
 --jinja \
 {{- end }}
-{{- if .Values.server.chatTemplate }}
+{{- if .Values.llamaCpp.chatTemplate }}
 --chat-template-file "/etc/llama-cpp/chat-template.jinja" \
 {{- end }}
 --host {{ .Values.server.host | quote }} \
---port {{ .Values.server.port | quote }}{{ range .Values.server.extraArgs }} \
+--port {{ .Values.server.port | quote }}{{ range .Values.llamaCpp.extraArgs }} \
 {{ . | quote }}{{ end }}
+{{- end }}
+
+{{/*
+vLLM CLI arguments.
+*/}}
+{{- define "inference.vllmArgs" -}}
+--host {{ .Values.server.host }} \
+--port {{ .Values.server.port }} \
+--max-model-len {{ .Values.vllm.maxModelLen }} \
+--gpu-memory-utilization {{ .Values.vllm.gpuMemoryUtilization }} \
+{{- if .Values.vllm.quantization }}
+--quantization {{ .Values.vllm.quantization }} \
+{{- end }}
+{{- if .Values.vllm.tokenizer }}
+--tokenizer {{ .Values.vllm.tokenizer }} \
+{{- end }}
+{{- range .Values.vllm.extraArgs }}
+{{ . }} \
+{{- end }}
+--dtype {{ .Values.vllm.dtype }}
 {{- end }}
