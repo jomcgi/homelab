@@ -8,7 +8,7 @@ imagePullSecret:
 
 modelVolume:
   enabled: true
-  reference: "ghcr.io/jomcgi/models/google/gemma-4-26b-a4b-it:unsloth-gguf-ud-q4-k-m-mmproj"
+  reference: "ghcr.io/jomcgi/models/qwen/qwen3.6-27b:unsloth-gguf-q4-k-m"
   mountPath: "/model-image"
 
 server:
@@ -28,7 +28,7 @@ server:
     - "1"
     - "--metrics"
     - "--alias"
-    - "gemma-4-26b-a4b"
+    - "qwen3.6-27b"
     - "--reasoning-budget"
     - "8192"
     - "--cache-ram"

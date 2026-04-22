@@ -14,7 +14,7 @@ from chat.changelog import (
     _auth_headers,
     _build_embed,
     _filter_changelog_commits,
-    _summarize_with_gemma,
+    _summarize_with_qwen,
     load_changelog_configs,
     run_changelog_iteration,
 )
@@ -320,18 +320,18 @@ class TestAuthHeaders:
 
 
 # ---------------------------------------------------------------------------
-# _summarize_with_gemma
+# _summarize_with_qwen
 # ---------------------------------------------------------------------------
 
 
-class TestSummarizeWithGemma:
+class TestSummarizeWithQwen:
     @pytest.mark.asyncio
     async def test_prompt_includes_commit_messages(self):
         """The prompt forwarded to llm_call contains commit message text."""
         commits = [_make_commit("feat: add search", "Bob")]
         mock_llm = AsyncMock(return_value="Added search functionality.")
 
-        await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
+        await _summarize_with_qwen(commits, mock_llm, PROMPTS["professional"])
 
         call_args = mock_llm.call_args[0][0]
         assert "feat: add search" in call_args
@@ -342,7 +342,7 @@ class TestSummarizeWithGemma:
         commits = [_make_commit("feat: add feature", "Charlie")]
         mock_llm = AsyncMock(return_value="Added a feature.")
 
-        await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
+        await _summarize_with_qwen(commits, mock_llm, PROMPTS["professional"])
 
         call_args = mock_llm.call_args[0][0]
         assert "Charlie" in call_args
@@ -354,7 +354,7 @@ class TestSummarizeWithGemma:
         expected = "Users can now toggle dark mode."
         mock_llm = AsyncMock(return_value=expected)
 
-        result = await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
+        result = await _summarize_with_qwen(commits, mock_llm, PROMPTS["professional"])
 
         assert result == expected
 
@@ -364,7 +364,7 @@ class TestSummarizeWithGemma:
         commits = [_make_commit("feat: a"), _make_commit("feat: b")]
         mock_llm = AsyncMock(return_value="summary")
 
-        await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
+        await _summarize_with_qwen(commits, mock_llm, PROMPTS["professional"])
 
         mock_llm.assert_called_once()
 
@@ -377,7 +377,7 @@ class TestSummarizeWithGemma:
         ]
         mock_llm = AsyncMock(return_value="Two features added.")
 
-        await _summarize_with_gemma(commits, mock_llm, PROMPTS["professional"])
+        await _summarize_with_qwen(commits, mock_llm, PROMPTS["professional"])
 
         call_args = mock_llm.call_args[0][0]
         assert "feat: feature A" in call_args
@@ -558,7 +558,7 @@ class TestRunChangelogIteration:
         bot.get_channel.return_value = mock_channel
         bot.user = MagicMock()
         bot.user.id = 999
-        bot.user.display_name = "Gemma4"
+        bot.user.display_name = "Qwen3"
 
         mock_llm = AsyncMock(return_value="A great new feature landed.")
         store_message = AsyncMock()
@@ -585,7 +585,7 @@ class TestRunChangelogIteration:
         assert call_args[0] == "12345"  # discord_message_id
         assert call_args[1] == "777"  # channel_id
         assert call_args[2] == "999"  # user_id
-        assert call_args[3] == "Gemma4"  # username
+        assert call_args[3] == "Qwen3"  # username
         assert "A great new feature landed." in call_args[4]  # content includes summary
 
     @pytest.mark.asyncio

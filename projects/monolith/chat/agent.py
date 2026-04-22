@@ -1,4 +1,4 @@
-"""PydanticAI agent -- assembles context and runs Gemma with tool calling."""
+"""PydanticAI agent -- assembles context and runs Qwen with tool calling."""
 
 import logging
 import os
@@ -104,11 +104,11 @@ def format_context_messages(
 
 
 def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
-    """Create a PydanticAI agent configured for Gemma via llama.cpp."""
+    """Create a PydanticAI agent configured for Qwen via llama.cpp."""
     url = base_url or LLAMA_CPP_URL
 
     model = OpenAIChatModel(
-        "gemma-4-26b-a4b",
+        "qwen3.6-27b",
         provider=OpenAIProvider(
             base_url=f"{url}/v1",
             api_key="not-needed",

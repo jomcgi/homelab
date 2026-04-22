@@ -25,7 +25,7 @@ agent-platform-mcp-servers:
 agent-orchestrator:
   config:
     openaiBaseUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
-    openaiModel: "gemma-4-26b-a4b"
+    openaiModel: "qwen3.6-27b"
     sandboxTemplate: "goose-agent"
     jobInactivityTimeout: "30m"
   podAnnotations:

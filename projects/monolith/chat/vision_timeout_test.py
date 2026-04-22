@@ -265,7 +265,7 @@ class TestVisionClientEnvFallback:
 class TestVisionClientPayload:
     @pytest.mark.asyncio
     async def test_payload_includes_correct_model(self):
-        """describe() sends 'gemma-4-26b-a4b' as the model in the payload."""
+        """describe() sends 'qwen3.6-27b' as the model in the payload."""
         client = VisionClient(base_url="http://fake:8080")
 
         with patch("chat.vision.httpx.AsyncClient") as mock_cls:
@@ -273,7 +273,7 @@ class TestVisionClientPayload:
             await client.describe(b"\x89PNG", "image/png")
 
         payload = mock_cls.return_value.post.call_args.kwargs.get("json")
-        assert payload["model"] == "gemma-4-26b-a4b"
+        assert payload["model"] == "qwen3.6-27b"
 
     @pytest.mark.asyncio
     async def test_payload_includes_max_tokens_256(self):

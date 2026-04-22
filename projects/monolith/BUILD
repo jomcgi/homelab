@@ -95,6 +95,7 @@ py_library(
     ],
 )
 
+# nosemgrep: py-glob-missing-tests-exclude — this IS a testing library
 py_library(
     name = "shared_testing",
     srcs = glob(["shared/testing/**/*.py"]),
@@ -748,8 +749,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_summarizer_coverage_test",
-    srcs = ["chat/summarizer_coverage_test.py"],
+    name = "chat_summarizer_llm_caller_test",
+    srcs = ["chat/summarizer_llm_caller_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",

@@ -30,7 +30,7 @@ See [docs/security.md](docs/security.md) for the defense-in-depth model and [doc
 | Secrets       | 1Password Operator — OnePasswordItem CRDs, nothing in Git                     |
 | Storage       | Longhorn for persistent volumes, SeaweedFS for S3-compatible object storage   |
 | Messaging     | NATS JetStream — pub/sub backbone for AIS data, trip points, agent jobs       |
-| GPU           | NVIDIA GPU Operator — Gemma 4 + voyage-4-nano on-cluster via llama.cpp        |
+| GPU           | NVIDIA GPU Operator — Qwen 3 + voyage-4-nano on-cluster via llama.cpp         |
 | Images        | apko + rules_apko — no Dockerfiles, dual-arch (x86_64 + aarch64), non-root    |
 | CI            | BuildBuddy Workflows — remote build execution, `bazel test //...`, image push |
 | GitOps        | ArgoCD — colocated `deploy/` dirs, `kubectl` is read-only                     |

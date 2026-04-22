@@ -1,4 +1,4 @@
-"""Vision client -- calls Gemma 4 via llama.cpp /v1/chat/completions for image description."""
+"""Vision client -- calls Qwen 3 via llama.cpp /v1/chat/completions for image description."""
 
 import asyncio
 import base64
@@ -44,7 +44,7 @@ class VisionClient:
         self.base_url = base_url or LLAMA_CPP_URL
 
     async def describe(self, image_bytes: bytes, content_type: str) -> str:
-        """Describe an image using Gemma 4 vision, returning a text summary.
+        """Describe an image using Qwen 3 vision, returning a text summary.
 
         Retries with exponential backoff on transient errors (connection
         failures, timeouts, 5xx) for up to 5 minutes so the bot can survive
@@ -54,7 +54,7 @@ class VisionClient:
         data_uri = f"data:{content_type};base64,{b64}"
 
         payload = {
-            "model": "gemma-4-26b-a4b",
+            "model": "qwen3.6-27b",
             "messages": [
                 {"role": "system", "content": VISION_SYSTEM_PROMPT},
                 {

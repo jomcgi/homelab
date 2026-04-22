@@ -62,7 +62,7 @@ async def _summarize_thinking(
             resp = await client.post(
                 f"{url}/v1/chat/completions",
                 json={
-                    "model": "gemma-4-26b-a4b",
+                    "model": "qwen3.6-27b",
                     "messages": [
                         {
                             "role": "user",
@@ -125,7 +125,7 @@ async def download_image_attachments(
     vision_client: VisionClient,
     store: MessageStore | None = None,
 ) -> list[dict]:
-    """Download image attachments and describe them with Gemma 4 vision.
+    """Download image attachments and describe them with Qwen 3 vision.
 
     When a store is provided, checks for an existing blob by content hash
     and reuses its description instead of calling the vision model again.
@@ -425,7 +425,7 @@ class ChatBot(discord.Client):
                             "Auto-search for image failed, continuing without"
                         )
 
-            # When images are present, send a multimodal prompt so Gemma
+            # When images are present, send a multimodal prompt so Qwen
             # can see the raw image bytes alongside the text.
             agent_prompt: str | list = user_prompt
             if image_parts:
