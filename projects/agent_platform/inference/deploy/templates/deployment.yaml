@@ -152,7 +152,8 @@ spec:
         {{- end }}
         {{- if eq .Values.backend "vllm" }}
         - name: vllm-cache
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: {{ include "inference.fullname" . }}-vllm-cache
         {{- end }}
         - name: dshm
           emptyDir:
