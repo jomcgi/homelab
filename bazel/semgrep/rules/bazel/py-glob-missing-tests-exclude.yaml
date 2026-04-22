@@ -1,0 +1,17 @@
+rules:
+  - id: py-glob-missing-tests-exclude
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      py_library or py_venv_binary uses glob(["**/*.py"]) without excluding
+      test directories. Add exclude=["*/tests/**"] to prevent conftest.py and
+      fixture files from being bundled into the production library target.
+      This was the root cause in commit 61fcaa4 where domain tests/conftest.py
+      files were inadvertently included in monolith_backend.
+    metadata:
+      category: correctness
+    paths:
+      include:
+        - "**/BUILD"
+        - "**/BUILD.bazel"
+    pattern-regex: '(?s)(py_library|py_venv_binary)\s*\([^(]*glob\s*\(\s*\[\s*"[^"]*\*\*/\*\.py"[^\]]*\]\s*,?\s*\)'
