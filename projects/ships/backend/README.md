@@ -63,37 +63,34 @@ flowchart TD
     START[New Position] --> FETCH[Fetch Last Position]
     FETCH --> CHECK{Last position<br/>exists?}
     CHECK -->|No| SAVE[Save Position]
-    CHECK -->|Yes| DIST[Calculate Distance]
-    DIST --> SPEED{Speed < 0.5 kn?}
-    SPEED -->|Yes| MOORED{Distance < 100m?}
-    SPEED -->|No| MOVING{Distance < 1000m?}
-    MOORED -->|Yes| SKIP[Skip - Moored]
-    MOORED -->|No| SAVE
-    MOVING -->|Yes| SKIP2[Skip - Drifting]
-    MOVING -->|No| SAVE
+    CHECK -->|Yes| SPEED{Speed > 0.5 kn?}
+    SPEED -->|Yes| SAVE
+    SPEED -->|No| DIST{Distance > 100m?}
+    DIST -->|Yes| SAVE
+    DIST -->|No| TIME{Time since last<br/>> 300s?}
+    TIME -->|Yes| SAVE
+    TIME -->|No| SKIP[Skip]
     SAVE --> BROADCAST[Broadcast WebSocket]
     SKIP --> END[Done]
-    SKIP2 --> END
     BROADCAST --> END
 
     style SKIP fill:#FFB6C1
-    style SKIP2 fill:#FFB6C1
     style SAVE fill:#90EE90
 ```
 
 **Deduplication rules:**
 
-| Condition         | Distance Threshold | Action                           |
-| ----------------- | ------------------ | -------------------------------- |
-| Speed < 0.5 knots | < 100m             | **Skip** - Moored at dock        |
-| Speed < 0.5 knots | ≥ 100m             | **Save** - Moved to new mooring  |
-| Speed ≥ 0.5 knots | < 1000m            | **Skip** - Normal drift/movement |
-| Speed ≥ 0.5 knots | ≥ 1000m            | **Save** - Significant movement  |
+| Condition                                  | Action                             |
+| ------------------------------------------ | ---------------------------------- |
+| Speed > 0.5 knots                          | **Save** - Vessel is moving        |
+| Speed ≤ 0.5 knots, distance > 100m         | **Save** - Moved to new mooring    |
+| Speed ≤ 0.5 knots, distance ≤ 100m, time > 300s | **Save** - Periodic update   |
+| Speed ≤ 0.5 knots, distance ≤ 100m, time ≤ 300s | **Skip** - Stationary, no change |
 
 **Why these thresholds?**
 
 - 100m: Typical dock/mooring area size
-- 1000m: Minimum distance for meaningful position updates
+- 300s: Minimum interval for stationary vessel updates
 - 0.5 knots: AIS speed below this is often GPS noise
 
 **Configuration:**
@@ -419,14 +416,18 @@ sqlite3 ships.db "DELETE FROM positions WHERE timestamp < datetime('now', '-7 da
 
 Environment variables:
 
-| Variable                  | Description                         | Default                 | Required |
-| ------------------------- | ----------------------------------- | ----------------------- | -------- |
-| `NATS_URL`                | NATS server URL                     | `nats://localhost:4222` | Yes      |
-| `CORS_ORIGINS`            | Allowed CORS origins (comma-sep)    | `http://localhost:3000` | No       |
-| `DB_PATH`                 | SQLite database path                | `/tmp/ships.db`         | No       |
-| `POSITION_RETENTION_DAYS` | Days to keep positions              | `7`                     | No       |
-| `DEDUP_DISTANCE_METERS`   | Deduplication threshold             | `100`                   | No       |
-| `DEDUP_SPEED_THRESHOLD`   | Speed below which to dedupe (knots) | `0.5`                   | No       |
+| Variable                    | Description                                         | Default                 | Required |
+| --------------------------- | --------------------------------------------------- | ----------------------- | -------- |
+| `NATS_URL`                  | NATS server URL                                     | `nats://localhost:4222` | Yes      |
+| `CORS_ORIGINS`              | Allowed CORS origins (comma-sep)                    | `http://localhost:3000` | No       |
+| `DB_PATH`                   | SQLite database path                                | `/tmp/ships.db`         | No       |
+| `POSITION_RETENTION_DAYS`   | Days to keep positions                              | `7`                     | No       |
+| `DEDUP_DISTANCE_METERS`     | Min distance (m) to save stationary vessel position | `100`                   | No       |
+| `DEDUP_SPEED_THRESHOLD`     | Speed (knots) above which vessel is considered moving | `0.5`                 | No       |
+| `DEDUP_TIME_THRESHOLD`      | Min seconds between saves for stationary vessels    | `300`                   | No       |
+| `CATCHUP_PENDING_THRESHOLD` | Pending NATS messages below which catchup completes | `10000`                 | No       |
+| `MOORED_RADIUS_METERS`      | Radius (m) used to determine if vessel is moored    | `500`                   | No       |
+| `MOORED_MIN_DURATION_HOURS` | Min hours at location before marking vessel moored  | `1`                     | No       |
 
 ## Running Locally
 
