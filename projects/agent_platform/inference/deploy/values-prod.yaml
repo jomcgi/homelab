@@ -1,45 +1,48 @@
 fullnameOverride: "inference"
 
-backend: "llama-cpp"
+backend: "vllm"
 
 image:
   llamaCpp:
     tag: "server-cuda-b8643"
+  vllm:
+    tag: "v0.9.1"
 
 imagePullSecret:
   enabled: true
 
 modelVolume:
   enabled: true
-  reference: "ghcr.io/jomcgi/models/qwen/qwen3.6-27b:unsloth-gguf-q4-k-m-mmproj"
+  reference: "ghcr.io/jomcgi/models/qwen/qwen3.6-27b:lorbus-qwen3.6-27b-int4-autoround"
   mountPath: "/model-image"
 
-llamaCpp:
-  nGpuLayers: 999
-  ctxSize: 32768
-  flashAttn: "on"
-  cacheTypeK: "f16"
-  cacheTypeV: "q8_0"
-  threads: 8
-  jinja: true
+vllm:
+  maxModelLen: 16384
+  gpuMemoryUtilization: 0.95
+  dtype: "auto"
   extraArgs:
-    - "--batch-size"
-    - "2048"
-    - "--ubatch-size"
-    - "512"
-    - "--parallel"
-    - "1"
-    - "--metrics"
-    - "--alias"
+    - "--served-model-name"
     - "qwen3.6-27b"
-    - "--reasoning-budget"
-    - "2048"
-    - "--spec-type"
-    - "ngram-simple"
-    - "--draft"
-    - "8"
-    - "--cache-ram"
-    - "4096"
+    - "--num-speculative-tokens"
+    - "4"
+    - "--enable-auto-tool-choice"
+    - "--tool-call-parser"
+    - "hermes"
+
+# vLLM runs as root and needs writable fs for compiled kernels
+podSecurityContext:
+  runAsUser: 0
+  runAsGroup: 0
+  fsGroup: 0
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
 
 nodeSelector:
   kubernetes.io/hostname: node-4
@@ -51,11 +54,11 @@ podAnnotations:
 
 resources:
   requests:
-    cpu: 2
-    memory: "8Gi"
+    cpu: 4
+    memory: "24Gi"
     nvidia.com/gpu: 1
   limits:
-    memory: "16Gi"
+    memory: "32Gi"
     nvidia.com/gpu: 1
 
 embeddings:
