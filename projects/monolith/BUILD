@@ -136,6 +136,16 @@ py3_image(
 )
 
 py_test(
+    name = "markers_test",
+    srcs = ["shared/testing/markers_test.py"],
+    imports = ["."],
+    deps = [
+        ":shared_testing",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "frontend_test",
     srcs = ["app/frontend_test.py"],
     imports = ["."],
