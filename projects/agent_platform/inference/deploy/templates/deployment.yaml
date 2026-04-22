@@ -39,11 +39,6 @@ spec:
           imagePullPolicy: {{ $img.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          {{- if eq .Values.backend "vllm" }}
-          env:
-            - name: VLLM_USE_PRECOMPILED
-              value: "1"
-          {{- end }}
           {{- if eq .Values.backend "llama-cpp" }}
           {{- if .Values.llamaCpp.modelPath }}
           command: ["/bin/sh", "-c"]
