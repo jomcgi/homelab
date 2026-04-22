@@ -46,8 +46,7 @@ fi
 # Warn if :shared_testing is not present in a deps list
 if ! echo "$CONTENT" | grep -q '":shared_testing"'; then
 	cat >&2 <<-EOF
-		WARNING: BUILD file references 'shared.testing.plugin' in env but
-		':shared_testing' is not present in a deps list.
+		WARNING: ':shared_testing' missing from deps while 'shared.testing.plugin' is used in env.
 
 		File: $FILE_PATH
 
