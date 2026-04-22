@@ -203,6 +203,23 @@ run_test "build_bazel_filename_warns" \
 	"{\"tool_input\":{\"file_path\":\"${TEST_TMPDIR}/t6/BUILD.bazel\"}}" \
 	0 "WARNING.*shared_testing"
 
+# 7. Single-quoted ':shared_testing' dep is equally valid Starlark — no warning
+mkdir -p "${TEST_TMPDIR}/t7"
+cat >"${TEST_TMPDIR}/t7/BUILD" <<'EOF'
+py_test(
+    name = "test_suite",
+    srcs = ["test.py"],
+    env = {"PYTEST_ADDOPTS": "-p shared.testing.plugin"},
+    deps = [
+        ':shared_testing',
+        '//other:dep',
+    ],
+)
+EOF
+run_test "single_quoted_dep_no_warning" \
+	"{\"tool_input\":{\"file_path\":\"${TEST_TMPDIR}/t7/BUILD\"}}" \
+	0 ""
+
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
