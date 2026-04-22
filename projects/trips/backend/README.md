@@ -425,16 +425,6 @@ Deployed via ArgoCD to Kubernetes cluster.
 
 ## Observability
 
-### Metrics
-
-Exposed at `/metrics` (Prometheus format):
-
-- `trips_points_total` - Total points in cache
-- `trips_uploads_total` - Total photo uploads
-- `trips_websocket_connections` - Active WebSocket connections
-- `trips_nats_messages_total` - NATS messages processed
-- `trips_elevation_api_failures` - Elevation API failures
-
 ### Traces
 
 Instrumented with OpenTelemetry (auto-injected by Kyverno):
