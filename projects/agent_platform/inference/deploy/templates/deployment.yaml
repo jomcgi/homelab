@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "llama-cpp.fullname" . }}
+  name: {{ include "inference.fullname" . }}
   labels:
-    {{- include "llama-cpp.labels" . | nindent 4 }}
+    {{- include "inference.labels" . | nindent 4 }}
 spec:
   replicas: 1
   {{- with .Values.strategy }}
@@ -12,7 +12,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "llama-cpp.selectorLabels" . | nindent 6 }}
+      {{- include "inference.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -20,7 +20,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "llama-cpp.selectorLabels" . | nindent 8 }}
+        {{- include "inference.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.runtimeClassName }}
       runtimeClassName: {{ . }}
@@ -54,7 +54,7 @@ spec:
               exec /app/llama-server \
                 --model {{ .Values.server.modelPath | quote }} \
                 $MMPROJ_ARG \
-                {{ include "llama-cpp.serverArgs" . | indent 16 | trim }}
+                {{ include "inference.llamaCppArgs" . | indent 16 | trim }}
           {{- else }}
           command: ["/bin/sh", "-c"]
           args:
@@ -81,7 +81,7 @@ spec:
               exec /app/llama-server \
                 --model "$MODEL" \
                 $MMPROJ_ARG \
-                {{ include "llama-cpp.serverArgs" . | indent 16 | trim }}
+                {{ include "inference.llamaCppArgs" . | indent 16 | trim }}
           {{- end }}
           ports:
             - name: http
@@ -124,7 +124,7 @@ spec:
         {{- if .Values.server.chatTemplate }}
         - name: chat-template
           configMap:
-            name: {{ include "llama-cpp.fullname" . }}-chat-template
+            name: {{ include "inference.fullname" . }}-chat-template
         {{- end }}
         - name: dshm
           emptyDir:
