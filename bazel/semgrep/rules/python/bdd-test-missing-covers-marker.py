@@ -35,6 +35,7 @@ class TestScheduleAPI:
     @covers_public("home.services.schedule.get_today")
     def test_with_covers_public(self, live_server):
         from home.services import schedule
+
         result = schedule.get_today()
         assert result is not None
 
