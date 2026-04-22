@@ -43,8 +43,9 @@ if ! echo "$CONTENT" | grep -q 'shared\.testing\.plugin'; then
 	exit 0
 fi
 
-# Warn if :shared_testing is not present in a deps list
-if ! echo "$CONTENT" | grep -q '":shared_testing"'; then
+# Warn if :shared_testing is not present in a deps list.
+# Match either quoting style: ":shared_testing" or ':shared_testing' (both valid Starlark).
+if ! echo "$CONTENT" | grep -qE '["'"'"']:shared_testing["'"'"']'; then
 	cat >&2 <<-EOF
 		WARNING: ':shared_testing' missing from deps while 'shared.testing.plugin' is used in env.
 
