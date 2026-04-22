@@ -90,9 +90,13 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              MODEL=$(find {{ .Values.modelVolume.mountPath }} -maxdepth 2 -name '*.gguf' ! -name 'mmproj*' -type f | sort | head -1)
+              # Auto-discover model: HuggingFace format (config.json) or GGUF.
+              MODEL=$(find {{ .Values.modelVolume.mountPath }} -maxdepth 2 -name 'config.json' -type f -exec dirname {} \; | head -1)
               if [ -z "$MODEL" ]; then
-                echo "ERROR: no .gguf file found under {{ .Values.modelVolume.mountPath }}" >&2
+                MODEL=$(find {{ .Values.modelVolume.mountPath }} -maxdepth 2 -name '*.gguf' ! -name 'mmproj*' -type f | sort | head -1)
+              fi
+              if [ -z "$MODEL" ]; then
+                echo "ERROR: no model found under {{ .Values.modelVolume.mountPath }}" >&2
                 exit 1
               fi
               echo "Auto-discovered model: $MODEL"
@@ -128,6 +132,10 @@ spec:
               mountPath: /etc/llama-cpp
               readOnly: true
             {{- end }}
+            {{- if eq .Values.backend "vllm" }}
+            - name: vllm-cache
+              mountPath: /root/.cache
+            {{- end }}
             - name: dshm
               mountPath: /dev/shm
       volumes:
@@ -141,6 +149,10 @@ spec:
         - name: chat-template
           configMap:
             name: {{ include "inference.fullname" . }}-chat-template
+        {{- end }}
+        {{- if eq .Values.backend "vllm" }}
+        - name: vllm-cache
+          emptyDir: {}
         {{- end }}
         - name: dshm
           emptyDir:
