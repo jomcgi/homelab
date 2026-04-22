@@ -90,7 +90,7 @@ dashboards:
 chat:
   enabled: true
   llamaCppUrl: "http://inference.inference.svc.cluster.local:8080"
-  embeddingUrl: "http://llama-cpp-embeddings.llama-cpp.svc.cluster.local:8080"
+  embeddingUrl: "http://inference-embeddings.inference.svc.cluster.local:8080"
   searxngUrl: "http://monolith-searxng:8080"
   changelogs:
     - name: "homelab"

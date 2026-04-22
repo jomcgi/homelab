@@ -102,3 +102,33 @@ resources:
   limits:
     memory: "48Gi"
     nvidia.com/gpu: 1
+
+embeddings:
+  enabled: false
+  image:
+    repository: ghcr.io/ggml-org/llama.cpp
+    tag: server-cuda
+    pullPolicy: IfNotPresent
+  modelVolume:
+    enabled: false
+    reference: ""
+    mountPath: "/model-image"
+  llamaCpp:
+    nGpuLayers: 0
+    ctxSize: 8192
+    flashAttn: "off"
+    cacheTypeK: "f16"
+    cacheTypeV: "f16"
+    threads: 4
+    jinja: false
+    extraArgs:
+      - "--embedding"
+  runtimeClassName: null
+  nodeSelector: {}
+  podAnnotations: {}
+  resources:
+    requests:
+      cpu: 2
+      memory: "2Gi"
+    limits:
+      memory: "4Gi"
