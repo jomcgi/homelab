@@ -34,10 +34,10 @@ class ExplorerDeps:
 
 
 def create_explorer_agent() -> Agent[ExplorerDeps]:
-    """Create a PydanticAI agent configured for KG exploration via Gemma."""
+    """Create a PydanticAI agent configured for KG exploration via Qwen."""
     url = os.environ.get("LLAMA_CPP_URL", "http://localhost:8000")
     model = OpenAIChatModel(
-        "gemma-4-26b-a4b",
+        "qwen3.6-27b",
         provider=OpenAIProvider(base_url=f"{url}/v1", api_key="not-needed"),
     )
     agent: Agent[ExplorerDeps] = Agent(

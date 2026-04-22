@@ -560,9 +560,9 @@ TOPOLOGY = TopologyConfig(
         ),
         NodeConfig(
             id="llama-cpp",
-            label="GEMMA 4",
+            label="QWEN 3",
             tier="critical",
-            description="gemma 4 inference",
+            description="qwen 3 inference",
             slo=_slo(_container_ready_query("llama-cpp", "llama-server", "llama-cpp-")),
             metrics=[
                 MetricConfig(key="reqs", query=_llamacpp_requests_query("llama-cpp")),

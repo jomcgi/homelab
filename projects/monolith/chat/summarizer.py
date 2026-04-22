@@ -280,7 +280,7 @@ _RETRYABLE_STATUS_CODES = {502, 503, 504}
 
 
 def build_llm_caller(base_url: str | None = None) -> Callable[[str], Awaitable[str]]:
-    """Create an async callable that sends a prompt to Gemma via llama.cpp."""
+    """Create an async callable that sends a prompt to Qwen via llama.cpp."""
     url = base_url or os.environ.get("LLAMA_CPP_URL", "")
     client = httpx.AsyncClient(timeout=httpx.Timeout(60.0))
 
@@ -291,7 +291,7 @@ def build_llm_caller(base_url: str | None = None) -> Callable[[str], Awaitable[s
                 resp = await client.post(
                     f"{url}/v1/chat/completions",
                     json={
-                        "model": "gemma-4-26b-a4b",
+                        "model": "qwen3.6-27b",
                         "messages": [{"role": "user", "content": prompt}],
                         "max_tokens": 16384,
                     },

@@ -1,4 +1,4 @@
-"""Tests for the vision client (calls Gemma 4 via llama.cpp)."""
+"""Tests for the vision client (calls Qwen 3 via llama.cpp)."""
 
 import base64
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -16,7 +16,7 @@ def client():
 class TestVisionClient:
     @pytest.mark.asyncio
     async def test_describe_returns_text(self, client):
-        """describe() returns a text description from Gemma 4 vision."""
+        """describe() returns a text description from Qwen 3 vision."""
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.raise_for_status = MagicMock()

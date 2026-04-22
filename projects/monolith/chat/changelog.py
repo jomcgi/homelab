@@ -1,4 +1,4 @@
-"""Hourly changelog notifier — polls GitHub for new feat commits, summarizes via Gemma, posts to Discord."""
+"""Hourly changelog notifier — polls GitHub for new feat commits, summarizes via Qwen, posts to Discord."""
 
 import dataclasses
 import json
@@ -122,12 +122,12 @@ def _filter_changelog_commits(commits: list[dict], pattern: re.Pattern) -> list[
     return result
 
 
-async def _summarize_with_gemma(
+async def _summarize_with_qwen(
     commits: list[dict],
     llm_call: Callable[[str], Awaitable[str]],
     prompt_template: str,
 ) -> str:
-    """Ask Gemma to produce a concise changelog from commit data."""
+    """Ask Qwen to produce a concise changelog from commit data."""
     commit_descriptions = []
     for c in commits:
         msg = c["commit"]["message"].split("\n", 1)[0]
@@ -198,7 +198,7 @@ async def run_changelog_iteration(
         prompt_key = "roast"
         logger.info("Changelog[%s]: roast mode activated", config.name)
     prompt_template = PROMPTS[prompt_key]
-    summary = await _summarize_with_gemma(commits, llm_call, prompt_template)
+    summary = await _summarize_with_qwen(commits, llm_call, prompt_template)
     embed = _build_embed(
         summary, len(commits), title=config.embed_title, color=config.embed_color
     )

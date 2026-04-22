@@ -1,6 +1,6 @@
 """Tests for multimodal image forwarding to the agent.
 
-Gemma 4 is multimodal — when users send images, the raw image bytes
+Qwen 3 is multimodal — when users send images, the raw image bytes
 must be forwarded to the agent as BinaryContent so the model can
 actually *see* the image, not just a text description.
 """

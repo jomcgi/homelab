@@ -82,7 +82,7 @@ class TestBuildLlmCaller:
         url_arg = call_kwargs[0][0] if call_kwargs[0] else call_kwargs.kwargs.get("url")
         assert url_arg == "http://fake:8080/v1/chat/completions"
         payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
-        assert payload["model"] == "gemma-4-26b-a4b"
+        assert payload["model"] == "qwen3.6-27b"
         assert payload["messages"][0]["role"] == "user"
         assert payload["messages"][0]["content"] == "Summarize this conversation."
         assert payload["max_tokens"] == 16384
