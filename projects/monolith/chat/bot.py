@@ -6,7 +6,6 @@ import logging
 import os
 
 import discord
-import httpx
 from pydantic_ai import BinaryContent
 from pydantic_ai.messages import ModelResponse, ThinkingPart
 
@@ -24,8 +23,6 @@ logger = logging.getLogger(__name__)
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 DISCORD_MESSAGE_LIMIT = 2000
 THINKING_TRUNCATE_AT = 1985
-LLAMA_CPP_URL = os.environ.get("LLAMA_CPP_URL", "")
-
 LLM_MAX_RETRIES = 3
 LLM_RETRY_BASE_DELAY = 1.0  # seconds
 
@@ -48,42 +45,11 @@ def _extract_thinking(result) -> str | None:
     return "\n\n".join(parts) if parts else None
 
 
-async def _summarize_thinking(
-    thinking: str,
-    base_url: str | None = None,
-) -> str:
-    """Summarize thinking text if it exceeds Discord's message limit."""
+def _truncate_thinking(thinking: str) -> str:
+    """Truncate thinking text if it exceeds Discord's message limit."""
     if len(thinking) <= DISCORD_MESSAGE_LIMIT:
         return thinking
-
-    url = base_url or LLAMA_CPP_URL
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
-            resp = await client.post(
-                f"{url}/v1/chat/completions",
-                json={
-                    "model": "qwen3.6-27b",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": (
-                                "Summarize this reasoning concisely. "
-                                "Keep the key points but make it much shorter:\n\n"
-                                f"{thinking}"
-                            ),
-                        }
-                    ],
-                    "max_tokens": 1024,
-                },
-            )
-            resp.raise_for_status()
-            summary = resp.json()["choices"][0]["message"]["content"]
-            if len(summary) > DISCORD_MESSAGE_LIMIT:
-                return summary[:THINKING_TRUNCATE_AT] + "... (truncated)"
-            return summary
-    except Exception:
-        logger.warning("Failed to summarize thinking, truncating")
-        return thinking[:THINKING_TRUNCATE_AT] + "... (truncated)"
+    return thinking[:THINKING_TRUNCATE_AT] + "... (truncated)"
 
 
 class ThinkingView(discord.ui.View):
@@ -456,7 +422,7 @@ class ChatBot(discord.Client):
 
                     # Summarize long thinking
                     if thinking:
-                        thinking = await _summarize_thinking(thinking)
+                        thinking = _truncate_thinking(thinking)
 
                     return response, thinking
                 except Exception as exc:
