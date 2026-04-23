@@ -182,7 +182,6 @@ vllm:
   extraArgs:
     - "--served-model-name"
     - "qwen3.6-27b"
-    - "--enforce-eager"
     - "--enable-auto-tool-choice"
     - "--tool-call-parser"
     - "qwen3_coder"
@@ -190,6 +189,10 @@ vllm:
     - "qwen3"
     - "--reasoning-config"
     - '{"reasoning_start_str": "<think>", "reasoning_end_str": "</think>"}'
+    - "--max-num-seqs"
+    - "1"
+    - "--speculative-config"
+    - '{"method": "mtp", "num_speculative_tokens": 1}'
 
 # vLLM runs as root and needs writable fs for compiled kernels
 podSecurityContext:
