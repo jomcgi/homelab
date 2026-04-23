@@ -44,7 +44,7 @@ def create_explorer_agent() -> Agent[ExplorerDeps]:
         model,
         system_prompt=SYSTEM_PROMPT,
         model_settings=ModelSettings(
-            extra_body={"thinking_token_budget": 1024},
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         ),
     )
 
