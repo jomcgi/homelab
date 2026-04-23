@@ -1,4 +1,5 @@
 # Tests for no-hardcoded-max-tokens rule.
+# Flags ModelSettings(max_tokens=<integer>) with literal token limits.
 import os
 
 from pydantic_ai import ModelSettings
