@@ -191,8 +191,6 @@ vllm:
     - '{"reasoning_start_str": "<think>", "reasoning_end_str": "</think>"}'
     - "--max-num-seqs"
     - "1"
-    - "--speculative-config"
-    - '{"method": "mtp", "num_speculative_tokens": 1}'
 
 # vLLM runs as root and needs writable fs for compiled kernels
 podSecurityContext:
