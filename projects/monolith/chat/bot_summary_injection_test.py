@@ -1,19 +1,20 @@
-"""Tests for summary injection into agent context in _generate_response().
+"""Tests for summary injection into agent context via the streaming flow.
 
 Verifies that channel and user summaries are fetched from the store and
-prepended to the prompt passed to the agent.
+prepended to the prompt passed to run_stream_events.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic_ai import PartDeltaEvent, TextPartDelta
 
 from chat.bot import ChatBot
 from chat.models import ChannelSummary, UserChannelSummary
 
 
 # ---------------------------------------------------------------------------
-# Shared helpers (same patterns as bot_generate_response_gaps_test.py)
+# Helpers
 # ---------------------------------------------------------------------------
 
 
@@ -29,10 +30,20 @@ def _async_cm():
     return _AsyncCtxManager()
 
 
+def _text_delta(content: str) -> PartDeltaEvent:
+    return PartDeltaEvent(index=0, delta=TextPartDelta(content_delta=content))
+
+
+async def _async_iter(events):
+    for e in events:
+        yield e
+
+
 def _make_message(
     content: str = "hello",
     channel_id: int = 99,
     msg_id: int = 1,
+    mentions: list | None = None,
 ) -> MagicMock:
     msg = MagicMock()
     msg.id = msg_id
@@ -42,15 +53,17 @@ def _make_message(
     msg.author.display_name = "TestUser"
     msg.channel.id = channel_id
     msg.channel.typing = MagicMock(return_value=_async_cm())
-    msg.mentions = []
+    msg.mentions = mentions if mentions is not None else []
     msg.reference = None
     msg.attachments = []
-    msg.reply = AsyncMock(return_value=MagicMock(id=100))
+    msg.embeds = []
+    sent = MagicMock(id=100)
+    sent.edit = AsyncMock()
+    msg.reply = AsyncMock(return_value=sent)
     return msg
 
 
 def _make_bot() -> ChatBot:
-    """Build a ChatBot with mocked internals."""
     with (
         patch("chat.bot.EmbeddingClient") as mock_ec,
         patch("chat.bot.VisionClient"),
@@ -66,25 +79,18 @@ def _make_bot() -> ChatBot:
     return bot
 
 
-def _make_agent_result(output: str) -> MagicMock:
-    result = MagicMock()
-    result.output = output
-    result.new_messages.return_value = []
-    return result
-
-
-def _setup_store_mock(
-    channel_summary=None,
-    user_summaries=None,
-) -> MagicMock:
-    """Return a store mock with configurable summary return values."""
-    store = MagicMock()
-    store.get_recent = MagicMock(return_value=[])
-    store.get_attachments = MagicMock(return_value={})
-    store.get_channel_summary = MagicMock(return_value=channel_summary)
-    store.get_user_summaries_for_users = MagicMock(return_value=user_summaries or [])
-    store.save_message = AsyncMock()
-    return store
+def _make_store(channel_summary=None, user_summaries=None):
+    mock_store = AsyncMock()
+    mock_store.save_message = AsyncMock()
+    mock_store.get_recent = MagicMock(return_value=[])
+    mock_store.get_attachments = MagicMock(return_value={})
+    mock_store.get_channel_summary = MagicMock(return_value=channel_summary)
+    mock_store.get_user_summaries_for_users = MagicMock(
+        return_value=user_summaries or []
+    )
+    mock_store.acquire_lock = MagicMock(return_value=True)
+    mock_store.mark_completed = MagicMock()
+    return mock_store
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +103,8 @@ class TestChannelSummaryInjection:
     async def test_channel_summary_appears_in_prompt(self):
         """When a channel summary exists, its text is included in the prompt."""
         bot = _make_bot()
-        msg = _make_message(content="What's up?")
+        bot_user = bot.user
+        msg = _make_message(content="What's up?", mentions=[bot_user])
 
         cs = ChannelSummary(
             id=1,
@@ -106,10 +113,10 @@ class TestChannelSummaryInjection:
             message_count=50,
             last_message_id=100,
         )
-        mock_store = _setup_store_mock(channel_summary=cs)
+        mock_store = _make_store(channel_summary=cs)
 
-        mock_result = _make_agent_result("Not much!")
-        bot.agent.run = AsyncMock(return_value=mock_result)
+        events = [_text_delta("Not much!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -120,9 +127,9 @@ class TestChannelSummaryInjection:
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot._generate_response(msg)
+            await bot.on_message(msg)
 
-        prompt_arg = bot.agent.run.call_args[0][0]
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         assert (
             "[Channel context: This channel discusses homelab infrastructure.]"
             in prompt_arg
@@ -134,7 +141,8 @@ class TestUserSummaryInjection:
     async def test_user_summaries_appear_in_prompt(self):
         """When user summaries exist, they are included in the prompt."""
         bot = _make_bot()
-        msg = _make_message(content="Hello")
+        bot_user = bot.user
+        msg = _make_message(content="Hello", mentions=[bot_user])
 
         user_sums = [
             UserChannelSummary(
@@ -152,10 +160,10 @@ class TestUserSummaryInjection:
                 summary="Asks about Python packaging.",
             ),
         ]
-        mock_store = _setup_store_mock(user_summaries=user_sums)
+        mock_store = _make_store(user_summaries=user_sums)
 
-        mock_result = _make_agent_result("Hi there!")
-        bot.agent.run = AsyncMock(return_value=mock_result)
+        events = [_text_delta("Hi there!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -166,9 +174,9 @@ class TestUserSummaryInjection:
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot._generate_response(msg)
+            await bot.on_message(msg)
 
-        prompt_arg = bot.agent.run.call_args[0][0]
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         assert "[People in this conversation:" in prompt_arg
         assert " - Alice: Interested in Kubernetes and Go." in prompt_arg
         assert " - Bob: Asks about Python packaging." in prompt_arg
@@ -179,12 +187,13 @@ class TestNoSummariesGracefulSkip:
     async def test_no_summaries_no_header(self):
         """When no summaries exist, the prompt has no summary header."""
         bot = _make_bot()
-        msg = _make_message(content="Hey")
+        bot_user = bot.user
+        msg = _make_message(content="Hey", mentions=[bot_user])
 
-        mock_store = _setup_store_mock(channel_summary=None, user_summaries=[])
+        mock_store = _make_store(channel_summary=None, user_summaries=[])
 
-        mock_result = _make_agent_result("Hey back!")
-        bot.agent.run = AsyncMock(return_value=mock_result)
+        events = [_text_delta("Hey back!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -195,10 +204,9 @@ class TestNoSummariesGracefulSkip:
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot._generate_response(msg)
+            await bot.on_message(msg)
 
-        prompt_arg = bot.agent.run.call_args[0][0]
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         assert "[Channel context:" not in prompt_arg
         assert "[People in this conversation:" not in prompt_arg
-        # Should still start with the recent conversation header
         assert prompt_arg.startswith("Recent conversation:")

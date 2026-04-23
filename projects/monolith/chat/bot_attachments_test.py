@@ -1,14 +1,21 @@
-"""Tests for _generate_response() with current_attachments.
+"""Tests for attachment handling in the streaming response flow.
 
-Covers the `if current_attachments:` branch that appends image context
-to the user prompt when the incoming message has image attachments.
+Verifies that image attachments are appended to the prompt as context
+text (e.g. "[Attached image 'cat.png': A tabby cat]") when
+run_stream_events is called via on_message.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic_ai import PartDeltaEvent, TextPartDelta
 
 from chat.bot import ChatBot
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
 class _AsyncCtxManager:
@@ -23,10 +30,20 @@ def _async_cm():
     return _AsyncCtxManager()
 
 
+def _text_delta(content: str) -> PartDeltaEvent:
+    return PartDeltaEvent(index=0, delta=TextPartDelta(content_delta=content))
+
+
+async def _async_iter(events):
+    for e in events:
+        yield e
+
+
 def _make_message(
     content: str = "check this image",
     channel_id: int = 99,
     msg_id: int = 1,
+    mentions: list | None = None,
 ) -> MagicMock:
     msg = MagicMock()
     msg.id = msg_id
@@ -36,9 +53,12 @@ def _make_message(
     msg.author.display_name = "TestUser"
     msg.channel.id = channel_id
     msg.channel.typing = MagicMock(return_value=_async_cm())
-    msg.mentions = []
+    msg.mentions = mentions if mentions is not None else []
     msg.reference = None
-    msg.reply = AsyncMock(return_value=MagicMock(id=100))
+    msg.embeds = []
+    sent = MagicMock(id=100)
+    sent.edit = AsyncMock()
+    msg.reply = AsyncMock(return_value=sent)
     return msg
 
 
@@ -59,139 +79,167 @@ def _make_bot() -> ChatBot:
     return bot
 
 
-class TestGenerateResponseWithAttachments:
+def _make_store():
+    mock_store = AsyncMock()
+    mock_store.save_message = AsyncMock()
+    mock_store.get_recent = MagicMock(return_value=[])
+    mock_store.get_attachments = MagicMock(return_value={})
+    mock_store.get_channel_summary = MagicMock(return_value=None)
+    mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
+    mock_store.acquire_lock = MagicMock(return_value=True)
+    mock_store.mark_completed = MagicMock()
+    mock_store.get_blob = MagicMock(return_value=None)
+    return mock_store
+
+
+def _make_image_attachment(
+    filename="cat.png", content_type="image/png", data=b"\x89PNG"
+):
+    att = MagicMock()
+    att.filename = filename
+    att.content_type = content_type
+    att.read = AsyncMock(return_value=data)
+    return att
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+
+class TestImageContextInPrompt:
     @pytest.mark.asyncio
     async def test_image_context_appended_to_prompt(self):
-        """_generate_response includes image context in the prompt when attachments are given."""
+        """Image attachment context appears in the prompt sent to run_stream_events."""
         bot = _make_bot()
-        msg = _make_message(content="What is in this image?")
+        bot_user = bot.user
+        msg = _make_message(content="What is in this image?", mentions=[bot_user])
 
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
+        img = _make_image_attachment(
+            filename="cat.png", content_type="image/png", data=b"\x89PNG"
+        )
+        msg.attachments = [img]
 
-        mock_result = MagicMock()
-        mock_result.new_messages.return_value = []
-        mock_result.output = "That's a cat."
-        bot.agent.run = AsyncMock(return_value=mock_result)
+        mock_store = _make_store()
 
-        attachments = [
-            {
-                "data": b"\x89PNG",
-                "content_type": "image/png",
-                "filename": "cat.png",
-                "description": "A tabby cat sitting on a windowsill",
-            }
-        ]
+        events = [_text_delta("That's a cat.")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
+            patch(
+                "chat.bot.download_image_attachments",
+                new_callable=AsyncMock,
+                return_value=[
+                    {
+                        "data": b"\x89PNG",
+                        "content_type": "image/png",
+                        "filename": "cat.png",
+                        "description": "A tabby cat sitting on a windowsill",
+                    }
+                ],
+            ),
+            patch("chat.bot.search_web", new_callable=AsyncMock, return_value=""),
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            result = await bot._generate_response(msg, current_attachments=attachments)
+            await bot.on_message(msg)
 
-        assert result == ("That's a cat.", None)
-        prompt_arg = bot.agent.run.call_args[0][0]
-        # prompt_arg is a list when images are present; text is the first element
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         text = prompt_arg[0] if isinstance(prompt_arg, list) else prompt_arg
         assert "cat.png" in text
         assert "A tabby cat sitting on a windowsill" in text
 
     @pytest.mark.asyncio
     async def test_image_context_uses_attached_image_format(self):
-        """_generate_response wraps each attachment in '[Attached image ...' format."""
+        """Image context wraps each attachment in '[Attached image ...' format."""
         bot = _make_bot()
-        msg = _make_message(content="Look at these")
+        bot_user = bot.user
+        msg = _make_message(content="Look at these", mentions=[bot_user])
+        msg.attachments = [_make_image_attachment()]
+        mock_store = _make_store()
 
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_result = MagicMock()
-        mock_result.new_messages.return_value = []
-        mock_result.output = "ok"
-        bot.agent.run = AsyncMock(return_value=mock_result)
-
-        attachments = [
-            {
-                "data": b"\xff\xd8\xff",
-                "content_type": "image/jpeg",
-                "filename": "photo.jpg",
-                "description": "A mountain landscape",
-            }
-        ]
+        events = [_text_delta("ok")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
+            patch(
+                "chat.bot.download_image_attachments",
+                new_callable=AsyncMock,
+                return_value=[
+                    {
+                        "data": b"\xff\xd8\xff",
+                        "content_type": "image/jpeg",
+                        "filename": "photo.jpg",
+                        "description": "A mountain landscape",
+                    }
+                ],
+            ),
+            patch("chat.bot.search_web", new_callable=AsyncMock, return_value=""),
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot._generate_response(msg, current_attachments=attachments)
+            await bot.on_message(msg)
 
-        prompt_arg = bot.agent.run.call_args[0][0]
-        # prompt_arg is a list when images are present; text is the first element
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         text = prompt_arg[0] if isinstance(prompt_arg, list) else prompt_arg
-        # The format is: [Attached image 'filename': description]
         assert "[Attached image 'photo.jpg': A mountain landscape]" in text
 
     @pytest.mark.asyncio
     async def test_multiple_attachments_all_included_in_prompt(self):
         """All attachments are included in the prompt when multiple are provided."""
         bot = _make_bot()
-        msg = _make_message(content="Compare these two images")
-
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_result = MagicMock()
-        mock_result.new_messages.return_value = []
-        mock_result.output = "Both images look great."
-        bot.agent.run = AsyncMock(return_value=mock_result)
-
-        attachments = [
-            {
-                "data": b"\x89PNG",
-                "content_type": "image/png",
-                "filename": "first.png",
-                "description": "First image: a dog",
-            },
-            {
-                "data": b"\xff\xd8\xff",
-                "content_type": "image/jpeg",
-                "filename": "second.jpg",
-                "description": "Second image: a cat",
-            },
+        bot_user = bot.user
+        msg = _make_message(content="Compare these two images", mentions=[bot_user])
+        msg.attachments = [
+            _make_image_attachment(filename="first.png"),
+            _make_image_attachment(filename="second.jpg", content_type="image/jpeg"),
         ]
+        mock_store = _make_store()
+
+        events = [_text_delta("Both images look great.")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
+            patch(
+                "chat.bot.download_image_attachments",
+                new_callable=AsyncMock,
+                return_value=[
+                    {
+                        "data": b"\x89PNG",
+                        "content_type": "image/png",
+                        "filename": "first.png",
+                        "description": "First image: a dog",
+                    },
+                    {
+                        "data": b"\xff\xd8\xff",
+                        "content_type": "image/jpeg",
+                        "filename": "second.jpg",
+                        "description": "Second image: a cat",
+                    },
+                ],
+            ),
+            patch("chat.bot.search_web", new_callable=AsyncMock, return_value=""),
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot._generate_response(msg, current_attachments=attachments)
+            await bot.on_message(msg)
 
-        prompt_arg = bot.agent.run.call_args[0][0]
-        # prompt_arg is a list when images are present; text is the first element
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         text = prompt_arg[0] if isinstance(prompt_arg, list) else prompt_arg
         assert "first.png" in text
         assert "First image: a dog" in text
@@ -199,63 +247,32 @@ class TestGenerateResponseWithAttachments:
         assert "Second image: a cat" in text
 
     @pytest.mark.asyncio
-    async def test_no_image_context_when_attachments_is_none(self):
-        """Prompt does not include image context when current_attachments is None."""
+    async def test_no_image_context_when_no_attachments(self):
+        """Prompt does not include image context when there are no attachments."""
         bot = _make_bot()
-        msg = _make_message(content="Plain text message")
+        bot_user = bot.user
+        msg = _make_message(content="Plain text message", mentions=[bot_user])
+        msg.attachments = []
+        mock_store = _make_store()
 
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_result = MagicMock()
-        mock_result.new_messages.return_value = []
-        mock_result.output = "ok"
-        bot.agent.run = AsyncMock(return_value=mock_result)
+        events = [_text_delta("ok")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
+            patch(
+                "chat.bot.download_image_attachments",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot._generate_response(msg, current_attachments=None)
+            await bot.on_message(msg)
 
-        prompt_arg = bot.agent.run.call_args[0][0]
-        assert "[Attached image" not in prompt_arg
-
-    @pytest.mark.asyncio
-    async def test_no_image_context_when_attachments_is_empty_list(self):
-        """Prompt does not include image context when current_attachments is []."""
-        bot = _make_bot()
-        msg = _make_message(content="Any message")
-
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_result = MagicMock()
-        mock_result.new_messages.return_value = []
-        mock_result.output = "response"
-        bot.agent.run = AsyncMock(return_value=mock_result)
-
-        with (
-            patch("chat.bot.get_engine"),
-            patch("chat.bot.Session") as mock_session_cls,
-            patch("chat.bot.MessageStore", return_value=mock_store),
-        ):
-            mock_session_cls.return_value.__enter__ = MagicMock(
-                return_value=MagicMock()
-            )
-            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot._generate_response(msg, current_attachments=[])
-
-        prompt_arg = bot.agent.run.call_args[0][0]
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         assert "[Attached image" not in prompt_arg

@@ -379,12 +379,13 @@ py_test(
 )
 
 py_test(
-    name = "chat_bot_coverage_test",
-    srcs = ["chat/bot_coverage_test.py"],
+    name = "chat_bot_on_message_test",
+    srcs = ["chat/bot_on_message_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
         "@pip//discord_py",
+        "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
         "@pip//sqlmodel",
@@ -478,9 +479,9 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//discord_py",
+        "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
-        "@pip//sqlmodel",
     ],
 )
 
@@ -795,7 +796,6 @@ py_test(
         "@pip//discord_py",
         "@pip//pytest",
         "@pip//pytest_asyncio",
-        "@pip//sqlmodel",
     ],
 )
 
@@ -884,17 +884,6 @@ py_test(
     ],
 )
 
-py_test(
-    name = "chat_bot_backoff_test",
-    srcs = ["chat/bot_backoff_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//discord_py",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
-    ],
-)
 
 py_test(
     name = "chat_agent_tool_execution_test",
@@ -917,6 +906,7 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//discord_py",
+        "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],
@@ -1210,7 +1200,6 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//discord_py",
-        "@pip//httpx",
         "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
@@ -1294,19 +1283,19 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//discord_py",
+        "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],
 )
 
 py_test(
-    name = "chat_bot_generate_response_gaps_test",
-    srcs = ["chat/bot_generate_response_gaps_test.py"],
+    name = "chat_bot_response_storage_test",
+    srcs = ["chat/bot_response_storage_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
         "@pip//discord_py",
-        "@pip//httpx",
         "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
@@ -1344,6 +1333,7 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//pgvector",
+        "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
         "@pip//sqlmodel",
@@ -1357,12 +1347,8 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//discord_py",
-        "@pip//httpx",
-        "@pip//pgvector",
-        "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
-        "@pip//sqlmodel",
     ],
 )
 
@@ -1488,18 +1474,6 @@ py_test(
         "@pip//pgvector",
         "@pip//pytest",
         "@pip//sqlmodel",
-    ],
-)
-
-py_test(
-    name = "chat_bot_summarize_oversized_test",
-    srcs = ["chat/bot_summarize_oversized_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//httpx",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
 
@@ -1917,17 +1891,6 @@ py_test(
         ":monolith_backend",
         "@pip//pytest",
         "@pip//pytest_asyncio",
-    ],
-)
-
-py_test(
-    name = "chat_bot_thinking_extra_test",
-    srcs = ["chat/bot_thinking_extra_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//pydantic_ai_slim",
-        "@pip//pytest",
     ],
 )
 
