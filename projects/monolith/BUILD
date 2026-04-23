@@ -1341,8 +1341,8 @@ py_test(
 )
 
 py_test(
-    name = "chat_bot_remaining_gaps_test",
-    srcs = ["chat/bot_remaining_gaps_test.py"],
+    name = "chat_bot_attachment_download_test",
+    srcs = ["chat/bot_attachment_download_test.py"],
     imports = ["."],
     deps = [
         ":monolith_backend",
