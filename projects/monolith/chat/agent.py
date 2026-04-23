@@ -216,17 +216,4 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
             f"{summary.summary}"
         )
 
-    @agent.system_prompt
-    def tool_guidance() -> str:
-        lines = ["Your tools and WHEN to use them:"]
-        for name, tool in agent._function_toolset.tools.items():
-            fn = tool.function
-            sp = getattr(fn, "signpost", None)
-            desc = tool.description or ""
-            if sp:
-                lines.append(f"- {name}: {desc}\n  USE WHEN: {sp}")
-            else:
-                lines.append(f"- {name}: {desc}")
-        return "\n".join(lines)
-
     return agent
