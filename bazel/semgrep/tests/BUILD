@@ -13,6 +13,7 @@ filegroup(
             "fixtures/no-create-extension-sql.yaml",
             "fixtures/no-discarded-json-marshal.yaml",
             "fixtures/no-shared-preload-libraries-cnpg.yaml",
+            "fixtures/no-unquoted-helm-range-args.yaml",
             "fixtures/python-shadow-module-import.yaml",
             "fixtures/require-cnpg-cluster-resources.yaml",
             "fixtures/unsafe-json-field-access.yaml",
@@ -51,6 +52,13 @@ filegroup(
 filegroup(
     name = "no_generic_test_filename_fixtures",
     srcs = ["fixtures/no-generic-test-filename.py"],
+)
+
+# Fixture for the no-unquoted-helm-range-args rule (languages: generic).
+# Referenced by //bazel/semgrep/rules:no_unquoted_helm_range_args_test.
+filegroup(
+    name = "no_unquoted_helm_range_args_fixtures",
+    srcs = ["fixtures/no-unquoted-helm-range-args.yaml"],
 )
 
 # Fixtures for kubernetes rules (require-readiness-probe, require-resource-limits, etc.).

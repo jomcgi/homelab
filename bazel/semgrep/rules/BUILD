@@ -182,6 +182,22 @@ semgrep_test(
     tags = ["semgrep"],
 )
 
+# no-unquoted-helm-range-args uses languages: [generic] so its fixture is a YAML
+# file. This test wires the rule to its annotation fixture independently of
+# yaml_rules_test (which scans yaml_fixtures, excluding this fixture).
+filegroup(
+    name = "no_unquoted_helm_range_args_rule",
+    srcs = ["yaml/no-unquoted-helm-range-args.yaml"],
+)
+
+semgrep_test(
+    name = "no_unquoted_helm_range_args_test",
+    srcs = ["//bazel/semgrep/tests:no_unquoted_helm_range_args_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":no_unquoted_helm_range_args_rule"],
+    tags = ["semgrep"],
+)
+
 # stale-copyright-year uses languages: [generic] so its fixture is a YAML file.
 # This test wires the rule to its annotation fixture independently of
 # golang_rules_test (which only scans *.go sources).
