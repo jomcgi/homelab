@@ -13,6 +13,7 @@ spec:
   selector:
     matchLabels:
       {{- include "inference.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: inference
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -21,6 +22,7 @@ spec:
       {{- end }}
       labels:
         {{- include "inference.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: inference
     spec:
       {{- with .Values.runtimeClassName }}
       runtimeClassName: {{ . }}
