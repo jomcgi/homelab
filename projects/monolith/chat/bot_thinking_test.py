@@ -4,92 +4,13 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 import discord
-from pydantic_ai.messages import ModelResponse, TextPart, ThinkingPart
+from pydantic_ai import (
+    PartDeltaEvent,
+    TextPartDelta,
+    ThinkingPartDelta,
+)
 
-from chat.bot import _extract_thinking, _truncate_thinking, ThinkingView, ChatBot
-
-
-def _make_result(output: str, thinking: str | None = None):
-    """Build a mock agent result with optional ThinkingPart."""
-    parts = []
-    if thinking is not None:
-        parts.append(ThinkingPart(content=thinking))
-    parts.append(TextPart(content=output))
-    response = ModelResponse(parts=parts)
-    result = MagicMock()
-    result.output = output
-    result.new_messages.return_value = [response]
-    return result
-
-
-class TestExtractThinking:
-    def test_no_thinking(self):
-        """Returns None when no ThinkingPart is present."""
-        result = _make_result("Hello!")
-        assert _extract_thinking(result) is None
-
-    def test_with_thinking(self):
-        """Extracts thinking content from ThinkingPart."""
-        result = _make_result("Hello!", thinking="reasoning here")
-        assert _extract_thinking(result) == "reasoning here"
-
-    def test_empty_thinking(self):
-        """Empty thinking content returns None."""
-        result = _make_result("Hello!", thinking="")
-        assert _extract_thinking(result) is None
-
-    def test_whitespace_thinking(self):
-        """Whitespace-only thinking is stripped and returns None."""
-        result = _make_result("Hello!", thinking="   \n  ")
-        assert _extract_thinking(result) is None
-
-    def test_multiple_thinking_parts(self):
-        """Multiple ThinkingParts are concatenated."""
-        parts = [
-            ThinkingPart(content="first thought"),
-            TextPart(content="middle"),
-            ThinkingPart(content="second thought"),
-            TextPart(content="end"),
-        ]
-        response = ModelResponse(parts=parts)
-        result = MagicMock()
-        result.output = "middleend"
-        result.new_messages.return_value = [response]
-
-        assert _extract_thinking(result) == "first thought\n\nsecond thought"
-
-    def test_skips_non_model_response(self):
-        """Non-ModelResponse messages are ignored."""
-        result = MagicMock()
-        result.output = "Hello!"
-        result.new_messages.return_value = [MagicMock(spec=[])]
-        assert _extract_thinking(result) is None
-
-    def test_thinking_across_multiple_model_responses(self):
-        """ThinkingParts spread across multiple ModelResponse objects are concatenated."""
-        response1 = ModelResponse(parts=[ThinkingPart(content="first thought")])
-        response2 = ModelResponse(
-            parts=[ThinkingPart(content="second thought"), TextPart(content="Hello!")]
-        )
-        result = MagicMock()
-        result.output = "Hello!"
-        result.new_messages.return_value = [response1, response2]
-
-        assert _extract_thinking(result) == "first thought\n\nsecond thought"
-
-    def test_none_thinking_content_skipped(self):
-        """ThinkingPart(content=None) is skipped; valid thinking is still extracted."""
-        parts = [
-            ThinkingPart(content=None),
-            ThinkingPart(content="real thought"),
-            TextPart(content="Hello!"),
-        ]
-        response = ModelResponse(parts=parts)
-        result = MagicMock()
-        result.output = "Hello!"
-        result.new_messages.return_value = [response]
-
-        assert _extract_thinking(result) == "real thought"
+from chat.bot import _truncate_thinking, ThinkingView, ChatBot
 
 
 class TestTruncateThinking:
@@ -147,7 +68,7 @@ class TestThinkingView:
         )
 
 
-# Helpers for integration tests (same pattern as bot_coverage_test.py)
+# Helpers for integration tests
 
 
 class _AsyncCtxManager:
@@ -189,67 +110,84 @@ def _make_message(content="hello", mentions=None, msg_id=1):
     msg.mentions = mentions if mentions is not None else []
     msg.reference = None
     msg.attachments = []
-    msg.reply = AsyncMock(return_value=MagicMock(id=100))
+    msg.embeds = []
+    sent = MagicMock(id=100)
+    sent.edit = AsyncMock()
+    msg.reply = AsyncMock(return_value=sent)
     return msg
+
+
+def _make_store():
+    """Create a mock MessageStore with standard defaults."""
+    mock_store = AsyncMock()
+    mock_store.save_message = AsyncMock()
+    mock_store.get_recent = MagicMock(return_value=[])
+    mock_store.get_attachments = MagicMock(return_value={})
+    mock_store.get_channel_summary = MagicMock(return_value=None)
+    mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
+    mock_store.acquire_lock = MagicMock(return_value=True)
+    mock_store.mark_completed = MagicMock()
+    return mock_store
+
+
+def _text_delta(content: str) -> PartDeltaEvent:
+    return PartDeltaEvent(index=0, delta=TextPartDelta(content_delta=content))
+
+
+def _thinking_delta(content: str) -> PartDeltaEvent:
+    return PartDeltaEvent(index=0, delta=ThinkingPartDelta(content_delta=content))
+
+
+async def _async_iter(events):
+    for e in events:
+        yield e
 
 
 class TestThinkingIntegration:
     @pytest.mark.asyncio
     async def test_response_with_thinking_adds_view(self):
-        """When model returns thinking, reply includes ThinkingView."""
+        """When model returns thinking, final edit includes ThinkingView."""
         bot = _make_bot()
         bot_user = bot.user
 
         message = _make_message(content="Hi", mentions=[bot_user])
+        mock_store = _make_store()
 
-        mock_store = AsyncMock()
-        mock_store.save_message = AsyncMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_result = _make_result("Hello!", thinking="reasoning here")
-        bot.agent.run = AsyncMock(return_value=mock_result)
+        events = [
+            _thinking_delta("reasoning here"),
+            _text_delta("Hello!"),
+        ]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
-            patch(
-                "chat.bot._truncate_thinking",
-                return_value="reasoning here",
-            ),
         ):
             ctx = MagicMock()
             mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await bot.on_message(message)
 
-        call_kwargs = message.reply.call_args
-        assert call_kwargs[0][0] == "Hello!"
-        assert isinstance(call_kwargs[1].get("view"), ThinkingView)
+        sent = message.reply.return_value
+        final_edit = sent.edit.call_args_list[-1]
+        view = final_edit.kwargs.get("view")
+        assert isinstance(view, ThinkingView)
         # Verify thinking was passed to save_message for the bot response
         bot_save_call = mock_store.save_message.call_args_list[-1]
         assert bot_save_call.kwargs.get("thinking") == "reasoning here"
 
     @pytest.mark.asyncio
     async def test_response_without_thinking_no_view(self):
-        """When model returns plain text, reply has no view."""
+        """When model returns plain text, final edit has no ThinkingView."""
         bot = _make_bot()
         bot_user = bot.user
 
         message = _make_message(content="Hi", mentions=[bot_user])
+        mock_store = _make_store()
 
-        mock_store = AsyncMock()
-        mock_store.save_message = AsyncMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_result = _make_result("Hello!")
-        bot.agent.run = AsyncMock(return_value=mock_result)
+        events = [_text_delta("Hello!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -261,26 +199,21 @@ class TestThinkingIntegration:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await bot.on_message(message)
 
-        message.reply.assert_called_once_with("Hello!")
+        sent = message.reply.return_value
+        # No edit should have a ThinkingView
+        for call in sent.edit.call_args_list:
+            assert call.kwargs.get("view") is None
 
     @pytest.mark.asyncio
-    async def test_thinking_only_triggers_retry(self):
-        """When model produces only thinking (empty output), bot retries with a nudge."""
+    async def test_empty_stream_sends_fallback(self):
+        """When stream produces no events, fallback message is sent."""
         bot = _make_bot()
         bot_user = bot.user
 
         message = _make_message(content="Hi", mentions=[bot_user])
+        mock_store = _make_store()
 
-        mock_store = AsyncMock()
-        mock_store.save_message = AsyncMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        thinking_only = _make_result("", thinking="just reasoning")
-        proper_response = _make_result("Here's my answer!")
-        bot.agent.run = AsyncMock(side_effect=[thinking_only, proper_response])
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter([]))
 
         with (
             patch("chat.bot.get_engine"),
@@ -292,68 +225,53 @@ class TestThinkingIntegration:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await bot.on_message(message)
 
-        assert bot.agent.run.call_count == 2
-        second_prompt = bot.agent.run.call_args_list[1][0][0]
-        assert (
-            "no visible response" in second_prompt.lower()
-            or "respond to the user" in second_prompt.lower()
-        )
-        message.reply.assert_called_once_with("Here's my answer!")
-
-    @pytest.mark.asyncio
-    async def test_empty_output_no_thinking_falls_back(self):
-        """When both calls return empty output and no thinking, fallback message is sent."""
-        bot = _make_bot()
-        bot_user = bot.user
-
-        message = _make_message(content="Hi", mentions=[bot_user])
-
-        mock_store = AsyncMock()
-        mock_store.save_message = AsyncMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        # Both results: empty output, no thinking
-        empty_result1 = _make_result("")
-        empty_result2 = _make_result("")
-        bot.agent.run = AsyncMock(side_effect=[empty_result1, empty_result2])
-
-        with (
-            patch("chat.bot.get_engine"),
-            patch("chat.bot.Session") as mock_session_cls,
-            patch("chat.bot.MessageStore", return_value=mock_store),
-        ):
-            ctx = MagicMock()
-            mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
-            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot.on_message(message)
-
-        assert bot.agent.run.call_count == 2
-        reply_text = message.reply.call_args[0][0]
+        reply_text = message.reply.call_args_list[0][0][0]
         assert "Sorry" in reply_text
-        assert "having trouble" in reply_text
+        assert "trouble" in reply_text
+
+    @pytest.mark.asyncio
+    async def test_thinking_only_no_text_sends_fallback(self):
+        """When stream produces only thinking events (no text), fallback is sent."""
+        bot = _make_bot()
+        bot_user = bot.user
+
+        message = _make_message(content="Hi", mentions=[bot_user])
+        mock_store = _make_store()
+
+        events = [
+            _thinking_delta("just reasoning"),
+        ]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
+
+        with (
+            patch("chat.bot.get_engine"),
+            patch("chat.bot.Session") as mock_session_cls,
+            patch("chat.bot.MessageStore", return_value=mock_store),
+        ):
+            ctx = MagicMock()
+            mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
+            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
+            await bot.on_message(message)
+
+        # The sent message should be edited to fallback since no text was produced
+        sent = message.reply.return_value
+        last_edit = sent.edit.call_args_list[-1]
+        fallback = last_edit.kwargs.get("content", "")
+        assert "Sorry" in fallback
+        assert "trouble" in fallback
 
     @pytest.mark.asyncio
     async def test_literal_think_tag_passes_through_unchanged(self):
-        """Output with '<think>' as literal text (not a tag) is not stripped."""
+        """Output with '<think>' as literal text is not stripped."""
         bot = _make_bot()
         bot_user = bot.user
 
         message = _make_message(content="Hi", mentions=[bot_user])
+        mock_store = _make_store()
 
-        mock_store = AsyncMock()
-        mock_store.save_message = AsyncMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_attachments = MagicMock(return_value={})
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        # result.output contains literal '<think>' text — not a ThinkingPart
         literal_output = "Use <think> tags to structure your reasoning."
-        mock_result = _make_result(literal_output)
-        bot.agent.run = AsyncMock(return_value=mock_result)
+        events = [_text_delta(literal_output)]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -365,7 +283,9 @@ class TestThinkingIntegration:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await bot.on_message(message)
 
-        message.reply.assert_called_once_with(literal_output)
+        sent = message.reply.return_value
+        last_edit = sent.edit.call_args_list[-1]
+        assert last_edit.kwargs.get("content") == literal_output
 
 
 class TestOnReadyThinkingRegistration:
