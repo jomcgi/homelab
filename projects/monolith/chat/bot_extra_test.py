@@ -1,14 +1,15 @@
-"""Extra coverage for bot.py -- _generate_response failure paths and should_respond negative cases."""
+"""Extra coverage for bot.py -- error paths via streaming and should_respond negative cases."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic_ai import PartDeltaEvent, TextPartDelta
 
-from chat.bot import ChatBot, LLM_MAX_RETRIES, should_respond
+from chat.bot import ChatBot, should_respond
 
 
 # ---------------------------------------------------------------------------
-# Helpers (shared with bot_coverage_test.py conventions)
+# Helpers
 # ---------------------------------------------------------------------------
 
 
@@ -22,6 +23,15 @@ class _AsyncCtxManager:
 
 def _async_cm():
     return _AsyncCtxManager()
+
+
+def _text_delta(content: str) -> PartDeltaEvent:
+    return PartDeltaEvent(index=0, delta=TextPartDelta(content_delta=content))
+
+
+async def _async_iter(events):
+    for e in events:
+        yield e
 
 
 def _make_message(
@@ -42,7 +52,11 @@ def _make_message(
     msg.channel.typing = MagicMock(return_value=_async_cm())
     msg.mentions = mentions if mentions is not None else []
     msg.reference = reference
-    msg.reply = AsyncMock(return_value=MagicMock(id=100))
+    msg.attachments = []
+    msg.embeds = []
+    sent = MagicMock(id=100)
+    sent.edit = AsyncMock()
+    msg.reply = AsyncMock(return_value=sent)
     return msg
 
 
@@ -60,6 +74,18 @@ def _make_bot() -> ChatBot:
     bot._connection.user.id = 999
     bot._connection.user.display_name = "BotUser"
     return bot
+
+
+def _make_store():
+    mock_store = AsyncMock()
+    mock_store.save_message = AsyncMock()
+    mock_store.get_recent = MagicMock(return_value=[])
+    mock_store.get_attachments = MagicMock(return_value={})
+    mock_store.get_channel_summary = MagicMock(return_value=None)
+    mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
+    mock_store.acquire_lock = MagicMock(return_value=True)
+    mock_store.mark_completed = MagicMock()
+    return mock_store
 
 
 # ---------------------------------------------------------------------------
@@ -86,23 +112,20 @@ class TestShouldRespondReplyToDifferentAuthor:
 
 
 # ---------------------------------------------------------------------------
-# _generate_response -- store failure propagates out of on_message
+# _stream_response -- store failure propagates as error reply
 # ---------------------------------------------------------------------------
 
 
-class TestGenerateResponseStoreFailure:
+class TestStreamResponseStoreFailure:
     @pytest.mark.asyncio
     async def test_get_recent_failure_sends_error_reply(self):
-        """When store.get_recent() raises, on_message sends an error reply."""
+        """When store.get_recent() raises inside _stream_response, on_message sends an error reply."""
         bot = _make_bot()
-        bot._connection.user.id = 999
         bot_user = bot.user
 
         message = _make_message(content="Hey bot!", mentions=[bot_user])
-        message.reference = None
 
-        mock_store = MagicMock()
-        mock_store.save_message = AsyncMock()
+        mock_store = _make_store()
         mock_store.get_recent = MagicMock(
             side_effect=RuntimeError("db connection lost")
         )
@@ -118,32 +141,29 @@ class TestGenerateResponseStoreFailure:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await bot.on_message(message)
 
-        message.reply.assert_called_once()
-        assert "trouble" in message.reply.call_args[0][0]
+        # Error reply should have been sent
+        reply_calls = message.reply.call_args_list
+        sorry_calls = [c for c in reply_calls if "trouble" in str(c)]
+        assert len(sorry_calls) >= 1
 
     @pytest.mark.asyncio
-    async def test_agent_run_failure_retries_then_sends_error_reply(self):
-        """When agent.run() raises, _generate_response retries then on_message sends error reply."""
+    async def test_agent_failure_sends_error_reply(self):
+        """When run_stream_events raises, on_message sends error reply."""
         bot = _make_bot()
-        bot._connection.user.id = 999
         bot_user = bot.user
 
         message = _make_message(content="Hey bot!", mentions=[bot_user])
-        message.reference = None
+        mock_store = _make_store()
 
-        mock_store = MagicMock()
-        mock_store.save_message = AsyncMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
+        async def _failing_stream(*args, **kwargs):
+            raise RuntimeError("model unavailable")
 
-        bot.agent.run = AsyncMock(side_effect=RuntimeError("model unavailable"))
+        bot.agent.run_stream_events = MagicMock(side_effect=_failing_stream)
 
         with (
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
             patch("chat.bot.MessageStore", return_value=mock_store),
-            patch("chat.bot.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=MagicMock()
@@ -151,48 +171,9 @@ class TestGenerateResponseStoreFailure:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await bot.on_message(message)
 
-        assert bot.agent.run.call_count == LLM_MAX_RETRIES
-        assert mock_sleep.call_count == LLM_MAX_RETRIES - 1
-        message.reply.assert_called_once()
-        assert "trouble" in message.reply.call_args[0][0]
-
-    @pytest.mark.asyncio
-    async def test_agent_run_succeeds_on_retry(self):
-        """When agent.run() fails then succeeds, the successful response is returned."""
-        bot = _make_bot()
-        bot._connection.user.id = 999
-        bot_user = bot.user
-
-        message = _make_message(content="Hey bot!", mentions=[bot_user])
-        message.reference = None
-
-        mock_store = MagicMock()
-        mock_store.save_message = AsyncMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_result = MagicMock()
-        mock_result.new_messages.return_value = []
-        mock_result.output = "Here's my answer!"
-        bot.agent.run = AsyncMock(
-            side_effect=[RuntimeError("model unavailable"), mock_result]
-        )
-
-        with (
-            patch("chat.bot.get_engine"),
-            patch("chat.bot.Session") as mock_session_cls,
-            patch("chat.bot.MessageStore", return_value=mock_store),
-            patch("chat.bot.asyncio.sleep", new_callable=AsyncMock),
-        ):
-            mock_session_cls.return_value.__enter__ = MagicMock(
-                return_value=MagicMock()
-            )
-            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot.on_message(message)
-
-        assert bot.agent.run.call_count == 2
-        message.reply.assert_any_call("Here's my answer!")
+        reply_calls = message.reply.call_args_list
+        sorry_calls = [c for c in reply_calls if "trouble" in str(c)]
+        assert len(sorry_calls) >= 1
 
 
 # ---------------------------------------------------------------------------
@@ -231,87 +212,24 @@ class TestShouldRespondResolvedFalse:
 
 
 # ---------------------------------------------------------------------------
-# on_message() -- double-failure: first save succeeds, bot-reply save fails
+# _stream_response -- get_recent() returns [] (empty context)
 # ---------------------------------------------------------------------------
 
 
-class TestOnMessageDoubleSave:
-    @pytest.mark.asyncio
-    async def test_swallows_bot_reply_storage_failure(self):
-        """When reply succeeds but storing the bot response raises, on_message swallows it."""
-        bot = _make_bot()
-        bot._connection.user.id = 999
-        bot._connection.user.display_name = "BotUser"
-        bot_user = bot.user
-
-        message = _make_message(content="Hey bot!", mentions=[bot_user])
-        message.reference = None
-        # reply succeeds and returns a real sent-message mock
-        sent_msg = MagicMock()
-        sent_msg.id = 777
-        message.reply = AsyncMock(return_value=sent_msg)
-
-        mock_agent_result = MagicMock()
-        mock_agent_result.new_messages.return_value = []
-        mock_agent_result.output = "Here's my answer!"
-        bot.agent.run = AsyncMock(return_value=mock_agent_result)
-
-        call_count = 0
-
-        async def save_side_effect(**kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 2:
-                # Second call = storing the bot reply → fails
-                raise RuntimeError("pgvector unavailable")
-
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-        mock_store.save_message = AsyncMock(side_effect=save_side_effect)
-
-        with (
-            patch("chat.bot.get_engine"),
-            patch("chat.bot.Session") as mock_session_cls,
-            patch("chat.bot.MessageStore", return_value=mock_store),
-        ):
-            mock_session_cls.return_value.__enter__ = MagicMock(
-                return_value=MagicMock()
-            )
-            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            # Must not propagate the storage failure
-            await bot.on_message(message)
-
-        # reply was called (generate + reply succeeded)
-        message.reply.assert_called_once_with("Here's my answer!")
-        # save_message called twice: once for incoming, once for bot response
-        assert call_count == 2
-
-
-# ---------------------------------------------------------------------------
-# _generate_response() -- get_recent() returns [] (empty context)
-# ---------------------------------------------------------------------------
-
-
-class TestGenerateResponseEmptyContext:
+class TestStreamResponseEmptyContext:
     @pytest.mark.asyncio
     async def test_empty_context_still_calls_agent(self):
-        """_generate_response runs the agent even when recent is empty."""
+        """_stream_response runs the agent even when recent is empty."""
         bot = _make_bot()
-        bot._connection.user.id = 999
+        bot_user = bot.user
 
-        msg = _make_message(content="Tell me something interesting")
+        msg = _make_message(
+            content="Tell me something interesting", mentions=[bot_user]
+        )
+        mock_store = _make_store()
 
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_agent_result = MagicMock()
-        mock_agent_result.new_messages.return_value = []
-        mock_agent_result.output = "Not much context, but here you go!"
-        bot.agent.run = AsyncMock(return_value=mock_agent_result)
+        events = [_text_delta("Not much context, but here you go!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -321,28 +239,21 @@ class TestGenerateResponseEmptyContext:
             ctx = MagicMock()
             mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            result = await bot._generate_response(msg)
+            await bot.on_message(msg)
 
-        assert result == ("Not much context, but here you go!", None)
-        bot.agent.run.assert_called_once()
+        bot.agent.run_stream_events.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_empty_context_prompt_has_recent_header(self):
         """Prompt has 'Recent conversation:' even when recent is empty."""
         bot = _make_bot()
-        bot._connection.user.id = 999
+        bot_user = bot.user
 
-        msg = _make_message(content="Hello?")
+        msg = _make_message(content="Hello?", mentions=[bot_user])
+        mock_store = _make_store()
 
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_agent_result = MagicMock()
-        mock_agent_result.new_messages.return_value = []
-        mock_agent_result.output = "Hello!"
-        bot.agent.run = AsyncMock(return_value=mock_agent_result)
+        events = [_text_delta("Hello!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -352,28 +263,22 @@ class TestGenerateResponseEmptyContext:
             ctx = MagicMock()
             mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot._generate_response(msg)
+            await bot.on_message(msg)
 
-        prompt_arg = bot.agent.run.call_args[0][0]
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         assert "Recent conversation:" in prompt_arg
 
     @pytest.mark.asyncio
     async def test_empty_context_prompt_contains_current_message(self):
         """Current user message is always appended even with no historical context."""
         bot = _make_bot()
-        bot._connection.user.id = 999
+        bot_user = bot.user
 
-        msg = _make_message(content="What time is it?")
+        msg = _make_message(content="What time is it?", mentions=[bot_user])
+        mock_store = _make_store()
 
-        mock_store = MagicMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_agent_result = MagicMock()
-        mock_agent_result.new_messages.return_value = []
-        mock_agent_result.output = "It's time!"
-        bot.agent.run = AsyncMock(return_value=mock_agent_result)
+        events = [_text_delta("It's time!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -383,8 +288,8 @@ class TestGenerateResponseEmptyContext:
             ctx = MagicMock()
             mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await bot._generate_response(msg)
+            await bot.on_message(msg)
 
-        prompt_arg = bot.agent.run.call_args[0][0]
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         assert "What time is it?" in prompt_arg
         assert "TestUser" in prompt_arg
