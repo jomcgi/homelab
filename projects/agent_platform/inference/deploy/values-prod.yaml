@@ -23,6 +23,8 @@ vllm:
   extraArgs:
     - "--served-model-name"
     - "qwen3.6-27b"
+    - "--cpu-offload-gb"
+    - "10"
     - "--enable-auto-tool-choice"
     - "--tool-call-parser"
     - "hermes"
@@ -53,10 +55,10 @@ podAnnotations:
 resources:
   requests:
     cpu: 4
-    memory: "24Gi"
+    memory: "34Gi"
     nvidia.com/gpu: 1
   limits:
-    memory: "32Gi"
+    memory: "48Gi"
     nvidia.com/gpu: 1
 
 embeddings:
