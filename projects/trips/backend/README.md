@@ -62,7 +62,7 @@ MaxAge: 8760h # 365 days
 **Startup sequence:**
 
 1. Connect to NATS
-2. Subscribe to `trips.points` stream from sequence 0
+2. Subscribe to `trips.>` stream from sequence 0
 3. Process all existing messages (add to cache)
 4. Continue consuming new messages in real-time
 5. Start HTTP server when replay complete
@@ -320,7 +320,7 @@ WebSocket endpoint for real-time updates (see WebSocket Protocol section above).
 | `lat`           | float  | Latitude                    | Yes      | `49.2827`                  |
 | `lng`           | float  | Longitude                   | Yes      | `-123.1207`                |
 | `timestamp`     | string | ISO 8601 timestamp          | Yes      | `2024-01-15T12:00:00Z`     |
-| `image`         | string | Image filename              | Yes      | `photo.jpg`                |
+| `image`         | string | Image filename              | No       | `photo.jpg`                |
 | `source`        | string | Image source                | Yes      | `gopro`, `camera`, `phone` |
 | `tags`          | array  | Classification tags         | No       | `["car", "highway"]`       |
 | `elevation`     | float  | Elevation (meters)          | No       | `125.5`                    |
