@@ -65,7 +65,10 @@ class VisionClient:
                     ],
                 },
             ],
-            "max_tokens": 256,
+            "max_tokens": 4096,
+            # Disable thinking so tokens are used for the description, not
+            # <think> reasoning that fills the entire max_tokens budget.
+            "chat_template_kwargs": {"enable_thinking": False},
         }
 
         timeout = httpx.Timeout(VISION_READ_TIMEOUT, connect=VISION_CONNECT_TIMEOUT)
@@ -81,11 +84,14 @@ class VisionClient:
                     )
                     resp.raise_for_status()
                     try:
-                        return resp.json()["choices"][0]["message"]["content"]
+                        content = resp.json()["choices"][0]["message"]["content"]
                     except (KeyError, IndexError) as e:
                         raise ValueError(
                             f"unexpected vision response shape: {e}"
                         ) from e
+                    if not content:
+                        raise ValueError("vision response returned empty content")
+                    return content
             except Exception as exc:
                 last_exc = exc
                 if not _is_retryable(exc):
