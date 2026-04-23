@@ -188,6 +188,8 @@ vllm:
     - "qwen3_coder"
     - "--reasoning-parser"
     - "qwen3"
+    - "--reasoning-config"
+    - '{"reasoning_start_str": "<think>", "reasoning_end_str": "</think>"}'
 
 # vLLM runs as root and needs writable fs for compiled kernels
 podSecurityContext:
