@@ -129,7 +129,12 @@ spec:
             {{- end }}
             {{- if and (eq .Values.backend "llama-cpp") .Values.llamaCpp.chatTemplate }}
             - name: chat-template
-              mountPath: /etc/llama-cpp
+              mountPath: /etc/chat-template
+              readOnly: true
+            {{- end }}
+            {{- if and (eq .Values.backend "vllm") .Values.server.chatTemplate }}
+            - name: chat-template
+              mountPath: /etc/chat-template
               readOnly: true
             {{- end }}
             {{- if eq .Values.backend "vllm" }}
@@ -145,7 +150,7 @@ spec:
             reference: {{ .Values.modelVolume.reference }}
             pullPolicy: IfNotPresent
         {{- end }}
-        {{- if and (eq .Values.backend "llama-cpp") .Values.llamaCpp.chatTemplate }}
+        {{- if or (and (eq .Values.backend "llama-cpp") .Values.llamaCpp.chatTemplate) .Values.server.chatTemplate }}
         - name: chat-template
           configMap:
             name: {{ include "inference.fullname" . }}-chat-template

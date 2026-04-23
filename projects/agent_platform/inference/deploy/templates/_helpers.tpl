@@ -64,7 +64,7 @@ llama-server CLI arguments (shared between direct args and auto-discovery shell 
 --jinja \
 {{- end }}
 {{- if .Values.llamaCpp.chatTemplate }}
---chat-template-file "/etc/llama-cpp/chat-template.jinja" \
+--chat-template-file "/etc/chat-template/chat-template.jinja" \
 {{- end }}
 --host {{ .Values.server.host | quote }} \
 --port {{ .Values.server.port | quote }}{{ range .Values.llamaCpp.extraArgs }} \
@@ -104,6 +104,9 @@ vLLM CLI arguments.
 {{- end }}
 {{- if .Values.vllm.tokenizer }}
 --tokenizer {{ .Values.vllm.tokenizer }} \
+{{- end }}
+{{- if .Values.server.chatTemplate }}
+--chat-template /etc/chat-template/chat-template.jinja \
 {{- end }}
 {{- range .Values.vllm.extraArgs }}
 {{ . }} \
