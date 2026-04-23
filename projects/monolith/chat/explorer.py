@@ -43,7 +43,9 @@ def create_explorer_agent() -> Agent[ExplorerDeps]:
     agent: Agent[ExplorerDeps] = Agent(
         model,
         system_prompt=SYSTEM_PROMPT,
-        model_settings=ModelSettings(),
+        model_settings=ModelSettings(
+            extra_body={"thinking_token_budget": 1024},
+        ),
     )
 
     @agent.tool
