@@ -44,7 +44,12 @@ def create_explorer_agent() -> Agent[ExplorerDeps]:
         model,
         system_prompt=SYSTEM_PROMPT,
         model_settings=ModelSettings(
-            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+            temperature=1.0,
+            top_p=0.95,
+            extra_body={
+                "top_k": 20,
+                "presence_penalty": 1.5,
+            },
         ),
     )
 
