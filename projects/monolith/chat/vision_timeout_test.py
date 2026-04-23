@@ -276,8 +276,8 @@ class TestVisionClientPayload:
         assert payload["model"] == "qwen3.6-27b"
 
     @pytest.mark.asyncio
-    async def test_payload_includes_max_tokens_256(self):
-        """describe() sends max_tokens=256 in the payload."""
+    async def test_payload_includes_max_tokens_4096(self):
+        """describe() sends max_tokens=4096 in the payload."""
         client = VisionClient(base_url="http://fake:8080")
 
         with patch("chat.vision.httpx.AsyncClient") as mock_cls:
@@ -285,7 +285,7 @@ class TestVisionClientPayload:
             await client.describe(b"\x89PNG", "image/png")
 
         payload = mock_cls.return_value.post.call_args.kwargs.get("json")
-        assert payload["max_tokens"] == 256
+        assert payload["max_tokens"] == 4096
 
     @pytest.mark.asyncio
     async def test_payload_system_prompt_matches_module_constant(self):
@@ -301,3 +301,27 @@ class TestVisionClientPayload:
         system_messages = [m for m in messages if m["role"] == "system"]
         assert len(system_messages) == 1
         assert system_messages[0]["content"] == VISION_SYSTEM_PROMPT
+
+    @pytest.mark.asyncio
+    async def test_payload_disables_thinking(self):
+        """describe() sends chat_template_kwargs with enable_thinking=False."""
+        client = VisionClient(base_url="http://fake:8080")
+
+        with patch("chat.vision.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = _make_mock_http_client(response=_ok_response())
+            await client.describe(b"\x89PNG", "image/png")
+
+        payload = mock_cls.return_value.post.call_args.kwargs.get("json")
+        assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+
+    @pytest.mark.asyncio
+    async def test_raises_on_null_content(self):
+        """describe() raises ValueError when the model returns content: null."""
+        client = VisionClient(base_url="http://fake:8080")
+
+        with patch("chat.vision.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = _make_mock_http_client(
+                response=_ok_response(content=None)
+            )
+            with pytest.raises(ValueError, match="empty content"):
+                await client.describe(b"\x89PNG", "image/png")
