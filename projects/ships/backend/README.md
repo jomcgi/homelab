@@ -33,11 +33,10 @@ sequenceDiagram
     participant DB as SQLite
 
     Note over API: Service starts
-    API->>DB: Check last processed sequence
-    DB-->>API: seq=12345 (or 0 if empty)
-    API->>NATS: Subscribe from seq=12345
+    API->>NATS: Subscribe with durable consumer "ships-api"
     activate NATS
-    loop Replay messages
+    Note over NATS: NATS tracks position across restarts
+    loop Replay pending messages
         NATS-->>API: AIS position update
         API->>API: Deduplicate
         API->>DB: Insert position
@@ -135,7 +134,7 @@ Returns a flat list of vessels joined with their latest positions. Each entry co
       "dimension_c": 10,
       "dimension_d": 10,
       "draught": 5.5,
-      "eta": "01-15 18:00"
+      "eta": "2026-01-15T18:00:00Z"
     }
   ]
 }
@@ -396,7 +395,7 @@ Position history is automatically cleaned up to prevent unbounded growth.
 **Retention policy:**
 
 - Keep positions for 7 days
-- Run cleanup every 24 hours
+- Run cleanup every 1 hour
 - Delete in batches of 10,000
 
 **Configuration:**
@@ -533,5 +532,5 @@ Full list: [AIS Ship Type Codes](https://api.vtexplorer.com/docs/ref-aistypes.ht
 ## Related Services
 
 - **ships.jomcgi.dev** - Frontend map viewer (WebSocket client)
-- **ais-ingest** - Receives AIS messages from SDR and publishes to NATS
+- **ais-ingest** - Receives AIS messages from AISStream.io WebSocket API and publishes to NATS
 - **trips_api** - Similar architecture for GPS trip tracking
