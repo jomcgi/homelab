@@ -569,7 +569,7 @@ class TestEditIfDueRateLimiting:
         # Simulate time: first call is large (passes the 0→now threshold),
         # subsequent calls are only milliseconds apart (within STREAM_EDIT_INTERVAL).
         time_values = [
-            1000.0,   # delta 1: _edit_if_due — 1000.0 - 0.0 >= 1.0 → edits
+            1000.0,  # delta 1: _edit_if_due — 1000.0 - 0.0 >= 1.0 → edits
             1000.05,  # delta 2: _edit_if_due — 0.05 < 1.0 → skips
             1000.09,  # delta 3: _edit_if_due — 0.09 < 1.0 → skips
             1000.10,  # delta 4: _edit_if_due — 0.10 < 1.0 → skips
@@ -614,7 +614,7 @@ class TestEditIfDueRateLimiting:
 
         # Two tool calls very close together — both should trigger forced edits
         time_values = [
-            1000.0,   # tool call 1: _edit_if_due(force=True)
+            1000.0,  # tool call 1: _edit_if_due(force=True)
             1000.01,  # tool call 2: _edit_if_due(force=True) — within interval
             1000.02,  # text delta: _edit_if_due — within interval → skips
             1000.03,  # final force=True edit

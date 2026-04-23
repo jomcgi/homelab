@@ -444,6 +444,10 @@ class ChatBot(discord.Client):
                     sent = await message.reply(fallback)
                 return sent, fallback, None
 
+            # Ensure a reply was sent. AgentRunResultEvent alone never calls
+            # _ensure_sent, so sent may still be None here.
+            await _ensure_sent(response_text)
+
             # Final edit with complete response and optional ThinkingView
             thinking_text: str | None = None
             if thinking_parts:
