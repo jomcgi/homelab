@@ -2,11 +2,13 @@
 
 import asyncio
 import hashlib
+import json
 import logging
 import os
 
 import discord
 from pydantic_ai import (
+    AgentRunResultEvent,
     BinaryContent,
     FunctionToolCallEvent,
     PartDeltaEvent,
@@ -399,7 +401,12 @@ class ChatBot(discord.Client):
             async for event in self.agent.run_stream_events(agent_prompt, deps=deps):
                 had_events = True
 
-                if isinstance(event, PartDeltaEvent):
+                if isinstance(event, AgentRunResultEvent):
+                    # Use the authoritative final output if available
+                    final_output = event.result.output
+                    if final_output and isinstance(final_output, str):
+                        response_text = final_output
+                elif isinstance(event, PartDeltaEvent):
                     if isinstance(event.delta, ThinkingPartDelta):
                         await _ensure_sent("\U0001f4ad Thinking...")
                         thinking_parts.append(event.delta.content_delta)
@@ -409,6 +416,11 @@ class ChatBot(discord.Client):
                         await _edit_if_due(response_text)
                 elif isinstance(event, FunctionToolCallEvent):
                     args = event.part.args
+                    if isinstance(args, str):
+                        try:
+                            args = json.loads(args)
+                        except (json.JSONDecodeError, TypeError):
+                            pass
                     if isinstance(args, dict):
                         query = args.get("query", str(args))
                     else:
