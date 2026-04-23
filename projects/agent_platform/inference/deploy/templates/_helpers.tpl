@@ -109,7 +109,7 @@ vLLM CLI arguments.
 --chat-template /etc/chat-template/chat-template.jinja \
 {{- end }}
 {{- range .Values.vllm.extraArgs }}
-{{ . }} \
+{{ . | quote }} \
 {{- end }}
 --dtype {{ .Values.vllm.dtype }}
 {{- end }}
