@@ -419,15 +419,17 @@ class ChatBot(discord.Client):
                     await _ensure_sent(content)
                     await _edit_if_due(content, force=True)
 
-            # Fallback if no events arrived at all
+            # Fallback if no events arrived or no text was produced
             if not had_events or not response_text:
                 fallback = (
                     "Sorry, I'm having trouble formulating a response. "
                     "Please try again."
                 )
-                sent = await _ensure_sent(fallback)
-                if response_text == "" and sent is not None:
+                if sent is not None:
+                    # Already sent (e.g. thinking indicator) — edit to fallback
                     await sent.edit(content=fallback)
+                else:
+                    sent = await message.reply(fallback)
                 return sent, fallback, None
 
             # Final edit with complete response and optional ThinkingView
