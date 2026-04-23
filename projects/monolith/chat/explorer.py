@@ -43,7 +43,7 @@ def create_explorer_agent() -> Agent[ExplorerDeps]:
     agent: Agent[ExplorerDeps] = Agent(
         model,
         system_prompt=SYSTEM_PROMPT,
-        model_settings=ModelSettings(max_tokens=4096),
+        model_settings=ModelSettings(),
     )
 
     @agent.tool
