@@ -6,8 +6,13 @@ import logging
 import os
 
 import discord
-from pydantic_ai import BinaryContent
-from pydantic_ai.messages import ModelResponse, ThinkingPart
+from pydantic_ai import (
+    BinaryContent,
+    FunctionToolCallEvent,
+    PartDeltaEvent,
+    TextPartDelta,
+    ThinkingPartDelta,
+)
 
 from chat.agent import create_agent, format_context_messages
 from shared.embedding import EmbeddingClient
@@ -25,24 +30,7 @@ DISCORD_MESSAGE_LIMIT = 2000
 THINKING_TRUNCATE_AT = 1985
 LLM_MAX_RETRIES = 3
 LLM_RETRY_BASE_DELAY = 1.0  # seconds
-
-
-def _extract_thinking(result) -> str | None:
-    """Extract thinking text from PydanticAI ThinkingPart messages.
-
-    llama.cpp returns reasoning in the ``reasoning_content`` field of the
-    OpenAI-compatible response.  PydanticAI maps this to ``ThinkingPart``
-    objects automatically.  Returns the concatenated thinking text, or
-    None when no thinking was produced.
-    """
-    parts: list[str] = []
-    for msg in result.new_messages():
-        if not isinstance(msg, ModelResponse):
-            continue
-        for part in msg.parts:
-            if isinstance(part, ThinkingPart) and part.content and part.content.strip():
-                parts.append(part.content.strip())
-    return "\n\n".join(parts) if parts else None
+STREAM_EDIT_INTERVAL = 1.0
 
 
 def _truncate_thinking(thinking: str) -> str:
@@ -254,13 +242,9 @@ class ChatBot(discord.Client):
 
         try:
             async with message.channel.typing():
-                response_text, thinking = await self._generate_response(
+                sent, response_text, thinking = await self._stream_response(
                     message, attachments
                 )
-            if thinking:
-                sent = await message.reply(response_text, view=ThinkingView(thinking))
-            else:
-                sent = await message.reply(response_text)
         except Exception:
             logger.exception("Failed to respond to message %s", msg_id)
             try:
@@ -270,8 +254,6 @@ class ChatBot(discord.Client):
                 )
             except Exception:
                 logger.exception("Failed to send error reply for message %s", msg_id)
-            # Mark completed even on LLM failure — the message was stored,
-            # and retrying the response would be confusing for the user.
             with Session(get_engine()) as session:
                 store = MessageStore(session=session, embed_client=self.embed_client)
                 store.mark_completed(msg_id)
@@ -297,15 +279,16 @@ class ChatBot(discord.Client):
             store = MessageStore(session=session, embed_client=self.embed_client)
             store.mark_completed(msg_id)
 
-    async def _generate_response(
+    async def _stream_response(
         self,
         message: discord.Message,
         current_attachments: list[dict] | None = None,
-    ) -> tuple[str, str | None]:
-        """Build context and run the PydanticAI agent.
+    ) -> tuple[discord.Message, str, str | None]:
+        """Build context and stream the PydanticAI agent response.
 
-        Returns (response_text, thinking_text). thinking_text is None when
-        the model produced no thinking.
+        Sends an initial Discord reply on the first event, then progressively
+        edits the message as new content arrives. Returns
+        (sent_message, response_text, thinking_text).
         """
         from chat.agent import ChatDeps
 
@@ -354,9 +337,7 @@ class ChatBot(discord.Client):
                 f"{message.author.display_name}: {message.content}"
             )
 
-            # Include current message images in prompt — both as text
-            # descriptions (for context) and as BinaryContent (so the
-            # multimodal model can actually see the images).
+            # Include current message images in prompt
             image_parts: list[BinaryContent] = []
             if current_attachments:
                 image_context = "\n".join(
@@ -370,9 +351,7 @@ class ChatBot(discord.Client):
                             BinaryContent(data=a["data"], media_type=a["content_type"])
                         )
 
-            # Auto-search when images are attached — the model struggles
-            # to decide when to search on visual content, so we do it
-            # proactively and inject results into the prompt.
+            # Auto-search when images are attached
             if current_attachments:
                 descriptions = " ".join(
                     a["description"]
@@ -391,53 +370,79 @@ class ChatBot(discord.Client):
                             "Auto-search for image failed, continuing without"
                         )
 
-            # When images are present, send a multimodal prompt so Qwen
-            # can see the raw image bytes alongside the text.
             agent_prompt: str | list = user_prompt
             if image_parts:
                 agent_prompt = [user_prompt, *image_parts]
 
-            last_exc: Exception | None = None
-            for attempt in range(LLM_MAX_RETRIES):
-                try:
-                    result = await self.agent.run(agent_prompt, deps=deps)
-                    response = result.output
-                    thinking = _extract_thinking(result)
+            # Streaming state
+            sent: discord.Message | None = None
+            thinking_parts: list[str] = []
+            tool_queries: list[str] = []
+            response_text = ""
+            last_edit_time = 0.0
+            had_events = False
 
-                    # Retry once if model produced thinking but no response
-                    if not response:
-                        nudge = (
-                            f"{user_prompt}\n\n"
-                            "You produced reasoning but no visible response. "
-                            "Please respond to the user directly."
-                        )
-                        result = await self.agent.run(nudge, deps=deps)
-                        response = result.output
-                        thinking = _extract_thinking(result)
-                        if not response:
-                            response = (
-                                "Sorry, I'm having trouble formulating a response. "
-                                "Please try again."
-                            )
+            async def _ensure_sent(content: str) -> discord.Message:
+                nonlocal sent
+                if sent is None:
+                    sent = await message.reply(content)
+                return sent
 
-                    # Summarize long thinking
-                    if thinking:
-                        thinking = _truncate_thinking(thinking)
+            async def _edit_if_due(content: str, force: bool = False) -> None:
+                nonlocal last_edit_time
+                now = asyncio.get_event_loop().time()
+                if force or (now - last_edit_time) >= STREAM_EDIT_INTERVAL:
+                    if sent is not None:
+                        await sent.edit(content=content)
+                        last_edit_time = now
 
-                    return response, thinking
-                except Exception as exc:
-                    last_exc = exc
-                    if attempt < LLM_MAX_RETRIES - 1:
-                        delay = LLM_RETRY_BASE_DELAY * (2**attempt)
-                        logger.warning(
-                            "LLM call failed (attempt %d/%d), retrying in %.1fs: %s",
-                            attempt + 1,
-                            LLM_MAX_RETRIES,
-                            delay,
-                            exc,
-                        )
-                        await asyncio.sleep(delay)
-            raise last_exc
+            async for event in self.agent.run_stream_events(agent_prompt, deps=deps):
+                had_events = True
+
+                if isinstance(event, PartDeltaEvent):
+                    if isinstance(event.delta, ThinkingPartDelta):
+                        await _ensure_sent("\U0001f4ad Thinking...")
+                        thinking_parts.append(event.delta.content_delta)
+                    elif isinstance(event.delta, TextPartDelta):
+                        response_text += event.delta.content_delta
+                        await _ensure_sent(response_text)
+                        await _edit_if_due(response_text)
+                elif isinstance(event, FunctionToolCallEvent):
+                    args = event.part.args
+                    if isinstance(args, dict):
+                        query = args.get("query", str(args))
+                    else:
+                        query = str(args)
+                    tool_queries.append(query)
+                    bullets = "\n".join(f"\u2022 {q}" for q in tool_queries)
+                    content = f"\U0001f50d Searching...\n{bullets}"
+                    await _ensure_sent(content)
+                    await _edit_if_due(content, force=True)
+
+            # Fallback if no events arrived at all
+            if not had_events or not response_text:
+                fallback = (
+                    "Sorry, I'm having trouble formulating a response. "
+                    "Please try again."
+                )
+                sent = await _ensure_sent(fallback)
+                if response_text == "" and sent is not None:
+                    await sent.edit(content=fallback)
+                return sent, fallback, None
+
+            # Final edit with complete response and optional ThinkingView
+            thinking_text: str | None = None
+            if thinking_parts:
+                raw = "".join(thinking_parts).strip()
+                if raw:
+                    thinking_text = _truncate_thinking(raw)
+
+            if thinking_text:
+                await sent.edit(content=response_text, view=ThinkingView(thinking_text))
+            else:
+                await _edit_if_due(response_text, force=True)
+
+            return sent, response_text, thinking_text
 
     async def reprocess_message(self, discord_message_id: str, channel_id: str) -> None:
         """Re-fetch a message from Discord and process it. Used by the sweep."""
