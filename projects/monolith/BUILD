@@ -897,7 +897,6 @@ py_test(
     ],
 )
 
-
 py_test(
     name = "chat_agent_tool_execution_test",
     srcs = ["chat/agent_tool_execution_test.py"],
