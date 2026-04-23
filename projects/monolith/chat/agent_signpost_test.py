@@ -1,20 +1,17 @@
-"""Behavioral tests for inject_signposts() and tool_guidance() in agent.py.
+"""Behavioral tests for inject_signposts() in agent.py.
 
 inject_signposts() is the prepare_tools callback that rewrites each tool's
 ToolDefinition description to append 'USE WHEN: <signpost>' at runtime.
-
-tool_guidance() is a system_prompt function registered on the agent that
-dynamically builds a per-tool usage guide from the signpost attributes.
+The enriched descriptions are injected into the chat template's <tools>
+block by vLLM, so no separate system prompt is needed.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from pydantic_ai import ToolDefinition
-from pydantic_ai.models.function import FunctionModel
-from pydantic_ai.messages import ModelResponse, TextPart
 
-from chat.agent import ChatDeps, create_agent
+from chat.agent import create_agent
 
 
 # ---------------------------------------------------------------------------
@@ -167,114 +164,3 @@ class TestInjectSignpostsBehavior:
         ctx = MagicMock()
         updated = await agent._prepare_tools(ctx, [])
         assert updated == []
-
-
-# ---------------------------------------------------------------------------
-# tool_guidance() dynamic system prompt tests
-# ---------------------------------------------------------------------------
-
-
-class TestToolGuidanceSystemPrompt:
-    @pytest.mark.asyncio
-    async def test_system_prompt_contains_your_tools_header(self):
-        """tool_guidance() generates a system prompt containing the tools header."""
-        agent = create_agent(base_url="http://fake:8080")
-        system_parts: list[str] = []
-
-        def capture_model(messages, info):
-            for msg in messages:
-                if hasattr(msg, "parts"):
-                    for part in msg.parts:
-                        if hasattr(part, "content") and hasattr(part, "part_kind"):
-                            if part.part_kind == "system-prompt":
-                                system_parts.append(part.content)
-            return ModelResponse(parts=[TextPart("done")])
-
-        deps = ChatDeps(
-            channel_id="ch1",
-            store=MagicMock(),
-            embed_client=AsyncMock(),
-        )
-        await agent.run("hi", model=FunctionModel(capture_model), deps=deps)
-
-        combined = "\n".join(system_parts)
-        assert "Your tools and WHEN to use them:" in combined
-
-    @pytest.mark.asyncio
-    async def test_system_prompt_lists_web_search_with_use_when(self):
-        """tool_guidance() includes 'web_search' and its signpost in the system prompt."""
-        agent = create_agent(base_url="http://fake:8080")
-        system_parts: list[str] = []
-
-        def capture_model(messages, info):
-            for msg in messages:
-                if hasattr(msg, "parts"):
-                    for part in msg.parts:
-                        if hasattr(part, "content") and hasattr(part, "part_kind"):
-                            if part.part_kind == "system-prompt":
-                                system_parts.append(part.content)
-            return ModelResponse(parts=[TextPart("done")])
-
-        deps = ChatDeps(
-            channel_id="ch1",
-            store=MagicMock(),
-            embed_client=AsyncMock(),
-        )
-        await agent.run("hi", model=FunctionModel(capture_model), deps=deps)
-
-        combined = "\n".join(system_parts)
-        assert "web_search" in combined
-        assert "USE WHEN:" in combined
-
-    @pytest.mark.asyncio
-    async def test_system_prompt_lists_all_three_tool_names(self):
-        """tool_guidance() includes all three tool names in the system prompt."""
-        agent = create_agent(base_url="http://fake:8080")
-        system_parts: list[str] = []
-
-        def capture_model(messages, info):
-            for msg in messages:
-                if hasattr(msg, "parts"):
-                    for part in msg.parts:
-                        if hasattr(part, "content") and hasattr(part, "part_kind"):
-                            if part.part_kind == "system-prompt":
-                                system_parts.append(part.content)
-            return ModelResponse(parts=[TextPart("done")])
-
-        deps = ChatDeps(
-            channel_id="ch1",
-            store=MagicMock(),
-            embed_client=AsyncMock(),
-        )
-        await agent.run("hi", model=FunctionModel(capture_model), deps=deps)
-
-        combined = "\n".join(system_parts)
-        assert "web_search" in combined
-        assert "search_history" in combined
-        assert "get_user_summary" in combined
-
-    @pytest.mark.asyncio
-    async def test_system_prompt_includes_signpost_text_for_web_search(self):
-        """tool_guidance() includes part of the web_search signpost text."""
-        agent = create_agent(base_url="http://fake:8080")
-        system_parts: list[str] = []
-
-        def capture_model(messages, info):
-            for msg in messages:
-                if hasattr(msg, "parts"):
-                    for part in msg.parts:
-                        if hasattr(part, "content") and hasattr(part, "part_kind"):
-                            if part.part_kind == "system-prompt":
-                                system_parts.append(part.content)
-            return ModelResponse(parts=[TextPart("done")])
-
-        deps = ChatDeps(
-            channel_id="ch1",
-            store=MagicMock(),
-            embed_client=AsyncMock(),
-        )
-        await agent.run("hi", model=FunctionModel(capture_model), deps=deps)
-
-        # web_search signpost says "Default to searching"
-        combined = "\n".join(system_parts)
-        assert "Default to searching" in combined
