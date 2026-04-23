@@ -1,9 +1,14 @@
-"""Additional coverage for ChatBot -- on_message(), _generate_response(), on_ready()."""
+"""Additional coverage for ChatBot -- on_message(), on_ready(), streaming response."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic_ai import (
+    PartDeltaEvent,
+    TextPartDelta,
+    ThinkingPartDelta,
+)
 
 from chat.bot import ChatBot, create_bot, should_respond
 
@@ -31,14 +36,12 @@ def _make_message(
     msg.channel.typing = MagicMock(return_value=_async_cm())
     msg.mentions = mentions if mentions is not None else []
     msg.reference = reference
-    msg.reply = AsyncMock(return_value=_make_sent_message())
+    msg.attachments = []
+    msg.embeds = []
+    sent = MagicMock(id=100)
+    sent.edit = AsyncMock()
+    msg.reply = AsyncMock(return_value=sent)
     return msg
-
-
-def _make_sent_message(msg_id: int = 100) -> MagicMock:
-    sent = MagicMock()
-    sent.id = msg_id
-    return sent
 
 
 class _AsyncCtxManager:
@@ -68,6 +71,28 @@ def _make_bot() -> ChatBot:
     bot._connection.user.id = 999
     bot._connection.user.display_name = "BotUser"
     return bot
+
+
+def _make_store():
+    """Create a mock MessageStore with standard defaults."""
+    mock_store = AsyncMock()
+    mock_store.save_message = AsyncMock()
+    mock_store.get_recent = MagicMock(return_value=[])
+    mock_store.get_attachments = MagicMock(return_value={})
+    mock_store.get_channel_summary = MagicMock(return_value=None)
+    mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
+    mock_store.acquire_lock = MagicMock(return_value=True)
+    mock_store.mark_completed = MagicMock()
+    return mock_store
+
+
+def _text_delta(content: str) -> PartDeltaEvent:
+    return PartDeltaEvent(index=0, delta=TextPartDelta(content_delta=content))
+
+
+async def _async_iter(events):
+    for e in events:
+        yield e
 
 
 # ---------------------------------------------------------------------------
@@ -126,13 +151,11 @@ class TestOnMessageStoreAlways:
     async def test_stores_every_message_even_when_not_responding(self):
         """on_message always calls save_message regardless of should_respond."""
         bot = _make_bot()
-        # user is a read-only property; _make_bot() sets _connection.user with id=999
 
         message = _make_message(author_bot=False, mentions=[])
         message.reference = None
 
-        mock_store = AsyncMock()
-        mock_store.save_message = AsyncMock()
+        mock_store = _make_store()
 
         with (
             patch("chat.bot.get_engine"),
@@ -151,23 +174,22 @@ class TestOnMessageStoreAlways:
     async def test_swallows_store_exception(self):
         """on_message does not propagate exceptions from the store phase."""
         bot = _make_bot()
-        # user is a read-only property; _make_bot() sets _connection.user with id=999
 
         message = _make_message(author_bot=False, mentions=[])
         message.reference = None
 
+        mock_store = _make_store()
+        mock_store.save_message = AsyncMock(side_effect=RuntimeError("db down"))
+
         with (
             patch("chat.bot.get_engine"),
             patch("chat.bot.Session") as mock_session_cls,
-            patch("chat.bot.MessageStore") as mock_store_cls,
+            patch("chat.bot.MessageStore", return_value=mock_store),
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=MagicMock()
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            mock_store_cls.return_value.save_message = AsyncMock(
-                side_effect=RuntimeError("db down")
-            )
             # Should not raise
             await bot.on_message(message)
 
@@ -182,7 +204,6 @@ class TestOnMessageShouldRespondGuard:
     async def test_does_not_reply_to_bot_messages(self):
         """on_message returns early and does not call reply for bot-authored messages."""
         bot = _make_bot()
-        # user is a read-only property; _make_bot() sets _connection.user with id=999
 
         message = _make_message(author_bot=True)
 
@@ -202,33 +223,25 @@ class TestOnMessageShouldRespondGuard:
 
 
 # ---------------------------------------------------------------------------
-# ChatBot.on_message -- generate + reply branch
+# ChatBot.on_message -- streaming generate + reply branch
 # ---------------------------------------------------------------------------
 
 
 class TestOnMessageGenerateReply:
     @pytest.mark.asyncio
     async def test_replies_when_mentioned(self):
-        """on_message sends a reply when the bot is mentioned."""
+        """on_message sends a reply when the bot is mentioned (streaming)."""
         bot = _make_bot()
-        # user is a read-only property — configure via _connection.user
         bot._connection.user.id = 999
         bot._connection.user.display_name = "BotUser"
         bot_user = bot.user
 
         message = _make_message(content="Hey bot!", mentions=[bot_user])
         message.reference = None
+        mock_store = _make_store()
 
-        mock_store = AsyncMock()
-        mock_store.save_message = AsyncMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
-
-        mock_agent_result = MagicMock()
-        mock_agent_result.new_messages.return_value = []
-        mock_agent_result.output = "Hello human!"
-        bot.agent.run = AsyncMock(return_value=mock_agent_result)
+        events = [_text_delta("Hello human!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -240,13 +253,15 @@ class TestOnMessageGenerateReply:
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
             await bot.on_message(message)
 
-        message.reply.assert_called_once_with("Hello human!")
+        # Initial reply was sent
+        message.reply.assert_called()
+        first_reply_text = message.reply.call_args_list[0][0][0]
+        assert "Hello human!" in first_reply_text
 
     @pytest.mark.asyncio
     async def test_swallows_reply_exception(self):
-        """on_message does not propagate exceptions from the reply phase."""
+        """on_message does not propagate exceptions from the streaming/reply phase."""
         bot = _make_bot()
-        # user is a read-only property — configure via _connection.user
         bot._connection.user.id = 999
         bot._connection.user.display_name = "BotUser"
         bot_user = bot.user
@@ -255,16 +270,10 @@ class TestOnMessageGenerateReply:
         message.reference = None
         message.reply = AsyncMock(side_effect=RuntimeError("discord error"))
 
-        mock_store = AsyncMock()
-        mock_store.save_message = AsyncMock()
-        mock_store.get_recent = MagicMock(return_value=[])
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
+        mock_store = _make_store()
 
-        mock_agent_result = MagicMock()
-        mock_agent_result.new_messages.return_value = []
-        mock_agent_result.output = "Hello!"
-        bot.agent.run = AsyncMock(return_value=mock_agent_result)
+        events = [_text_delta("Hello!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -279,23 +288,23 @@ class TestOnMessageGenerateReply:
 
 
 # ---------------------------------------------------------------------------
-# ChatBot._generate_response
+# ChatBot -- streaming response includes recent context
 # ---------------------------------------------------------------------------
 
 
-class TestGenerateResponse:
+class TestStreamResponseContext:
     @pytest.mark.asyncio
     async def test_includes_recent_messages_in_prompt(self):
-        """_generate_response calls agent.run with recent conversation context."""
+        """Streaming response calls agent.run_stream_events with recent conversation context."""
         from datetime import datetime, timezone
 
         from chat.models import Message
 
         bot = _make_bot()
-        # user is a read-only property — configure via _connection.user
         bot._connection.user.id = 999
+        bot_user = bot.user
 
-        msg = _make_message(content="What is the weather?")
+        msg = _make_message(content="What is the weather?", mentions=[bot_user])
 
         recent_msg = Message(
             id=1,
@@ -309,15 +318,11 @@ class TestGenerateResponse:
             created_at=datetime(2026, 4, 1, 12, 0, tzinfo=timezone.utc),
         )
 
-        mock_store = MagicMock()
+        mock_store = _make_store()
         mock_store.get_recent = MagicMock(return_value=[recent_msg])
-        mock_store.get_channel_summary = MagicMock(return_value=None)
-        mock_store.get_user_summaries_for_users = MagicMock(return_value=[])
 
-        mock_agent_result = MagicMock()
-        mock_agent_result.new_messages.return_value = []
-        mock_agent_result.output = "Sunny!"
-        bot.agent.run = AsyncMock(return_value=mock_agent_result)
+        events = [_text_delta("Sunny!")]
+        bot.agent.run_stream_events = MagicMock(return_value=_async_iter(events))
 
         with (
             patch("chat.bot.get_engine"),
@@ -327,13 +332,13 @@ class TestGenerateResponse:
             ctx = MagicMock()
             mock_session_cls.return_value.__enter__ = MagicMock(return_value=ctx)
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            result = await bot._generate_response(msg)
+            await bot.on_message(msg)
 
-        assert result == ("Sunny!", None)
-        prompt_arg = bot.agent.run.call_args[0][0]
+        # Verify run_stream_events was called with recent context in prompt
+        prompt_arg = bot.agent.run_stream_events.call_args[0][0]
         assert "recent message" in prompt_arg
-        # Verify deps were passed to agent.run
-        assert "deps" in bot.agent.run.call_args[1]
+        # Verify deps were passed
+        assert "deps" in bot.agent.run_stream_events.call_args[1]
 
 
 # ---------------------------------------------------------------------------
