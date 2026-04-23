@@ -135,7 +135,9 @@ def create_agent(base_url: str | None = None) -> Agent[ChatDeps]:
     agent: Agent[ChatDeps] = Agent(
         model,
         system_prompt=build_system_prompt(),
-        model_settings=ModelSettings(),
+        model_settings=ModelSettings(
+            extra_body={"thinking_token_budget": 1024},
+        ),
         prepare_tools=inject_signposts,
     )
 
