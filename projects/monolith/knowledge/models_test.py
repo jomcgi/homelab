@@ -301,3 +301,16 @@ class TestDefaultFactoryTimestamps:
             created_at=explicit_ts,
         )
         assert ri.created_at == explicit_ts
+
+
+def test_gap_has_note_id_unique_constraint():
+    """note_id is the projection-layer identity — must be UNIQUE in the schema."""
+    from sqlalchemy import UniqueConstraint
+
+    from knowledge.models import Gap
+
+    constraints = [c for c in Gap.__table_args__ if isinstance(c, UniqueConstraint)]
+    column_sets = [tuple(c.columns.keys()) for c in constraints]
+    assert ("note_id",) in column_sets, (
+        f"Gap must have UniqueConstraint on note_id; got {column_sets}"
+    )
