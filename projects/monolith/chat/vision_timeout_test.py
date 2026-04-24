@@ -325,3 +325,15 @@ class TestVisionClientPayload:
             )
             with pytest.raises(ValueError, match="empty content"):
                 await client.describe(b"\x89PNG", "image/png")
+
+    @pytest.mark.asyncio
+    async def test_raises_on_empty_string_content(self):
+        """describe() raises ValueError when the model returns content: ""."""
+        client = VisionClient(base_url="http://fake:8080")
+
+        with patch("chat.vision.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = _make_mock_http_client(
+                response=_ok_response(content="")
+            )
+            with pytest.raises(ValueError, match="empty content"):
+                await client.describe(b"\x89PNG", "image/png")
