@@ -1374,3 +1374,97 @@ class TestGardenerGapDiscovery:
         # The log message should include the discovered count so operators can
         # trace partial progress.
         assert "1 gaps" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_gap_pipeline_failure_rolls_back_classify_mutations(
+        self, monkeypatch, session, tmp_path, caplog
+    ):
+        """When classify_gaps raises mid-batch, the in-memory mutations to Gap
+        rows (gap_class, state, classified_at) must be rolled back so the outer
+        scheduler commit does NOT persist a half-classified batch."""
+        from knowledge.models import Gap, Note, NoteLink
+
+        # Seed a Note + 2 NoteLinks pointing to unresolved targets. discover_gaps
+        # will commit 2 Gap rows; classify_gaps will then mutate them in-memory
+        # and raise before commit. The rollback must undo those mutations.
+        src = Note(
+            note_id="source-note",
+            path="_processed/source-note.md",
+            title="Source Note",
+            content_hash="h-src",
+            type="atom",
+        )
+        session.add(src)
+        session.flush()
+        session.add(
+            NoteLink(
+                src_note_fk=src.id,
+                target_id="missing-one",
+                target_title="missing-one",
+                kind="link",
+                edge_type=None,
+            )
+        )
+        session.add(
+            NoteLink(
+                src_note_fk=src.id,
+                target_id="missing-two",
+                target_title="missing-two",
+                kind="link",
+                edge_type=None,
+            )
+        )
+        session.commit()
+
+        import knowledge.gaps as gaps_module
+
+        def mutating_then_raising(sess):
+            """Apply 'would-be' classification to every discovered gap, then
+            raise before commit. These mutations must NOT land in the DB.
+
+            Mirrors the real ``classify_gaps`` body — attribute mutations on
+            tracked ORM instances are flushed on commit without an explicit
+            ``sess.add()``.
+            """
+            rows = (
+                sess.execute(select(Gap).where(Gap.state == "discovered"))
+                .scalars()
+                .all()
+            )
+            for row in rows:
+                row.gap_class = "external"
+                row.state = "classified"
+            raise RuntimeError("classify boom mid-batch")
+
+        monkeypatch.setattr(gaps_module, "classify_gaps", mutating_then_raising)
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        with caplog.at_level(logging.ERROR, logger="monolith.knowledge.gardener"):
+            stats = await gardener.run()
+
+        # discover_gaps committed before classify raised; classify mutations
+        # were in-memory only and should be rolled back.
+        assert stats.gaps_discovered == 2
+        assert stats.gaps_classified == 0
+
+        # Simulate the scheduler's outer session.commit() that runs after
+        # _complete_job — if the rollback didn't happen, the dirty mutations
+        # would be persisted here.
+        session.commit()
+
+        # Read back from a FRESH session on the same engine so we're not
+        # observing stale in-memory objects from the gardener's session.
+        engine = session.get_bind()
+        with Session(engine) as fresh:
+            gap_rows = fresh.exec(select(Gap)).all()
+            assert len(gap_rows) == 2
+            for gap in gap_rows:
+                assert gap.state == "discovered", (
+                    f"gap {gap.term}: state={gap.state!r} should have been "
+                    "rolled back to 'discovered'"
+                )
+                assert gap.gap_class is None, (
+                    f"gap {gap.term}: gap_class={gap.gap_class!r} should have "
+                    "been rolled back to None"
+                )
+                assert gap.classified_at is None

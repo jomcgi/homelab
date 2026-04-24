@@ -516,6 +516,12 @@ class Gardener:
             classified = classify_gaps(self.session)
             return discovered, classified
         except Exception:
+            # Roll back any uncommitted mutations from classify_gaps before the
+            # handler returns — otherwise the scheduler's outer session.commit()
+            # would persist a half-classified batch. discover_gaps already
+            # committed its inserts internally, so `discovered` stays accurate.
+            if self.session is not None:
+                self.session.rollback()
             logger.exception(
                 "gardener: gap pipeline failed after discovering %d gaps",
                 discovered,

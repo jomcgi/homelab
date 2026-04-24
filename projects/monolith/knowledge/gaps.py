@@ -190,7 +190,7 @@ def list_review_queue(session: Session) -> list[dict]:
             select(Gap)
             .where(Gap.state == "in_review")
             .where(Gap.gap_class.in_(("internal", "hybrid")))
-            .order_by(Gap.created_at.asc())
+            .order_by(Gap.created_at.asc(), Gap.id.asc())
         )
         .scalars()
         .all()
