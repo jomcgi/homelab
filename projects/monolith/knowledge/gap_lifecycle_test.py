@@ -156,19 +156,32 @@ def test_discover_gaps_captures_source_title_as_context(session):
 # ---------------------------------------------------------------------------
 
 
-def test_classify_gaps_default_is_internal_in_review(session):
+def test_classify_gaps_without_classifier_is_noop(session, caplog):
+    """No classifier wired → gaps stay at discovered, warning logged.
+
+    Routing unclassified gaps to internal would conflate classifier absence
+    with classifier uncertainty. The review queue must only populate once
+    a real classifier lands (Task 3).
+    """
     src = _make_note(session, "s", title="S")
     _add_body_link(session, src_fk=src.id, target_id="t1")
     _add_body_link(session, src_fk=src.id, target_id="t2")
     discover_gaps(session)
 
-    classified = classify_gaps(session)  # classifier=None → internal
+    with caplog.at_level(logging.WARNING, logger="knowledge.gaps"):
+        classified = classify_gaps(session)  # no classifier wired
 
-    assert classified == 2
+    assert classified == 0
     for gap in session.execute(select(Gap)).scalars().all():
-        assert gap.gap_class == "internal"
-        assert gap.state == "in_review"
-        assert gap.classified_at is not None
+        assert gap.gap_class is None
+        assert gap.state == "discovered"
+        assert gap.classified_at is None
+
+    assert any(
+        "2 gaps awaiting classification but no classifier is wired"
+        in record.getMessage()
+        for record in caplog.records
+    )
 
 
 def test_classify_gaps_routes_by_class(session):
@@ -204,9 +217,12 @@ def test_classify_gaps_skips_already_classified(session):
     _add_body_link(session, src_fk=src.id, target_id="x")
     discover_gaps(session)
 
-    assert classify_gaps(session) == 1
+    def classifier(_term: str, _context: str) -> str:
+        return "internal"
+
+    assert classify_gaps(session, classifier=classifier) == 1
     # Second call finds nothing in state='discovered'.
-    assert classify_gaps(session) == 0
+    assert classify_gaps(session, classifier=classifier) == 0
 
 
 # ---------------------------------------------------------------------------

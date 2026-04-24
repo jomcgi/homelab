@@ -16,8 +16,11 @@ module (``store.py``, ``gardener.py``).
 Design notes:
     * ``classifier`` is an injected callable — the real Claude-backed
       classifier is wired in separately (Task 3). Leaving it ``None`` is
-      the privacy-conservative fallback: everything routes to ``internal``
-      so the user reviews it, nothing escapes to the web.
+      a no-op: gaps stay at ``state='discovered'`` until a real classifier
+      lands. The "privacy-conservative default" in the design doc is about
+      classifier output under uncertainty — not the absence of a
+      classifier. Local inference has zero privacy cost; only external
+      research does.
     * Consolidation never mutates committed atoms — ``answer_gap``
       creates a brand-new file and leaves the rest of the vault alone.
     * We deliberately do *not* reconcile the new file into the DB here;
@@ -33,6 +36,7 @@ from pathlib import Path
 from typing import Callable
 
 import yaml
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from knowledge.gardener import _slugify
@@ -54,7 +58,9 @@ def split_csv(value: str | None) -> list[str] | None:
     return parts or None
 
 
-# Privacy-conservative default: uncertain → internal (route to user, not web).
+# Privacy-conservative fallback used only when a real classifier returns an
+# invalid class — route uncertain output to the user (internal), not the web.
+# This is NOT used when classifier is absent (that path is a no-op).
 _DEFAULT_GAP_CLASS = "internal"
 
 # Classes that are ready for user review after classification.
@@ -131,35 +137,49 @@ def classify_gaps(
     """Classify every ``state='discovered'`` gap.
 
     ``classifier`` receives ``(term, context)`` and returns one of
-    ``external``, ``internal``, ``hybrid``, ``parked``. When ``None``,
-    every gap is routed to ``internal`` — the privacy-conservative
-    fallback that keeps the first slice working without any model wired
-    in (Task 3 injects the real classifier).
+    ``external``, ``internal``, ``hybrid``, ``parked``. If the classifier
+    returns an invalid value, falls back to ``internal``
+    (privacy-conservative under classifier uncertainty).
 
-    State transitions:
+    When ``classifier`` is ``None``, this is a no-op: gaps stay at
+    ``state='discovered'`` because no classifier is wired in yet. A
+    warning is logged when pending gaps exist so the absence is visible.
+    The review queue only populates once a real classifier lands (Task 3).
+
+    State transitions (real-classifier path):
         * ``internal`` / ``hybrid`` → ``in_review`` (ready for user)
         * ``external`` → ``classified`` (research pipeline deferred)
         * ``parked`` → ``classified`` (queryable, not budget-consuming)
 
-    Returns the number of gaps classified.
+    Returns the number of gaps classified. When ``classifier`` is ``None``,
+    returns 0.
     """
+    if classifier is None:
+        pending = session.execute(
+            select(func.count()).select_from(Gap).where(Gap.state == "discovered")
+        ).scalar_one()
+        if pending:
+            logger.warning(
+                "gaps.classify_gaps: %d gaps awaiting classification but no "
+                "classifier is wired; leaving them at state='discovered'",
+                pending,
+            )
+        return 0
+
     rows = session.execute(select(Gap).where(Gap.state == "discovered")).scalars().all()
 
     classified = 0
     now = datetime.now(timezone.utc)
     for gap in rows:
-        if classifier is None:
+        gap_class = classifier(gap.term, gap.context)
+        if gap_class not in _VALID_GAP_CLASSES:
+            logger.warning(
+                "gaps.classify_gaps: classifier returned invalid class %r "
+                "for gap id=%d; defaulting to internal (privacy-conservative)",
+                gap_class,
+                gap.id,
+            )
             gap_class = _DEFAULT_GAP_CLASS
-        else:
-            gap_class = classifier(gap.term, gap.context)
-            if gap_class not in _VALID_GAP_CLASSES:
-                logger.warning(
-                    "gaps.classify_gaps: classifier returned invalid class %r "
-                    "for gap id=%d; defaulting to internal (privacy-conservative)",
-                    gap_class,
-                    gap.id,
-                )
-                gap_class = _DEFAULT_GAP_CLASS
 
         gap.gap_class = gap_class
         gap.classified_at = now
@@ -176,9 +196,8 @@ def classify_gaps(
         # progress on crash.
         session.commit()
         logger.info(
-            "gaps.classify_gaps: classified %d gaps (classifier=%s)",
+            "gaps.classify_gaps: classified %d gaps",
             classified,
-            "default-internal" if classifier is None else "custom",
         )
     return classified
 
