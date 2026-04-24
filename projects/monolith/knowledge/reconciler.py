@@ -7,19 +7,38 @@ import logging
 import re
 import unicodedata
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
 from sqlalchemy import text
+from sqlmodel import Session, select
 
 from knowledge import frontmatter, links, wikilinks
-from knowledge.frontmatter import FrontmatterError
+from knowledge.frontmatter import FrontmatterError, ParsedFrontmatter
+from knowledge.models import Gap
 from knowledge.store import KnowledgeStore
 from shared.chunker import chunk_markdown
 
 logger = logging.getLogger("monolith.knowledge.reconciler")
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+# Mirror of the CHECK constraints in chart/migrations/20260424000000_knowledge_gaps.sql
+# (gap_class) and models.GapClass / GapState literals — keep in sync.
+_VALID_GAP_CLASSES = frozenset({"external", "internal", "hybrid", "parked"})
+_VALID_GAP_STATES = frozenset(
+    {
+        "discovered",
+        "classified",
+        "in_review",
+        "researched",
+        "verified",
+        "consolidated",
+        "committed",
+        "rejected",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -64,6 +83,11 @@ class Reconciler:
         self.embed_client = embed_client
         self.vault_root = Path(vault_root)
         self.processed_root = self.vault_root / "_processed"
+        # _researching/ holds gap stubs (type: gap). The reconciler indexes
+        # them so the graph has queryable Note rows, but they are not
+        # chunked or embedded — they're pipeline state, not retrieval
+        # targets. See Task 5 of the gap-classifier-stub-notes design.
+        self.researching_root = self.vault_root / "_researching"
 
     async def run(self) -> ReconcileStats:
         """Reconcile the vault. Returns a ReconcileStats breakdown."""
@@ -164,27 +188,32 @@ class Reconciler:
         return stats
 
     def _walk(self, *, previous_indexed: dict[str, str]) -> dict[str, str]:
-        if not self.processed_root.exists():
-            return {}
         out: dict[str, str] = {}
-        for p in self.processed_root.rglob("*.md"):
-            rel = p.relative_to(self.vault_root).as_posix()
-            try:
-                data = p.read_bytes()
-            except FileNotFoundError:
-                # Genuine race with unlink — let the delete loop handle it
-                # on the next cycle (or this cycle, if get_indexed still
-                # lists it).
+        # Scan _processed/ (atoms, tasks, etc.) AND _researching/ (gap
+        # stubs) — both contribute to the graph. Stubs are handled
+        # specially in _ingest_one (no chunk/embed) but still need Note
+        # rows so the gaps table can project their frontmatter.
+        for root in (self.processed_root, self.researching_root):
+            if not root.exists():
                 continue
-            except (PermissionError, OSError):
-                # Transient read error: carry forward the previous hash so
-                # the file stays in the snapshot under its old hash and is
-                # neither marked for delete nor for re-ingestion.
-                logger.warning("knowledge: skipping unreadable file %s", rel)
-                if rel in previous_indexed:
-                    out[rel] = previous_indexed[rel]
-                continue
-            out[rel] = hashlib.sha256(data).hexdigest()
+            for p in root.rglob("*.md"):
+                rel = p.relative_to(self.vault_root).as_posix()
+                try:
+                    data = p.read_bytes()
+                except FileNotFoundError:
+                    # Genuine race with unlink — let the delete loop handle it
+                    # on the next cycle (or this cycle, if get_indexed still
+                    # lists it).
+                    continue
+                except (PermissionError, OSError):
+                    # Transient read error: carry forward the previous hash so
+                    # the file stays in the snapshot under its old hash and is
+                    # neither marked for delete nor for re-ingestion.
+                    logger.warning("knowledge: skipping unreadable file %s", rel)
+                    if rel in previous_indexed:
+                        out[rel] = previous_indexed[rel]
+                    continue
+                out[rel] = hashlib.sha256(data).hexdigest()
         return out
 
     def _read_text(self, abs_path: Path) -> str:
@@ -234,6 +263,26 @@ class Reconciler:
                     f"vault is read-only and {rel_path} has no frontmatter id;"
                     " refusing to ingest with ephemeral id"
                 ) from exc
+
+        # Gap stubs are pipeline state, not retrieval targets. Upsert the
+        # Note row (so the graph has a queryable entity) with no chunks,
+        # no links, no embeddings, then project the stub's frontmatter
+        # into the corresponding Gap row. The ## Links section is also
+        # skipped — `type: gap` would otherwise render a spurious
+        # `Up: [[gap]]` link and mutate the stub on every cycle.
+        if meta.type == "gap":
+            self.store.upsert_note(
+                note_id=note_id,
+                path=rel_path,
+                content_hash=content_hash,
+                title=title,
+                metadata=meta,
+                chunks=[],
+                vectors=[],
+                links=[],
+            )
+            _project_gap_frontmatter(self.store.session, note_id, meta)
+            return True
 
         # Sync ## Links section from frontmatter edges (template or update).
         # Strip the generated section from body for chunking/link extraction —
@@ -326,3 +375,92 @@ def _slugify(text_in: str) -> str:
     ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
     slug = _SLUG_RE.sub("-", ascii_only.lower()).strip("-")
     return slug or "note"
+
+
+def _parse_iso8601(value: str) -> datetime | None:
+    """Parse ISO 8601 timestamps accepting both the 'Z' suffix and +00:00 form.
+
+    ``datetime.fromisoformat`` only started recognising the 'Z' suffix in
+    Python 3.11. We normalise 'Z' → '+00:00' for portability across 3.10
+    runtimes (BuildBuddy/CI images) and to make the parser tolerant of
+    the canonical Zulu output emitted by the stub writer (Task 4).
+    """
+    try:
+        normalized = value.replace("Z", "+00:00") if value.endswith("Z") else value
+        return datetime.fromisoformat(normalized)
+    except (ValueError, AttributeError):
+        return None
+
+
+def _project_gap_frontmatter(
+    session: Session, note_id: str, meta: ParsedFrontmatter
+) -> None:
+    """Project a type:gap stub's frontmatter into its Gap row.
+
+    Matches the stub to its Gap row by ``note_id`` (string identity — same
+    pattern as ``AtomRawProvenance.derived_note_id``). Only writes when a
+    value actually changed to avoid gratuitous updates that would churn
+    ``updated_at`` fields on downstream consumers.
+
+    Invalid ``gap_class`` / ``state`` values are logged at WARNING and
+    skipped so the Gap row stays at its previous state and the next
+    classifier tick can retry. This mirrors ``classify_gaps``' defensive
+    validation — never let malformed frontmatter corrupt the DB.
+    """
+    gap = session.execute(
+        select(Gap).where(Gap.note_id == note_id)
+    ).scalar_one_or_none()
+    if gap is None:
+        # Stub without a Gap row — discover_gaps will insert one later.
+        return
+
+    extra = meta.extra or {}
+    gap_class = extra.get("gap_class")
+    # `status` is a promoted top-level frontmatter key (see
+    # frontmatter._PROMOTED_KEYS) so it lands on `meta.status`, not in
+    # `meta.extra`. Fall back to the row's current state when the stub
+    # omits it entirely.
+    status = meta.status if meta.status is not None else gap.state
+    classifier_version = extra.get("classifier_version")
+    classified_at = extra.get("classified_at")
+    resolved_at = extra.get("resolved_at")
+
+    if gap_class is not None and gap_class not in _VALID_GAP_CLASSES:
+        logger.warning(
+            "reconciler: stub %s has invalid gap_class=%r; skipping projection",
+            note_id,
+            gap_class,
+        )
+        return
+    if status not in _VALID_GAP_STATES:
+        logger.warning(
+            "reconciler: stub %s has invalid status=%r; skipping projection",
+            note_id,
+            status,
+        )
+        return
+
+    changed = False
+    if gap_class is not None and gap.gap_class != gap_class:
+        gap.gap_class = gap_class
+        changed = True
+    if gap.state != status:
+        gap.state = status
+        changed = True
+    if classifier_version and gap.pipeline_version != classifier_version:
+        gap.pipeline_version = classifier_version
+        changed = True
+    if classified_at:
+        parsed = _parse_iso8601(classified_at)
+        if parsed and gap.classified_at != parsed:
+            gap.classified_at = parsed
+            changed = True
+    if resolved_at:
+        parsed = _parse_iso8601(resolved_at)
+        if parsed and gap.resolved_at != parsed:
+            gap.resolved_at = parsed
+            changed = True
+
+    if changed:
+        session.add(gap)
+        session.commit()

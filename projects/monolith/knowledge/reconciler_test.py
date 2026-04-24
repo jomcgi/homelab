@@ -1,5 +1,6 @@
 """Tests for the vault reconciler."""
 
+import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -7,7 +8,8 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
-from knowledge.models import Chunk, Note, NoteLink
+from knowledge.gap_stubs import RESEARCHING_DIR, write_stub
+from knowledge.models import Chunk, Gap, Note, NoteLink
 from knowledge.reconciler import Reconciler, ReconcileStats, _slugify
 
 
@@ -495,6 +497,141 @@ class TestWriteBackIdNoFrontmatter:
         # Confirm the backfilled id was written to disk.
         written = (tmp_path / "_processed" / "bare.md").read_text()
         assert "id: bare" in written
+
+
+class TestReconcilerGapStubs:
+    """type: gap stubs in _researching/ are upserted as Note rows but NOT
+    chunked or embedded, and their frontmatter is projected into the
+    corresponding Gap row."""
+
+    @staticmethod
+    def _write_stub_raw(tmp_path: Path, note_id: str, frontmatter: str) -> Path:
+        """Write a stub with arbitrary frontmatter. Bypasses write_stub's
+        idempotent branch so tests can simulate classifier edits."""
+        stub_dir = tmp_path / RESEARCHING_DIR
+        stub_dir.mkdir(parents=True, exist_ok=True)
+        stub = stub_dir / f"{note_id}.md"
+        stub.write_text(f"---\n{frontmatter}---\n\n")
+        return stub
+
+    @pytest.mark.asyncio
+    async def test_reconciler_skips_chunking_for_gap_type(
+        self, reconciler, session, embed_client, tmp_path
+    ):
+        """A note with type='gap' is upserted but not chunked or embedded."""
+        write_stub(
+            vault_root=tmp_path,
+            note_id="foo",
+            title="foo",
+            referenced_by=["source-a"],
+            discovered_at="2026-04-25T08:00:00Z",
+        )
+
+        result = await reconciler.run()
+
+        # The stub is upserted — the graph gets a queryable Note row.
+        assert result.upserted == 1
+        note = session.scalars(select(Note).where(Note.note_id == "foo")).one()
+        assert note.type == "gap"
+        assert note.path == "_researching/foo.md"
+
+        # But no chunks, no embeddings, no link rows. Stubs are pipeline
+        # state, not retrieval targets — chunking + embedding them would
+        # pollute semantic-search results with dozens of low-signal stubs.
+        assert list(session.scalars(select(Chunk))) == []
+        assert list(session.scalars(select(NoteLink))) == []
+        embed_client.embed_batch.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reconciler_projects_gap_class_into_db(
+        self, reconciler, session, tmp_path
+    ):
+        """Reconciler reads gap_class + status from stub frontmatter and
+        writes them to the corresponding Gap row."""
+        # Seed: Gap row matching the stub by note_id.
+        from knowledge.gaps import GAPS_PIPELINE_VERSION
+
+        gap = Gap(
+            term="foo",
+            context="Source A",
+            note_id="foo",
+            pipeline_version=GAPS_PIPELINE_VERSION,
+            state="discovered",
+        )
+        session.add(gap)
+        session.commit()
+
+        # Simulate the classifier having edited the stub frontmatter.
+        self._write_stub_raw(
+            tmp_path,
+            "foo",
+            (
+                "id: foo\n"
+                "title: foo\n"
+                "type: gap\n"
+                "status: classified\n"
+                "gap_class: internal\n"
+                "referenced_by:\n"
+                "  - source-a\n"
+                'discovered_at: "2026-04-25T08:00:00Z"\n'
+                'classified_at: "2026-04-25T08:05:00Z"\n'
+                'classifier_version: "opus-4-7@v1"\n'
+            ),
+        )
+
+        await reconciler.run()
+
+        session.refresh(gap)
+        assert gap.gap_class == "internal"
+        assert gap.state == "classified"
+        assert gap.pipeline_version == "opus-4-7@v1"
+        assert gap.classified_at is not None
+        assert gap.classified_at.year == 2026
+        assert gap.classified_at.month == 4
+        assert gap.classified_at.day == 25
+
+    @pytest.mark.asyncio
+    async def test_reconciler_ignores_invalid_gap_class(
+        self, reconciler, session, caplog, tmp_path
+    ):
+        """Malformed gap_class doesn't corrupt the DB; a warning is logged."""
+        from knowledge.gaps import GAPS_PIPELINE_VERSION
+
+        gap = Gap(
+            term="foo",
+            context="Source A",
+            note_id="foo",
+            pipeline_version=GAPS_PIPELINE_VERSION,
+            state="discovered",
+        )
+        session.add(gap)
+        session.commit()
+
+        self._write_stub_raw(
+            tmp_path,
+            "foo",
+            (
+                "id: foo\n"
+                "title: foo\n"
+                "type: gap\n"
+                "status: discovered\n"
+                "gap_class: bogus\n"
+                "referenced_by:\n"
+                "  - source-a\n"
+                'discovered_at: "2026-04-25T08:00:00Z"\n'
+            ),
+        )
+
+        with caplog.at_level(logging.WARNING, logger="monolith.knowledge.reconciler"):
+            await reconciler.run()
+
+        # Gap row untouched — classifier retries on the next tick.
+        session.refresh(gap)
+        assert gap.gap_class is None
+        assert gap.state == "discovered"
+        assert any(
+            "invalid gap_class" in record.getMessage() for record in caplog.records
+        )
 
 
 class TestReconcilerWikilinks:
