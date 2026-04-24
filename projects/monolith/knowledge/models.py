@@ -8,7 +8,7 @@ NoteId = NewType("NoteId", str)
 
 from pgvector.sqlalchemy import Vector
 from pydantic import field_validator
-from sqlalchemy import JSON, Column, String
+from sqlalchemy import JSON, Column, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
@@ -24,6 +24,22 @@ EdgeType = Literal[
     "supersedes",
 ]
 LinkKind = Literal["link", "edge"]
+
+# Mirror of the CHECK constraint in
+# chart/migrations/20260424000000_knowledge_gaps.sql - keep in sync.
+GapClass = Literal["external", "internal", "hybrid", "parked"]
+# Mirror of the CHECK constraint in
+# chart/migrations/20260424000000_knowledge_gaps.sql - keep in sync.
+GapState = Literal[
+    "discovered",
+    "classified",
+    "in_review",
+    "researched",
+    "verified",
+    "consolidated",
+    "committed",
+    "rejected",
+]
 
 # Postgres uses native TEXT[] for tags/aliases; SQLite falls back to JSON
 # so the in-memory test fixture can create the tables.
@@ -145,3 +161,39 @@ class AtomRawProvenance(SQLModel, table=True):
                 "AtomRawProvenance requires at least one of atom_fk or raw_fk"
             )
         super().__init__(**data)
+
+
+class Gap(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factory
+    """A knowledge gap: an unresolved [[wikilink]] promoted to a trackable work item.
+
+    Gaps are surfaced when a wikilink's target is missing from the notes graph.
+    Each gap carries a class (external/internal/hybrid/parked) and advances
+    through a state machine: discovered → classified → in_review → researched →
+    verified → consolidated → committed (or rejected).
+
+    Mirrors chart/migrations/20260424000000_knowledge_gaps.sql — keep in sync.
+    """
+
+    __tablename__ = "gaps"
+    __table_args__ = (
+        UniqueConstraint("term", "source_note_fk"),
+        {"schema": "knowledge", "extend_existing": True},
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    term: str = Field(sa_column=Column(String, nullable=False))
+    context: str = Field(default="", sa_column=Column(String, nullable=False))
+    source_note_fk: int | None = Field(default=None, foreign_key="knowledge.notes.id")
+    # GapClass / GapState are Literals for static analysis. At the SQL level
+    # they're plain TEXT, matching the migration's CHECK constraints.
+    gap_class: GapClass | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
+    state: GapState = Field(
+        default="discovered", sa_column=Column(String, nullable=False)
+    )
+    answer: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    classified_at: datetime | None = None
+    resolved_at: datetime | None = None
+    pipeline_version: str = Field(sa_column=Column(String, nullable=False))
