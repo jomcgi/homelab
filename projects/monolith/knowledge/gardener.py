@@ -176,10 +176,6 @@ class Gardener:
         self.session = session
         self._last_stdout: bytes = b""
         self.processed_root = self.vault_root / "_processed"
-        # One-shot per process: the gardener cleans duplicate-key frontmatter
-        # in _researching/ stubs on the first run() call. Set unconditionally
-        # after the first attempt — we don't retry on every cycle.
-        self._frontmatter_deduped: bool = False
 
     def _resolve_pending_provenance(self) -> int:
         """Upgrade pending provenance rows by resolving derived_note_id to atom_fk."""
@@ -279,21 +275,25 @@ class Gardener:
         """Run one gardening cycle: resolve pending → move → reconcile → decompose."""
         from knowledge.raw_ingest import move_phase, reconcile_raw_phase
 
-        if not self._frontmatter_deduped:
-            try:
-                from knowledge.gap_stubs import dedupe_stub_frontmatter
+        # Run every cycle: the Gardener instance is reconstructed per scheduled
+        # tick (see service.py garden_handler), so an instance flag would have
+        # no effect. Bounded cost on healthy vaults — the helper's
+        # byte-comparison idempotency short-circuits when nothing changed, so
+        # clean stubs aren't rewritten and mtimes are preserved. Wide
+        # try/except so this backfill cannot break a gardening cycle.
+        try:
+            from knowledge.gap_stubs import dedupe_stub_frontmatter
 
-                cleaned = dedupe_stub_frontmatter(self.vault_root)
-                if cleaned:
-                    logger.info(
-                        "knowledge.garden: deduped %d stub frontmatters at startup",
-                        cleaned,
-                    )
-            except Exception:
-                logger.exception(
-                    "knowledge.garden: stub frontmatter dedup failed (non-fatal)"
+            cleaned = dedupe_stub_frontmatter(self.vault_root)
+            if cleaned:
+                logger.info(
+                    "knowledge.garden: deduped %d stub frontmatters",
+                    cleaned,
                 )
-            self._frontmatter_deduped = True
+        except Exception:
+            logger.exception(
+                "knowledge.garden: stub frontmatter dedup failed (non-fatal)"
+            )
 
         resolved_count = self._resolve_pending_provenance()
         if resolved_count and self.session is not None:

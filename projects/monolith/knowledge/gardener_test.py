@@ -1236,19 +1236,26 @@ class TestRecordFailedProvenance:
         assert rows[0].gardener_version == GARDENER_VERSION
 
 
-class TestGardenerDedupesFrontmatterOnStartup:
-    """The gardener cleans duplicate-key stub frontmatter once per process.
+class TestGardenerDedupesFrontmatterEachCycle:
+    """The gardener cleans duplicate-key stub frontmatter on every cycle.
 
     Production accumulated ~600 stubs with duplicate ``status:`` lines because
     Claude's classifier ``Edit`` invocations appended new keys instead of
-    replacing existing ones. The gardener runs ``dedupe_stub_frontmatter`` on
-    its first ``run()`` call to clean the backlog; subsequent runs skip it via
-    the ``_frontmatter_deduped`` flag so we don't churn mtimes every cycle.
+    replacing existing ones. The gardener runs ``dedupe_stub_frontmatter`` at
+    the top of every ``run()`` cycle. Per-cycle execution is cheap because the
+    helper's byte-comparison idempotency short-circuits on already-clean
+    stubs — no rewrites, no mtime churn. Self-healing if duplicates ever
+    re-emerge.
     """
 
     @pytest.mark.asyncio
-    async def test_dedupes_on_first_run_and_skips_on_second(self, tmp_path, session):
-        """First run() cleans the stub; second run() leaves the file untouched."""
+    async def test_dedupes_on_first_run_and_is_no_op_on_second(self, tmp_path, session):
+        """First run() cleans the stub; second run() leaves the file untouched.
+
+        The second-run no-op comes from the helper's byte-comparison
+        idempotency, not from any instance flag — the Gardener is
+        reconstructed per scheduled tick, so flags wouldn't survive anyway.
+        """
         stub_dir = tmp_path / "_researching"
         stub_dir.mkdir()
         bad_stub = stub_dir / "x.md"
@@ -1262,8 +1269,7 @@ class TestGardenerDedupesFrontmatterOnStartup:
         text = bad_stub.read_text()
         assert text.count("status:") == 1, "first run cleans the stub"
 
-        # Second run is a no-op (idempotent — flag prevents re-running, and even
-        # if the helper ran again the byte-comparison would skip the rewrite).
+        # Second run is a no-op via byte-comparison idempotency in the helper.
         mtime = bad_stub.stat().st_mtime_ns
         await gardener.run()
         assert bad_stub.stat().st_mtime_ns == mtime, (
