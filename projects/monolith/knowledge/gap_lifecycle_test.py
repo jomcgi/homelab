@@ -213,6 +213,60 @@ def test_discover_gaps_heals_missing_stub(session, tmp_path):
     assert stub.is_file()
 
 
+def test_discover_gaps_backfills_existing_rows_with_no_stubs(session, tmp_path):
+    """Simulates the post-migration scenario: Gap rows exist with note_id=NULL
+    and no stub files. discover_gaps should set note_id on each row AND write
+    matching stubs on the next run.
+
+    Covers the 1793-row backfill that runs on first gardener cycle after the
+    Task 1 migration lands in prod.
+    """
+    # Seed a source note that all the orphaned Gap rows will reference.
+    source = _make_note(session, "source", title="Source Note")
+
+    # Seed 5 Gap rows directly — simulating the post-migration state:
+    # note_id=NULL and no stub files. These rows exist from PR #2193 before
+    # the Task 1 migration added the note_id column.
+    terms = ["foo", "bar", "baz", "qux", "zap"]
+    session.add_all(
+        [
+            Gap(
+                term=term,
+                context="Source Note",
+                source_note_fk=source.id,
+                pipeline_version=GAPS_PIPELINE_VERSION,
+                state="discovered",
+            )
+            for term in terms
+        ]
+    )
+    session.commit()
+
+    # Also seed a NoteLink pointing at each term, so discover_gaps can see the
+    # wikilinks and trigger the heal path.
+    for term in terms:
+        _add_body_link(session, src_fk=source.id, target_id=term)
+
+    # Pre-conditions: no note_id, no stubs
+    gaps_before = session.execute(select(Gap)).scalars().all()
+    assert all(g.note_id is None for g in gaps_before)
+    for term in terms:
+        stub = tmp_path / RESEARCHING_DIR / f"{term}.md"
+        assert not stub.exists()
+
+    # Run discover_gaps — this is what the gardener's next cycle would do
+    discover_gaps(session, tmp_path)
+
+    # Post-conditions: each Gap row has note_id set, each stub exists
+    gaps_after = session.execute(select(Gap)).scalars().all()
+    assert len(gaps_after) == len(terms), "no duplicate rows inserted"
+    for gap in gaps_after:
+        assert gap.note_id is not None, f"note_id still NULL for {gap.term}"
+        assert gap.note_id == gap.term, f"slug mismatch: {gap.note_id} vs {gap.term}"
+        stub = tmp_path / RESEARCHING_DIR / f"{gap.note_id}.md"
+        assert stub.is_file(), f"stub missing for {gap.term}"
+
+
 def test_discover_gaps_heals_missing_row(session, tmp_path):
     """If a stub exists without a Gap row (edge case), discover_gaps inserts the row
     WITHOUT overwriting the stub — classifier edits survive re-discovery."""
