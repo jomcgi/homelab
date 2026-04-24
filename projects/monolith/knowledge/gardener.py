@@ -20,7 +20,7 @@ from knowledge.models import AtomRawProvenance, Note, RawInput
 
 logger = logging.getLogger("monolith.knowledge.gardener")
 
-_EXCLUDED_DIRS = {"_processed", "_raw", ".obsidian", ".trash"}
+_EXCLUDED_DIRS = {"_processed", "_raw", "_researching", ".obsidian", ".trash"}
 
 # Version stamp recorded on every provenance row the gardener produces.
 # Bump this when the prompt or model changes to trigger a manual reprocess.
