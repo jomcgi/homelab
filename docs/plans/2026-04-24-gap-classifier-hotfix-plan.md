@@ -17,11 +17,22 @@
 ## Repo conventions every implementer must respect
 
 - **Commit messages:** Conventional Commits (`fix:`, `feat:`, `chore:`, `test:`, `refactor:`). A `commit-msg` hook enforces this.
-- **Tests run remotely:** never run `pytest` locally. Use `bb remote test //projects/monolith:<target> --config=ci`. Cross-arch: add `--os=linux --arch=amd64` only if darwin runners are unavailable.
+- **Do NOT run tests locally.** No `pytest`, no `bb remote test`, no `bazel test`. The BuildBuddy `workflows` pool has no darwin runners and the linux fallback is too unreliable for an inner loop. **Implement, format, commit. The CI run on push verifies.** TDD discipline still applies (write failing test first, then implementation), but verification of red→green happens at end-of-plan when CI runs on the pushed branch. If you're tempted to "just check one thing locally," resist — the cost is a flaky multi-minute roundtrip with opaque exit codes.
 - **Format before commit:** run `format` (vendored shell alias) once after Python changes — it runs ruff + gazelle and may touch BUILD files. If `format` is not on PATH, fall back to `bazel/tools/format/fast-format.sh` from the repo root. Stash unrelated noise (`git stash push -u`) before committing your task — only commit files relevant to the task.
 - **Atlas checksum:** the `Update Atlas migration checksums` pre-commit hook updates `chart/migrations/atlas.sum` automatically when you stage a new SQL migration. Don't compute the hash by hand.
 - **Worktree boundary:** every change must land in `/tmp/claude-worktrees/gap-classifier-hotfix`. Never commit to `~/repos/homelab` directly.
 - **PR #2194 context:** chart `0.53.8` is the deployed version. This hotfix bumps to `0.53.9`.
+
+## Verification model
+
+Each task ships with TDD-shaped instructions (write test first, then implementation), but the **only place tests actually execute is BuildBuddy CI** after the branch is pushed. Implementer subagents:
+
+1. Write the failing test as specified.
+2. Write the implementation as specified.
+3. Format + commit.
+4. **Do not** invoke `bb remote test` / `bazel test` / `pytest`. The "Step N: Run test to verify it fails/passes" lines below are _intent_ statements — verification is deferred to CI.
+
+Spec and code-quality reviewers review the diff against the spec; they do not run tests either. After all 7 tasks land, a final task pushes the branch, opens the PR, and monitors the CI run for the actual red/green signal.
 
 ---
 
@@ -1039,24 +1050,26 @@ git commit -m "chore(monolith): bump chart version to 0.53.9"
 
 After all 7 tasks land:
 
-**Step 1: Run the full monolith suite.**
-
-```bash
-bb remote test //projects/monolith/... --config=ci
-```
-
-Expected: 100% PASS.
-
-**Step 2: Inspect the branch.**
+**Step 1: Inspect the branch shape.**
 
 ```bash
 git log --oneline main..HEAD
 git diff main..HEAD --stat
 ```
 
-Expected: 7 commits, all conventional-commit prefixed, files match each task's scope.
+Expected: 7 commits (or 8 if a CLAUDE.md / memory update committed alongside), all conventional-commit prefixed, files match each task's scope.
 
-**Step 3: Hand off to `superpowers:finishing-a-development-branch` for the PR flow.**
+**Step 2: Push the branch and open the PR. CI runs the full test suite on the push.**
+
+Hand off to `superpowers:finishing-a-development-branch` for the push + PR creation flow. After the PR exists, monitor the CI run:
+
+```bash
+gh pr checks <pr-number> --watch
+# or, for the BuildBuddy invocation directly:
+bb view $(gh pr checks <pr-number> --json name,link --jq '.[] | select(.name|test("buildbuddy|test")) | .link' | head -1)
+```
+
+**Step 3: Iterate on CI failures by reading the BuildBuddy run output (`bb view <invocation>` / `bb ask`) and pushing fixes.** Don't try to short-circuit with `bb remote test` from your workstation — the pool's darwin runners aren't provisioned and the linux fallback is too flaky for the inner loop.
 
 The PR body must call out:
 
