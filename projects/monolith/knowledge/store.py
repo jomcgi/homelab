@@ -11,7 +11,7 @@ from sqlmodel import Session, delete, select
 
 from knowledge.frontmatter import ParsedFrontmatter
 from knowledge.links import Link
-from knowledge.models import Chunk, Note, NoteLink
+from knowledge.models import Chunk, Gap, Note, NoteLink
 from shared.chunker import Chunk as ChunkPayload
 
 logger = logging.getLogger(__name__)
@@ -541,3 +541,54 @@ class KnowledgeStore:
         note.extra = extra
         flag_modified(note, "extra")
         self.session.commit()
+
+    def list_gaps(
+        self,
+        *,
+        states: list[str] | None = None,
+        classes: list[str] | None = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        """List gaps with optional state/class filters, most recent first."""
+        stmt = select(Gap).order_by(Gap.created_at.desc()).limit(limit)
+        if states:
+            stmt = stmt.where(Gap.state.in_(states))
+        if classes:
+            stmt = stmt.where(Gap.gap_class.in_(classes))
+
+        rows = self.session.execute(stmt).scalars().all()
+        return [
+            {
+                "id": gap.id,
+                "term": gap.term,
+                "context": gap.context,
+                "source_note_fk": gap.source_note_fk,
+                "gap_class": gap.gap_class,
+                "state": gap.state,
+                "answer": gap.answer,
+                "created_at": gap.created_at,
+                "classified_at": gap.classified_at,
+                "resolved_at": gap.resolved_at,
+                "pipeline_version": gap.pipeline_version,
+            }
+            for gap in rows
+        ]
+
+    def get_gap_by_id(self, gap_id: int) -> dict | None:
+        """Fetch a single gap by id, or None if no gap matches."""
+        gap = self.session.get(Gap, gap_id)
+        if gap is None:
+            return None
+        return {
+            "id": gap.id,
+            "term": gap.term,
+            "context": gap.context,
+            "source_note_fk": gap.source_note_fk,
+            "gap_class": gap.gap_class,
+            "state": gap.state,
+            "answer": gap.answer,
+            "created_at": gap.created_at,
+            "classified_at": gap.classified_at,
+            "resolved_at": gap.resolved_at,
+            "pipeline_version": gap.pipeline_version,
+        }
