@@ -554,3 +554,167 @@ class TestHasChanges:
         ) as mock_status:
             service._has_changes(tmp_path)
         mock_status.assert_called_once_with(str(tmp_path))
+
+
+class TestClassifyGapsHandler:
+    """knowledge.classify-gaps scheduled job — globs _researching for stubs
+    with gap_class unset, batches them, and hands off to classify_stubs.
+    """
+
+    @pytest.fixture(name="session")
+    def session_fixture(self):
+        """In-memory SQLite session with schema stripped (SQLite has no schemas)."""
+        from shared.scheduler import _registry
+        from sqlmodel import Session, SQLModel, create_engine
+        from sqlmodel.pool import StaticPool
+
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        original_schemas = {}
+        for table in SQLModel.metadata.tables.values():
+            if table.schema is not None:
+                original_schemas[table.name] = table.schema
+                table.schema = None
+        try:
+            SQLModel.metadata.create_all(engine)
+            _registry.clear()
+            with Session(engine) as db:
+                yield db
+            _registry.clear()
+        finally:
+            for table in SQLModel.metadata.tables.values():
+                if table.name in original_schemas:
+                    table.schema = original_schemas[table.name]
+
+    def test_on_startup_registers_classify_gaps_job(self, session):
+        """Startup registers knowledge.classify-gaps with a 1-minute tick."""
+        from knowledge.service import on_startup
+        from shared.scheduler import ScheduledJob
+        from sqlmodel import select
+
+        on_startup(session)
+
+        job = session.execute(
+            select(ScheduledJob).where(ScheduledJob.name == "knowledge.classify-gaps")
+        ).scalar_one()
+        assert job.interval_secs == 60
+        assert job.ttl_secs == 180
+
+    @pytest.mark.asyncio
+    async def test_classify_gaps_handler_skips_when_no_token(
+        self, session, monkeypatch, tmp_path, caplog
+    ):
+        """No CLAUDE_CODE_OAUTH_TOKEN -> logs warning, returns None without scanning."""
+        from knowledge.service import classify_gaps_handler
+
+        monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        # Simulate vault sync ready by creating the sentinel
+        (tmp_path / ".sync-ready").touch()
+
+        with caplog.at_level(logging.WARNING, logger="knowledge.service"):
+            result = await classify_gaps_handler(session)
+
+        assert result is None
+        assert "CLAUDE_CODE_OAUTH_TOKEN not set" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_classify_gaps_handler_runs_on_pending_stubs(
+        self, session, monkeypatch, tmp_path
+    ):
+        """With CLAUDE_CODE_OAUTH_TOKEN set and pending stubs present, the
+        handler calls classify_stubs with the correct batch."""
+        from knowledge.gap_stubs import write_stub
+        from knowledge.service import classify_gaps_handler
+
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "fake-token")
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        (tmp_path / ".sync-ready").touch()
+
+        # Write two stubs with gap_class: null (default) + one that's already classified
+        write_stub(
+            vault_root=tmp_path,
+            note_id="a",
+            title="a",
+            referenced_by=["src"],
+            discovered_at="2026-04-25T08:00:00Z",
+        )
+        write_stub(
+            vault_root=tmp_path,
+            note_id="b",
+            title="b",
+            referenced_by=["src"],
+            discovered_at="2026-04-25T08:00:00Z",
+        )
+        # Manually write a classified stub — should be skipped
+        classified = tmp_path / "_researching" / "c.md"
+        classified.write_text(
+            "---\n"
+            "id: c\n"
+            "title: c\n"
+            "type: gap\n"
+            "status: classified\n"
+            "gap_class: external\n"
+            "referenced_by:\n  - src\n"
+            'discovered_at: "2026-04-25T08:00:00Z"\n'
+            'classified_at: "2026-04-25T08:05:00Z"\n'
+            'classifier_version: "opus-4-7@v1"\n'
+            "---\n\n"
+        )
+
+        captured_batch: list[Path] = []
+
+        async def fake_classify(stubs, *, claude_bin="claude"):
+            captured_batch.extend(stubs)
+            from knowledge.gap_classifier import ClassifyStats
+
+            return ClassifyStats(stubs_processed=len(stubs), duration_ms=0)
+
+        monkeypatch.setattr("knowledge.gap_classifier.classify_stubs", fake_classify)
+
+        result = await classify_gaps_handler(session)
+
+        assert result is None
+        # Classified 'c' is skipped; 'a' and 'b' are pending
+        assert sorted(p.name for p in captured_batch) == ["a.md", "b.md"]
+
+    @pytest.mark.asyncio
+    async def test_classify_gaps_handler_batch_size_limit(
+        self, session, monkeypatch, tmp_path
+    ):
+        """Handler stops scanning at _CLASSIFY_BATCH_SIZE=10 stubs per tick."""
+        from knowledge.gap_stubs import write_stub
+        from knowledge.service import classify_gaps_handler
+
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "fake-token")
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        (tmp_path / ".sync-ready").touch()
+
+        # Write 15 pending stubs
+        for i in range(15):
+            write_stub(
+                vault_root=tmp_path,
+                note_id=f"term-{i:02d}",
+                title=f"term-{i:02d}",
+                referenced_by=["src"],
+                discovered_at="2026-04-25T08:00:00Z",
+            )
+
+        captured_size = 0
+
+        async def fake_classify(stubs, *, claude_bin="claude"):
+            nonlocal captured_size
+            captured_size = len(stubs)
+            from knowledge.gap_classifier import ClassifyStats
+
+            return ClassifyStats(stubs_processed=len(stubs), duration_ms=0)
+
+        monkeypatch.setattr("knowledge.gap_classifier.classify_stubs", fake_classify)
+
+        await classify_gaps_handler(session)
+
+        # Batch capped at 10
+        assert captured_size == 10
