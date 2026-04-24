@@ -591,6 +591,7 @@ class TestClassifyGapsHandler:
 
     def test_on_startup_registers_classify_gaps_job(self, session):
         """Startup registers knowledge.classify-gaps with a 1-minute tick."""
+        from knowledge.gap_classifier import _CLASSIFY_TIMEOUT_SECS
         from knowledge.service import on_startup
         from shared.scheduler import ScheduledJob
         from sqlmodel import select
@@ -601,7 +602,11 @@ class TestClassifyGapsHandler:
             select(ScheduledJob).where(ScheduledJob.name == "knowledge.classify-gaps")
         ).scalar_one()
         assert job.interval_secs == 60
-        assert job.ttl_secs == 180
+        assert job.ttl_secs == 360  # was 180
+        assert job.ttl_secs > _CLASSIFY_TIMEOUT_SECS, (
+            "Classifier TTL must exceed subprocess timeout — otherwise the "
+            "scheduler could reclaim a still-running job"
+        )
 
     @pytest.mark.asyncio
     async def test_classify_gaps_handler_skips_when_no_token(
