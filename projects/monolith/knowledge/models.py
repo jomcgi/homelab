@@ -167,22 +167,29 @@ class Gap(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factory
     """A knowledge gap: an unresolved [[wikilink]] promoted to a trackable work item.
 
     Gaps are surfaced when a wikilink's target is missing from the notes graph.
-    Each gap carries a class (external/internal/hybrid/parked) and advances
-    through a state machine: discovered → classified → in_review → researched →
-    verified → consolidated → committed (or rejected).
+    Gaps are identified globally by ``term`` (one gap per term across the whole
+    graph) and link to a generated stub note via ``note_id``. Each gap carries a
+    class (external/internal/hybrid/parked) and advances through a state
+    machine: discovered → classified → in_review → researched → verified →
+    consolidated → committed (or rejected).
 
-    Mirrors chart/migrations/20260424000000_knowledge_gaps.sql — keep in sync.
+    Mirrors chart/migrations/20260424000000_knowledge_gaps.sql and
+    20260425000000_knowledge_gaps_stub_notes.sql — keep in sync.
     """
 
     __tablename__ = "gaps"
     __table_args__ = (
-        UniqueConstraint("term", "source_note_fk"),
+        UniqueConstraint("term"),
         {"schema": "knowledge", "extend_existing": True},
     )
 
     id: int | None = Field(default=None, primary_key=True)
     term: str = Field(sa_column=Column(String, nullable=False))
     context: str = Field(default="", sa_column=Column(String, nullable=False))
+    note_id: str | None = Field(
+        default=None,
+        sa_column=Column(String, nullable=True),
+    )
     source_note_fk: int | None = Field(default=None, foreign_key="knowledge.notes.id")
     # GapClass / GapState are Literals for static analysis. At the SQL level
     # they're plain TEXT, matching the migration's CHECK constraints.

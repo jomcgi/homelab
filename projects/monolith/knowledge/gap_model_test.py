@@ -1,14 +1,14 @@
 """Unit tests for the knowledge.Gap SQLModel.
 
-Exercises defaults, timestamp auto-population, and the UNIQUE (term,
-source_note_fk) constraint against an in-memory SQLite session.
+Exercises defaults, timestamp auto-population, and the term-global UNIQUE
+constraint against an in-memory SQLite session.
 """
 
 from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from knowledge.models import Gap, Note
@@ -99,12 +99,13 @@ def test_gap_with_explicit_class_and_context(session):
     assert loaded.answer is not None
 
 
-def test_gap_unique_term_source_note(session):
-    """A second Gap with the same (term, source_note_fk) pair must fail."""
-    note = _make_note(session)
+def test_gap_unique_term(session):
+    """A second Gap with the same term must fail, regardless of source_note_fk."""
+    note_a = _make_note(session, "note-a")
+    note_b = _make_note(session, "note-b")
     gap1 = Gap(
         term="Duplicate Term",
-        source_note_fk=note.id,
+        source_note_fk=note_a.id,
         pipeline_version="gardener@v1",
     )
     session.add(gap1)
@@ -112,7 +113,7 @@ def test_gap_unique_term_source_note(session):
 
     gap2 = Gap(
         term="Duplicate Term",
-        source_note_fk=note.id,
+        source_note_fk=note_b.id,
         pipeline_version="gardener@v1",
     )
     session.add(gap2)
@@ -121,25 +122,19 @@ def test_gap_unique_term_source_note(session):
     session.rollback()
 
 
-def test_gap_same_term_different_source_is_allowed(session):
-    """The same term surfaced from two different notes is two distinct gaps."""
-    note_a = _make_note(session, "note-a")
-    note_b = _make_note(session, "note-b")
-    session.add_all(
-        [
-            Gap(
-                term="Shared Concept",
-                source_note_fk=note_a.id,
-                pipeline_version="gardener@v1",
-            ),
-            Gap(
-                term="Shared Concept",
-                source_note_fk=note_b.id,
-                pipeline_version="gardener@v1",
-            ),
-        ]
-    )
+def test_gap_note_id_is_nullable(session: Session) -> None:
+    """note_id can be None (unset before reconciler links the stub)."""
+    gap = Gap(term="foo", pipeline_version="gaps@v1")
+    session.add(gap)
     session.commit()
+    session.refresh(gap)
+    assert gap.note_id is None
 
-    rows = session.exec(select(Gap).where(Gap.term == "Shared Concept")).all()
-    assert len(rows) == 2
+
+def test_gap_note_id_round_trips(session: Session) -> None:
+    """note_id is persisted and readable after commit."""
+    gap = Gap(term="foo", note_id="foo-slug", pipeline_version="gaps@v1")
+    session.add(gap)
+    session.commit()
+    session.refresh(gap)
+    assert gap.note_id == "foo-slug"
