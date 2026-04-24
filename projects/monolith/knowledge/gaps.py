@@ -356,6 +356,20 @@ def answer_gap(
     file_content = f"---\n{fm_str}---\n\n{answer}\n"
     dest.write_text(file_content)
 
+    # Remove the stub — its purpose ends once the atom exists. Missing
+    # stub is tolerated (user may have hand-deleted it; the atom-at-
+    # _processed/ write above is the actual source of truth now). Use
+    # the base slug, NOT the collision-suffixed atom note_id — stubs are
+    # always created at _researching/<base-slug>.md.
+    stub_path = vault_root / RESEARCHING_DIR / f"{slug}.md"
+    if stub_path.is_file():
+        stub_path.unlink()
+        logger.info(
+            "gaps.answer_gap: removed stub %s for committed gap_id=%d",
+            stub_path.relative_to(vault_root),
+            gap_id,
+        )
+
     gap.answer = answer
     gap.state = "committed"
     gap.resolved_at = datetime.now(timezone.utc)
