@@ -57,11 +57,20 @@ Obsidian vault — into four classes.
 - **Use the Read tool** to inspect each stub's frontmatter (id, title,
   referenced_by). The referenced_by list tells you which source notes
   link to this term — that's your context.
-- **Use the Edit tool** to set these fields in each stub's frontmatter:
-  - `gap_class: <one of external/internal/hybrid/parked>`
-  - `status: classified`
-  - `classified_at: <current ISO timestamp in UTC, e.g. 2026-04-25T08:00:00Z>`
-  - `classifier_version: {classifier_version}`
+- **Use the Edit tool** to update these frontmatter fields. The stub's
+  frontmatter already contains all four keys with placeholder values
+  (`gap_class: null`, `status: discovered`, `classified_at: null`,
+  `classifier_version: null`). For each key, find the existing line and
+  replace it — do not add a new line. YAML requires unique top-level
+  keys; appending a duplicate key produces an ugly stub even when YAML
+  parsers tolerate it. Example:
+  - find: `status: discovered` → replace with: `status: classified`
+  - find: `gap_class: null` → replace with one of: `gap_class: external`
+    | `gap_class: internal` | `gap_class: hybrid` | `gap_class: parked`
+  - find: `classified_at: null` → replace with the current ISO timestamp
+    (UTC, e.g. `classified_at: '2026-04-25T08:00:00Z'`)
+  - find: `classifier_version: null` → replace with
+    `classifier_version: {classifier_version}`
 - **Do not** modify any other field. Do not add a body. Do not write new
   files. Do not run any Bash command.
 - If you cannot decide on a class for a stub, skip it (leave gap_class
