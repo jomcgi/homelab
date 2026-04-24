@@ -20,7 +20,7 @@ from app.db import get_engine
 from app.mcp_app import mcp
 from knowledge import frontmatter
 from knowledge.gaps import answer_gap as _answer_gap
-from knowledge.gaps import list_review_queue
+from knowledge.gaps import list_review_queue, split_csv
 from knowledge.gardener import _slugify
 from knowledge.service import DEFAULT_VAULT_ROOT, VAULT_ROOT_ENV
 from knowledge.store import KnowledgeStore
@@ -368,12 +368,13 @@ async def list_gaps(
     Args:
         state: Comma-separated state filter (e.g. "in_review,classified").
         gap_class: Comma-separated class filter (e.g. "internal,hybrid").
-        limit: Maximum results to return (default 100).
+        limit: Maximum results to return (default 100, clamped to [1, 500]).
     """
+    limit = max(1, min(500, limit))
     with Session(get_engine()) as session:
         gaps = KnowledgeStore(session).list_gaps(
-            states=state.split(",") if state else None,
-            classes=gap_class.split(",") if gap_class else None,
+            states=split_csv(state),
+            classes=split_csv(gap_class),
             limit=limit,
         )
     return {"gaps": gaps}
