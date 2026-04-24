@@ -1240,9 +1240,13 @@ class TestGardenerGapDiscovery:
     """Gap discovery and classification are wired into each garden cycle."""
 
     @pytest.mark.asyncio
-    async def test_gardener_run_discovers_and_classifies_gaps(self, tmp_path, session):
-        """run() invokes discover_gaps + classify_gaps. The privacy-conservative
-        default classifier routes the gap to state=in_review, gap_class=internal.
+    async def test_gardener_run_discovers_and_classifies_gaps(
+        self, tmp_path, session, caplog
+    ):
+        """run() invokes discover_gaps + classify_gaps. With no classifier
+        wired, classification is a no-op: the gap stays at state=discovered
+        and a warning is logged. The review queue only populates once the
+        Task-3 PR lands a real classifier.
         """
         from knowledge.models import Gap, Note, NoteLink
 
@@ -1269,14 +1273,21 @@ class TestGardenerGapDiscovery:
 
         gardener = Gardener(vault_root=tmp_path, session=session)
         # No raws in the empty vault, so no claude subprocess is spawned.
-        stats = await gardener.run()
+        with caplog.at_level(logging.WARNING, logger="knowledge.gaps"):
+            stats = await gardener.run()
 
         assert stats.gaps_discovered == 1
-        assert stats.gaps_classified == 1
+        assert stats.gaps_classified == 0
 
         gap = session.exec(select(Gap)).one()
-        assert gap.state == "in_review"
-        assert gap.gap_class == "internal"
+        assert gap.state == "discovered"
+        assert gap.gap_class is None
+
+        assert any(
+            "gaps awaiting classification but no classifier is wired"
+            in record.getMessage()
+            for record in caplog.records
+        )
 
     @pytest.mark.asyncio
     async def test_gardener_gap_failure_does_not_break_cycle(

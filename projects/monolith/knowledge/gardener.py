@@ -496,10 +496,10 @@ class Gardener:
 
         Returns ``(discovered_count, classified_count)``.
 
-        The default classifier is ``None`` — the privacy-conservative fallback
-        which routes every gap to ``internal`` so the user reviews it and
-        nothing escapes to the web. A future PR wires in a Claude-backed
-        classifier.
+        The default classifier is ``None`` — a no-op: gaps stay at
+        ``state='discovered'`` until a real classifier is wired in
+        (Task 3). A warning is logged when pending gaps exist so the
+        absence is visible in cycle logs.
 
         Errors in either step are caught and logged; the gardener cycle must
         not fail because of gap-pipeline bugs.
