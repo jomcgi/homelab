@@ -39,6 +39,7 @@ def test_write_stub_creates_file_with_expected_frontmatter(tmp_path: Path) -> No
 
 
 def test_write_stub_is_idempotent(tmp_path: Path) -> None:
+    """Identical args on a second call must not rewrite the file."""
     args = {
         "vault_root": tmp_path,
         "note_id": "linkerd-mtls",
@@ -48,7 +49,7 @@ def test_write_stub_is_idempotent(tmp_path: Path) -> None:
     }
     write_stub(**args)
     first = (tmp_path / RESEARCHING_DIR / "linkerd-mtls.md").read_text()
-    write_stub(**{**args, "referenced_by": ["note-a", "note-c"]})
+    write_stub(**args)
     second = (tmp_path / RESEARCHING_DIR / "linkerd-mtls.md").read_text()
     assert first == second
 
@@ -91,3 +92,101 @@ def test_parse_stub_frontmatter_with_classification(tmp_path: Path) -> None:
     assert meta["gap_class"] == "internal"
     assert meta["status"] == "classified"
     assert meta["classifier_version"] == "opus-4-7@v1"
+
+
+def test_write_stub_updates_referenced_by_on_existing_stub(tmp_path):
+    """write_stub updates referenced_by when the file exists with a stale list."""
+    from knowledge.gap_stubs import write_stub
+    import yaml
+
+    write_stub(
+        vault_root=tmp_path,
+        note_id="merkle-tree",
+        title="merkle-tree",
+        referenced_by=["src-a"],
+        discovered_at="2026-04-25T00:00:00Z",
+    )
+
+    write_stub(
+        vault_root=tmp_path,
+        note_id="merkle-tree",
+        title="merkle-tree",
+        referenced_by=["src-a", "src-b"],
+        discovered_at="2026-04-25T00:00:00Z",
+    )
+
+    stub = (tmp_path / "_researching" / "merkle-tree.md").read_text()
+    fm = yaml.safe_load(stub.split("---\n", 2)[1])
+    assert fm["referenced_by"] == ["src-a", "src-b"]
+
+
+def test_write_stub_preserves_classifier_edits(tmp_path):
+    """Classifier-edited keys (gap_class, status, classifier_version) survive a referenced_by update."""
+    from datetime import datetime, timezone
+
+    import yaml
+
+    from knowledge.gap_stubs import write_stub
+
+    stub_path = write_stub(
+        vault_root=tmp_path,
+        note_id="merkle-tree",
+        title="merkle-tree",
+        referenced_by=["src-a"],
+        discovered_at="2026-04-25T00:00:00Z",
+    )
+
+    # Simulate a classifier edit.
+    classified_at = datetime.now(timezone.utc).isoformat()
+    text = stub_path.read_text()
+    parts = text.split("---\n", 2)
+    fm = yaml.safe_load(parts[1])
+    fm["gap_class"] = "external"
+    fm["status"] = "classified"
+    fm["classifier_version"] = "opus-4-7@v1"
+    fm["classified_at"] = classified_at
+    new_fm = yaml.dump(fm, default_flow_style=False, sort_keys=False)
+    stub_path.write_text(f"---\n{new_fm}---\n{parts[2]}")
+
+    # Now discover_gaps re-runs and adds a second source note.
+    write_stub(
+        vault_root=tmp_path,
+        note_id="merkle-tree",
+        title="merkle-tree",
+        referenced_by=["src-a", "src-b"],
+        discovered_at="2026-04-25T00:00:00Z",
+    )
+
+    fm_after = yaml.safe_load(stub_path.read_text().split("---\n", 2)[1])
+    assert fm_after["referenced_by"] == ["src-a", "src-b"], (
+        "referenced_by should be updated"
+    )
+    assert fm_after["gap_class"] == "external", "classifier edits must survive"
+    assert fm_after["status"] == "classified"
+    assert fm_after["classifier_version"] == "opus-4-7@v1"
+    assert fm_after["classified_at"] == classified_at
+
+
+def test_write_stub_idempotent_when_referenced_by_matches(tmp_path):
+    """No write happens when referenced_by already matches — no mtime churn."""
+    from knowledge.gap_stubs import write_stub
+
+    stub_path = write_stub(
+        vault_root=tmp_path,
+        note_id="m",
+        title="m",
+        referenced_by=["a", "b"],
+        discovered_at="2026-04-25T00:00:00Z",
+    )
+    mtime_before = stub_path.stat().st_mtime_ns
+
+    write_stub(
+        vault_root=tmp_path,
+        note_id="m",
+        title="m",
+        referenced_by=["a", "b"],
+        discovered_at="2026-04-25T00:00:00Z",
+    )
+    mtime_after = stub_path.stat().st_mtime_ns
+
+    assert mtime_after == mtime_before, "no-change call must not rewrite the file"
