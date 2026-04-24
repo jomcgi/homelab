@@ -2144,6 +2144,39 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_gap_api_test",
+    srcs = ["knowledge/gap_api_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pyyaml",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "knowledge_mcp_gap_test",
+    srcs = ["knowledge/mcp_gap_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastmcp",
+        "@pip//httpx",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//pyyaml",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "tasks_router_test",
     srcs = ["knowledge/tasks_router_test.py"],
     imports = ["."],

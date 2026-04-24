@@ -25,6 +25,7 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from knowledge import frontmatter
+from knowledge.gaps import answer_gap, list_review_queue
 from knowledge.gardener import Gardener, _slugify
 from knowledge.ingest_queue import IngestQueueItem
 from knowledge.models import AtomRawProvenance, RawInput
@@ -44,6 +45,11 @@ def get_embedding_client() -> EmbeddingClient:
     to inject a deterministic fake.
     """
     return EmbeddingClient()
+
+
+def _get_vault_root() -> Path:
+    """Resolve the vault root from the env (or default), as an absolute path."""
+    return Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
 
 
 @router.get("/search")
@@ -296,3 +302,61 @@ def replay_dead_letter(
     session.delete(prov)
     session.commit()
     return {"replayed": True}
+
+
+# ---------------------------------------------------------------------------
+# Gap lifecycle endpoints
+# ---------------------------------------------------------------------------
+
+
+class AnswerGapRequest(BaseModel):
+    answer: str
+
+
+@router.get("/gaps")
+def list_gaps_endpoint(
+    state: str | None = Query(default=None),
+    gap_class: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    session: Session = Depends(get_session),
+) -> dict:
+    """List gaps with optional state/class filters."""
+    states = [s.strip() for s in state.split(",") if s.strip()] if state else None
+    classes = (
+        [c.strip() for c in gap_class.split(",") if c.strip()] if gap_class else None
+    )
+    gaps = KnowledgeStore(session).list_gaps(
+        states=states,
+        classes=classes,
+        limit=limit,
+    )
+    return {"gaps": gaps}
+
+
+@router.get("/gaps/review-queue")
+def get_review_queue_endpoint(
+    session: Session = Depends(get_session),
+) -> dict:
+    """Return internal/hybrid gaps awaiting user review, oldest first."""
+    return {"gaps": list_review_queue(session)}
+
+
+@router.post("/gaps/{gap_id}/answer")
+def answer_gap_endpoint(
+    gap_id: int,
+    data: AnswerGapRequest,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Commit a user answer for a gap and emit a personal-tier atom."""
+    vault_root = _get_vault_root()
+    try:
+        return answer_gap(session, gap_id, data.answer, vault_root)
+    except ValueError as exc:
+        msg = str(exc)
+        if "Gap not found" in msg:
+            raise HTTPException(status_code=404, detail=msg) from exc
+        if "expected 'in_review'" in msg:
+            raise HTTPException(status_code=409, detail=msg) from exc
+        if "frontmatter terminator" in msg:
+            raise HTTPException(status_code=400, detail=msg) from exc
+        raise HTTPException(status_code=400, detail=msg) from exc
