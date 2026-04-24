@@ -1317,4 +1317,60 @@ class TestGardenerGapDiscovery:
 
         assert stats.gaps_discovered == 0
         assert stats.gaps_classified == 0
-        assert "gap discovery/classification failed" in caplog.text
+        assert "gap pipeline failed after discovering 0 gaps" in caplog.text
+
+    def test_discover_and_classify_gaps_returns_zero_when_session_is_none(
+        self, tmp_path
+    ):
+        """Session-less gardeners (e.g. dry-run setups) skip the gap step cleanly."""
+        gardener = Gardener(vault_root=tmp_path)  # no session
+        assert gardener._discover_and_classify_gaps() == (0, 0)
+
+    @pytest.mark.asyncio
+    async def test_gardener_partial_gap_failure_reports_discovered_count(
+        self, monkeypatch, session, tmp_path, caplog
+    ):
+        """If classify_gaps raises after discover_gaps succeeded, the discovered
+        count must still be reported accurately — not reset to 0."""
+        from knowledge.models import Note, NoteLink
+
+        # Seed an unresolved wikilink so discover_gaps has real work to commit.
+        src = Note(
+            note_id="source-note",
+            path="_processed/source-note.md",
+            title="Source Note",
+            content_hash="h-src",
+            type="atom",
+        )
+        session.add(src)
+        session.flush()
+        session.add(
+            NoteLink(
+                src_note_fk=src.id,
+                target_id="missing-concept",
+                target_title="missing-concept",
+                kind="link",
+                edge_type=None,
+            )
+        )
+        session.commit()
+
+        import knowledge.gaps as gaps_module
+
+        def exploding_classify(*args, **kwargs):
+            raise RuntimeError("classify boom")
+
+        # Do NOT patch discover_gaps — let it succeed and commit.
+        monkeypatch.setattr(gaps_module, "classify_gaps", exploding_classify)
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        with caplog.at_level(logging.ERROR, logger="monolith.knowledge.gardener"):
+            stats = await gardener.run()
+
+        # The real correctness guarantee: discovered count is TRUTHFUL even
+        # when classify failed — the gap IS in the DB.
+        assert stats.gaps_discovered == 1
+        assert stats.gaps_classified == 0
+        # The log message should include the discovered count so operators can
+        # trace partial progress.
+        assert "1 gaps" in caplog.text
