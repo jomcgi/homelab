@@ -1873,6 +1873,32 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_gap_lifecycle_test",
+    srcs = ["knowledge/gap_lifecycle_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "knowledge_store_gap_queries_test",
+    srcs = ["knowledge/store_gap_queries_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "knowledge_service_test",
     srcs = ["knowledge/service_test.py"],
     imports = ["."],
