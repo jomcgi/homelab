@@ -94,3 +94,46 @@ def parse_stub_frontmatter(stub: Path) -> dict[str, Any]:
         return {}
     meta = yaml.safe_load(parts[1])
     return meta if isinstance(meta, dict) else {}
+
+
+def dedupe_stub_frontmatter(vault_root: Path) -> int:
+    """Walk _researching/*.md and rewrite stubs with duplicate frontmatter keys.
+
+    PyYAML's ``safe_load`` resolves duplicate top-level keys via last-wins, so
+    the parsed dict is canonical. Re-dumping with ``sort_keys=False`` produces
+    clean single-key frontmatter while preserving the surviving values. Skips
+    files where the parsed-then-redumped frontmatter is byte-identical to the
+    original (idempotent — won't churn mtimes on already-clean stubs).
+
+    Defensive on every input: malformed stubs (no frontmatter fence, missing
+    closing fence, non-dict YAML, YAMLError) are left untouched and not
+    counted.
+
+    Returns the number of stubs rewritten.
+    """
+    stub_dir = vault_root / RESEARCHING_DIR
+    if not stub_dir.is_dir():
+        return 0
+
+    cleaned = 0
+    for stub in sorted(stub_dir.glob("*.md")):
+        text = stub.read_text()
+        if not text.startswith("---\n"):
+            continue
+        parts = text.split("---\n", 2)
+        if len(parts) < 3:
+            continue
+        try:
+            fm = yaml.safe_load(parts[1])
+        except yaml.YAMLError:
+            continue
+        if not isinstance(fm, dict):
+            continue
+
+        canonical = yaml.dump(fm, default_flow_style=False, sort_keys=False)
+        if canonical == parts[1]:
+            continue  # already clean
+
+        stub.write_text(f"---\n{canonical}---\n{parts[2]}")
+        cleaned += 1
+    return cleaned

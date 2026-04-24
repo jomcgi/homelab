@@ -6,6 +6,7 @@ import yaml
 
 from knowledge.gap_stubs import (
     RESEARCHING_DIR,
+    dedupe_stub_frontmatter,
     parse_stub_frontmatter,
     write_stub,
 )
@@ -190,3 +191,59 @@ def test_write_stub_idempotent_when_referenced_by_matches(tmp_path):
     mtime_after = stub_path.stat().st_mtime_ns
 
     assert mtime_after == mtime_before, "no-change call must not rewrite the file"
+
+
+def test_dedupe_stub_frontmatter_collapses_duplicate_keys(tmp_path):
+    """Stubs with duplicate status keys (from append-not-replace edits) get cleaned."""
+    stub_dir = tmp_path / "_researching"
+    stub_dir.mkdir()
+    bad_stub = stub_dir / "accelerate.md"
+    # Hand-crafted duplicate-key frontmatter — PyYAML's safe_load takes
+    # last-wins, so this is parseable but ugly.
+    bad_stub.write_text(
+        "---\n"
+        "id: accelerate\n"
+        "title: accelerate\n"
+        "type: gap\n"
+        "status: discovered\n"
+        "gap_class: external\n"
+        "referenced_by:\n"
+        "- sre-synthesis-pattern\n"
+        "discovered_at: '2026-04-24T22:50:23Z'\n"
+        "classified_at: '2026-04-24T23:00:00Z'\n"
+        "classifier_version: opus-4-7@v1\n"
+        "status: classified\n"
+        "---\n\n"
+    )
+
+    cleaned = dedupe_stub_frontmatter(tmp_path)
+    assert cleaned == 1, f"Expected one stub cleaned, got {cleaned}"
+
+    # Round-tripped frontmatter has only one status key, last-wins value.
+    fm = yaml.safe_load(bad_stub.read_text().split("---\n", 2)[1])
+    assert fm["status"] == "classified"
+    text = bad_stub.read_text()
+    assert text.count("status:") == 1, (
+        f"Expected one status key, got {text.count('status:')}"
+    )
+
+
+def test_dedupe_stub_frontmatter_idempotent(tmp_path):
+    """Clean stubs and a second run is a no-op."""
+    write_stub(
+        vault_root=tmp_path,
+        note_id="m",
+        title="m",
+        referenced_by=["a"],
+        discovered_at="2026-04-25T00:00:00Z",
+    )
+
+    first = dedupe_stub_frontmatter(tmp_path)
+    second = dedupe_stub_frontmatter(tmp_path)
+    assert first == 0, "Already-clean stub should not need cleaning"
+    assert second == 0
+
+
+def test_dedupe_stub_frontmatter_handles_missing_dir(tmp_path):
+    """No _researching/ directory → no-op (returns 0)."""
+    assert dedupe_stub_frontmatter(tmp_path) == 0
