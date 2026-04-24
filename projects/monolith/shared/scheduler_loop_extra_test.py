@@ -1,12 +1,12 @@
 """Extra tests for run_scheduler_loop() — poll_interval propagation and iteration counts.
 
-The existing scheduler_loop_test.py verifies that _tick() exceptions are
-caught and the loop continues.  These tests cover the complementary cases:
+scheduler_loop_test.py covers the exception-handling path for dispatch_due_jobs.
+These tests cover the complementary cases:
 
 - poll_interval is forwarded verbatim to asyncio.sleep on every iteration
 - The default poll_interval of 30 seconds is used when none is specified
 - The loop executes multiple successful iterations without termination
-- asyncio.sleep is called once per loop iteration (after each _tick call)
+- asyncio.sleep is called once per loop iteration (after each dispatch call)
 """
 
 import pytest
@@ -21,14 +21,14 @@ class TestRunSchedulerLoopPollInterval:
         """asyncio.sleep is called with the provided poll_interval value."""
         tick_count = 0
 
-        async def tick_side_effect():
+        async def tick_side_effect(*_args, **_kwargs):
             nonlocal tick_count
             tick_count += 1
             if tick_count >= 2:
                 raise KeyboardInterrupt
 
         with (
-            patch("shared.scheduler._tick", side_effect=tick_side_effect),
+            patch("shared.scheduler.dispatch_due_jobs", side_effect=tick_side_effect),
             patch(
                 "shared.scheduler.asyncio.sleep", new_callable=AsyncMock
             ) as mock_sleep,
@@ -48,14 +48,14 @@ class TestRunSchedulerLoopPollInterval:
         """When poll_interval is not specified, asyncio.sleep uses 30 seconds."""
         tick_count = 0
 
-        async def tick_side_effect():
+        async def tick_side_effect(*_args, **_kwargs):
             nonlocal tick_count
             tick_count += 1
             if tick_count >= 2:
                 raise KeyboardInterrupt
 
         with (
-            patch("shared.scheduler._tick", side_effect=tick_side_effect),
+            patch("shared.scheduler.dispatch_due_jobs", side_effect=tick_side_effect),
             patch(
                 "shared.scheduler.asyncio.sleep", new_callable=AsyncMock
             ) as mock_sleep,
@@ -74,14 +74,14 @@ class TestRunSchedulerLoopPollInterval:
         """poll_interval=0 is a valid value and is forwarded to asyncio.sleep."""
         tick_count = 0
 
-        async def tick_side_effect():
+        async def tick_side_effect(*_args, **_kwargs):
             nonlocal tick_count
             tick_count += 1
             if tick_count >= 2:
                 raise KeyboardInterrupt
 
         with (
-            patch("shared.scheduler._tick", side_effect=tick_side_effect),
+            patch("shared.scheduler.dispatch_due_jobs", side_effect=tick_side_effect),
             patch(
                 "shared.scheduler.asyncio.sleep", new_callable=AsyncMock
             ) as mock_sleep,
@@ -97,17 +97,17 @@ class TestRunSchedulerLoopPollInterval:
 class TestRunSchedulerLoopIterations:
     @pytest.mark.asyncio
     async def test_runs_multiple_successful_iterations(self):
-        """The loop executes multiple _tick() calls successfully."""
+        """The loop executes multiple dispatch_due_jobs() calls successfully."""
         tick_count = 0
 
-        async def tick_side_effect():
+        async def tick_side_effect(*_args, **_kwargs):
             nonlocal tick_count
             tick_count += 1
             if tick_count >= 5:
                 raise KeyboardInterrupt
 
         with (
-            patch("shared.scheduler._tick", side_effect=tick_side_effect),
+            patch("shared.scheduler.dispatch_due_jobs", side_effect=tick_side_effect),
             patch("shared.scheduler.asyncio.sleep", new_callable=AsyncMock),
         ):
             with pytest.raises(KeyboardInterrupt):
@@ -121,7 +121,7 @@ class TestRunSchedulerLoopIterations:
         tick_count = 0
         sleep_count = 0
 
-        async def tick_side_effect():
+        async def tick_side_effect(*_args, **_kwargs):
             nonlocal tick_count
             tick_count += 1
             if tick_count >= 4:
@@ -132,7 +132,7 @@ class TestRunSchedulerLoopIterations:
             sleep_count += 1
 
         with (
-            patch("shared.scheduler._tick", side_effect=tick_side_effect),
+            patch("shared.scheduler.dispatch_due_jobs", side_effect=tick_side_effect),
             patch("shared.scheduler.asyncio.sleep", side_effect=sleep_side_effect),
         ):
             with pytest.raises(KeyboardInterrupt):
@@ -144,11 +144,11 @@ class TestRunSchedulerLoopIterations:
 
     @pytest.mark.asyncio
     async def test_sleep_called_after_failed_ticks_too(self):
-        """asyncio.sleep is called even when _tick() raises a caught exception."""
+        """asyncio.sleep is called even when dispatch_due_jobs() raises a caught exception."""
         tick_count = 0
         sleep_count = 0
 
-        async def tick_side_effect():
+        async def tick_side_effect(*_args, **_kwargs):
             nonlocal tick_count
             tick_count += 1
             if tick_count <= 2:
@@ -161,7 +161,7 @@ class TestRunSchedulerLoopIterations:
             sleep_count += 1
 
         with (
-            patch("shared.scheduler._tick", side_effect=tick_side_effect),
+            patch("shared.scheduler.dispatch_due_jobs", side_effect=tick_side_effect),
             patch("shared.scheduler.asyncio.sleep", side_effect=sleep_side_effect),
         ):
             with pytest.raises(KeyboardInterrupt):
@@ -177,7 +177,7 @@ class TestRunSchedulerLoopIterations:
         tick_count = 0
         sleep_args_seen = []
 
-        async def tick_side_effect():
+        async def tick_side_effect(*_args, **_kwargs):
             nonlocal tick_count
             tick_count += 1
             if tick_count == 1:
@@ -189,7 +189,7 @@ class TestRunSchedulerLoopIterations:
             sleep_args_seen.append(interval)
 
         with (
-            patch("shared.scheduler._tick", side_effect=tick_side_effect),
+            patch("shared.scheduler.dispatch_due_jobs", side_effect=tick_side_effect),
             patch("shared.scheduler.asyncio.sleep", side_effect=sleep_side_effect),
         ):
             with pytest.raises(KeyboardInterrupt):

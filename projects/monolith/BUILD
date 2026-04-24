@@ -2692,6 +2692,15 @@ bdd_test(
     ],
 )
 
+bdd_test(
+    name = "shared_bdd_scheduler_test",
+    srcs = [
+        "shared/tests/__init__.py",
+        "shared/tests/bdd_scheduler_test.py",
+        "shared/tests/conftest.py",
+    ],
+)
+
 py_test(
     name = "bdd_completeness_test",
     size = "small",
