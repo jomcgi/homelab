@@ -120,6 +120,8 @@ class GardenStats:
     resolved: int = 0
     distilled: int = 0
     consolidated: int = 0
+    gaps_discovered: int = 0
+    gaps_classified: int = 0
 
 
 def _split_frontmatter(raw: str) -> tuple[dict, str]:
@@ -311,6 +313,8 @@ class Gardener:
 
         consolidated = self._consolidate_task_views()
 
+        gaps_discovered, gaps_classified = self._discover_and_classify_gaps()
+
         stats = GardenStats(
             ingested=ingested,
             failed=failed,
@@ -320,9 +324,11 @@ class Gardener:
             resolved=resolved_count,
             distilled=distilled,
             consolidated=consolidated,
+            gaps_discovered=gaps_discovered,
+            gaps_classified=gaps_classified,
         )
         logger.info(
-            "knowledge.garden: resolved=%d moved=%d deduped=%d reconciled=%d ingested=%d failed=%d distilled=%d consolidated=%d",
+            "knowledge.garden: resolved=%d moved=%d deduped=%d reconciled=%d ingested=%d failed=%d distilled=%d consolidated=%d gaps_discovered=%d gaps_classified=%d",
             stats.resolved,
             stats.moved,
             stats.deduped,
@@ -331,6 +337,8 @@ class Gardener:
             stats.failed,
             stats.distilled,
             stats.consolidated,
+            stats.gaps_discovered,
+            stats.gaps_classified,
         )
         return stats
 
@@ -482,6 +490,33 @@ class Gardener:
         written += 1
 
         return written
+
+    def _discover_and_classify_gaps(self) -> tuple[int, int]:
+        """Discover unresolved wikilinks and classify them into review buckets.
+
+        Returns ``(discovered_count, classified_count)``.
+
+        The default classifier is ``None`` — the privacy-conservative fallback
+        which routes every gap to ``internal`` so the user reviews it and
+        nothing escapes to the web. A future PR wires in a Claude-backed
+        classifier.
+
+        Errors in either step are caught and logged; the gardener cycle must
+        not fail because of gap-pipeline bugs.
+        """
+        if self.session is None:
+            return 0, 0
+        try:
+            # Imported at call-time to avoid a circular import:
+            # ``knowledge.gaps`` imports ``_slugify`` from this module.
+            from knowledge.gaps import classify_gaps, discover_gaps
+
+            discovered = discover_gaps(self.session)
+            classified = classify_gaps(self.session)
+            return discovered, classified
+        except Exception:
+            logger.exception("gardener: gap discovery/classification failed")
+            return 0, 0
 
     async def _distill_completed_tasks(self) -> tuple[int, int]:
         """Distill learnings from completed tasks into knowledge atoms.

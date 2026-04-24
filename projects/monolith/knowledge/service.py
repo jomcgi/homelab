@@ -151,6 +151,8 @@ async def garden_handler(session: Session) -> datetime | None:
         "reconciled": stats.reconciled,
         "ingested": stats.ingested,
         "failed": stats.failed,
+        "gaps_discovered": stats.gaps_discovered,
+        "gaps_classified": stats.gaps_classified,
     }
     if stats.ingested == 0 and stats.failed > 0:
         logger.error("knowledge.garden complete (all failed)", extra=extra)

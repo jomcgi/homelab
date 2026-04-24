@@ -1234,3 +1234,87 @@ class TestRecordFailedProvenance:
         assert rows[0].retry_count == 2
         assert "timeout" in rows[0].error
         assert rows[0].gardener_version == GARDENER_VERSION
+
+
+class TestGardenerGapDiscovery:
+    """Gap discovery and classification are wired into each garden cycle."""
+
+    @pytest.mark.asyncio
+    async def test_gardener_run_discovers_and_classifies_gaps(self, tmp_path, session):
+        """run() invokes discover_gaps + classify_gaps. The privacy-conservative
+        default classifier routes the gap to state=in_review, gap_class=internal.
+        """
+        from knowledge.models import Gap, Note, NoteLink
+
+        # Seed a Note with a body wikilink pointing at an unresolved target.
+        src = Note(
+            note_id="source-note",
+            path="_processed/source-note.md",
+            title="Source Note",
+            content_hash="h-src",
+            type="atom",
+        )
+        session.add(src)
+        session.flush()
+        session.add(
+            NoteLink(
+                src_note_fk=src.id,
+                target_id="missing-concept",
+                target_title="missing-concept",
+                kind="link",
+                edge_type=None,
+            )
+        )
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        # No raws in the empty vault, so no claude subprocess is spawned.
+        stats = await gardener.run()
+
+        assert stats.gaps_discovered == 1
+        assert stats.gaps_classified == 1
+
+        gap = session.exec(select(Gap)).one()
+        assert gap.state == "in_review"
+        assert gap.gap_class == "internal"
+
+    @pytest.mark.asyncio
+    async def test_gardener_gap_failure_does_not_break_cycle(
+        self, tmp_path, session, caplog
+    ):
+        """When discover_gaps raises, the gardener logs the exception and
+        returns zero gap counts rather than failing the whole cycle."""
+        from knowledge.models import Note, NoteLink
+
+        src = Note(
+            note_id="source-note",
+            path="_processed/source-note.md",
+            title="Source Note",
+            content_hash="h-src",
+            type="atom",
+        )
+        session.add(src)
+        session.flush()
+        session.add(
+            NoteLink(
+                src_note_fk=src.id,
+                target_id="missing-concept",
+                target_title="missing-concept",
+                kind="link",
+                edge_type=None,
+            )
+        )
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+
+        def boom(_session):
+            raise RuntimeError("boom")
+
+        with caplog.at_level(logging.ERROR, logger="monolith.knowledge.gardener"):
+            with patch("knowledge.gaps.discover_gaps", side_effect=boom):
+                stats = await gardener.run()
+
+        assert stats.gaps_discovered == 0
+        assert stats.gaps_classified == 0
+        assert "gap discovery/classification failed" in caplog.text
