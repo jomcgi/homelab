@@ -86,24 +86,55 @@ def purge_stale_jobs(session: Session) -> None:
     session.commit()
 
 
-async def run_scheduler_loop(poll_interval: int = 30) -> None:
-    """Poll for due jobs and run them. Runs forever."""
-    logger.info("Scheduler loop started (poll every %ds)", poll_interval)
+async def run_scheduler_loop(poll_interval: int = 30, max_concurrent: int = 5) -> None:
+    """Poll for due jobs and run them with bounded concurrency. Runs forever."""
+    logger.info(
+        "Scheduler loop started (poll=%ds, max_concurrent=%d)",
+        poll_interval,
+        max_concurrent,
+    )
     while True:
         try:
-            await _tick()
+            await dispatch_due_jobs(max_concurrent=max_concurrent)
         except Exception:
             logger.exception("Scheduler tick failed")
         await asyncio.sleep(poll_interval)
 
 
-async def _tick() -> None:
-    """Single scheduler tick: claim one due job and run it."""
-    with Session(get_engine()) as session:
-        job_name = _claim_next_job(session)
-        if job_name is None:
-            return
+async def dispatch_due_jobs(max_concurrent: int = 5) -> int:
+    """Claim every currently-due job and run it, up to ``max_concurrent`` in
+    parallel. Awaits all spawned handlers before returning.
 
+    Each handler runs on its own ``Session`` because SQLAlchemy sessions are
+    not safe to share across concurrently awaiting coroutines.
+    """
+    if max_concurrent < 1:
+        raise ValueError(f"max_concurrent must be >= 1, got {max_concurrent}")
+
+    job_names: list[str] = []
+    with Session(get_engine()) as session:
+        while True:
+            name = _claim_next_job(session)
+            if name is None:
+                break
+            job_names.append(name)
+
+    if not job_names:
+        return 0
+
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def _run(name: str) -> None:
+        async with semaphore:
+            await _run_claimed_job(name)
+
+    await asyncio.gather(*(_run(name) for name in job_names))
+    return len(job_names)
+
+
+async def _run_claimed_job(job_name: str) -> None:
+    """Execute a single already-claimed job in its own DB session."""
+    with Session(get_engine()) as session:
         job = session.get(ScheduledJob, job_name)
         if job is None:
             return

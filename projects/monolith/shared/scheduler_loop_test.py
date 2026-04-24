@@ -1,6 +1,5 @@
-"""Unit tests for scheduler loop functions (_tick, _complete_job, _fail_job, etc.)."""
+"""Unit tests for scheduler loop helpers (_run_claimed_job, _complete_job, _fail_job, etc.)."""
 
-import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -14,7 +13,7 @@ from shared.scheduler import (
     _fail_job,
     _registry,
     _release_lock,
-    _tick,
+    _run_claimed_job,
     run_scheduler_loop,
 )
 
@@ -203,14 +202,14 @@ class TestReleaseLock:
 
 
 # ---------------------------------------------------------------------------
-# _tick (mocked)
+# _run_claimed_job (mocked)
 # ---------------------------------------------------------------------------
 
 
-class TestTick:
+class TestRunClaimedJob:
     @pytest.mark.asyncio
-    async def test_calls_handler_on_claimed_job(self):
-        """When _claim_next_job returns a name, the handler is called."""
+    async def test_calls_handler(self):
+        """The registered handler is invoked with the job's session."""
         handler = AsyncMock(return_value=None)
         _registry["my-job"] = handler
 
@@ -229,36 +228,16 @@ class TestTick:
         with (
             patch("shared.scheduler.get_engine"),
             patch("shared.scheduler.Session") as mock_session_cls,
-            patch("shared.scheduler._claim_next_job", return_value="my-job"),
             patch("shared.scheduler._complete_job") as mock_complete,
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await _tick()
+            await _run_claimed_job("my-job")
 
         handler.assert_called_once_with(mock_session)
         mock_complete.assert_called_once_with(mock_session, fake_job, None)
-
-    @pytest.mark.asyncio
-    async def test_skips_when_no_due_jobs(self):
-        """When _claim_next_job returns None, no handler is called."""
-        handler = AsyncMock()
-        _registry["some-job"] = handler
-
-        with (
-            patch("shared.scheduler.get_engine"),
-            patch("shared.scheduler.Session") as mock_session_cls,
-            patch("shared.scheduler._claim_next_job", return_value=None),
-        ):
-            mock_session_cls.return_value.__enter__ = MagicMock(
-                return_value=MagicMock(spec=Session)
-            )
-            mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await _tick()
-
-        handler.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_calls_fail_on_handler_exception(self):
@@ -281,20 +260,19 @@ class TestTick:
         with (
             patch("shared.scheduler.get_engine"),
             patch("shared.scheduler.Session") as mock_session_cls,
-            patch("shared.scheduler._claim_next_job", return_value="fail-job"),
             patch("shared.scheduler._fail_job") as mock_fail,
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await _tick()
+            await _run_claimed_job("fail-job")
 
         mock_fail.assert_called_once_with(mock_session, fake_job, "boom")
 
     @pytest.mark.asyncio
     async def test_releases_lock_for_missing_handler(self):
-        """When a job is claimed but no handler exists, _release_lock is called."""
+        """When a job was claimed but no handler is registered, the lock is released."""
         now = datetime.now(timezone.utc)
         fake_job = ScheduledJob(
             name="orphan-job",
@@ -310,14 +288,13 @@ class TestTick:
         with (
             patch("shared.scheduler.get_engine"),
             patch("shared.scheduler.Session") as mock_session_cls,
-            patch("shared.scheduler._claim_next_job", return_value="orphan-job"),
             patch("shared.scheduler._release_lock") as mock_release,
         ):
             mock_session_cls.return_value.__enter__ = MagicMock(
                 return_value=mock_session
             )
             mock_session_cls.return_value.__exit__ = MagicMock(return_value=False)
-            await _tick()
+            await _run_claimed_job("orphan-job")
 
         mock_release.assert_called_once_with(mock_session, fake_job)
 
@@ -329,20 +306,23 @@ class TestTick:
 
 class TestRunSchedulerLoop:
     @pytest.mark.asyncio
-    async def test_catches_tick_exceptions(self):
-        """The loop continues after _tick raises an exception."""
+    async def test_catches_dispatch_exceptions(self):
+        """The loop continues after dispatch_due_jobs raises an exception."""
         call_count = 0
 
-        async def tick_side_effect():
+        async def dispatch_side_effect(**_kwargs):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                raise RuntimeError("tick exploded")
+                raise RuntimeError("dispatch exploded")
             if call_count >= 3:
                 raise KeyboardInterrupt  # break the loop
+            return 0
 
         with (
-            patch("shared.scheduler._tick", side_effect=tick_side_effect),
+            patch(
+                "shared.scheduler.dispatch_due_jobs", side_effect=dispatch_side_effect
+            ),
             patch(
                 "shared.scheduler.asyncio.sleep", new_callable=AsyncMock
             ) as mock_sleep,
@@ -350,7 +330,7 @@ class TestRunSchedulerLoop:
             with pytest.raises(KeyboardInterrupt):
                 await run_scheduler_loop(poll_interval=1)
 
-        # tick was called at least 3 times (first errored, second succeeded, third broke)
+        # dispatch was called at least 3 times (first errored, second succeeded, third broke)
         assert call_count >= 3
-        # sleep was called between ticks
+        # sleep was called between dispatch calls
         assert mock_sleep.call_count >= 2
