@@ -31,18 +31,14 @@ homelab/
 format                        # Format code + update BUILD files (standalone)
 helm template <release> projects/<service>/chart/ -f projects/<service>/deploy/values.yaml  # Render Helm templates (NEVER helm install)
 
-# Run tests (remotely via BuildBuddy — default for iterating on code)
-bb remote test //projects/<service>:target --config=ci  # Run specific test target
-bb remote test //projects/<service>/... --config=ci     # Run all tests for a service
-
-# CI-only (runs automatically on push)
-bazel test //...              # Test everything
-bazel run //projects/<service>/image:push  # Push container images
+# Tests run automatically on push via BuildBuddy CI — there is no local
+# test loop. Implement, commit, push the branch, and watch the PR's CI run.
+bazel run //projects/<service>/image:push  # Push container images (CI only)
 ```
 
-Bazel runs **remotely via BuildBuddy** — not locally. Shell aliases route `bazel`/`bazelisk` to the BuildBuddy CLI (`bb`). **Use `bb remote test` to iterate on test fixes** — it sends your local working tree to BuildBuddy's remote execution cluster without requiring a commit or push. Only push when tests are passing.
+**No local test loop.** Don't run `bb remote test` or `bazel test` from a workstation. Mac runners aren't provisioned in the BuildBuddy `workflows` pool (`darwin/arm64` returns "No registered executors"), and the linux fallback is too slow/flaky to be the inner loop. Implement all changes for a task (or batch of tasks), commit with Conventional Commits, push the branch, then monitor the CI run via the `/buildbuddy` skill or `gh pr checks <number> --watch`. Iterate on failures by reading the CI output (`bb view <invocation>` / `bb ask`), pushing fixes.
 
-**Cross-platform remote execution:** `bb remote` defaults to your local OS/arch (darwin/arm64 on Mac). When darwin runners are unavailable, use `bb remote --os=linux --arch=amd64` to run on linux runners instead. This matches CI's execution environment (`ubuntu-24.04`). Example: `bb remote --os=linux --arch=amd64 test //projects/<service>/... --config=ci`
+For multi-task plans (subagent-driven flow): implementers implement, reviewers review from code reading; **defer all test execution to end-of-plan CI on the pushed branch.**
 
 **Vendored tools** (available via `./bootstrap.sh` + `direnv allow`): `format`, `helm`, `crane`, `kind`, `go`, `python`, `pnpm`, `node`, `buildifier`, `buildozer`, `ruff`, `gofumpt`, `shfmt`, `prettier`, `gazelle`
 
@@ -158,7 +154,7 @@ Runs on every push/PR:
 - **Format check** — standalone formatters + gazelle, auto-commits fixes on PR branches (as `ci-format-bot`)
 - **Test and push** — `bazel test //...`, pushes images on main branch
 
-**Iterate locally with `bb remote test`** before pushing. Debug CI failures with `/buildbuddy` skill or `bb remote test //... --config=ci`.
+**Push to test.** This is the inner loop. After the run starts, monitor with the `/buildbuddy` skill or `gh pr checks <number> --watch`. Read failures with `bb view <invocation>` / `bb ask` and push fixes. Don't try to short-circuit with `bb remote test` from your workstation.
 
 Static sites deploy via `bazel run //projects/websites:push_all_pages` on main branch (BuildBuddy CI).
 
@@ -167,8 +163,8 @@ Static sites deploy via `bazel run //projects/websites:push_all_pages` on main b
 - **Using Dockerfiles** — this repo uses apko exclusively for container images
 - **Running as root** — always use non-root (uid 65532)
 - **Direct internet exposure** — all traffic goes through Cloudflare
-- **Running tests locally** — no `pytest`, `go test`, `npm test` directly; use `bb remote test //target --config=ci` to run tests remotely
-- **Pushing commits just to trigger CI tests** — use `bb remote test` to iterate on fixes, only push when tests pass
+- **Running tests locally** — no `pytest`, `go test`, `npm test`, `bazel test`, or `bb remote test` from a workstation; tests live in CI on push
+- **Trying to iterate with `bb remote test`** — the BuildBuddy `workflows` pool has no darwin runners and the linux fallback is too unreliable for inner-loop work; push the branch and let CI run instead
 - **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
 - **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating a custom one
 - **Hardcoding `.svc.cluster.local` URLs in Go defaults** — when a Helm release is renamed the service name prefix changes silently; set via `envOr("URL", "")` (no default) and configure in `values.yaml`; semgrep rule `no-hardcoded-k8s-service-url` catches this in CI
