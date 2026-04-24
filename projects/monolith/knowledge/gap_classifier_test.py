@@ -71,6 +71,11 @@ async def test_classify_stubs_invokes_claude_with_correct_args(
     # Classifier version is interpolated into the prompt
     assert CLASSIFIER_VERSION in prompt
 
+    # The 4-class rubric must be present — insurance against accidental
+    # prompt rot that would silently invalidate classifications.
+    for cls in ("external", "internal", "hybrid", "parked"):
+        assert cls in prompt, f"prompt missing class: {cls}"
+
     # HOME override protecting claude's ~/.claude write
     assert captured_kwargs["env"]["HOME"] == "/tmp"
 
@@ -144,3 +149,10 @@ async def test_classify_stubs_empty_batch_is_noop(
     stats = await classify_stubs([], claude_bin="claude")
     assert stats == ClassifyStats(stubs_processed=0, duration_ms=0)
     assert spawned == []
+
+
+@pytest.mark.asyncio
+async def test_classify_stubs_rejects_relative_paths(tmp_path: Path) -> None:
+    """Relative stub paths raise a ValueError before any subprocess work."""
+    with pytest.raises(ValueError, match="requires absolute paths"):
+        await classify_stubs([Path("relative.md")], claude_bin="claude")
