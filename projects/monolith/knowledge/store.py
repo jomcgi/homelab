@@ -550,7 +550,7 @@ class KnowledgeStore:
         limit: int = 100,
     ) -> list[dict]:
         """List gaps with optional state/class filters, most recent first."""
-        stmt = select(Gap).order_by(Gap.created_at.desc()).limit(limit)
+        stmt = select(Gap).order_by(Gap.created_at.desc(), Gap.id.desc()).limit(limit)
         if states:
             stmt = stmt.where(Gap.state.in_(states))
         if classes:

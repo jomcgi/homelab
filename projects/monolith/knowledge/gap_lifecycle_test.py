@@ -6,9 +6,11 @@ Uses the same in-memory SQLite + schema-strip fixture pattern as
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 import pytest
+import yaml
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
@@ -308,11 +310,16 @@ def test_answer_gap_writes_file_and_commits(session, tmp_path):
     assert file_path.is_file()
     content = file_path.read_text()
     assert content.startswith("---\n")
-    assert "id: linkerd-mtls" in content
-    assert 'title: "Linkerd mTLS"' in content
-    assert "type: atom" in content
-    assert "source_tier: personal" in content
-    assert "Linkerd enables mTLS" in content
+    # Parse the frontmatter so we don't couple to yaml.dump's quoting style.
+    _, fm_block, body = content.split("---\n", 2)
+    fm = yaml.safe_load(fm_block)
+    assert fm == {
+        "id": "linkerd-mtls",
+        "title": "Linkerd mTLS",
+        "type": "atom",
+        "source_tier": "personal",
+    }
+    assert "Linkerd enables mTLS" in body
 
     gap = session.get(Gap, gap_id)
     assert gap.state == "committed"
@@ -357,3 +364,58 @@ def test_answer_gap_rejects_wrong_state(session, tmp_path):
 
     with pytest.raises(ValueError, match="expected 'in_review'"):
         answer_gap(session, gap.id, "x", tmp_path)
+
+
+def test_answer_gap_handles_special_chars_in_term(session, tmp_path):
+    """YAML frontmatter must round-trip arbitrary terms (C1 regression)."""
+    term = r'regex \d+ "quoted" stuff'
+    gap_id = _seed_reviewable_gap(session, term=term)
+
+    result = answer_gap(session, gap_id, "some answer body", tmp_path)
+
+    file_path = tmp_path / result["path"]
+    content = file_path.read_text()
+    # Split on the frontmatter fences and parse with a real YAML loader —
+    # this would fail against the old hand-rolled escape, which emitted
+    # title: "regex \d+ ..." (invalid escape sequence in double-quoted YAML).
+    _, fm_block, _ = content.split("---\n", 2)
+    fm = yaml.safe_load(fm_block)
+    assert fm["title"] == term
+
+
+def test_classify_gaps_rejects_invalid_classifier_output(session, caplog):
+    """Out-of-range classifier outputs fall back to internal (I2 regression)."""
+    src = _make_note(session, "s", title="S")
+    _add_body_link(session, src_fk=src.id, target_id="good")
+    _add_body_link(session, src_fk=src.id, target_id="bad")
+    discover_gaps(session)
+
+    def classifier(term: str, _context: str) -> str:
+        return "external" if term == "good" else "bogus"
+
+    with caplog.at_level(logging.WARNING, logger="knowledge.gaps"):
+        assert classify_gaps(session, classifier=classifier) == 2
+
+    rows = {
+        g.term: (g.gap_class, g.state)
+        for g in session.execute(select(Gap)).scalars().all()
+    }
+    assert rows["good"] == ("external", "classified")
+    assert rows["bad"] == ("internal", "in_review")
+    assert any(
+        "classifier returned invalid class 'bogus'" in record.getMessage()
+        for record in caplog.records
+    )
+
+
+def test_answer_gap_rejects_frontmatter_terminator_in_answer(session, tmp_path):
+    """Answers containing '---' on their own line must be rejected (M4)."""
+    gap_id = _seed_reviewable_gap(session, term="some-term")
+
+    with pytest.raises(ValueError, match="frontmatter terminator"):
+        answer_gap(session, gap_id, "foo\n---\nbar", tmp_path)
+
+    gap = session.get(Gap, gap_id)
+    assert gap.state == "in_review"
+    assert gap.answer is None
+    assert gap.resolved_at is None
