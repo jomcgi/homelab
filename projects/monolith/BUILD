@@ -1860,6 +1860,19 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_gap_model_test",
+    srcs = ["knowledge/gap_model_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "knowledge_service_test",
     srcs = ["knowledge/service_test.py"],
     imports = ["."],
