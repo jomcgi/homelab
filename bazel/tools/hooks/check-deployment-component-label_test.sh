@@ -138,40 +138,45 @@ GOOD_CONTENT='    matchLabels:
       app.kubernetes.io/component: api
   template:'
 
+# Build JSON inputs using Python (guaranteed available in the hermetic Bazel sandbox).
+# This avoids calling jq with -cn/--arg flags that our minimal stub does not support.
+make_json() {
+	local fp="$1" key="$2" val="$3"
+	python3 - "$fp" "$key" "$val" <<'PY'
+import json, sys
+fp, key, val = sys.argv[1], sys.argv[2], sys.argv[3]
+print(json.dumps({"tool_input": {"file_path": fp, key: val}}))
+PY
+}
+
 # 1. Deployment template missing component label → warns
 run_test "missing_component_warns" \
-	"$(jq -cn --arg fp "/project/chart/templates/deployment.yaml" --arg content "$BAD_CONTENT" \
-		'{tool_input: {file_path: $fp, content: $content}}')" \
+	"$(make_json "/project/chart/templates/deployment.yaml" "content" "$BAD_CONTENT")" \
 	0 "WARNING.*component"
 
 # 2. Deployment template with component label → no warning
 run_test "has_component_no_warning" \
-	"$(jq -cn --arg fp "/project/chart/templates/deployment.yaml" --arg content "$GOOD_CONTENT" \
-		'{tool_input: {file_path: $fp, content: $content}}')" \
+	"$(make_json "/project/chart/templates/deployment.yaml" "content" "$GOOD_CONTENT")" \
 	0 ""
 
 # 3. Non-deployment file → skip
 run_test "non_deployment_skipped" \
-	"$(jq -cn --arg fp "/project/chart/templates/service.yaml" --arg content "$BAD_CONTENT" \
-		'{tool_input: {file_path: $fp, content: $content}}')" \
+	"$(make_json "/project/chart/templates/service.yaml" "content" "$BAD_CONTENT")" \
 	0 ""
 
 # 4. Non-template directory → skip
 run_test "non_template_dir_skipped" \
-	"$(jq -cn --arg fp "/project/deploy/values.yaml" --arg content "$BAD_CONTENT" \
-		'{tool_input: {file_path: $fp, content: $content}}')" \
+	"$(make_json "/project/deploy/values.yaml" "content" "$BAD_CONTENT")" \
 	0 ""
 
 # 5. Edit tool (new_string) — missing component warns
 run_test "edit_tool_missing_component_warns" \
-	"$(jq -cn --arg fp "/project/chart/templates/api-deployment.yaml" --arg ns "$BAD_CONTENT" \
-		'{tool_input: {file_path: $fp, new_string: $ns}}')" \
+	"$(make_json "/project/chart/templates/api-deployment.yaml" "new_string" "$BAD_CONTENT")" \
 	0 "WARNING"
 
 # 6. No matchLabels in content → skip
 run_test "no_matchlabels_skipped" \
-	"$(jq -cn --arg fp "/project/chart/templates/deployment.yaml" --arg content "kind: Deployment" \
-		'{tool_input: {file_path: $fp, content: $content}}')" \
+	"$(make_json "/project/chart/templates/deployment.yaml" "content" "kind: Deployment")" \
 	0 ""
 
 # 7. Empty JSON → skip
@@ -181,8 +186,7 @@ run_test "empty_json_allowed" \
 
 # 8. deploy/templates path also triggers check
 run_test "deploy_templates_path_warns" \
-	"$(jq -cn --arg fp "/project/deploy/templates/deployment.yaml" --arg content "$BAD_CONTENT" \
-		'{tool_input: {file_path: $fp, content: $content}}')" \
+	"$(make_json "/project/deploy/templates/deployment.yaml" "content" "$BAD_CONTENT")" \
 	0 "WARNING"
 
 # ---------------------------------------------------------------------------
