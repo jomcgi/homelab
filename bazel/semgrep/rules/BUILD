@@ -198,6 +198,22 @@ semgrep_test(
     tags = ["semgrep"],
 )
 
+# require-component-label-in-selector uses languages: [generic] with deployment path filters.
+# This test wires the rule to its annotation fixture independently of
+# kubernetes_rules_test (which uses yaml-language fixtures).
+filegroup(
+    name = "require_component_label_in_selector_rule",
+    srcs = ["kubernetes/require-component-label-in-selector.yaml"],
+)
+
+semgrep_test(
+    name = "require_component_label_in_selector_test",
+    srcs = ["//bazel/semgrep/tests:require_component_label_in_selector_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":require_component_label_in_selector_rule"],
+    tags = ["semgrep"],
+)
+
 # stale-copyright-year uses languages: [generic] so its fixture is a YAML file.
 # This test wires the rule to its annotation fixture independently of
 # golang_rules_test (which only scans *.go sources).

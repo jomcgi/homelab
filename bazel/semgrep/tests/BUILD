@@ -16,6 +16,7 @@ filegroup(
             "fixtures/no-unquoted-helm-range-args.yaml",
             "fixtures/python-shadow-module-import.yaml",
             "fixtures/require-cnpg-cluster-resources.yaml",
+            "fixtures/require-component-label-in-selector.yaml",
             "fixtures/unsafe-json-field-access.yaml",
         ],
     ),
@@ -59,6 +60,13 @@ filegroup(
 filegroup(
     name = "no_unquoted_helm_range_args_fixtures",
     srcs = ["fixtures/no-unquoted-helm-range-args.yaml"],
+)
+
+# Fixture for the require-component-label-in-selector rule (languages: generic).
+# Referenced by //bazel/semgrep/rules:require_component_label_in_selector_test.
+filegroup(
+    name = "require_component_label_in_selector_fixtures",
+    srcs = ["fixtures/require-component-label-in-selector.yaml"],
 )
 
 # Fixtures for kubernetes rules (require-readiness-probe, require-resource-limits, etc.).

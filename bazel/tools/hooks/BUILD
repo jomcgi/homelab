@@ -21,3 +21,9 @@ sh_test(
     srcs = ["check-bdd-shared-testing-dep_test.sh"],
     data = [":check-bdd-shared-testing-dep.sh"],
 )
+
+sh_test(
+    name = "check_deployment_component_label_test",
+    srcs = ["check-deployment-component-label_test.sh"],
+    data = [":check-deployment-component-label.sh"],
+)
