@@ -13,6 +13,8 @@ from chat.models import ChannelSummary, Message, UserChannelSummary
 
 logger = logging.getLogger(__name__)
 
+_LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "16384"))
+
 
 async def generate_summaries(
     session: Session,
@@ -293,7 +295,7 @@ def build_llm_caller(base_url: str | None = None) -> Callable[[str], Awaitable[s
                     json={
                         "model": "qwen3.6-27b",
                         "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 16384,
+                        "max_tokens": _LLM_MAX_TOKENS,
                     },
                 )
                 resp.raise_for_status()
