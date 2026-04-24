@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from knowledge.gap_classifier import (
+    _CLASSIFIER_PROMPT,
     CLASSIFIER_VERSION,
     ClassifyStats,
     classify_stubs,
@@ -156,3 +157,31 @@ async def test_classify_stubs_rejects_relative_paths(tmp_path: Path) -> None:
     """Relative stub paths raise a ValueError before any subprocess work."""
     with pytest.raises(ValueError, match="requires absolute paths"):
         await classify_stubs([Path("relative.md")], claude_bin="claude")
+
+
+def test_classifier_prompt_explicitly_forbids_appending_duplicate_keys():
+    """Drift detector: prompt must instruct find-and-replace, not append."""
+    # Use phrase tokens, not exact wording — prompt iterations are expected,
+    # but the substantive instruction must remain.
+    assert "replace" in _CLASSIFIER_PROMPT.lower(), (
+        "prompt must mention 'replace' to instruct find-and-replace edits"
+    )
+    assert (
+        "do not add a new" in _CLASSIFIER_PROMPT.lower()
+        or "do not append" in _CLASSIFIER_PROMPT.lower()
+    ), "prompt must explicitly forbid appending new keys when one exists"
+    # YAML uniqueness justification — keeps the rule explainable to future readers.
+    assert (
+        "duplicate" in _CLASSIFIER_PROMPT.lower()
+        or "yaml" in _CLASSIFIER_PROMPT.lower()
+    ), "prompt should explain WHY (YAML key uniqueness)"
+
+    # Sanity: ensure the .format() placeholders are still intact and the prompt
+    # still substitutes cleanly. Catches stray `{` / `}` accidentally introduced
+    # to the prompt body.
+    rendered = _CLASSIFIER_PROMPT.format(
+        classifier_version=CLASSIFIER_VERSION,
+        stub_list="- /tmp/example.md",
+    )
+    assert CLASSIFIER_VERSION in rendered
+    assert "/tmp/example.md" in rendered
