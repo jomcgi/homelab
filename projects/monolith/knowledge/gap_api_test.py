@@ -177,6 +177,28 @@ class TestListGaps:
         r = client.get("/api/knowledge/gaps?limit=10000")
         assert r.status_code == 422
 
+    def test_list_gaps_handles_trailing_comma(self, client, session):
+        """Trailing comma in state CSV must not become an empty-string filter.
+
+        Regression: before the shared ``split_csv`` helper, ``state=in_review,``
+        would pass ``[""]`` through as a filter value — which could silently
+        hide all in_review gaps depending on the filter semantics.
+        """
+        src = _make_source_note(session)
+        _make_gap(session, term="review-one", source_fk=src.id, state="in_review")
+        _make_gap(
+            session,
+            term="discovered-one",
+            source_fk=src.id,
+            state="discovered",
+            gap_class=None,
+        )
+
+        r = client.get("/api/knowledge/gaps?state=in_review,&limit=10")
+        assert r.status_code == 200
+        terms = sorted(g["term"] for g in r.json().get("gaps", []))
+        assert terms == ["review-one"]
+
 
 class TestReviewQueue:
     """GET /api/knowledge/gaps/review-queue."""

@@ -42,6 +42,18 @@ logger = logging.getLogger(__name__)
 
 GAPS_PIPELINE_VERSION = "gaps@v1"
 
+
+def split_csv(value: str | None) -> list[str] | None:
+    """Split a comma-separated query/tool param into a list, stripping
+    whitespace and dropping empty segments. Returns None when input is None
+    or all-empty so callers can pass it straight into optional filter kwargs.
+    """
+    if value is None:
+        return None
+    parts = [s.strip() for s in value.split(",") if s.strip()]
+    return parts or None
+
+
 # Privacy-conservative default: uncertain → internal (route to user, not web).
 _DEFAULT_GAP_CLASS = "internal"
 

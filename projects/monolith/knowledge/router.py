@@ -25,7 +25,7 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from knowledge import frontmatter
-from knowledge.gaps import answer_gap, list_review_queue
+from knowledge.gaps import answer_gap, list_review_queue, split_csv
 from knowledge.gardener import Gardener, _slugify
 from knowledge.ingest_queue import IngestQueueItem
 from knowledge.models import AtomRawProvenance, RawInput
@@ -90,7 +90,7 @@ def get_knowledge_note(
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
 
-    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
+    vault_root = _get_vault_root()
     resolved = (vault_root / note["path"]).resolve()
     if not resolved.is_relative_to(vault_root) or not resolved.is_file():
         raise HTTPException(status_code=404, detail="vault file missing")
@@ -110,7 +110,7 @@ def delete_note_endpoint(
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
 
-    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
+    vault_root = _get_vault_root()
     resolved = (vault_root / note["path"]).resolve()
     if not resolved.is_relative_to(vault_root):
         raise HTTPException(status_code=400, detail="invalid note path")
@@ -137,7 +137,7 @@ def edit_note(
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
 
-    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
+    vault_root = _get_vault_root()
     resolved = (vault_root / note["path"]).resolve()
     if not resolved.is_relative_to(vault_root) or not resolved.is_file():
         raise HTTPException(status_code=404, detail="vault file missing")
@@ -237,7 +237,7 @@ def create_note(data: CreateNoteRequest) -> dict:
     fm_str = yaml.dump(fm_dict, default_flow_style=False, sort_keys=False)
     file_content = f"---\n{fm_str}---\n\n{content}\n"
 
-    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
+    vault_root = _get_vault_root()
     slug = _slugify(title)
     filename = f"{slug}.md"
 
@@ -321,13 +321,9 @@ def list_gaps_endpoint(
     session: Session = Depends(get_session),
 ) -> dict:
     """List gaps with optional state/class filters."""
-    states = [s.strip() for s in state.split(",") if s.strip()] if state else None
-    classes = (
-        [c.strip() for c in gap_class.split(",") if c.strip()] if gap_class else None
-    )
     gaps = KnowledgeStore(session).list_gaps(
-        states=states,
-        classes=classes,
+        states=split_csv(state),
+        classes=split_csv(gap_class),
         limit=limit,
     )
     return {"gaps": gaps}
@@ -352,6 +348,10 @@ def answer_gap_endpoint(
     try:
         return answer_gap(session, gap_id, data.answer, vault_root)
     except ValueError as exc:
+        # TODO(post-mvp): refactor gaps.py to raise typed exceptions
+        # (GapNotFoundError, GapWrongStateError, GapAnswerRejectedError) so this
+        # error mapping isn't coupled to specific string messages. The router
+        # should map by exception class, not str(exc) substring.
         msg = str(exc)
         if "Gap not found" in msg:
             raise HTTPException(status_code=404, detail=msg) from exc

@@ -144,6 +144,50 @@ class TestListGapsTool:
         result = await list_gaps(limit=2)
         assert len(result["gaps"]) == 2
 
+    @pytest.mark.asyncio
+    async def test_list_gaps_strips_whitespace_in_state(self, session, patched_engine):
+        """MCP state CSV must match HTTP behavior — trim whitespace between segments.
+
+        Regression: the old ``state.split(",")`` passed ``" classified"`` as a
+        literal filter value, silently dropping every ``classified`` gap when an
+        LLM wrote a natural space after the comma.
+        """
+        src = _make_source_note(session)
+        _make_gap(
+            session,
+            term="intr",
+            source_fk=src.id,
+            state="in_review",
+            gap_class="internal",
+        )
+        _make_gap(
+            session,
+            term="cls",
+            source_fk=src.id,
+            state="classified",
+            gap_class="external",
+        )
+
+        result = await list_gaps(state="in_review, classified")
+        terms = sorted(g["term"] for g in result["gaps"])
+        assert terms == ["cls", "intr"]
+
+    @pytest.mark.asyncio
+    async def test_list_gaps_clamps_limit_upper_bound(self, session, patched_engine):
+        """Oversized MCP limit is clamped to the HTTP max (defense in depth)."""
+        src = _make_source_note(session)
+        for i in range(3):
+            _make_gap(
+                session,
+                term=f"t{i}",
+                source_fk=src.id,
+                state="discovered",
+                gap_class=None,
+            )
+
+        result = await list_gaps(limit=1_000_000)
+        assert len(result["gaps"]) == 3
+
 
 class TestReviewQueueTool:
     @pytest.mark.asyncio
