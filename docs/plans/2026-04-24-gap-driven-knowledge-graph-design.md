@@ -45,9 +45,15 @@ model use proportional to where judgement actually matters.
 - Embeddings on gaps so related ones can be grouped
 - Clear state for each gap through the pipeline (discovered → researched →
   verified → consolidated → committed/rejected)
+- Briefs are cluster-scoped, not gap-scoped — a gap carries its own state,
+  a brief lives on the cluster the gap was assigned to; the "researched"
+  state on a gap is satisfied by its cluster's brief
 - Stable cluster assignments once made, to avoid briefs churning
 - Provenance and pipeline version stamped on every atom for retroactive
   re-scoring
+- Domain-reputation is its own state substrate — per-source-domain quality
+  scores are not a view over atoms, they persist independently and feed
+  back into briefing
 
 ### Processing
 
@@ -57,6 +63,10 @@ model use proportional to where judgement actually matters.
   stages
 - Batch processing at the cluster level to amortise briefing cost and catch
   within-batch duplicates
+- Gap triage before briefing — gaps that look like personal shorthand,
+  fragment wikilinks, or private-context terms are parked, not briefed;
+  parked gaps stay queryable but don't consume research budget until
+  promoted
 - Stateless, resumable workers driven off the gap's current state
 - Idempotent discovery so re-scanning the vault is safe
 
@@ -86,7 +96,12 @@ model use proportional to where judgement actually matters.
 ## Out of scope for this document
 
 - Concrete schema (gap table columns, cluster identifiers, atom provenance
-  fields)
+  fields, domain-reputation store columns)
+- Trust computation strategy — static per-atom at ingest vs. edge-inherited
+  across the graph vs. time-decayed; the implementation plan branches hard
+  on this choice and should resolve it up front
+- Triage criteria for non-researchable gaps (the rule-set that sends a gap
+  to "parked" instead of "discovered")
 - Worker topology (separate scheduler jobs vs. a single DAG runner)
 - Model choices (which specific models fill which judgement tier)
 - Storage choices (Postgres-only vs. separate queue vs. object store for
