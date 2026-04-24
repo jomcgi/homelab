@@ -130,7 +130,10 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     }
 
     stub_dir = vault_root / RESEARCHING_DIR
-    now_iso = datetime.now(timezone.utc).isoformat()
+    # Canonical Zulu form (no microseconds, no offset) — matches the design
+    # doc examples and the test fixture strings, keeps stub frontmatter
+    # visually consistent across files.
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     inserted = 0
     stubs_written = 0
     backfilled = 0
