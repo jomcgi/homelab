@@ -201,9 +201,10 @@ def test_discover_gaps_heals_missing_stub(session, tmp_path):
     _add_body_link(session, src_fk=src.id, target_id="orphan")
 
     # Row exists but stub is missing → the run writes the stub and backfills
-    # note_id. Both count as "work done".
+    # note_id. The OR-collapse in discover_gaps means stub repair alone
+    # counts as exactly one unit of work — not two (row + stub).
     created = discover_gaps(session, tmp_path)
-    assert created >= 1
+    assert created == 1
 
     session.refresh(gap)
     assert gap.note_id == "orphan"
@@ -213,23 +214,45 @@ def test_discover_gaps_heals_missing_stub(session, tmp_path):
 
 
 def test_discover_gaps_heals_missing_row(session, tmp_path):
-    """If a stub file exists without a Gap row, discover_gaps inserts the row."""
-    # Manually write a stub file via write_stub before any Gap exists.
-    write_stub(
-        vault_root=tmp_path,
-        note_id="lonely-stub",
-        title="lonely-stub",
-        referenced_by=["source-note"],
-        discovered_at="2026-04-25T00:00:00+00:00",
+    """If a stub exists without a Gap row (edge case), discover_gaps inserts the row
+    WITHOUT overwriting the stub — classifier edits survive re-discovery."""
+    # Write a stub that has a classifier edit already applied.
+    # The design rests on this edit surviving re-runs of discover_gaps.
+    stub = tmp_path / RESEARCHING_DIR / "orphan.md"
+    stub.parent.mkdir(parents=True, exist_ok=True)
+    stub.write_text(
+        "---\n"
+        "id: orphan\n"
+        "title: orphan\n"
+        "type: gap\n"
+        "status: classified\n"
+        "gap_class: external\n"
+        "referenced_by:\n"
+        "  - note-a\n"
+        'discovered_at: "2026-04-25T08:00:00Z"\n'
+        'classified_at: "2026-04-25T08:05:00Z"\n'
+        'classifier_version: "opus-4-7@v1"\n'
+        "---\n\n"
     )
-    src = _make_note(session, "source-note", title="Source Note")
-    _add_body_link(session, src_fk=src.id, target_id="lonely-stub")
+    stub_bytes_before = stub.read_bytes()
 
-    assert discover_gaps(session, tmp_path) == 1
+    # Seed a source note + NoteLink pointing at 'orphan' — simulates a vault
+    # state where the stub pre-exists but no Gap row has been inserted yet
+    # (e.g., post-migration backfill of an orphan stub).
+    src = _make_note(session, "note-a", title="Note A")
+    _add_body_link(session, src_fk=src.id, target_id="orphan")
 
-    gap = session.execute(select(Gap)).scalar_one()
-    assert gap.term == "lonely-stub"
-    assert gap.note_id == "lonely-stub"
+    created = discover_gaps(session, tmp_path)
+
+    # The row got inserted (new work).
+    assert created == 1
+
+    # Critically: the stub's bytes are unchanged. Classifier edits survive.
+    assert stub.read_bytes() == stub_bytes_before
+
+    # The Gap row reflects the stub's existence via note_id.
+    gap = session.execute(select(Gap).where(Gap.term == "orphan")).scalar_one()
+    assert gap.note_id == "orphan"
 
 
 def test_discover_gaps_dedupes_referenced_by(session, tmp_path):
