@@ -9,7 +9,7 @@ Multi-phase pipeline: light pollution atlas + OSM road data to identify dark zon
 | Component   | Description |
 | ----------- | ----------- |
 | **backend** | Pipeline that combines light pollution data, OSM roads, and weather forecasts |
-| **tests**   | Additional unit tests for the backend pipeline (separate from backend/tests/) |
+| **tests**   | Additional unit tests for the backend pipeline (separate from tests co-located in `backend/`) |
 | **chart**   | Helm chart with CronJob and API server templates |
 | **deploy**  | ArgoCD Application, kustomization, and cluster-specific values |
 
