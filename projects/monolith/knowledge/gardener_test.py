@@ -1236,6 +1236,41 @@ class TestRecordFailedProvenance:
         assert rows[0].gardener_version == GARDENER_VERSION
 
 
+class TestGardenerDedupesFrontmatterOnStartup:
+    """The gardener cleans duplicate-key stub frontmatter once per process.
+
+    Production accumulated ~600 stubs with duplicate ``status:`` lines because
+    Claude's classifier ``Edit`` invocations appended new keys instead of
+    replacing existing ones. The gardener runs ``dedupe_stub_frontmatter`` on
+    its first ``run()`` call to clean the backlog; subsequent runs skip it via
+    the ``_frontmatter_deduped`` flag so we don't churn mtimes every cycle.
+    """
+
+    @pytest.mark.asyncio
+    async def test_dedupes_on_first_run_and_skips_on_second(self, tmp_path, session):
+        """First run() cleans the stub; second run() leaves the file untouched."""
+        stub_dir = tmp_path / "_researching"
+        stub_dir.mkdir()
+        bad_stub = stub_dir / "x.md"
+        bad_stub.write_text(
+            "---\nid: x\ntype: gap\nstatus: discovered\nstatus: classified\n---\n"
+        )
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        await gardener.run()
+
+        text = bad_stub.read_text()
+        assert text.count("status:") == 1, "first run cleans the stub"
+
+        # Second run is a no-op (idempotent — flag prevents re-running, and even
+        # if the helper ran again the byte-comparison would skip the rewrite).
+        mtime = bad_stub.stat().st_mtime_ns
+        await gardener.run()
+        assert bad_stub.stat().st_mtime_ns == mtime, (
+            "second run does not touch the file"
+        )
+
+
 class TestGardenerGapDiscovery:
     """Gap discovery and classification are wired into each garden cycle."""
 
