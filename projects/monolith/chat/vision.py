@@ -26,6 +26,7 @@ VISION_RETRY_TIMEOUT = 300.0  # 5 min total deadline
 # while slow vision inference still has time to complete.
 VISION_CONNECT_TIMEOUT = 5.0
 VISION_READ_TIMEOUT = 60.0
+VISION_MAX_TOKENS = int(os.environ.get("VISION_MAX_TOKENS", "4096"))
 
 
 def _is_retryable(exc: Exception) -> bool:
@@ -65,7 +66,7 @@ class VisionClient:
                     ],
                 },
             ],
-            "max_tokens": 4096,
+            "max_tokens": VISION_MAX_TOKENS,
             # Disable thinking so tokens are used for the description, not
             # <think> reasoning that fills the entire max_tokens budget.
             "chat_template_kwargs": {"enable_thinking": False},
