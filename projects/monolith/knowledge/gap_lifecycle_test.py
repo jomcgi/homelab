@@ -14,6 +14,7 @@ import yaml
 from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
+from knowledge.gap_stubs import RESEARCHING_DIR, parse_stub_frontmatter, write_stub
 from knowledge.gaps import (
     GAPS_PIPELINE_VERSION,
     answer_gap,
@@ -83,11 +84,11 @@ def _add_body_link(session: Session, *, src_fk: int, target_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_discover_gaps_finds_unresolved_wikilink(session):
+def test_discover_gaps_finds_unresolved_wikilink(session, tmp_path):
     src = _make_note(session, "source-note", title="Source Note")
     _add_body_link(session, src_fk=src.id, target_id="missing-concept")
 
-    created = discover_gaps(session)
+    created = discover_gaps(session, tmp_path)
 
     assert created == 1
     gaps = session.execute(select(Gap)).scalars().all()
@@ -99,32 +100,43 @@ def test_discover_gaps_finds_unresolved_wikilink(session):
     assert gap.state == "discovered"
     assert gap.gap_class is None
     assert gap.pipeline_version == GAPS_PIPELINE_VERSION
+    # The stub-notes extension also sets note_id (= slug) and writes a stub.
+    assert gap.note_id == "missing-concept"
+    assert (tmp_path / RESEARCHING_DIR / "missing-concept.md").is_file()
 
 
-def test_discover_gaps_skips_resolved_links(session):
+def test_discover_gaps_skips_resolved_links(session, tmp_path):
     src = _make_note(session, "source-note", title="Source")
     _make_note(session, "target-note", title="Target")  # link target exists
     _add_body_link(session, src_fk=src.id, target_id="target-note")
 
-    created = discover_gaps(session)
+    created = discover_gaps(session, tmp_path)
 
     assert created == 0
     assert session.execute(select(Gap)).scalars().all() == []
+    # No stub should have been written.
+    assert not (tmp_path / RESEARCHING_DIR).exists() or not list(
+        (tmp_path / RESEARCHING_DIR).iterdir()
+    )
 
 
-def test_discover_gaps_is_idempotent(session):
+def test_discover_gaps_is_idempotent(session, tmp_path):
     src = _make_note(session, "src", title="Src")
     _add_body_link(session, src_fk=src.id, target_id="missing")
 
-    first = discover_gaps(session)
-    second = discover_gaps(session)
+    first = discover_gaps(session, tmp_path)
+    stub_path = tmp_path / RESEARCHING_DIR / "missing.md"
+    first_stub = stub_path.read_text()
+    second = discover_gaps(session, tmp_path)
 
     assert first == 1
     assert second == 0
     assert len(session.execute(select(Gap)).scalars().all()) == 1
+    # Stub still exists and is unchanged on re-run (write_stub is idempotent).
+    assert stub_path.read_text() == first_stub
 
 
-def test_discover_gaps_ignores_frontmatter_edges(session):
+def test_discover_gaps_ignores_frontmatter_edges(session, tmp_path):
     """kind='edge' rows are typed assertions, not wikilink gaps."""
     src = _make_note(session, "src", title="Src")
     session.add(
@@ -138,17 +150,110 @@ def test_discover_gaps_ignores_frontmatter_edges(session):
     )
     session.commit()
 
-    assert discover_gaps(session) == 0
+    assert discover_gaps(session, tmp_path) == 0
 
 
-def test_discover_gaps_captures_source_title_as_context(session):
+def test_discover_gaps_captures_source_title_as_context(session, tmp_path):
     src = _make_note(session, "src-slug", title="Kubernetes Networking")
     _add_body_link(session, src_fk=src.id, target_id="cilium")
 
-    discover_gaps(session)
+    discover_gaps(session, tmp_path)
 
     gap = session.execute(select(Gap).where(Gap.term == "cilium")).scalar_one()
     assert gap.context == "Kubernetes Networking"
+
+
+def test_discover_gaps_writes_stub_file(session, tmp_path):
+    """discover_gaps sets note_id on the Gap row and writes a stub to _researching/."""
+    src = _make_note(session, "source-note", title="Source Note")
+    _add_body_link(session, src_fk=src.id, target_id="some-term")
+
+    assert discover_gaps(session, tmp_path) == 1
+
+    gap = session.execute(select(Gap)).scalar_one()
+    assert gap.term == "some-term"
+    assert gap.note_id == "some-term"
+
+    stub = tmp_path / RESEARCHING_DIR / "some-term.md"
+    assert stub.is_file()
+    meta = parse_stub_frontmatter(stub)
+    assert meta["id"] == "some-term"
+    assert meta["title"] == "some-term"
+    assert meta["type"] == "gap"
+    assert meta["status"] == "discovered"
+    assert meta["referenced_by"] == ["source-note"]
+
+
+def test_discover_gaps_heals_missing_stub(session, tmp_path):
+    """If a Gap row exists without a stub, a subsequent run writes the stub."""
+    src = _make_note(session, "source-note", title="Source Note")
+    # Seed a Gap row directly without note_id and without a stub file.
+    gap = Gap(
+        term="orphan",
+        context="Source Note",
+        note_id=None,
+        source_note_fk=src.id,
+        pipeline_version=GAPS_PIPELINE_VERSION,
+        state="discovered",
+    )
+    session.add(gap)
+    session.commit()
+    _add_body_link(session, src_fk=src.id, target_id="orphan")
+
+    # Row exists but stub is missing → the run writes the stub and backfills
+    # note_id. Both count as "work done".
+    created = discover_gaps(session, tmp_path)
+    assert created >= 1
+
+    session.refresh(gap)
+    assert gap.note_id == "orphan"
+
+    stub = tmp_path / RESEARCHING_DIR / "orphan.md"
+    assert stub.is_file()
+
+
+def test_discover_gaps_heals_missing_row(session, tmp_path):
+    """If a stub file exists without a Gap row, discover_gaps inserts the row."""
+    # Manually write a stub file via write_stub before any Gap exists.
+    write_stub(
+        vault_root=tmp_path,
+        note_id="lonely-stub",
+        title="lonely-stub",
+        referenced_by=["source-note"],
+        discovered_at="2026-04-25T00:00:00+00:00",
+    )
+    src = _make_note(session, "source-note", title="Source Note")
+    _add_body_link(session, src_fk=src.id, target_id="lonely-stub")
+
+    assert discover_gaps(session, tmp_path) == 1
+
+    gap = session.execute(select(Gap)).scalar_one()
+    assert gap.term == "lonely-stub"
+    assert gap.note_id == "lonely-stub"
+
+
+def test_discover_gaps_dedupes_referenced_by(session, tmp_path):
+    """Two source notes referencing the same term produce ONE Gap row and ONE stub,
+    with referenced_by listing both source notes sorted for determinism."""
+    src_a = _make_note(session, "note-a", title="Note A")
+    src_b = _make_note(session, "note-b", title="Note B")
+    _add_body_link(session, src_fk=src_a.id, target_id="shared-term")
+    _add_body_link(session, src_fk=src_b.id, target_id="shared-term")
+
+    assert discover_gaps(session, tmp_path) == 1
+
+    gaps = session.execute(select(Gap)).scalars().all()
+    assert len(gaps) == 1
+    assert gaps[0].term == "shared-term"
+    assert gaps[0].note_id == "shared-term"
+
+    researching = tmp_path / RESEARCHING_DIR
+    stubs = list(researching.iterdir())
+    assert len(stubs) == 1
+    assert stubs[0].name == "shared-term.md"
+
+    meta = parse_stub_frontmatter(stubs[0])
+    assert meta["referenced_by"] == ["note-a", "note-b"]
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +261,7 @@ def test_discover_gaps_captures_source_title_as_context(session):
 # ---------------------------------------------------------------------------
 
 
-def test_classify_gaps_without_classifier_is_noop(session, caplog):
+def test_classify_gaps_without_classifier_is_noop(session, tmp_path, caplog):
     """No classifier wired → gaps stay at discovered, warning logged.
 
     Routing unclassified gaps to internal would conflate classifier absence
@@ -166,7 +271,7 @@ def test_classify_gaps_without_classifier_is_noop(session, caplog):
     src = _make_note(session, "s", title="S")
     _add_body_link(session, src_fk=src.id, target_id="t1")
     _add_body_link(session, src_fk=src.id, target_id="t2")
-    discover_gaps(session)
+    discover_gaps(session, tmp_path)
 
     with caplog.at_level(logging.WARNING, logger="knowledge.gaps"):
         classified = classify_gaps(session)  # no classifier wired
@@ -184,11 +289,11 @@ def test_classify_gaps_without_classifier_is_noop(session, caplog):
     )
 
 
-def test_classify_gaps_routes_by_class(session):
+def test_classify_gaps_routes_by_class(session, tmp_path):
     src = _make_note(session, "s", title="S")
     for target in ("ext", "int", "hyb", "park"):
         _add_body_link(session, src_fk=src.id, target_id=target)
-    discover_gaps(session)
+    discover_gaps(session, tmp_path)
 
     mapping = {
         "ext": "external",
@@ -212,10 +317,10 @@ def test_classify_gaps_routes_by_class(session):
     assert rows["park"] == ("parked", "classified")
 
 
-def test_classify_gaps_skips_already_classified(session):
+def test_classify_gaps_skips_already_classified(session, tmp_path):
     src = _make_note(session, "s", title="S")
     _add_body_link(session, src_fk=src.id, target_id="x")
-    discover_gaps(session)
+    discover_gaps(session, tmp_path)
 
     def classifier(_term: str, _context: str) -> str:
         return "internal"
@@ -399,12 +504,12 @@ def test_answer_gap_handles_special_chars_in_term(session, tmp_path):
     assert fm["title"] == term
 
 
-def test_classify_gaps_rejects_invalid_classifier_output(session, caplog):
+def test_classify_gaps_rejects_invalid_classifier_output(session, tmp_path, caplog):
     """Out-of-range classifier outputs fall back to internal (I2 regression)."""
     src = _make_note(session, "s", title="S")
     _add_body_link(session, src_fk=src.id, target_id="good")
     _add_body_link(session, src_fk=src.id, target_id="bad")
-    discover_gaps(session)
+    discover_gaps(session, tmp_path)
 
     def classifier(term: str, _context: str) -> str:
         return "external" if term == "good" else "bogus"
