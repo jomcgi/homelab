@@ -26,6 +26,9 @@ _BACKUP_INTERVAL_SECS = 900  # 15 minutes
 _BACKUP_TTL_SECS = 600  # 10 minute timeout
 _INGEST_INTERVAL_SECS = 300
 _INGEST_TTL_SECS = 600
+_CLASSIFY_INTERVAL_SECS = 60  # 1-minute tick
+_CLASSIFY_TTL_SECS = 180  # 3-minute timeout (classifier subprocess is long)
+_CLASSIFY_BATCH_SIZE = 10
 _GIT_READY_SENTINEL = ".git-ready"
 _SYNC_READY_SENTINEL = ".sync-ready"
 _GIT_AUTHOR = b"vault-backup <vault-backup@monolith.local>"
@@ -186,6 +189,65 @@ async def reconcile_handler(session: Session) -> datetime | None:
     return None
 
 
+async def classify_gaps_handler(session: Session) -> datetime | None:
+    """Scheduler handler: classify a batch of gap stubs via Claude subprocess.
+
+    Globs _researching/*.md for stubs with no gap_class set, takes up to
+    _CLASSIFY_BATCH_SIZE of them, and calls classify_stubs. Claude edits
+    the stub frontmatter in place; the reconciler projects the edits into
+    the Gap table on its next tick.
+
+    Returns None (matches the repo's scheduler contract).
+    """
+    if not _vault_sync_ready():
+        logger.info("knowledge.classify-gaps: vault sync not ready, deferring")
+        return None
+    if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        logger.warning(
+            "knowledge.classify-gaps: CLAUDE_CODE_OAUTH_TOKEN not set, skipping"
+        )
+        return None
+
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
+    researching_dir = vault_root / "_researching"
+    if not researching_dir.is_dir():
+        logger.info("knowledge.classify-gaps: no _researching/ directory yet, skipping")
+        return None
+
+    from knowledge.gap_classifier import classify_stubs
+    from knowledge.gap_stubs import parse_stub_frontmatter
+
+    pending: list[Path] = []
+    for stub in sorted(researching_dir.glob("*.md")):
+        try:
+            meta = parse_stub_frontmatter(stub)
+        except Exception:
+            logger.warning(
+                "knowledge.classify-gaps: failed to parse %s, skipping",
+                stub,
+                exc_info=True,
+            )
+            continue
+        if meta.get("gap_class") is None:
+            pending.append(stub)
+        if len(pending) >= _CLASSIFY_BATCH_SIZE:
+            break
+
+    if not pending:
+        logger.info("knowledge.classify-gaps: no pending stubs")
+        return None
+
+    stats = await classify_stubs(pending)
+    logger.info(
+        "knowledge.classify-gaps complete",
+        extra={
+            "stubs_processed": stats.stubs_processed,
+            "duration_ms": stats.duration_ms,
+        },
+    )
+    return None
+
+
 def on_startup(session: Session) -> None:
     """Register knowledge jobs with the scheduler."""
     from shared.scheduler import register_job
@@ -227,4 +289,11 @@ def on_startup(session: Session) -> None:
         interval_secs=_INGEST_INTERVAL_SECS,
         handler=ingest_handler,
         ttl_secs=_INGEST_TTL_SECS,
+    )
+    register_job(
+        session,
+        name="knowledge.classify-gaps",
+        interval_secs=_CLASSIFY_INTERVAL_SECS,
+        handler=classify_gaps_handler,
+        ttl_secs=_CLASSIFY_TTL_SECS,
     )
