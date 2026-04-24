@@ -85,6 +85,8 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     Healing semantics:
         * Gap row exists but stub is missing → write the stub.
         * Stub exists but Gap row is missing → insert the Gap row.
+        * Two terms that slug to the same note_id collapse into one Gap row;
+          their ``referenced_by`` lists are unioned in the surviving stub.
 
     Returns the number of "new" items — the count of Gap rows newly inserted
     OR stub files newly written (either side indicates this cycle did work).
@@ -108,8 +110,8 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
         .where(NoteLink.kind == "link")
     ).all()
 
-    # Accumulate referenced_by per term: one term can be referenced by
-    # many source notes. The stub's referenced_by list reflects that.
+    # Phase 1: accumulate per-term breadcrumbs. One term can be referenced
+    # by many source notes; the stub's referenced_by reflects that.
     referenced_by: dict[str, set[str]] = {}
     contexts: dict[str, str] = {}
     source_fks: dict[str, int] = {}
@@ -123,11 +125,27 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
         contexts.setdefault(target_id, row.title or "")
         source_fks.setdefault(target_id, row.src_note_fk)
 
-    # Pre-load existing Gap rows keyed by term so we can distinguish
-    # insert vs. backfill-note_id vs. no-op.
-    existing_gaps: dict[str, Gap] = {
-        g.term: g for g in session.execute(select(Gap)).scalars().all()
-    }
+    # Phase 2: fold by slug. Two terms slugging to the same note_id collapse
+    # into one slug entry; their referenced_by sets are unioned. Sort terms
+    # so the canonical-term-per-slug is reproducible across runs (otherwise
+    # the dict-iteration order would pick whichever term landed first).
+    slug_refs: dict[str, set[str]] = {}
+    slug_canonical_term: dict[str, str] = {}
+    slug_context: dict[str, str] = {}
+    slug_source_fk: dict[str, int] = {}
+    for term in sorted(referenced_by.keys()):
+        slug = _slugify(term)
+        slug_refs.setdefault(slug, set()).update(referenced_by[term])
+        if slug not in slug_canonical_term:
+            slug_canonical_term[slug] = term
+            slug_context[slug] = contexts.get(term, "")
+            slug_source_fk[slug] = source_fks[term]
+
+    # Pre-load Gap rows by both note_id (post-stub identity) and term (for
+    # legacy backfill of rows where note_id is still NULL).
+    all_gaps = session.execute(select(Gap)).scalars().all()
+    existing_by_note_id: dict[str, Gap] = {g.note_id: g for g in all_gaps if g.note_id}
+    existing_by_term: dict[str, Gap] = {g.term: g for g in all_gaps}
 
     stub_dir = vault_root / RESEARCHING_DIR
     # Canonical Zulu form (no microseconds, no offset) — matches the design
@@ -139,33 +157,38 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     backfilled = 0
     new_items = 0
 
-    for term, refs in referenced_by.items():
-        slug = _slugify(term)
+    for slug, refs in slug_refs.items():
+        canonical_term = slug_canonical_term[slug]
         refs_sorted = sorted(refs)
-
-        existing = existing_gaps.get(term)
         row_inserted = False
+
+        existing = existing_by_note_id.get(slug)
         if existing is None:
-            # SAVEPOINT per insert: a concurrent discoverer could insert the
-            # same term between SELECT and INSERT. Nesting the add lets that
-            # single row fail without rolling back every gap this cycle.
-            with session.begin_nested():
-                session.add(
-                    Gap(
-                        term=term,
-                        context=contexts[term],
-                        note_id=slug,
-                        source_note_fk=source_fks[term],
-                        pipeline_version=GAPS_PIPELINE_VERSION,
-                        state="discovered",
+            legacy = existing_by_term.get(canonical_term)
+            if legacy is not None and legacy.note_id is None:
+                # Backfill: legacy row pre-dates the stub-notes extension.
+                legacy.note_id = slug
+                backfilled += 1
+            else:
+                # SAVEPOINT per insert: a concurrent discoverer could insert
+                # the same slug between SELECT and INSERT. Nesting the add lets
+                # that single row fail without rolling back every gap this
+                # cycle. With Task 1's UNIQUE(note_id) in place this is the
+                # last line of defence — slug-folding above already collapses
+                # the in-process collisions.
+                with session.begin_nested():
+                    session.add(
+                        Gap(
+                            term=canonical_term,
+                            context=slug_context[slug],
+                            note_id=slug,
+                            source_note_fk=slug_source_fk[slug],
+                            pipeline_version=GAPS_PIPELINE_VERSION,
+                            state="discovered",
+                        )
                     )
-                )
-            inserted += 1
-            row_inserted = True
-        elif existing.note_id is None:
-            # Backfill: row pre-dates the stub-notes extension.
-            existing.note_id = slug
-            backfilled += 1
+                inserted += 1
+                row_inserted = True
 
         # Stub write is unconditional — write_stub is idempotent. Track whether
         # a new stub was actually written so we can surface healing work.
@@ -182,7 +205,7 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
         if stub_newly_written:
             stubs_written += 1
 
-        # Count one unit of "work done" per term where EITHER a new row was
+        # Count one unit of "work done" per slug where EITHER a new row was
         # inserted OR a new stub was written. Without this OR-collapse, the
         # common case of a first-time discovery would double-count (row + stub)
         # against a single observable gap.
