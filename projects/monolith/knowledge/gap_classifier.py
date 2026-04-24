@@ -96,6 +96,16 @@ async def classify_stubs(
     if not stubs:
         return ClassifyStats(stubs_processed=0, duration_ms=0)
 
+    # All stub paths must be absolute — Claude's Read/Edit tools are
+    # cwd-sensitive when given relative paths, and we deliberately don't
+    # set cwd on the subprocess. Fail loudly if a future caller passes
+    # relative paths rather than silently producing broken classifications.
+    relative = [s for s in stubs if not s.is_absolute()]
+    if relative:
+        raise ValueError(
+            f"classify_stubs requires absolute paths, got relative: {relative}"
+        )
+
     stub_list = "\n".join(f"- {stub}" for stub in stubs)
     prompt = _CLASSIFIER_PROMPT.format(
         classifier_version=CLASSIFIER_VERSION,
