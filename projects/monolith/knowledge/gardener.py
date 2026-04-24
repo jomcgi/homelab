@@ -506,6 +506,7 @@ class Gardener:
         """
         if self.session is None:
             return 0, 0
+        discovered = 0
         try:
             # Imported at call-time to avoid a circular import:
             # ``knowledge.gaps`` imports ``_slugify`` from this module.
@@ -515,8 +516,11 @@ class Gardener:
             classified = classify_gaps(self.session)
             return discovered, classified
         except Exception:
-            logger.exception("gardener: gap discovery/classification failed")
-            return 0, 0
+            logger.exception(
+                "gardener: gap pipeline failed after discovering %d gaps",
+                discovered,
+            )
+            return discovered, 0
 
     async def _distill_completed_tasks(self) -> tuple[int, int]:
         """Distill learnings from completed tasks into knowledge atoms.
