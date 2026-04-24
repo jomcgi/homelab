@@ -27,7 +27,11 @@ _BACKUP_TTL_SECS = 600  # 10 minute timeout
 _INGEST_INTERVAL_SECS = 300
 _INGEST_TTL_SECS = 600
 _CLASSIFY_INTERVAL_SECS = 60  # 1-minute tick
-_CLASSIFY_TTL_SECS = 180  # 3-minute timeout (classifier subprocess is long)
+# Scheduler reclaims jobs whose lock-lease exceeds ttl_secs. Must comfortably
+# exceed gap_classifier._CLASSIFY_TIMEOUT_SECS (300s) — otherwise a long-
+# running classifier subprocess would have its lock reclaimed mid-flight,
+# risking a second replica racing Edit calls on the same stubs.
+_CLASSIFY_TTL_SECS = 360  # 300s subprocess timeout + 60s headroom
 _CLASSIFY_BATCH_SIZE = 10
 _GIT_READY_SENTINEL = ".git-ready"
 _SYNC_READY_SENTINEL = ".sync-ready"
