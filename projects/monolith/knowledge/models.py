@@ -180,6 +180,7 @@ class Gap(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factory
     __tablename__ = "gaps"
     __table_args__ = (
         UniqueConstraint("term"),
+        UniqueConstraint("note_id"),
         {"schema": "knowledge", "extend_existing": True},
     )
 
