@@ -1886,6 +1886,20 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_gap_classifier_test",
+    srcs = ["knowledge/gap_classifier_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "knowledge_gap_lifecycle_test",
     srcs = ["knowledge/gap_lifecycle_test.py"],
     imports = ["."],

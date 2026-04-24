@@ -1,0 +1,148 @@
+"""Claude-backed gap classifier.
+
+Spawns a `claude --print` subprocess with a batch of stub paths and a
+classification rubric. Claude reads each stub's frontmatter via the Read
+tool, decides one of four classes, and uses Edit to update the stub's
+frontmatter in place. Allowed tools are restricted to Read and Edit —
+the classifier cannot Write new files or Bash new processes.
+
+The reconciler (on its next tick) projects the updated frontmatter into
+the Gap row. This module does not touch the DB directly.
+
+Privacy-conservative fallback: if Claude returns an invalid class or
+cannot decide, the stub stays `gap_class: null` and gets retried by the
+next classifier tick. We do not auto-route to internal just because the
+classifier hiccuped.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import time
+from dataclasses import dataclass
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+CLASSIFIER_VERSION = "opus-4-7@v1"
+
+_CLASSIFY_TIMEOUT_SECS = 300  # 5 minutes per batch — generous for N=10 stubs
+
+
+_CLASSIFIER_PROMPT = """\
+You are classifying knowledge graph gaps — unresolved [[wikilinks]] in an
+Obsidian vault — into four classes.
+
+## The four classes
+
+- **external**: publicly-researchable concept. Example: "Linkerd mTLS",
+  "Rust ownership", "Merkle tree". A web search or public docs would
+  find primary sources.
+- **internal**: only the user can resolve. Example: their therapist's
+  name, a shorthand for a friend, notes about their own childhood or
+  work decisions. Searching the web is useless AND a privacy leak.
+- **hybrid**: externally researchable but benefits from user annotation.
+  Example: "my-config-for-neovim" — the tool exists externally, but the
+  user's specific setup is personal.
+- **parked**: queryable but not worth current budget. Example: highly
+  niche terms, project-specific jargon that may never be revisited.
+
+## Rules
+
+- **Privacy-conservative default:** if uncertain between external/internal,
+  choose internal. Over-routing to user is tolerated. Over-routing to web
+  is treated as a defect.
+- **Use the Read tool** to inspect each stub's frontmatter (id, title,
+  referenced_by). The referenced_by list tells you which source notes
+  link to this term — that's your context.
+- **Use the Edit tool** to set these fields in each stub's frontmatter:
+  - `gap_class: <one of external/internal/hybrid/parked>`
+  - `status: classified`
+  - `classified_at: <current ISO timestamp in UTC, e.g. 2026-04-25T08:00:00Z>`
+  - `classifier_version: {classifier_version}`
+- **Do not** modify any other field. Do not add a body. Do not write new
+  files. Do not run any Bash command.
+- If you cannot decide on a class for a stub, skip it (leave gap_class
+  null). Do not guess.
+
+## Stubs to classify
+
+{stub_list}
+"""
+
+
+@dataclass(frozen=True)
+class ClassifyStats:
+    stubs_processed: int
+    duration_ms: int
+
+
+async def classify_stubs(
+    stubs: list[Path],
+    *,
+    claude_bin: str = "claude",
+) -> ClassifyStats:
+    """Classify a batch of gap stubs by spawning a `claude --print` subprocess.
+
+    Claude edits each stub's frontmatter via the Edit tool. The reconciler
+    picks up the changes on its next tick and projects them into the DB.
+
+    Returns ClassifyStats with the batch size and wall-clock duration.
+    Non-zero exit from the subprocess logs a warning with stderr excerpt
+    but does not raise — the next tick retries on the same stubs.
+    """
+    if not stubs:
+        return ClassifyStats(stubs_processed=0, duration_ms=0)
+
+    stub_list = "\n".join(f"- {stub}" for stub in stubs)
+    prompt = _CLASSIFIER_PROMPT.format(
+        classifier_version=CLASSIFIER_VERSION,
+        stub_list=stub_list,
+    )
+
+    start = time.monotonic()
+    proc = await asyncio.create_subprocess_exec(
+        claude_bin,
+        "--print",
+        "--dangerously-skip-permissions",
+        "--allowedTools",
+        "Read,Edit",
+        "-p",
+        prompt,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        # HOME=/ in the container (non-root uid 65532) is not writable, so
+        # claude cannot create ~/.claude/ and exits silently with code 0.
+        # Override HOME to /tmp which is always writable. Same pattern as
+        # gardener.py's _run_claude_subprocess.
+        env={**os.environ, "HOME": "/tmp"},
+    )
+
+    try:
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=_CLASSIFY_TIMEOUT_SECS
+        )
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.warning(
+            "gap_classifier: subprocess timed out after %ds on batch of %d stubs",
+            _CLASSIFY_TIMEOUT_SECS,
+            len(stubs),
+        )
+        return ClassifyStats(stubs_processed=len(stubs), duration_ms=duration_ms)
+
+    duration_ms = int((time.monotonic() - start) * 1000)
+
+    if proc.returncode != 0:
+        logger.warning(
+            "gap_classifier: subprocess exit=%d on batch of %d stubs; stderr=%s",
+            proc.returncode,
+            len(stubs),
+            stderr.decode(errors="replace")[:300],
+        )
+
+    return ClassifyStats(stubs_processed=len(stubs), duration_ms=duration_ms)
