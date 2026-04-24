@@ -19,6 +19,8 @@ from sqlmodel import Session
 from app.db import get_engine
 from app.mcp_app import mcp
 from knowledge import frontmatter
+from knowledge.gaps import answer_gap as _answer_gap
+from knowledge.gaps import list_review_queue
 from knowledge.gardener import _slugify
 from knowledge.service import DEFAULT_VAULT_ROOT, VAULT_ROOT_ENV
 from knowledge.store import KnowledgeStore
@@ -346,3 +348,63 @@ async def get_weekly_tasks() -> dict:
     with Session(get_engine()) as session:
         tasks = KnowledgeStore(session).list_tasks_weekly()
     return {"tasks": tasks}
+
+
+# ---------------------------------------------------------------------------
+# Gap lifecycle tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool
+async def list_gaps(
+    state: str | None = None,
+    gap_class: str | None = None,
+    limit: int = 100,
+) -> dict:
+    """List gaps in the knowledge graph with optional filters.
+
+    Returns gaps sorted by most recently created.
+
+    Args:
+        state: Comma-separated state filter (e.g. "in_review,classified").
+        gap_class: Comma-separated class filter (e.g. "internal,hybrid").
+        limit: Maximum results to return (default 100).
+    """
+    with Session(get_engine()) as session:
+        gaps = KnowledgeStore(session).list_gaps(
+            states=state.split(",") if state else None,
+            classes=gap_class.split(",") if gap_class else None,
+            limit=limit,
+        )
+    return {"gaps": gaps}
+
+
+@mcp.tool
+async def get_review_queue() -> dict:
+    """Return internal/hybrid gaps awaiting a user answer, oldest first.
+
+    Use this to see which gaps need your attention. Use ``list_gaps``
+    with explicit filters for anything else.
+    """
+    with Session(get_engine()) as session:
+        return {"gaps": list_review_queue(session)}
+
+
+@mcp.tool
+async def answer_gap(gap_id: int, answer: str) -> dict:
+    """Answer an in-review gap, emitting a personal-tier atom in the vault.
+
+    Writes a new markdown file under ``<vault>/_processed/`` with
+    ``source_tier: personal`` and marks the gap as committed.
+
+    Args:
+        gap_id: The id of a gap currently in ``state='in_review'``.
+        answer: The user's answer text. May not contain a frontmatter
+            terminator (a line containing only ``---``).
+    """
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT)).resolve()
+    with Session(get_engine()) as session:
+        try:
+            return _answer_gap(session, gap_id, answer, vault_root)
+        except ValueError as exc:
+            return {"error": str(exc)}
