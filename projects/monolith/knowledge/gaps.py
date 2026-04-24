@@ -28,11 +28,11 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+import yaml
 from sqlmodel import Session, select
 
 from knowledge.gardener import _slugify
@@ -48,12 +48,8 @@ _DEFAULT_GAP_CLASS = "internal"
 # Classes that are ready for user review after classification.
 _USER_REVIEW_CLASSES = {"internal", "hybrid"}
 
-
-@dataclass(frozen=True)
-class DiscoveredGap:
-    term: str
-    context: str
-    source_note_fk: int
+# Valid classifier outputs — mirrors the CHECK constraint on gaps.gap_class.
+_VALID_GAP_CLASSES = frozenset({"external", "internal", "hybrid", "parked"})
 
 
 def discover_gaps(session: Session) -> int:
@@ -144,6 +140,14 @@ def classify_gaps(
             gap_class = _DEFAULT_GAP_CLASS
         else:
             gap_class = classifier(gap.term, gap.context)
+            if gap_class not in _VALID_GAP_CLASSES:
+                logger.warning(
+                    "gaps.classify_gaps: classifier returned invalid class %r "
+                    "for gap id=%d; defaulting to internal (privacy-conservative)",
+                    gap_class,
+                    gap.id,
+                )
+                gap_class = _DEFAULT_GAP_CLASS
 
         gap.gap_class = gap_class
         gap.classified_at = now
@@ -154,6 +158,10 @@ def classify_gaps(
         classified += 1
 
     if classified:
+        # TODO(task-3): chunk commits (e.g. every 25 gaps) once the real
+        # model-backed classifier is wired in. A 100-gap batch × 20s/call holds a
+        # 2000s transaction; risks idle_in_transaction_session_timeout and loses
+        # progress on crash.
         session.commit()
         logger.info(
             "gaps.classify_gaps: classified %d gaps (classifier=%s)",
@@ -215,6 +223,10 @@ def answer_gap(
         raise ValueError(
             f"Gap id={gap_id} is in state={gap.state!r}, expected 'in_review'"
         )
+    if "\n---\n" in f"\n{answer}\n":
+        raise ValueError(
+            "answer may not contain a frontmatter terminator ('---' on its own line)"
+        )
 
     processed_root = vault_root / "_processed"
     processed_root.mkdir(parents=True, exist_ok=True)
@@ -231,22 +243,22 @@ def answer_gap(
     # The id in frontmatter must match the final filename stem so the
     # reconciler resolves the file to a stable note_id.
     note_id = filename[:-3]  # strip .md
-    # Escape any double-quotes in the user-supplied term so the YAML stays parseable.
-    safe_title = gap.term.replace('"', '\\"')
-    file_content = (
-        "---\n"
-        f"id: {note_id}\n"
-        f'title: "{safe_title}"\n'
-        "type: atom\n"
-        "source_tier: personal\n"
-        "---\n\n"
-        f"{answer}\n"
-    )
+    fm = {
+        "id": note_id,
+        "title": gap.term,
+        "type": "atom",
+        "source_tier": "personal",
+    }
+    fm_str = yaml.dump(fm, default_flow_style=False, sort_keys=False)
+    file_content = f"---\n{fm_str}---\n\n{answer}\n"
     dest.write_text(file_content)
 
     gap.answer = answer
     gap.state = "committed"
     gap.resolved_at = datetime.now(timezone.utc)
+    # TODO(task-3): make file-write + DB-commit transactional (e.g. write to
+    # <dest>.tmp, commit DB, rename). Today a commit failure after write leaves
+    # an orphan file that a retry resolves to <slug>-1.md.
     session.commit()
 
     relative_path = dest.relative_to(vault_root)
