@@ -333,6 +333,39 @@ def test_discover_gaps_dedupes_referenced_by(session, tmp_path):
     assert meta["referenced_by"] == ["note-a", "note-b"]
 
 
+def test_discover_gaps_collapses_slug_collisions(session, tmp_path):
+    """Two terms slugging to the same note_id collapse into one Gap row.
+
+    Without this fold, the loop iterates once per distinct term and the second
+    INSERT trips the UNIQUE(note_id) constraint added in Task 1 — the
+    SAVEPOINT swallows the IntegrityError and the second term's
+    referenced_by source is silently lost.
+    """
+    src_a = _make_note(session, "src-a", title="Source A")
+    src_b = _make_note(session, "src-b", title="Source B")
+    # Two distinct terms that both slug to "outside-in-tdd".
+    _add_body_link(session, src_fk=src_a.id, target_id="Outside-In TDD")
+    _add_body_link(session, src_fk=src_b.id, target_id="Outside In TDD")
+
+    discover_gaps(session, tmp_path)
+
+    rows = (
+        session.execute(select(Gap).where(Gap.note_id == "outside-in-tdd"))
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1, (
+        f"Expected one Gap per note_id, got {len(rows)}: {[r.term for r in rows]}"
+    )
+
+    stub_path = tmp_path / RESEARCHING_DIR / "outside-in-tdd.md"
+    assert stub_path.is_file()
+    meta = parse_stub_frontmatter(stub_path)
+    assert sorted(meta["referenced_by"]) == ["src-a", "src-b"], (
+        f"Expected union of both source notes; got {meta['referenced_by']}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # classify_gaps
 # ---------------------------------------------------------------------------
