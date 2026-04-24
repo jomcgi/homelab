@@ -39,6 +39,7 @@ import yaml
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from knowledge.gap_stubs import RESEARCHING_DIR, write_stub
 from knowledge.gardener import _slugify
 from knowledge.models import Gap, Note, NoteLink
 
@@ -70,12 +71,24 @@ _USER_REVIEW_CLASSES = {"internal", "hybrid"}
 _VALID_GAP_CLASSES = frozenset({"external", "internal", "hybrid", "parked"})
 
 
-def discover_gaps(session: Session) -> int:
-    """Scan note_links for unresolved wikilinks; insert new Gap rows.
+def discover_gaps(session: Session, vault_root: Path) -> int:
+    """Scan note_links for unresolved wikilinks; insert Gap rows and write stubs.
 
-    Returns the number of newly-inserted gaps (not the total). Idempotent:
-    subsequent calls surface only previously-unseen (term, source_note_fk)
-    pairs thanks to a pre-check against the UNIQUE constraint.
+    For each unresolved term:
+        * Insert a Gap row if one doesn't already exist (UNIQUE on term).
+        * Backfill ``note_id = slug(term)`` on existing rows that pre-date
+          this extension.
+        * Write a stub note at ``_researching/<slug>.md`` containing the
+          accumulated ``referenced_by`` list. ``write_stub`` is idempotent
+          so existing stubs (including classifier-edited ones) survive.
+
+    Healing semantics:
+        * Gap row exists but stub is missing → write the stub.
+        * Stub exists but Gap row is missing → insert the Gap row.
+
+    Returns the number of "new" items — the count of Gap rows newly inserted
+    OR stub files newly written (either side indicates this cycle did work).
+    Idempotent: a subsequent run with no changes returns 0.
     """
     # Collect existing note_ids once so the unresolved filter is a set
     # membership check (avoids a correlated subquery per row).
@@ -89,45 +102,101 @@ def discover_gaps(session: Session) -> int:
             NoteLink.src_note_fk,
             NoteLink.target_id,
             Note.title,
+            Note.note_id,
         )
         .join(Note, Note.id == NoteLink.src_note_fk)
         .where(NoteLink.kind == "link")
     ).all()
 
-    # Pre-load existing (term, source_note_fk) pairs to avoid an
-    # IntegrityError round-trip for gaps we already know about.
-    existing_gap_keys = set(session.execute(select(Gap.term, Gap.source_note_fk)).all())
-
-    created = 0
+    # Accumulate referenced_by per term: one term can be referenced by
+    # many source notes. The stub's referenced_by list reflects that.
+    referenced_by: dict[str, set[str]] = {}
+    contexts: dict[str, str] = {}
+    source_fks: dict[str, int] = {}
     for row in link_rows:
         target_id = row.target_id
         if target_id in existing_note_ids:
             continue
-        key = (target_id, row.src_note_fk)
-        if key in existing_gap_keys:
-            continue
+        referenced_by.setdefault(target_id, set()).add(row.note_id)
+        # First-writer wins for context / source_note_fk — these are
+        # legacy breadcrumbs; the stub's referenced_by is authoritative.
+        contexts.setdefault(target_id, row.title or "")
+        source_fks.setdefault(target_id, row.src_note_fk)
 
-        # SAVEPOINT per insert: even though we pre-check the UNIQUE key, a
-        # concurrent discoverer could insert the same (term, source_note_fk)
-        # between SELECT and INSERT. Nesting the add lets that single row
-        # fail without rolling back every gap already inserted this cycle.
-        with session.begin_nested():
-            session.add(
-                Gap(
-                    term=target_id,
-                    context=row.title or "",
-                    source_note_fk=row.src_note_fk,
-                    pipeline_version=GAPS_PIPELINE_VERSION,
-                    state="discovered",
+    # Pre-load existing Gap rows keyed by term so we can distinguish
+    # insert vs. backfill-note_id vs. no-op.
+    existing_gaps: dict[str, Gap] = {
+        g.term: g for g in session.execute(select(Gap)).scalars().all()
+    }
+
+    stub_dir = vault_root / RESEARCHING_DIR
+    now_iso = datetime.now(timezone.utc).isoformat()
+    inserted = 0
+    stubs_written = 0
+    backfilled = 0
+    new_items = 0
+
+    for term, refs in referenced_by.items():
+        slug = _slugify(term)
+        refs_sorted = sorted(refs)
+
+        existing = existing_gaps.get(term)
+        row_inserted = False
+        if existing is None:
+            # SAVEPOINT per insert: a concurrent discoverer could insert the
+            # same term between SELECT and INSERT. Nesting the add lets that
+            # single row fail without rolling back every gap this cycle.
+            with session.begin_nested():
+                session.add(
+                    Gap(
+                        term=term,
+                        context=contexts[term],
+                        note_id=slug,
+                        source_note_fk=source_fks[term],
+                        pipeline_version=GAPS_PIPELINE_VERSION,
+                        state="discovered",
+                    )
                 )
-            )
-        existing_gap_keys.add(key)
-        created += 1
+            inserted += 1
+            row_inserted = True
+        elif existing.note_id is None:
+            # Backfill: row pre-dates the stub-notes extension.
+            existing.note_id = slug
+            backfilled += 1
 
-    if created:
+        # Stub write is unconditional — write_stub is idempotent. Track whether
+        # a new stub was actually written so we can surface healing work.
+        stub_path = stub_dir / f"{slug}.md"
+        stub_existed = stub_path.exists()
+        write_stub(
+            vault_root=vault_root,
+            note_id=slug,
+            title=slug,
+            referenced_by=refs_sorted,
+            discovered_at=now_iso,
+        )
+        stub_newly_written = not stub_existed
+        if stub_newly_written:
+            stubs_written += 1
+
+        # Count one unit of "work done" per term where EITHER a new row was
+        # inserted OR a new stub was written. Without this OR-collapse, the
+        # common case of a first-time discovery would double-count (row + stub)
+        # against a single observable gap.
+        if row_inserted or stub_newly_written:
+            new_items += 1
+
+    if inserted or backfilled:
         session.commit()
-        logger.info("gaps.discover_gaps: inserted %d new gaps", created)
-    return created
+
+    if new_items or backfilled:
+        logger.info(
+            "gaps.discover_gaps: inserted=%d backfilled_note_id=%d stubs_written=%d",
+            inserted,
+            backfilled,
+            stubs_written,
+        )
+    return new_items
 
 
 def classify_gaps(

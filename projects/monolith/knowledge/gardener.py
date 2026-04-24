@@ -512,7 +512,7 @@ class Gardener:
             # ``knowledge.gaps`` imports ``_slugify`` from this module.
             from knowledge.gaps import classify_gaps, discover_gaps
 
-            discovered = discover_gaps(self.session)
+            discovered = discover_gaps(self.session, self.vault_root)
             classified = classify_gaps(self.session)
             return discovered, classified
         except Exception:

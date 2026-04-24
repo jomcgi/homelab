@@ -1319,7 +1319,7 @@ class TestGardenerGapDiscovery:
 
         gardener = Gardener(vault_root=tmp_path, session=session)
 
-        def boom(_session):
+        def boom(_session, _vault_root):
             raise RuntimeError("boom")
 
         with caplog.at_level(logging.ERROR, logger="monolith.knowledge.gardener"):
