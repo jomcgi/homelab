@@ -563,3 +563,83 @@ def test_answer_gap_rejects_frontmatter_terminator_in_answer(session, tmp_path):
     assert gap.state == "in_review"
     assert gap.answer is None
     assert gap.resolved_at is None
+
+
+def test_answer_gap_deletes_stub_on_commit(session, tmp_path):
+    """After answer_gap, the stub at _researching/<slug>.md is gone; the
+    atom at _processed/<slug>.md exists."""
+    note = _make_note(session, "source", title="Source")
+    gap = Gap(
+        term="linkerd-mtls",
+        note_id="linkerd-mtls",
+        source_note_fk=note.id,
+        state="in_review",
+        gap_class="internal",
+        pipeline_version=GAPS_PIPELINE_VERSION,
+    )
+    session.add(gap)
+    session.commit()
+    session.refresh(gap)
+
+    write_stub(
+        vault_root=tmp_path,
+        note_id="linkerd-mtls",
+        title="linkerd-mtls",
+        referenced_by=["source"],
+        discovered_at="2026-04-25T08:00:00Z",
+    )
+    stub_path = tmp_path / RESEARCHING_DIR / "linkerd-mtls.md"
+    assert stub_path.is_file()  # precondition
+
+    result = answer_gap(
+        session=session,
+        gap_id=gap.id,
+        answer="mTLS handles mutual authentication.",
+        vault_root=tmp_path,
+    )
+
+    # Atom was created at _processed/
+    atom_path = tmp_path / "_processed" / "linkerd-mtls.md"
+    assert atom_path.is_file()
+    # Stub was removed
+    assert not stub_path.exists()
+    # Return value includes path info
+    assert result["gap_id"] == gap.id
+    assert result["note_id"] == "linkerd-mtls"
+
+
+def test_answer_gap_succeeds_when_stub_missing(session, tmp_path):
+    """If the stub was deleted out-of-band (user hand-deleted or never
+    existed), answer_gap still succeeds — the atom write is the authoritative
+    source of truth."""
+    note = _make_note(session, "source", title="Source")
+    gap = Gap(
+        term="floating-gap",
+        note_id="floating-gap",
+        source_note_fk=note.id,
+        state="in_review",
+        gap_class="internal",
+        pipeline_version=GAPS_PIPELINE_VERSION,
+    )
+    session.add(gap)
+    session.commit()
+    session.refresh(gap)
+
+    # No stub is written — _researching/ doesn't even exist
+
+    result = answer_gap(
+        session=session,
+        gap_id=gap.id,
+        answer="some answer",
+        vault_root=tmp_path,
+    )
+
+    # Atom was created
+    atom_path = tmp_path / "_processed" / "floating-gap.md"
+    assert atom_path.is_file()
+    # No crash — function returned normally
+    assert result["note_id"] == "floating-gap"
+
+    # Gap is committed
+    session.refresh(gap)
+    assert gap.state == "committed"
