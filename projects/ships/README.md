@@ -13,3 +13,11 @@ Real-time AIS vessel tracking with a MapLibre GL frontend.
 | **deploy**   | ArgoCD Application, kustomization, and cluster-specific values    |
 
 Detailed component documentation exists in [backend/README.md](backend/README.md), [ingest/README.md](ingest/README.md), and [chart/README.md](chart/README.md).
+
+## Deployment Note
+
+The Helm chart, ArgoCD Application, and Kubernetes namespace are all named **`marine`** (not `ships`). The `projects/ships/` directory is the source-code convention; the deployed name differs.
+
+- ArgoCD app: `argocd app get marine`
+- Namespace: `kubectl -n marine`
+- OCI chart: `ghcr.io/jomcgi/homelab/charts/marine`
