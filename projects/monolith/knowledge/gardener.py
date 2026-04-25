@@ -60,6 +60,7 @@ Steps:
 ---
 id: <slug-of-title>
 title: "<concise title — MUST be quoted if it contains a colon>"
+aliases: [<optional list of alternative wikilink forms — see Aliases section below>]
 type: atom|fact|active
 derived_from_raw: {raw_id}
 tags: [optional]
@@ -75,6 +76,34 @@ edges:
    `staff-engineers-path`, the file must be `{processed_root}/staff-engineers-path.md`.
 6. Patch edges on related existing notes using the Edit tool.
 7. Each note covers exactly one concept. Prefer many small notes over one large note.
+
+## Aliases (frontmatter field)
+
+The `aliases:` field lists alternative human-readable forms of the title that
+should resolve to this same atom in Obsidian. It also feeds the gap-classifier:
+when a referencing note contains `[[Some Title]]`, the classifier checks both
+`_processed/<slug>.md` filenames AND existing atoms' `aliases:` lists before
+queueing a gap. Every variant of the title that shows up as a wikilink in
+referencing notes should appear here.
+
+When CREATING a new atom, populate `aliases:` with any of:
+- The title-cased form if it differs from the slugified id
+- Possessive variants (`Bayes's Theorem`, `Bayes' Theorem`)
+- Plural/singular alternates (`Blameless Postmortem`, `Blameless Postmortems`)
+- Article variations (`The Software Engineer's Guidebook`)
+- Common abbreviations or expansions (`DORA Metrics` ↔ `Four Key DORA Metrics`)
+
+Omit the field (or use `[]`) if the slug already matches the only wikilink form.
+
+When UPDATING an existing atom (i.e. when this raw mentions a concept that
+already exists at `{processed_root}/<slug>.md`), use the **Edit** tool — never
+Write. Edit lets you modify specific sections (body, individual frontmatter
+fields) without touching `aliases:` or any other user-curated frontmatter.
+Write would overwrite the whole file and silently strip fields that aren't
+in this prompt's schema, which is a real bug we are explicitly guarding
+against. If you genuinely need to rewrite an atom from scratch, first Read
+its current frontmatter, copy the `aliases:` array verbatim into your new
+content, then Write — never lose alias entries.
 
 Title: {title}
 
