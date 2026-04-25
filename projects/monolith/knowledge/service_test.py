@@ -608,6 +608,20 @@ class TestClassifyGapsHandler:
             "scheduler could reclaim a still-running job"
         )
 
+    def test_on_startup_registers_research_gaps_job(self, session):
+        """Startup registers knowledge.research-gaps with a 5-minute tick."""
+        from knowledge.service import on_startup
+        from shared.scheduler import ScheduledJob
+        from sqlmodel import select
+
+        on_startup(session)
+
+        job = session.execute(
+            select(ScheduledJob).where(ScheduledJob.name == "knowledge.research-gaps")
+        ).scalar_one()
+        assert job.interval_secs == 300
+        assert job.ttl_secs == 600
+
     @pytest.mark.asyncio
     async def test_classify_gaps_handler_skips_when_no_token(
         self, session, monkeypatch, tmp_path, caplog

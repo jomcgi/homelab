@@ -33,6 +33,8 @@ _CLASSIFY_INTERVAL_SECS = 60  # 1-minute tick
 # risking a second replica racing Edit calls on the same stubs.
 _CLASSIFY_TTL_SECS = 360  # 300s subprocess timeout + 60s headroom
 _CLASSIFY_BATCH_SIZE = 10
+_RESEARCH_INTERVAL_SECS = 300
+_RESEARCH_TTL_SECS = 600  # 5min interval + 5min headroom (Qwen + Sonnet round-trips)
 _GIT_READY_SENTINEL = ".git-ready"
 _SYNC_READY_SENTINEL = ".sync-ready"
 _GIT_AUTHOR = b"vault-backup <vault-backup@monolith.local>"
@@ -251,6 +253,28 @@ async def classify_gaps_handler(session: Session) -> datetime | None:
     return None
 
 
+async def research_gaps_handler(session: Session) -> datetime | None:
+    """Scheduler handler: drain the external research pipeline by one batch."""
+    if not _vault_sync_ready():
+        logger.info("knowledge.research-gaps: vault sync not ready, deferring")
+        return None
+    if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        logger.warning(
+            "knowledge.research-gaps: CLAUDE_CODE_OAUTH_TOKEN not set, skipping"
+        )
+        return None
+    if not os.environ.get("LLAMA_CPP_URL"):
+        logger.warning("knowledge.research-gaps: LLAMA_CPP_URL not set, skipping")
+        return None
+
+    vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
+
+    from knowledge.research_handler import research_gaps_handler as _impl
+
+    await _impl(session=session, vault_root=vault_root)
+    return None
+
+
 def on_startup(session: Session) -> None:
     """Register knowledge jobs with the scheduler."""
     from shared.scheduler import register_job
@@ -299,4 +323,11 @@ def on_startup(session: Session) -> None:
         interval_secs=_CLASSIFY_INTERVAL_SECS,
         handler=classify_gaps_handler,
         ttl_secs=_CLASSIFY_TTL_SECS,
+    )
+    register_job(
+        session,
+        name="knowledge.research-gaps",
+        interval_secs=_RESEARCH_INTERVAL_SECS,
+        handler=research_gaps_handler,
+        ttl_secs=_RESEARCH_TTL_SECS,
     )
