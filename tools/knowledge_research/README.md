@@ -59,13 +59,30 @@ hidden by Obsidian — no pipeline changes needed.
 ```
 tools/knowledge_research/
 ├── prompts/
+│   ├── triage-stubs.system.md        # batch read-only triage of the queue
 │   ├── research-external.system.md   # web + vault research, non-interactive
 │   └── research-internal.system.md   # conversational, asks Joe directly
 ├── bin/
+│   ├── triage-stubs.sh               # produce a markdown triage report
 │   ├── research-gap.sh               # batch external research
 │   └── research-gap-interactive.sh   # one-at-a-time interactive
 └── README.md
 ```
+
+## Recommended workflow
+
+For a fresh queue (e.g. 700+ stubs from a recent gap-detection sweep):
+
+1. **`triage-stubs.sh --limit 200`** to flag stubs that are already
+   covered, misclassified, or garbage. Read the report, take bulk
+   actions (delete, reclassify) manually.
+2. **`research-gap.sh --max 30`** to drain the surviving external
+   stubs in batches. Resumable.
+3. **`research-gap-interactive.sh --pick`** when you have time to sit
+   with an internal/personal gap.
+
+Triage first compresses the queue substantially before you spend tokens
+on real research.
 
 ## Setup
 
@@ -85,6 +102,27 @@ so they work from any cwd as long as the `tools/knowledge_research/`
 checkout is intact.
 
 ## Usage
+
+### Stub triage (read-only)
+
+Walks `_researching/*.md` and decides which stubs are worth researching.
+Read-only — produces a markdown report at
+`<vault>/.opus-research/triage-<UTC>.md` listing each stub with one of
+five decisions: `already_covered`, `misclassified`, `garbage`,
+`valid_external`, `valid_internal`. You review and take bulk actions
+manually (the report includes suggested `rm` commands).
+
+```bash
+triage-stubs.sh                          # up to 100 stubs, batch size 25
+triage-stubs.sh --limit 200
+triage-stubs.sh --filter '^ddd-' --limit 50
+triage-stubs.sh --batch-size 10          # smaller batches if you hit rate limits
+```
+
+Internally the parent dispatches subagents in parallel batches so 100+
+stubs don't blow the parent's context window. Each subagent emits a
+structured per-stub decision; the parent aggregates into a single report
+with a top-of-file summary table.
 
 ### Batch external research
 
