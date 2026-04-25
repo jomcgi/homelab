@@ -191,7 +191,6 @@ class Gap(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factory
         default=None,
         sa_column=Column(String, nullable=True),
     )
-    source_note_fk: int | None = Field(default=None, foreign_key="knowledge.notes.id")
     # GapClass / GapState are Literals for static analysis. At the SQL level
     # they're plain TEXT, matching the migration's CHECK constraints.
     gap_class: GapClass | None = Field(

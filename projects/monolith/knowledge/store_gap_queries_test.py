@@ -52,7 +52,6 @@ def _add_gap(
     session: Session,
     *,
     term: str,
-    source_note_fk: int,
     state: str = "discovered",
     gap_class: str | None = None,
     created_at: datetime | None = None,
@@ -60,7 +59,6 @@ def _add_gap(
     gap = Gap(
         term=term,
         context="",
-        source_note_fk=source_note_fk,
         gap_class=gap_class,
         state=state,
         pipeline_version="gaps@v1",
@@ -75,33 +73,28 @@ def _add_gap(
 def test_list_gaps_returns_most_recent_first(session):
     note = _make_note(session)
     now = datetime.now(timezone.utc)
-    _add_gap(
-        session, term="old", source_note_fk=note.id, created_at=now - timedelta(hours=1)
-    )
-    _add_gap(session, term="new", source_note_fk=note.id, created_at=now)
+    _add_gap(session, term="old", created_at=now - timedelta(hours=1))
+    _add_gap(session, term="new", created_at=now)
 
     store = KnowledgeStore(session)
     rows = store.list_gaps()
 
     assert [r["term"] for r in rows] == ["new", "old"]
-    assert rows[0]["source_note_fk"] == note.id
     assert rows[0]["pipeline_version"] == "gaps@v1"
 
 
 def test_list_gaps_filters_by_state(session):
     note = _make_note(session)
-    _add_gap(session, term="a", source_note_fk=note.id, state="discovered")
+    _add_gap(session, term="a", state="discovered")
     _add_gap(
         session,
         term="b",
-        source_note_fk=note.id,
         state="in_review",
         gap_class="internal",
     )
     _add_gap(
         session,
         term="c",
-        source_note_fk=note.id,
         state="committed",
         gap_class="internal",
     )
@@ -117,21 +110,18 @@ def test_list_gaps_filters_by_class(session):
     _add_gap(
         session,
         term="int",
-        source_note_fk=note.id,
         state="in_review",
         gap_class="internal",
     )
     _add_gap(
         session,
         term="ext",
-        source_note_fk=note.id,
         state="classified",
         gap_class="external",
     )
     _add_gap(
         session,
         term="park",
-        source_note_fk=note.id,
         state="classified",
         gap_class="parked",
     )
@@ -149,7 +139,6 @@ def test_list_gaps_respects_limit(session):
         _add_gap(
             session,
             term=f"g-{i}",
-            source_note_fk=note.id,
             created_at=now + timedelta(seconds=i),
         )
 
@@ -166,7 +155,6 @@ def test_get_gap_by_id_returns_dict(session):
     gap = _add_gap(
         session,
         term="t",
-        source_note_fk=note.id,
         state="in_review",
         gap_class="internal",
     )
@@ -179,7 +167,6 @@ def test_get_gap_by_id_returns_dict(session):
     assert result["term"] == "t"
     assert result["state"] == "in_review"
     assert result["gap_class"] == "internal"
-    assert result["source_note_fk"] == note.id
     assert result["pipeline_version"] == "gaps@v1"
 
 

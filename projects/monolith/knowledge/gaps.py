@@ -114,16 +114,14 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     # by many source notes; the stub's referenced_by reflects that.
     referenced_by: dict[str, set[str]] = {}
     contexts: dict[str, str] = {}
-    source_fks: dict[str, int] = {}
     for row in link_rows:
         target_id = row.target_id
         if target_id in existing_note_ids:
             continue
         referenced_by.setdefault(target_id, set()).add(row.note_id)
-        # First-writer wins for context / source_note_fk — these are
-        # legacy breadcrumbs; the stub's referenced_by is authoritative.
+        # First-writer wins for context — legacy breadcrumb; the stub's
+        # referenced_by is authoritative.
         contexts.setdefault(target_id, row.title or "")
-        source_fks.setdefault(target_id, row.src_note_fk)
 
     # Phase 2: fold by slug. Two terms slugging to the same note_id collapse
     # into one slug entry; their referenced_by sets are unioned. Sort terms
@@ -132,14 +130,12 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     slug_refs: dict[str, set[str]] = {}
     slug_canonical_term: dict[str, str] = {}
     slug_context: dict[str, str] = {}
-    slug_source_fk: dict[str, int] = {}
     for term in sorted(referenced_by.keys()):
         slug = _slugify(term)
         slug_refs.setdefault(slug, set()).update(referenced_by[term])
         if slug not in slug_canonical_term:
             slug_canonical_term[slug] = term
             slug_context[slug] = contexts.get(term, "")
-            slug_source_fk[slug] = source_fks[term]
 
     # Pre-load Gap rows by both note_id (post-stub identity) and term (for
     # legacy backfill of rows where note_id is still NULL).
@@ -182,7 +178,6 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
                             term=canonical_term,
                             context=slug_context[slug],
                             note_id=slug,
-                            source_note_fk=slug_source_fk[slug],
                             pipeline_version=GAPS_PIPELINE_VERSION,
                             state="discovered",
                         )

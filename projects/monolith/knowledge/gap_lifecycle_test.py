@@ -96,7 +96,6 @@ def test_discover_gaps_finds_unresolved_wikilink(session, tmp_path):
     gap = gaps[0]
     assert gap.term == "missing-concept"
     assert gap.context == "Source Note"
-    assert gap.source_note_fk == src.id
     assert gap.state == "discovered"
     assert gap.gap_class is None
     assert gap.pipeline_version == GAPS_PIPELINE_VERSION
@@ -192,7 +191,6 @@ def test_discover_gaps_heals_missing_stub(session, tmp_path):
         term="orphan",
         context="Source Note",
         note_id=None,
-        source_note_fk=src.id,
         pipeline_version=GAPS_PIPELINE_VERSION,
         state="discovered",
     )
@@ -233,7 +231,6 @@ def test_discover_gaps_backfills_existing_rows_with_no_stubs(session, tmp_path):
             Gap(
                 term=term,
                 context="Source Note",
-                source_note_fk=source.id,
                 pipeline_version=GAPS_PIPELINE_VERSION,
                 state="discovered",
             )
@@ -453,7 +450,6 @@ def test_list_review_queue_only_returns_internal_hybrid_in_review(session):
         Gap(
             term="a-internal",
             context="",
-            source_note_fk=src.id,
             gap_class="internal",
             state="in_review",
             pipeline_version=GAPS_PIPELINE_VERSION,
@@ -462,7 +458,6 @@ def test_list_review_queue_only_returns_internal_hybrid_in_review(session):
         Gap(
             term="b-hybrid",
             context="",
-            source_note_fk=src.id,
             gap_class="hybrid",
             state="in_review",
             pipeline_version=GAPS_PIPELINE_VERSION,
@@ -471,7 +466,6 @@ def test_list_review_queue_only_returns_internal_hybrid_in_review(session):
         Gap(
             term="c-external",
             context="",
-            source_note_fk=src.id,
             gap_class="external",
             state="classified",
             pipeline_version=GAPS_PIPELINE_VERSION,
@@ -480,7 +474,6 @@ def test_list_review_queue_only_returns_internal_hybrid_in_review(session):
         Gap(
             term="d-internal-discovered",
             context="",
-            source_note_fk=src.id,
             gap_class="internal",
             state="discovered",
             pipeline_version=GAPS_PIPELINE_VERSION,
@@ -512,7 +505,6 @@ def _seed_reviewable_gap(session: Session, *, term: str = "Linkerd mTLS") -> int
     gap = Gap(
         term=term,
         context="networking note",
-        source_note_fk=src.id,
         gap_class="internal",
         state="in_review",
         pipeline_version=GAPS_PIPELINE_VERSION,
@@ -585,7 +577,6 @@ def test_answer_gap_rejects_wrong_state(session, tmp_path):
     gap = Gap(
         term="still-discovered",
         context="",
-        source_note_fk=src.id,
         state="discovered",
         pipeline_version=GAPS_PIPELINE_VERSION,
     )
@@ -659,7 +650,6 @@ def test_answer_gap_deletes_stub_on_commit(session, tmp_path):
     gap = Gap(
         term="linkerd-mtls",
         note_id="linkerd-mtls",
-        source_note_fk=note.id,
         state="in_review",
         gap_class="internal",
         pipeline_version=GAPS_PIPELINE_VERSION,
@@ -703,7 +693,6 @@ def test_answer_gap_succeeds_when_stub_missing(session, tmp_path):
     gap = Gap(
         term="floating-gap",
         note_id="floating-gap",
-        source_note_fk=note.id,
         state="in_review",
         gap_class="internal",
         pipeline_version=GAPS_PIPELINE_VERSION,
