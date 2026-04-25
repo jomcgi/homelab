@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
 from knowledge.models import Gap, Note
@@ -134,3 +134,46 @@ def test_gap_note_id_round_trips(session: Session) -> None:
     session.commit()
     session.refresh(gap)
     assert gap.note_id == "foo-slug"
+
+
+def test_gap_has_research_attempts_field_default_zero(session):
+    """research_attempts defaults to 0 and is non-nullable."""
+    gap = Gap(term="x", note_id="x", pipeline_version="test")
+    session.add(gap)
+    session.commit()
+
+    fetched = session.execute(select(Gap).where(Gap.term == "x")).scalar_one()
+    assert fetched.research_attempts == 0
+
+
+def test_gap_research_attempts_increments(session):
+    """research_attempts is a normal int column — bump and persist."""
+    gap = Gap(term="x", note_id="x", pipeline_version="test")
+    session.add(gap)
+    session.commit()
+
+    gap.research_attempts = 2
+    session.commit()
+
+    fetched = session.execute(select(Gap).where(Gap.term == "x")).scalar_one()
+    assert fetched.research_attempts == 2
+
+
+def test_gap_state_accepts_research_pipeline_values(session):
+    """New state values from the research pipeline are not constrained at the
+    SQLModel layer — accept researching/committed/parked alongside the
+    existing classifier states."""
+    for state in ("researching", "committed", "parked"):
+        with session.begin_nested():
+            gap = Gap(
+                term=f"x-{state}",
+                note_id=f"x-{state}",
+                state=state,
+                pipeline_version="test",
+            )
+            session.add(gap)
+    session.commit()
+
+    rows = session.execute(select(Gap)).scalars().all()
+    states = {r.state for r in rows}
+    assert {"researching", "committed", "parked"}.issubset(states)

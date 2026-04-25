@@ -8,7 +8,7 @@ NoteId = NewType("NoteId", str)
 
 from pgvector.sqlalchemy import Vector
 from pydantic import field_validator
-from sqlalchemy import JSON, Column, String, UniqueConstraint
+from sqlalchemy import JSON, Column, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
@@ -198,6 +198,9 @@ class Gap(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factory
     )
     state: GapState = Field(
         default="discovered", sa_column=Column(String, nullable=False)
+    )
+    research_attempts: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, server_default="0")
     )
     answer: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
