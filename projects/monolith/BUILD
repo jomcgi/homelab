@@ -1926,6 +1926,18 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_research_tools_test",
+    srcs = ["knowledge/research_tools_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "knowledge_store_gap_queries_test",
     srcs = ["knowledge/store_gap_queries_test.py"],
     imports = ["."],
