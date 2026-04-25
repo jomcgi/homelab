@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 TMPDIR = Path("/tmp/homelab-cli/notes")
@@ -64,6 +65,34 @@ def task_line(
         blockers = ", ".join(f"blocked-by→{b}" for b in blocked_by)
         line += f"\n  {blockers}"
     return line
+
+
+def scheduler_line(
+    name: str,
+    interval_secs: int,
+    next_run_at: str,
+    last_run_at: str | None,
+    last_status: str | None,
+    has_handler: bool,
+) -> str:
+    """One-line summary of a scheduled job."""
+    next_short = _short_time(next_run_at)
+    last = "never run"
+    if last_run_at:
+        last_short = _short_time(last_run_at)
+        status = last_status or "unknown"
+        last = f"last {status} at {last_short}"
+    orphan = "" if has_handler else "  [orphan]"
+    return f"{name:<32} every {interval_secs:>5}s  next {next_short}  {last}{orphan}"
+
+
+def _short_time(iso: str) -> str:
+    """Render an ISO-8601 timestamp as HH:MM, falling back to the input on parse error."""
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return iso
+    return dt.strftime("%H:%M")
 
 
 def write_to_tmpfile(name: str, content: str) -> Path:

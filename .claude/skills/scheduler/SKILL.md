@@ -1,0 +1,95 @@
+---
+name: scheduler
+description: >
+  Inspect and trigger Postgres-backed scheduled jobs (gardener, calendar poll,
+  vault backup, etc.) via the homelab CLI. Use when investigating "did the
+  gardener run", "kick the calendar poll", "are any jobs failing or stuck",
+  or when you need to trigger a job to run on the next scheduler tick without
+  redeploying. Also use to spot orphan job rows whose handlers were removed
+  but whose database row still exists.
+---
+
+# Scheduler
+
+Inspect and trigger the monolith's Postgres-backed job scheduler via the
+`homelab` CLI.
+
+## When to Use
+
+- User asks if a scheduled job ran, or when it last ran
+- User wants to "kick", "trigger", or "force" a scheduled job to run now
+- Investigating gardener / calendar-poll / vault-backup behavior
+- Verifying a newly registered job is recognized after a deploy
+- Spotting orphan rows (DB row exists but no handler is registered — purged on
+  next pod restart)
+
+Prefer this over digging in SigNoz logs when the question is "what does the
+scheduler think the next/last run is" — that lives in the database, not the
+logs.
+
+## Auth
+
+`homelab` authenticates via Cloudflare Access. First-time auth prompts for a
+`CF_Authorization` token; cached on disk afterwards. See the `knowledge` skill
+for first-run setup details — same flow.
+
+## Commands
+
+### List jobs
+
+```bash
+homelab scheduler jobs list
+```
+
+Output (one job per line):
+
+```
+home.calendar_poll        every   900s  next 14:32  never run
+knowledge.gardener        every   600s  next 14:18  last ok at 14:08
+knowledge.vault_backup    every  3600s  next 15:08  last error: timeout (last at 14:08)
+orphan.removed_handler    every   300s  next 14:20  last ok at 14:15  [orphan]
+```
+
+`[orphan]` after a row means the running pod has no handler registered for
+that name — the row will be purged on next pod restart by `purge_stale_jobs`.
+
+Add `--json` for raw API output.
+
+### Get a single job
+
+```bash
+homelab scheduler jobs get knowledge.gardener
+```
+
+Same one-line format as `list`, just for one job. Exits non-zero if the name
+is unknown.
+
+### Trigger a job to run now
+
+```bash
+homelab scheduler jobs run-now knowledge.gardener
+```
+
+Sets `next_run_at = now()` so the next scheduler tick (every ~30s) claims the
+job. Idempotent: calling twice in a row is harmless. Concurrency-safe: if a
+tick is already running this job, the trigger queues behind the existing run.
+
+Exits non-zero if the name is unknown.
+
+## Workflow
+
+1. **List** to see all jobs and their states
+2. **Get** to confirm a single job's interval / next_run_at / last_status
+3. **Run-now** to kick a job; then **list** again ~30s later to see
+   `last_status` updated
+
+## Tips
+
+- All commands support `--json`
+- "Did the gardener run?" → `homelab scheduler jobs get knowledge.gardener`
+  and check `last_run_at` + `last_status`
+- "It says ok but I don't see effects" → `last_status` is `ok` if the handler
+  returned without raising; the handler may be a no-op when nothing's
+  changed. Check application logs in SigNoz for the body of the run.
+- Triggering a `run-now` does **not** wait — it returns immediately after the
+  DB row is updated. Wait for the scheduler tick (~30s) before re-checking.
