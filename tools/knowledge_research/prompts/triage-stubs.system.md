@@ -43,9 +43,17 @@ The user message will specify:
 
 ## Phase 1 — Plan the triage
 
-1. **Enumerate eligible stubs.** List `_researching/*.md` whose slug
-   does not have a corresponding vault-root file or staged research
-   file. Apply `--filter` if provided. Cap at `--limit`.
+1. **Enumerate eligible stubs.** List `_researching/*.md` where ALL of:
+   - The slug does not have a corresponding vault-root file
+     (`<slug>.md` at the root would mean it's already been researched)
+   - The slug does not have a corresponding staged research file
+     (`.opus-research/<slug>.md` would mean it's mid-research)
+   - The frontmatter does NOT contain `triaged: keep` (these are stubs
+     a prior triage round flagged as `valid_external` or `valid_internal`
+     — they're real research targets, not candidates for re-triage; the
+     wrapper marks them automatically after each run)
+
+   Apply `--filter` if provided. Cap at `--limit`.
 
 2. **Sample-read 3-5 stubs** to confirm the format is what you expect:
    frontmatter with `id`, `title`, `gap_class`, `referenced_by`.
