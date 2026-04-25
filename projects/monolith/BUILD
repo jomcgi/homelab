@@ -30,7 +30,6 @@ exec_filegroup(
 py_venv_binary(
     name = "main",
     srcs = glob(
-        # keep
         [
             "app/**/*.py",
             "chat/**/*.py",
@@ -44,7 +43,7 @@ py_venv_binary(
             "*/tests/**/*.py",
             "shared/testing/**/*.py",
         ],
-    ),
+    ),  # keep
     data = [":frontend_dist"],
     imports = ["."],  # keep
     main = "app/main.py",
@@ -55,7 +54,6 @@ py_venv_binary(
 py_library(
     name = "monolith_backend",
     srcs = glob(
-        # keep
         [
             "app/**/*.py",
             "chat/**/*.py",
@@ -69,7 +67,7 @@ py_library(
             "*/tests/**/*.py",
             "shared/testing/**/*.py",
         ],
-    ),
+    ),  # keep
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//discord_py",
