@@ -11,11 +11,11 @@ See [docs/agents.md](../../docs/agents.md) for the full architecture.
 | Component                | Description |
 | ------------------------ | ----------- |
 | **orchestrator**         | Go service that dispatches agent jobs via NATS JetStream |
-| **sandboxes**            | Shell setup scripts for MCP profiles; Kubernetes sandbox pod definitions live in `chart/sandboxes/` and `chart/agent-sandbox/` |
+| **sandboxes**            | Shell setup script for MCP profiles (`setup-mcp-profiles.sh`); Kubernetes sandbox pod definitions live in `chart/sandboxes/` and `chart/agent-sandbox/` |
 | **cluster_agents**       | Go service that monitors cluster health and runs autonomous improvement agents (patrol, escalator, PR fix, README freshness, test coverage, etc.) |
 | **api_gateway**          | Nginx-based API gateway with route-based backend selection for api.jomcgi.dev |
 | **goose_agent**          | Goose agent container and configuration |
 | **inference**            | On-cluster LLM inference and embedding inference (model configured per environment) |
-| **vllm**                 | Alternative LLM serving backend (Helm chart and values only — not wired to ArgoCD) |
+| **vllm**                 | Alternative LLM serving backend (full Helm chart with templates and vendored dependencies in `vllm/deploy/` — not wired to ArgoCD) |
 | **chart**                | Umbrella Helm chart for all agent platform components |
 | **deploy**               | ArgoCD Application, kustomization, and cluster-specific values |
