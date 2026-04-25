@@ -8,11 +8,14 @@ Fetches elevation from Natural Resources Canada's CDEM API with:
 """
 
 import asyncio
+import logging
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
 import aiohttp
+
+logger = logging.getLogger(__name__)
 
 # NRCan CDEM API endpoint
 API_BASE = "https://geogratis.gc.ca/services/elevation/cdem/altitude"
@@ -181,6 +184,7 @@ class ElevationClient:
                     return data.get("altitude")
                 return None
         except Exception:
+            logger.debug("elevation API request failed for %s", url)
             return None
 
     async def get_elevation(self, lat: float, lng: float) -> ElevationResult:
