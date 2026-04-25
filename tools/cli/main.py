@@ -5,6 +5,7 @@ from __future__ import annotations
 import typer
 
 from tools.cli.knowledge_cmd import knowledge_app
+from tools.cli.scheduler_cmd import scheduler_app
 
 app = typer.Typer(
     name="homelab",
@@ -13,6 +14,7 @@ app = typer.Typer(
 )
 
 app.add_typer(knowledge_app)
+app.add_typer(scheduler_app)
 
 
 def main() -> None:
