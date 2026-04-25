@@ -23,6 +23,11 @@ logger = logging.getLogger("monolith.knowledge.raw_ingest")
 _EXCLUDED_TOP_LEVEL = {
     RAW_ROOT_NAME,
     "_processed",
+    # _researching/ holds gap stubs written by write_stub(). They are
+    # classifier state, not vault-root drops — moving them into _raw/
+    # re-ingests them as raw notes and strips the gap pipeline's
+    # source of truth. Kept in sync with gardener._EXCLUDED_DIRS.
+    "_researching",
     ".obsidian",
     ".trash",
 }
