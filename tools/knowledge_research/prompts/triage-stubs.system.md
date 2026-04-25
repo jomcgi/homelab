@@ -48,10 +48,19 @@ The user message will specify:
      (`<slug>.md` at the root would mean it's already been researched)
    - The slug does not have a corresponding staged research file
      (`.opus-research/<slug>.md` would mean it's mid-research)
-   - The frontmatter does NOT contain `triaged: keep` (these are stubs
-     a prior triage round flagged as `valid_external` or `valid_internal`
-     — they're real research targets, not candidates for re-triage; the
-     wrapper marks them automatically after each run)
+   - The frontmatter does NOT contain `triaged: keep` or
+     `triaged: discardable` — these are stubs a prior triage round
+     already classified. The wrapper marks them automatically after
+     each run:
+     - `triaged: keep` — a real research target (`valid_external`
+       or `valid_internal`); kept in `_researching/` for
+       `research-gap.sh` to pick up.
+     - `triaged: discardable` — already covered, garbage, or
+       misclassified; the user can `rm` them at any time, but
+       leaving the marker prevents the gap-detector from
+       regenerating the stub on its next cycle (it's
+       create-if-not-exists, so an existing-but-marked stub is a
+       no-op).
 
    Apply `--filter` if provided. Cap at `--limit`.
 
