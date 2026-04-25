@@ -312,3 +312,324 @@ class TestGetNoteEndpoint:
         assert r.status_code == 404
         body = r.json()
         assert body.get("detail") == "vault file missing"
+
+
+# ---------------------------------------------------------------------------
+# Gap lifecycle endpoint tests
+# ---------------------------------------------------------------------------
+
+SAMPLE_GAP = {
+    "id": 1,
+    "term": "Linkerd mTLS",
+    "gap_class": "internal",
+    "state": "in_review",
+}
+
+
+class TestListGapsEndpoint:
+    """Tests for GET /api/knowledge/gaps.
+
+    Verifies that query params are correctly forwarded to
+    KnowledgeStore.list_gaps() via split_csv(), that limit bounds are
+    enforced by FastAPI validation, and that the response is wrapped in
+    {"gaps": [...]}.
+    """
+
+    def test_happy_path_returns_gaps(self, note_client):
+        """list_gaps result is returned as {"gaps": [...]}."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = [SAMPLE_GAP]
+            r = note_client.get("/api/knowledge/gaps")
+
+        assert r.status_code == 200
+        assert r.json() == {"gaps": [SAMPLE_GAP]}
+
+    def test_empty_result_returns_empty_list(self, note_client):
+        """No gaps in store returns {"gaps": []}."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            r = note_client.get("/api/knowledge/gaps")
+
+        assert r.status_code == 200
+        assert r.json() == {"gaps": []}
+
+    def test_no_filters_passes_none_to_store(self, note_client):
+        """Omitting state/gap_class passes states=None, classes=None to the store."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            note_client.get("/api/knowledge/gaps")
+
+            MockStore.return_value.list_gaps.assert_called_once_with(
+                states=None,
+                classes=None,
+                limit=100,
+            )
+
+    def test_state_filter_forwarded_to_store(self, note_client):
+        """Single state value is split and forwarded as a list."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            note_client.get("/api/knowledge/gaps?state=in_review")
+
+            MockStore.return_value.list_gaps.assert_called_once_with(
+                states=["in_review"],
+                classes=None,
+                limit=100,
+            )
+
+    def test_state_csv_split_into_list(self, note_client):
+        """Comma-separated state param is split into a list by split_csv()."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            note_client.get("/api/knowledge/gaps?state=in_review,classified")
+
+            MockStore.return_value.list_gaps.assert_called_once_with(
+                states=["in_review", "classified"],
+                classes=None,
+                limit=100,
+            )
+
+    def test_gap_class_csv_split_into_list(self, note_client):
+        """Comma-separated gap_class param is split into a list by split_csv()."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            note_client.get("/api/knowledge/gaps?gap_class=internal,hybrid")
+
+            MockStore.return_value.list_gaps.assert_called_once_with(
+                states=None,
+                classes=["internal", "hybrid"],
+                limit=100,
+            )
+
+    def test_limit_forwarded_to_store(self, note_client):
+        """Explicit limit is forwarded to the store."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            note_client.get("/api/knowledge/gaps?limit=50")
+
+            MockStore.return_value.list_gaps.assert_called_once_with(
+                states=None,
+                classes=None,
+                limit=50,
+            )
+
+    def test_default_limit_is_100(self, note_client):
+        """Default limit is 100 when not specified."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            note_client.get("/api/knowledge/gaps")
+
+            MockStore.return_value.list_gaps.assert_called_once_with(
+                states=None,
+                classes=None,
+                limit=100,
+            )
+
+    def test_limit_over_max_returns_422(self, note_client):
+        """limit > 500 is rejected with HTTP 422 (FastAPI ge/le validation)."""
+        r = note_client.get("/api/knowledge/gaps?limit=501")
+        assert r.status_code == 422
+
+    def test_limit_zero_returns_422(self, note_client):
+        """limit=0 violates ge=1 constraint and returns HTTP 422."""
+        r = note_client.get("/api/knowledge/gaps?limit=0")
+        assert r.status_code == 422
+
+    def test_trailing_comma_in_state_stripped(self, note_client):
+        """Trailing comma must not produce an empty-string filter segment.
+
+        Regression: without split_csv(), state=in_review, would pass [""]
+        through as a filter value which silently hides gaps.
+        """
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            note_client.get("/api/knowledge/gaps?state=in_review,")
+
+            MockStore.return_value.list_gaps.assert_called_once_with(
+                states=["in_review"],
+                classes=None,
+                limit=100,
+            )
+
+    def test_all_comma_state_passes_none(self, note_client):
+        """state=, (only commas/spaces) passes None rather than empty list."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            note_client.get("/api/knowledge/gaps?state=,")
+
+            MockStore.return_value.list_gaps.assert_called_once_with(
+                states=None,
+                classes=None,
+                limit=100,
+            )
+
+    def test_both_filters_forwarded_together(self, note_client):
+        """state and gap_class filters are both forwarded simultaneously."""
+        with patch("knowledge.router.KnowledgeStore") as MockStore:
+            MockStore.return_value.list_gaps.return_value = []
+            note_client.get("/api/knowledge/gaps?state=in_review&gap_class=internal")
+
+            MockStore.return_value.list_gaps.assert_called_once_with(
+                states=["in_review"],
+                classes=["internal"],
+                limit=100,
+            )
+
+
+class TestReviewQueueEndpoint:
+    """Tests for GET /api/knowledge/gaps/review-queue.
+
+    Delegates to list_review_queue(session); response is {"gaps": [...]}.
+    """
+
+    def test_happy_path_returns_gaps(self, note_client):
+        """list_review_queue result is wrapped in {"gaps": [...]}."""
+        with patch("knowledge.router.list_review_queue") as mock_queue:
+            mock_queue.return_value = [SAMPLE_GAP]
+            r = note_client.get("/api/knowledge/gaps/review-queue")
+
+        assert r.status_code == 200
+        assert r.json() == {"gaps": [SAMPLE_GAP]}
+
+    def test_empty_queue_returns_empty_list(self, note_client):
+        """Empty queue returns {"gaps": []}."""
+        with patch("knowledge.router.list_review_queue") as mock_queue:
+            mock_queue.return_value = []
+            r = note_client.get("/api/knowledge/gaps/review-queue")
+
+        assert r.status_code == 200
+        assert r.json() == {"gaps": []}
+
+    def test_session_forwarded_to_list_review_queue(self, note_client, fake_session):
+        """The injected DB session is forwarded to list_review_queue."""
+        with patch("knowledge.router.list_review_queue") as mock_queue:
+            mock_queue.return_value = []
+            note_client.get("/api/knowledge/gaps/review-queue")
+
+            mock_queue.assert_called_once_with(fake_session)
+
+    def test_multiple_gaps_returned_in_order(self, note_client):
+        """Multiple gaps are returned in the order list_review_queue provides."""
+        gap_a = {**SAMPLE_GAP, "id": 1, "term": "alpha"}
+        gap_b = {**SAMPLE_GAP, "id": 2, "term": "beta"}
+        with patch("knowledge.router.list_review_queue") as mock_queue:
+            mock_queue.return_value = [gap_a, gap_b]
+            r = note_client.get("/api/knowledge/gaps/review-queue")
+
+        assert r.status_code == 200
+        terms = [g["term"] for g in r.json()["gaps"]]
+        assert terms == ["alpha", "beta"]
+
+
+class TestAnswerGapEndpoint:
+    """Tests for POST /api/knowledge/gaps/{gap_id}/answer.
+
+    The endpoint accepts {"answer": "..."}, delegates to answer_gap(), and
+    maps ValueError sub-types to specific HTTP status codes:
+      - "Gap not found"        → 404
+      - "expected 'in_review'" → 409
+      - "frontmatter terminator" → 400
+      - any other ValueError   → 400
+    """
+
+    def test_happy_path_returns_answer_gap_result(self, note_client):
+        """Successful answer_gap() result is returned directly."""
+        expected = {
+            "gap_id": 1,
+            "note_id": "linkerd-mtls",
+            "path": "_processed/linkerd-mtls.md",
+        }
+        with patch("knowledge.router.answer_gap") as mock_answer:
+            mock_answer.return_value = expected
+            r = note_client.post(
+                "/api/knowledge/gaps/1/answer",
+                json={"answer": "Linkerd uses per-pod sidecars on port 4143."},
+            )
+
+        assert r.status_code == 200
+        assert r.json() == expected
+
+    def test_answer_and_gap_id_forwarded_to_answer_gap(self, note_client):
+        """gap_id and answer string are forwarded positionally to answer_gap."""
+        with patch("knowledge.router.answer_gap") as mock_answer:
+            mock_answer.return_value = {"gap_id": 42, "note_id": "x", "path": "x.md"}
+            note_client.post(
+                "/api/knowledge/gaps/42/answer",
+                json={"answer": "my answer text"},
+            )
+
+            args, _ = mock_answer.call_args
+            # answer_gap(session, gap_id, answer, vault_root)
+            assert args[1] == 42
+            assert args[2] == "my answer text"
+
+    def test_gap_not_found_returns_404(self, note_client):
+        """ValueError containing 'Gap not found' maps to HTTP 404."""
+        with patch("knowledge.router.answer_gap") as mock_answer:
+            mock_answer.side_effect = ValueError("Gap not found: id=9999")
+            r = note_client.post(
+                "/api/knowledge/gaps/9999/answer",
+                json={"answer": "anything"},
+            )
+
+        assert r.status_code == 404
+        assert "Gap not found" in r.json().get("detail", "")
+
+    def test_wrong_state_returns_409(self, note_client):
+        """ValueError containing 'expected in_review' maps to HTTP 409."""
+        with patch("knowledge.router.answer_gap") as mock_answer:
+            mock_answer.side_effect = ValueError(
+                "Gap 1 is in state 'discovered', expected 'in_review'"
+            )
+            r = note_client.post(
+                "/api/knowledge/gaps/1/answer",
+                json={"answer": "x"},
+            )
+
+        assert r.status_code == 409
+        assert "expected 'in_review'" in r.json().get("detail", "")
+
+    def test_frontmatter_terminator_returns_400(self, note_client):
+        """ValueError containing 'frontmatter terminator' maps to HTTP 400."""
+        with patch("knowledge.router.answer_gap") as mock_answer:
+            mock_answer.side_effect = ValueError(
+                "Answer contains a frontmatter terminator (---)"
+            )
+            r = note_client.post(
+                "/api/knowledge/gaps/1/answer",
+                json={"answer": "foo\n---\nbar"},
+            )
+
+        assert r.status_code == 400
+        assert "frontmatter terminator" in r.json().get("detail", "")
+
+    def test_other_value_error_returns_400(self, note_client):
+        """Any other ValueError (not matched by the three specific checks) → 400."""
+        with patch("knowledge.router.answer_gap") as mock_answer:
+            mock_answer.side_effect = ValueError("some unexpected validation failure")
+            r = note_client.post(
+                "/api/knowledge/gaps/1/answer",
+                json={"answer": "x"},
+            )
+
+        assert r.status_code == 400
+
+    def test_missing_answer_field_returns_422(self, note_client):
+        """Request body without 'answer' field is rejected by FastAPI with 422."""
+        r = note_client.post(
+            "/api/knowledge/gaps/1/answer",
+            json={},
+        )
+        assert r.status_code == 422
+
+    def test_error_detail_message_preserved(self, note_client):
+        """The ValueError message is preserved verbatim in the detail field."""
+        msg = "Gap not found: id=777"
+        with patch("knowledge.router.answer_gap") as mock_answer:
+            mock_answer.side_effect = ValueError(msg)
+            r = note_client.post(
+                "/api/knowledge/gaps/777/answer",
+                json={"answer": "x"},
+            )
+
+        assert r.json().get("detail") == msg
