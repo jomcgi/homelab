@@ -834,6 +834,253 @@ class TestIngestOneRecordsPendingProvenance:
         assert rows[0].gardener_version == GARDENER_VERSION
 
 
+class TestIngestOneProjectsSourceTier:
+    """The gardener stamps ``source_tier`` onto every atom file derived from a
+    ``type: research`` raw, where the tier is computed from the count of
+    successfully-fetched ``web_fetch`` URLs in the raw's ``sources`` list:
+
+    - 0 web_fetch sources → ``personal`` (vault-grounded only)
+    - 1 web_fetch source  → ``direct``   (single primary source)
+    - 2+ web_fetch sources → ``research`` (cross-source synthesis)
+
+    Non-research raws are not touched (backwards compat with chat/journal/etc.).
+    """
+
+    @staticmethod
+    def _seed_research_raw(
+        tmp_path: Path,
+        session,
+        *,
+        raw_id: str,
+        raw_rel_path: str,
+        sources_yaml: str,
+    ) -> None:
+        """Write a research raw under _processed/raws/research/ and seed its row."""
+        from knowledge.models import RawInput
+
+        raw_text = (
+            "---\n"
+            f"id: {raw_id}\n"
+            f'title: "Research: {raw_id}"\n'
+            "type: research\n"
+            "source: research\n"
+            f"{sources_yaml}"
+            "---\n"
+            "Body.\n"
+        )
+        full = tmp_path / raw_rel_path
+        full.parent.mkdir(parents=True, exist_ok=True)
+        full.write_text(raw_text, encoding="utf-8")
+        (tmp_path / "_processed").mkdir(exist_ok=True)
+
+        raw = RawInput(
+            raw_id=raw_id,
+            path=raw_rel_path,
+            source="research",
+            content=raw_text,
+            content_hash=raw_id,
+        )
+        session.add(raw)
+        session.commit()
+
+    @staticmethod
+    def _atom_frontmatter(atom_path: Path) -> dict:
+        import yaml as _yaml
+
+        text = atom_path.read_text(encoding="utf-8")
+        assert text.startswith("---\n"), text
+        parts = text.split("---\n", 2)
+        return _yaml.safe_load(parts[1]) or {}
+
+    @pytest.mark.asyncio
+    async def test_personal_when_no_web_fetch(self, tmp_path, session):
+        """0 web_fetch sources → source_tier='personal'."""
+        raw_rel = "_processed/raws/research/r1-topic.md"
+        self._seed_research_raw(
+            tmp_path,
+            session,
+            raw_id="r1",
+            raw_rel_path=raw_rel,
+            sources_yaml=(
+                "sources:\n"
+                "  - tool: search_knowledge\n"
+                '    query: "topic"\n'
+                "    note_ids: [a, b]\n"
+            ),
+        )
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        atom_path = tmp_path / "_processed" / "topic.md"
+
+        async def fake_subprocess(prompt: str) -> None:
+            atom_path.write_text(
+                "---\nid: topic\ntitle: Topic\ntype: atom\n---\nBody.\n",
+                encoding="utf-8",
+            )
+
+        gardener._run_claude_subprocess = fake_subprocess  # type: ignore[method-assign]
+
+        await gardener._ingest_one(tmp_path / raw_rel)
+
+        fm = self._atom_frontmatter(atom_path)
+        assert fm.get("source_tier") == "personal"
+
+    @pytest.mark.asyncio
+    async def test_direct_with_one_web_fetch(self, tmp_path, session):
+        """Exactly one web_fetch source → source_tier='direct'."""
+        raw_rel = "_processed/raws/research/r2-topic.md"
+        self._seed_research_raw(
+            tmp_path,
+            session,
+            raw_id="r2",
+            raw_rel_path=raw_rel,
+            sources_yaml=(
+                "sources:\n"
+                "  - tool: search_knowledge\n"
+                '    query: "topic"\n'
+                "    note_ids: [a]\n"
+                "  - tool: web_fetch\n"
+                "    url: https://example.com/a\n"
+            ),
+        )
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        atom_path = tmp_path / "_processed" / "topic.md"
+
+        async def fake_subprocess(prompt: str) -> None:
+            atom_path.write_text(
+                "---\nid: topic\ntitle: Topic\ntype: atom\n---\nBody.\n",
+                encoding="utf-8",
+            )
+
+        gardener._run_claude_subprocess = fake_subprocess  # type: ignore[method-assign]
+
+        await gardener._ingest_one(tmp_path / raw_rel)
+
+        fm = self._atom_frontmatter(atom_path)
+        assert fm.get("source_tier") == "direct"
+
+    @pytest.mark.asyncio
+    async def test_research_with_multiple_web_fetch(self, tmp_path, session):
+        """2+ web_fetch sources → source_tier='research' (cross-source synthesis).
+
+        A web_fetch entry whose url is null (skipped fetch) does not count
+        toward the tier — only successfully-fetched URLs contribute.
+        """
+        raw_rel = "_processed/raws/research/r3-topic.md"
+        self._seed_research_raw(
+            tmp_path,
+            session,
+            raw_id="r3",
+            raw_rel_path=raw_rel,
+            sources_yaml=(
+                "sources:\n"
+                "  - tool: web_fetch\n"
+                "    url: https://example.com/a\n"
+                "  - tool: web_fetch\n"
+                "    url: https://example.com/b\n"
+                "  - tool: web_fetch\n"
+                "    url: null\n"
+            ),
+        )
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        atom_path = tmp_path / "_processed" / "topic.md"
+
+        async def fake_subprocess(prompt: str) -> None:
+            atom_path.write_text(
+                "---\nid: topic\ntitle: Topic\ntype: atom\n---\nBody.\n",
+                encoding="utf-8",
+            )
+
+        gardener._run_claude_subprocess = fake_subprocess  # type: ignore[method-assign]
+
+        await gardener._ingest_one(tmp_path / raw_rel)
+
+        fm = self._atom_frontmatter(atom_path)
+        assert fm.get("source_tier") == "research"
+
+    @pytest.mark.asyncio
+    async def test_does_not_project_for_non_research_raws(self, tmp_path, session):
+        """Non-research raws (e.g. chat/journal/vault-drop) don't get
+        source_tier projected — backwards compat with all existing flows."""
+        from knowledge.models import RawInput
+
+        raw_rel = "_raw/2026/04/09/r4-note.md"
+        raw_text = '---\nid: r4\ntitle: "Plain Note"\ntype: atom\n---\nBody.\n'
+        full = tmp_path / raw_rel
+        full.parent.mkdir(parents=True, exist_ok=True)
+        full.write_text(raw_text, encoding="utf-8")
+        (tmp_path / "_processed").mkdir(exist_ok=True)
+
+        session.add(
+            RawInput(
+                raw_id="r4",
+                path=raw_rel,
+                source="vault-drop",
+                content=raw_text,
+                content_hash="r4",
+            )
+        )
+        session.commit()
+
+        gardener = Gardener(vault_root=tmp_path, session=session)
+        atom_path = tmp_path / "_processed" / "topic.md"
+
+        async def fake_subprocess(prompt: str) -> None:
+            atom_path.write_text(
+                "---\nid: topic\ntitle: Topic\ntype: atom\n---\nBody.\n",
+                encoding="utf-8",
+            )
+
+        gardener._run_claude_subprocess = fake_subprocess  # type: ignore[method-assign]
+
+        await gardener._ingest_one(tmp_path / raw_rel)
+
+        fm = self._atom_frontmatter(atom_path)
+        assert "source_tier" not in fm
+
+    @pytest.mark.asyncio
+    async def test_projection_is_idempotent(self, tmp_path, session):
+        """Re-running the gardener on the same raw does not rewrite an atom
+        file whose source_tier already matches the computed tier."""
+        raw_rel = "_processed/raws/research/r5-topic.md"
+        self._seed_research_raw(
+            tmp_path,
+            session,
+            raw_id="r5",
+            raw_rel_path=raw_rel,
+            sources_yaml=(
+                "sources:\n  - tool: web_fetch\n    url: https://example.com/a\n"
+            ),
+        )
+
+        atom_path = tmp_path / "_processed" / "topic.md"
+        atom_path.parent.mkdir(parents=True, exist_ok=True)
+        # Pre-existing atom with the correct tier already projected.
+        atom_path.write_text(
+            "---\n"
+            "id: topic\n"
+            "title: Topic\n"
+            "type: atom\n"
+            "source_tier: direct\n"
+            "---\n"
+            "Body.\n",
+            encoding="utf-8",
+        )
+
+        # Direct call to the projector — it should not rewrite when the value
+        # is already current.
+        before_mtime = atom_path.stat().st_mtime_ns
+        before_text = atom_path.read_text(encoding="utf-8")
+        Gardener._project_source_tier_onto_atom(atom_path, "direct")
+        after_text = atom_path.read_text(encoding="utf-8")
+        after_mtime = atom_path.stat().st_mtime_ns
+
+        assert before_text == after_text
+        assert before_mtime == after_mtime
+
+
 class TestIngestOneNoNoteSentinel:
     @pytest.mark.asyncio
     async def test_records_sentinel_when_no_notes_produced(self, tmp_path, session):
