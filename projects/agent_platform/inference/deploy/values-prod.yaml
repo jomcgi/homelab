@@ -176,7 +176,7 @@ modelVolume:
   mountPath: "/model-image"
 
 vllm:
-  maxModelLen: 16384
+  maxModelLen: 49152
   gpuMemoryUtilization: 0.95
   dtype: "auto"
   extraArgs:
@@ -191,6 +191,8 @@ vllm:
     - '{"reasoning_start_str": "<think>", "reasoning_end_str": "</think>"}'
     - "--max-num-seqs"
     - "1"
+    - "--kv-cache-dtype"
+    - "fp8"
 
 # vLLM runs as root and needs writable fs for compiled kernels
 podSecurityContext:
