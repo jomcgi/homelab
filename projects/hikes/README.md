@@ -53,7 +53,13 @@ A static Cloudflare Pages app (`public/` directory) served from the `jomcgi-hike
 
 User preferences are persisted to `localStorage`. The app has no server-side component.
 
-**Playwright tests** live in `frontend/tests/` and are configured in `playwright.config.js`. They run against a local static server with mocked `bundle.brotli` responses. Note: `mock-data.spec.js` is excluded from the default `npm test` run (it is not listed in the `package.json` test script).
+**Playwright tests** live in `frontend/tests/` and are configured in `playwright.config.js`. The default `npm test` run includes three spec files:
+
+- `app-functionality.spec.js` — tests walk filtering and UI behaviour; mocks `bundle.brotli` responses
+- `coordinates.spec.js` — tests coordinate parsing and haversine logic; does not mock the bundle
+- `deployment-health.spec.js` — tests the live deployment health endpoint; does not mock the bundle
+
+Playwright starts its own HTTP server on port **33999** (`python3 -m http.server 33999 --directory public`) rather than reusing any externally running server. `mock-data.spec.js` is excluded from the default run.
 
 ## Running Locally
 
