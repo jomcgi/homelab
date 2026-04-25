@@ -213,3 +213,17 @@ class TestReconcileRawPhase:
         rows = session.exec(select(RawInput)).all()
         assert len(rows) == 1
         assert rows[0].path == "_raw/2026/04/08/abc1-other.md"
+
+
+def test_infer_source_research_subdir_returns_research():
+    """A raw under _inbox/research/ is sourced as 'research'."""
+    from knowledge.raw_ingest import _infer_source
+
+    assert _infer_source(None, ("_inbox", "research", "merkle-tree.md")) == "research"
+
+
+def test_infer_source_research_does_not_override_explicit_meta_source():
+    """Explicit frontmatter meta_source still wins over directory inference."""
+    from knowledge.raw_ingest import _infer_source
+
+    assert _infer_source("manual", ("_inbox", "research", "x.md")) == "manual"
