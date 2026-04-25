@@ -17,15 +17,16 @@ logger = logging.getLogger(__name__)
 
 VAULT_ROOT_ENV = "VAULT_ROOT"
 DEFAULT_VAULT_ROOT = "/vault"
-# 5-minute reconcile cycle. The companion _TTL_SECS=600 ensures at
-# most one missed run before alerting fires (the scheduler considers
-# a job stale after ttl_secs).
+# 5-minute reconcile cycle. _TTL_SECS is the lock-lease: a worker holding
+# the row past this is treated as crashed and the lock can be reclaimed.
+# We keep it generous (20m) so LLM-heavy handlers can finish without being
+# preempted; the tradeoff is slower recovery if a pod actually dies mid-job.
 _INTERVAL_SECS = 300
-_TTL_SECS = 600
+_TTL_SECS = 1200
 _BACKUP_INTERVAL_SECS = 900  # 15 minutes
-_BACKUP_TTL_SECS = 600  # 10 minute timeout
+_BACKUP_TTL_SECS = 1200  # 20 minute lock-lease (git push can be slow)
 _INGEST_INTERVAL_SECS = 300
-_INGEST_TTL_SECS = 600
+_INGEST_TTL_SECS = 1200
 _CLASSIFY_INTERVAL_SECS = 60  # 1-minute tick
 # Scheduler reclaims jobs whose lock-lease exceeds ttl_secs. Must comfortably
 # exceed gap_classifier._CLASSIFY_TIMEOUT_SECS (300s) — otherwise a long-
@@ -34,7 +35,7 @@ _CLASSIFY_INTERVAL_SECS = 60  # 1-minute tick
 _CLASSIFY_TTL_SECS = 360  # 300s subprocess timeout + 60s headroom
 _CLASSIFY_BATCH_SIZE = 10
 _RESEARCH_INTERVAL_SECS = 300
-_RESEARCH_TTL_SECS = 600  # 5min interval + 5min headroom (Qwen + Sonnet round-trips)
+_RESEARCH_TTL_SECS = 1200  # 20min lock-lease (Qwen + Sonnet round-trips can be slow)
 _GIT_READY_SENTINEL = ".git-ready"
 _SYNC_READY_SENTINEL = ".sync-ready"
 _GIT_AUTHOR = b"vault-backup <vault-backup@monolith.local>"

@@ -80,14 +80,14 @@ class TestScheduledJobDefaults:
         assert job.locked_by is None
         assert job.locked_at is None
 
-    def test_ttl_secs_defaults_to_300(self):
-        """ttl_secs defaults to 300 when not provided."""
+    def test_ttl_secs_defaults_to_1200(self):
+        """ttl_secs defaults to 1200 (20m) when not provided."""
         job = ScheduledJob(
             name="test",
             interval_secs=60,
             next_run_at=datetime.now(timezone.utc),
         )
-        assert job.ttl_secs == 300
+        assert job.ttl_secs == 1200
 
     def test_explicit_ttl_overrides_default(self):
         """Explicitly provided ttl_secs overrides the default."""
@@ -153,7 +153,7 @@ class TestRegisterJobNew:
         job = session.get(ScheduledJob, "fresh")
         assert job is not None
         assert job.interval_secs == 30
-        assert job.ttl_secs == 300
+        assert job.ttl_secs == 1200
         assert job.next_run_at is not None
 
     def test_new_job_uses_custom_ttl(self, session):
