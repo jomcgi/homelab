@@ -71,11 +71,18 @@ cd "$VAULT"
 shopt -s nullglob
 all=0
 eligible=0
+skipped_triaged=0
 for stub in _researching/*.md; do
 	all=$((all + 1))
 	slug="$(basename "$stub" .md)"
 	[ -f "$slug.md" ] && continue
 	[ -f "$STAGING/$slug.md" ] && continue
+	# Skip stubs a prior triage round already flagged as keep.
+	triaged="$(awk '/^triaged:/ {print $2; exit}' "$stub" | tr -d '"')"
+	if [ "$triaged" = "keep" ]; then
+		skipped_triaged=$((skipped_triaged + 1))
+		continue
+	fi
 	if [ -n "$FILTER" ] && [[ ! "$slug" =~ $FILTER ]]; then
 		continue
 	fi
@@ -95,7 +102,7 @@ to_process=$eligible
 ts="$(date -u +%Y%m%dT%H%M%SZ)"
 report_path="$STAGING/triage-$ts.md"
 
-echo "Triaging $to_process stubs (of $eligible eligible / $all total)"
+echo "Triaging $to_process stubs (of $eligible eligible / $all total; $skipped_triaged previously triaged as keep)"
 echo "Batch size: $BATCH_SIZE"
 echo "Report path: $report_path"
 echo
@@ -108,13 +115,51 @@ claude --print \
 	-- \
 	"Triage gap stubs in this vault. Working directory is the vault root. Process up to $to_process stubs in batches of $BATCH_SIZE.${FILTER:+ Filter slugs by regex: $FILTER.} Write the consolidated report to \`.opus-research/triage-$ts.md\` per the system prompt."
 
-if [ -f "$report_path" ]; then
-	echo
-	echo "Report written: $report_path"
-	echo
-	echo "Top-of-file summary:"
-	head -30 "$report_path"
-else
+if [ ! -f "$report_path" ]; then
 	echo "WARN: expected report not written at $report_path" >&2
 	exit 3
 fi
+
+echo
+echo "Report written: $report_path"
+
+# Mark all valid_external / valid_internal slugs as triaged: keep
+# in their stub frontmatter so future runs skip them.
+keeper_slugs=$(awk '
+	/^## Valid (external|internal)/ { in_section=1; next }
+	in_section && /^## [^V]/        { in_section=0 }
+	in_section && /^\| [a-z0-9]/ {
+		gsub(/^\| /, "")
+		gsub(/ \|.*$/, "")
+		print
+	}
+' "$report_path")
+
+marked=0
+while IFS= read -r slug; do
+	[ -z "$slug" ] && continue
+	stub="_researching/$slug.md"
+	[ ! -f "$stub" ] && continue
+	# Skip if already marked.
+	grep -q "^triaged: keep" "$stub" && continue
+	# Insert "triaged: keep" inside the frontmatter (right after the opening ---).
+	tmp=$(mktemp)
+	awk '
+		BEGIN { inserted = 0 }
+		NR == 1 && /^---$/ { print; next }
+		!inserted && /^[a-zA-Z]/ {
+			print "triaged: keep"
+			inserted = 1
+		}
+		{ print }
+	' "$stub" >"$tmp" && mv "$tmp" "$stub"
+	marked=$((marked + 1))
+done <<<"$keeper_slugs"
+
+if [ "$marked" -gt 0 ]; then
+	echo "Marked $marked stub(s) as triaged: keep so future runs skip them."
+fi
+
+echo
+echo "Top-of-file summary:"
+head -30 "$report_path"
