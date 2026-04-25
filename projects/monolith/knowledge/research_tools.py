@@ -15,8 +15,23 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
+from sqlmodel import Session
+
+from chat.web_search import search_web as web_search  # re-export, identity-equal
+from knowledge.store import KnowledgeStore
+from shared.embedding import EmbeddingClient
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "MAX_FETCH_BYTES",
+    "WEB_FETCH_TIMEOUT_SECS",
+    "SearchKnowledgeResult",
+    "WebFetchResult",
+    "search_knowledge",
+    "web_fetch",
+    "web_search",
+]
 
 WEB_FETCH_TIMEOUT_SECS = 15.0
 MAX_FETCH_BYTES = 200_000  # ~50 pages of plain text; enough to synthesize from
@@ -111,3 +126,41 @@ async def web_fetch(url: str) -> WebFetchResult:
         )
     finally:
         await client.aclose()
+
+
+@dataclass(frozen=True)
+class SearchKnowledgeResult:
+    text: str
+    note_ids: list[str]
+
+
+async def search_knowledge(
+    *, session: Session, query: str, limit: int = 5
+) -> SearchKnowledgeResult:
+    """Query the knowledge KG via vector search.
+
+    Wraps :meth:`KnowledgeStore.search_notes_with_context` and formats the
+    response as a tool-call return value the research agent can consume.
+    Returns a small structured dataclass so the harness can also extract
+    ``note_ids`` for the sources_bundle (without re-parsing the text).
+    """
+    embed_client = EmbeddingClient()
+    vector = await embed_client.embed(query)
+
+    store = KnowledgeStore(session)
+    rows = store.search_notes_with_context(query_embedding=vector, limit=limit)
+    if not rows:
+        return SearchKnowledgeResult(text="(no matching vault notes)", note_ids=[])
+
+    lines: list[str] = []
+    note_ids: list[str] = []
+    for row in rows:
+        # search_notes_with_context returns dicts with keys: note_id, title,
+        # path, type, tags, score, section, snippet, edges
+        # (see store.py:289-304).
+        note_ids.append(row["note_id"])
+        lines.append(
+            f"**{row['title']}** (id={row['note_id']}, type={row['type']})\n"
+            f"{row['snippet']}"
+        )
+    return SearchKnowledgeResult(text="\n\n".join(lines), note_ids=note_ids)
