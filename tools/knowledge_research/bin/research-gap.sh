@@ -98,6 +98,7 @@ for stub in _researching/*.md; do
 	echo "==> researching: $slug"
 	if claude --print \
 		--model claude-opus-4-7 \
+		--permission-mode acceptEdits \
 		--append-system-prompt "$(cat "$PROMPT_FILE")" \
 		--add-dir "$VAULT" \
 		-- \

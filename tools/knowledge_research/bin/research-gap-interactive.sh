@@ -120,6 +120,7 @@ fi
 set +e
 claude \
 	--model claude-opus-4-7 \
+	--permission-mode acceptEdits \
 	--append-system-prompt "$(cat "$PROMPT_FILE")" \
 	--add-dir "$VAULT" \
 	-- \
