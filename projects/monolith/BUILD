@@ -5,6 +5,7 @@
 # gazelle:exclude notes
 # gazelle:exclude scripts
 # gazelle:exclude home
+# gazelle:exclude scheduler
 # gazelle:exclude shared
 # gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,sqlmodel-datetime-without-factory,tainted-fastapi-http-request-httpx,tainted-path-traversal-stdlib-fastapi
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
@@ -35,6 +36,7 @@ py_venv_binary(
             "chat/**/*.py",
             "knowledge/**/*.py",
             "home/**/*.py",
+            "scheduler/**/*.py",
             "shared/**/*.py",
         ],
         exclude = [
@@ -59,6 +61,7 @@ py_library(
             "chat/**/*.py",
             "knowledge/**/*.py",
             "home/**/*.py",
+            "scheduler/**/*.py",
             "shared/**/*.py",
         ],
         exclude = [
@@ -2574,6 +2577,40 @@ py_test(
         "@pip//kubernetes_asyncio",
         "@pip//pytest",
         "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
+    name = "scheduler_views_test",
+    srcs = ["scheduler/views_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pydantic",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "scheduler_service_test",
+    srcs = ["scheduler/service_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "scheduler_router_test",
+    srcs = ["scheduler/router_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
     ],
 )
 

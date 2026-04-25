@@ -13,6 +13,7 @@ from app.log import configure_logging
 import chat
 import home
 import knowledge
+import scheduler
 from home.observability.router import warm_cache, warm_stats_cache
 
 configure_logging()
@@ -194,6 +195,7 @@ app = FastAPI(title="Monolith", lifespan=_combined_lifespan)
 home.register(app)
 chat.register(app)
 knowledge.register(app)
+scheduler.register(app)
 app.mount("/mcp", _mcp_app)
 
 
