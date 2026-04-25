@@ -121,7 +121,6 @@ class GardenStats:
     distilled: int = 0
     consolidated: int = 0
     gaps_discovered: int = 0
-    gaps_classified: int = 0
 
 
 def _split_frontmatter(raw: str) -> tuple[dict, str]:
@@ -333,7 +332,7 @@ class Gardener:
 
         consolidated = self._consolidate_task_views()
 
-        gaps_discovered, gaps_classified = self._discover_and_classify_gaps()
+        gaps_discovered = self._discover_gaps()
 
         stats = GardenStats(
             ingested=ingested,
@@ -345,10 +344,9 @@ class Gardener:
             distilled=distilled,
             consolidated=consolidated,
             gaps_discovered=gaps_discovered,
-            gaps_classified=gaps_classified,
         )
         logger.info(
-            "knowledge.garden: resolved=%d moved=%d deduped=%d reconciled=%d ingested=%d failed=%d distilled=%d consolidated=%d gaps_discovered=%d gaps_classified=%d",
+            "knowledge.garden: resolved=%d moved=%d deduped=%d reconciled=%d ingested=%d failed=%d distilled=%d consolidated=%d gaps_discovered=%d",
             stats.resolved,
             stats.moved,
             stats.deduped,
@@ -358,7 +356,6 @@ class Gardener:
             stats.distilled,
             stats.consolidated,
             stats.gaps_discovered,
-            stats.gaps_classified,
         )
         return stats
 
@@ -511,42 +508,29 @@ class Gardener:
 
         return written
 
-    def _discover_and_classify_gaps(self) -> tuple[int, int]:
-        """Discover unresolved wikilinks and classify them into review buckets.
+    def _discover_gaps(self) -> int:
+        """Discover unresolved wikilinks for the current cycle.
 
-        Returns ``(discovered_count, classified_count)``.
+        Returns the discovered_count for this cycle.
 
-        The default classifier is ``None`` — a no-op: gaps stay at
-        ``state='discovered'`` until a real classifier is wired in
-        (Task 3). A warning is logged when pending gaps exist so the
-        absence is visible in cycle logs.
+        Classification is owned by the ``knowledge.classify-gaps`` scheduled
+        job (registered in ``service.py``); the gardener no longer routes
+        gaps through ``classify_gaps`` itself.
 
-        Errors in either step are caught and logged; the gardener cycle must
-        not fail because of gap-pipeline bugs.
+        Errors are caught and logged; the gardener cycle must not fail
+        because of gap-pipeline bugs.
         """
         if self.session is None:
-            return 0, 0
-        discovered = 0
+            return 0
         try:
             # Imported at call-time to avoid a circular import:
             # ``knowledge.gaps`` imports ``_slugify`` from this module.
-            from knowledge.gaps import classify_gaps, discover_gaps
+            from knowledge.gaps import discover_gaps
 
-            discovered = discover_gaps(self.session, self.vault_root)
-            classified = classify_gaps(self.session)
-            return discovered, classified
+            return discover_gaps(self.session, self.vault_root)
         except Exception:
-            # Roll back any uncommitted mutations from classify_gaps before the
-            # handler returns — otherwise the scheduler's outer session.commit()
-            # would persist a half-classified batch. discover_gaps already
-            # committed its inserts internally, so `discovered` stays accurate.
-            if self.session is not None:
-                self.session.rollback()
-            logger.exception(
-                "gardener: gap pipeline failed after discovering %d gaps",
-                discovered,
-            )
-            return discovered, 0
+            logger.exception("gardener: discover_gaps failed (non-fatal)")
+            return 0
 
     async def _distill_completed_tasks(self) -> tuple[int, int]:
         """Distill learnings from completed tasks into knowledge atoms.
