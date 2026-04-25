@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -177,39 +177,37 @@ def session_with_seeded_notes_fixture():
 
 
 @pytest.mark.asyncio
-async def test_search_knowledge_returns_top_n_excerpts(session_with_seeded_notes):
-    """search_knowledge wraps KnowledgeStore.search_notes_with_context and returns
-    a tool-friendly text response for the agent to consume."""
+async def test_search_knowledge_returns_top_n_excerpts():
+    """search_knowledge wraps KnowledgeStore.search_notes_with_context and
+    formats the rows as ``**title** (id=<id>, type=<type>)\\n<snippet>`` blocks
+    joined by a blank line — the exact text the research agent receives."""
     from knowledge.research_tools import search_knowledge
 
-    # Mock the embedder (no llama-server in tests) and the vector-search
-    # method (pgvector is Postgres-only; the in-memory sqlite fixture
-    # cannot run cosine_distance). Canned results reference the seeded
-    # note_ids so the assertions are real.
     canned = [
         {
             "note_id": "n0",
             "title": "Merkle Tree",
             "path": "merkle-tree.md",
-            "type": "concept",
-            "tags": [],
+            "type": "atom",
+            "tags": ["crypto"],
             "score": 0.92,
             "section": "## Overview",
-            "snippet": "Merkle Tree explained briefly.",
+            "snippet": "A Merkle tree hashes leaves pairwise up to a root.",
             "edges": [],
         },
         {
             "note_id": "n1",
             "title": "Hash Chain",
             "path": "hash-chain.md",
-            "type": "concept",
-            "tags": [],
+            "type": "atom",
+            "tags": ["crypto"],
             "score": 0.71,
             "section": "## Overview",
-            "snippet": "Hash Chain explained briefly.",
+            "snippet": "A hash chain links values via repeated hashing.",
             "edges": [],
         },
     ]
+    mock_session = MagicMock()
     fake_embed = AsyncMock()
     fake_embed.embed = AsyncMock(return_value=[0.0] * 1024)
 
@@ -218,12 +216,48 @@ async def test_search_knowledge_returns_top_n_excerpts(session_with_seeded_notes
         patch.object(KnowledgeStore, "search_notes_with_context", return_value=canned),
     ):
         result = await search_knowledge(
-            session=session_with_seeded_notes, query="merkle tree", limit=3
+            session=mock_session, query="merkle tree", limit=3
         )
 
-    assert result.note_ids  # non-empty when seeded
-    assert len(result.note_ids) <= 3
-    assert isinstance(result.text, str) and result.text
+    # Note ids preserved in source order for the sources_bundle.
+    assert result.note_ids == ["n0", "n1"]
+
+    # Text contract: exact format string + blank-line block separator.
+    blocks = result.text.split("\n\n")
+    assert len(blocks) == 2
+    assert "**Merkle Tree**" in result.text
+    assert "id=n0" in result.text
+    assert "type=atom" in result.text
+    assert "A Merkle tree hashes leaves pairwise up to a root." in result.text
+    assert "**Hash Chain**" in result.text
+    assert "id=n1" in result.text
+
+    # The embedder was awaited with the user's query — guards against
+    # accidental hardcoded text or empty-string regressions.
+    fake_embed.embed.assert_awaited_once_with("merkle tree")
+
+
+@pytest.mark.asyncio
+async def test_search_knowledge_empty_results():
+    """When the KG has no matches, search_knowledge returns an empty
+    ``note_ids`` list and a fixed sentinel string. The literal is pinned
+    because the research agent's prompt context depends on it."""
+    from knowledge.research_tools import search_knowledge
+
+    mock_session = MagicMock()
+    fake_embed = AsyncMock()
+    fake_embed.embed = AsyncMock(return_value=[0.0] * 1024)
+
+    with (
+        patch("knowledge.research_tools.EmbeddingClient", return_value=fake_embed),
+        patch.object(KnowledgeStore, "search_notes_with_context", return_value=[]),
+    ):
+        result = await search_knowledge(
+            session=mock_session, query="totally unknown term", limit=5
+        )
+
+    assert result.note_ids == []
+    assert result.text == "(no matching vault notes)"
 
 
 def test_web_search_re_exported():
