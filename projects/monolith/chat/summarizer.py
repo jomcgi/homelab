@@ -13,7 +13,7 @@ from chat.models import ChannelSummary, Message, UserChannelSummary
 
 logger = logging.getLogger(__name__)
 
-_LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "16384"))
+_LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "32768"))
 
 
 async def generate_summaries(

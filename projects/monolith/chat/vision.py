@@ -26,7 +26,7 @@ VISION_RETRY_TIMEOUT = 300.0  # 5 min total deadline
 # while slow vision inference still has time to complete.
 VISION_CONNECT_TIMEOUT = 5.0
 VISION_READ_TIMEOUT = 60.0
-VISION_MAX_TOKENS = int(os.environ.get("VISION_MAX_TOKENS", "4096"))
+VISION_MAX_TOKENS = int(os.environ.get("VISION_MAX_TOKENS", "8192"))
 
 
 def _is_retryable(exc: Exception) -> bool:
