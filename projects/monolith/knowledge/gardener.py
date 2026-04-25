@@ -718,11 +718,72 @@ class Gardener:
             )
         self.session.commit()
 
+    @staticmethod
+    def _research_source_tier(raw_meta: dict) -> str | None:
+        """Return the source_tier label for a research raw, or None for non-research raws.
+
+        Tier rules (per design doc):
+          - 0 successfully-fetched web_fetch sources → "personal" (vault-grounded only)
+          - 1 successfully-fetched web_fetch source  → "direct"   (single primary source)
+          - 2+ successfully-fetched web_fetch sources → "research" (cross-source synthesis)
+
+        Only ``web_fetch`` entries with a truthy ``url`` count — a skipped fetch
+        recorded as ``{tool: web_fetch, url: null}`` does not contribute.
+        """
+        if raw_meta.get("type") != "research":
+            return None
+        sources = raw_meta.get("sources") or []
+        if not isinstance(sources, list):
+            return "personal"
+        web_fetch_count = sum(
+            1
+            for s in sources
+            if isinstance(s, dict) and s.get("tool") == "web_fetch" and s.get("url")
+        )
+        if web_fetch_count == 0:
+            return "personal"
+        if web_fetch_count == 1:
+            return "direct"
+        return "research"
+
+    @staticmethod
+    def _project_source_tier_onto_atom(atom_path: Path, tier: str) -> None:
+        """Inject ``source_tier: <tier>`` into the atom file's YAML frontmatter.
+
+        Idempotent: skips the rewrite when the value already matches. Silently
+        skips files that lack a frontmatter block or whose YAML cannot be
+        parsed — those are outside the gardener's contract for this projection.
+        """
+        try:
+            text = atom_path.read_text(encoding="utf-8")
+        except OSError:
+            return
+        if not text.startswith("---\n"):
+            return
+        parts = text.split("---\n", 2)
+        if len(parts) < 3:
+            return
+        try:
+            fm = yaml.safe_load(frontmatter._sanitize_yaml_block(parts[1]))
+        except yaml.YAMLError:
+            return
+        if not isinstance(fm, dict):
+            return
+        if fm.get("source_tier") == tier:
+            return
+        fm["source_tier"] = tier
+        new_block = yaml.dump(fm, default_flow_style=False, sort_keys=False)
+        atom_path.write_text(f"---\n{new_block}---\n{parts[2]}", encoding="utf-8")
+
     async def _ingest_one(self, path: Path) -> None:
         """Decompose a single raw note by spawning a claude Code subprocess."""
         raw_text = path.read_text(encoding="utf-8")
         meta, body = frontmatter.parse(raw_text)
         title = meta.title or path.stem
+        # Read the raw frontmatter as a plain dict so the source_tier projector
+        # can inspect ``type`` and ``sources`` without going through the typed
+        # ``ParsedFrontmatter`` dataclass (which doesn't expose ``sources``).
+        raw_meta_dict, _ = _split_frontmatter(raw_text)
 
         # Look up RawInput row for raw_id breadcrumb and provenance.
         raw_row: RawInput | None = None
@@ -763,6 +824,15 @@ class Gardener:
             else set()
         )
         new_files = sorted(after - before)
+
+        # Project source_tier onto each new atom file derived from a research
+        # raw. Runs before provenance recording so the on-disk frontmatter is
+        # consistent with the raw_fk that links these atoms back to the raw.
+        tier = self._research_source_tier(raw_meta_dict)
+        if tier is not None:
+            for new_file in new_files:
+                self._project_source_tier_onto_atom(new_file, tier)
+
         if not new_files:
             logger.warning(
                 "gardener: claude produced no notes for %s; leaving raw file in place\n"
