@@ -1963,6 +1963,17 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_research_writer_test",
+    srcs = ["knowledge/research_writer_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pyyaml",
+    ],
+)
+
+py_test(
     name = "knowledge_store_gap_queries_test",
     srcs = ["knowledge/store_gap_queries_test.py"],
     imports = ["."],
