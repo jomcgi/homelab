@@ -1,11 +1,17 @@
 rules:
   - id: no-broad-except-swallow
     patterns:
-      - pattern: |
-          try:
-            ...
-          except Exception as $E:
-            $BODY
+      - pattern-either:
+          - pattern: |
+              try:
+                ...
+              except Exception as $E:
+                $BODY
+          - pattern: |
+              try:
+                ...
+              except Exception:
+                $BODY
       - pattern-not: |
           try:
             ...
@@ -30,8 +36,26 @@ rules:
           except Exception as $E:
             ...
             logging.$METHOD(...)
+      - pattern-not: |
+          try:
+            ...
+          except Exception:
+            ...
+            raise
+      - pattern-not: |
+          try:
+            ...
+          except Exception:
+            ...
+            logger.$METHOD(...)
+      - pattern-not: |
+          try:
+            ...
+          except Exception:
+            ...
+            logging.$METHOD(...)
     message: >
-      `except Exception as $E` block does not re-raise the exception or log it.
+      `except Exception` block does not re-raise the exception or log it.
       This silently swallows all exceptions, hiding bugs and making failures
       invisible in production. Either log the exception (at minimum
       `logger.exception("...")`) or re-raise it with `raise`.
