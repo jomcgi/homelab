@@ -1952,6 +1952,17 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_research_validator_test",
+    srcs = ["knowledge/research_validator_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+py_test(
     name = "knowledge_store_gap_queries_test",
     srcs = ["knowledge/store_gap_queries_test.py"],
     imports = ["."],
