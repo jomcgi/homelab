@@ -100,6 +100,7 @@ for stub in _researching/*.md; do
 		--model claude-opus-4-7 \
 		--append-system-prompt "$(cat "$PROMPT_FILE")" \
 		--add-dir "$VAULT" \
+		-- \
 		"Research the gap at \`_researching/${slug}.md\`. Vault root is the current working directory. Stage your output at \`.opus-research/${slug}.md\` per the system prompt — do not write at vault root, the wrapper handles promotion."; then
 		count=$((count + 1))
 	else
