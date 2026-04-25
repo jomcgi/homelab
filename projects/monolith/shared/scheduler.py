@@ -27,7 +27,7 @@ class ScheduledJob(SQLModel, table=True):
     last_status: str | None = None
     locked_by: str | None = None
     locked_at: datetime | None = None
-    ttl_secs: int = Field(default=300)
+    ttl_secs: int = Field(default=1200)
 
 
 # Handler signature: receives a Session, returns optional next_run_at override.
@@ -45,7 +45,7 @@ def register_job(
     name: str,
     interval_secs: int,
     handler: Handler,
-    ttl_secs: int = 300,
+    ttl_secs: int = 1200,
 ) -> None:
     """Register a job handler and upsert its row in the database."""
     _registry[name] = handler

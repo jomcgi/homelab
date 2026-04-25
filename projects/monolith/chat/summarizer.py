@@ -292,7 +292,7 @@ def on_startup(
                 name=f"chat.changelog.{cfg.name}",
                 interval_secs=cfg.interval_hours * 3600,
                 handler=_make_handler(cfg),
-                ttl_secs=300,
+                ttl_secs=1200,
             )
 
 
@@ -302,7 +302,7 @@ _RETRYABLE_STATUS_CODES = {502, 503, 504}
 def build_llm_caller(base_url: str | None = None) -> Callable[[str], Awaitable[str]]:
     """Create an async callable that sends a prompt to Qwen via llama.cpp."""
     url = base_url or os.environ.get("LLAMA_CPP_URL", "")
-    client = httpx.AsyncClient(timeout=httpx.Timeout(60.0))
+    client = httpx.AsyncClient(timeout=httpx.Timeout(600.0))
 
     async def call_llm(prompt: str, *, max_retries: int = 3) -> str:
         last_exc: Exception | None = None

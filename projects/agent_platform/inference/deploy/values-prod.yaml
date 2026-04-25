@@ -190,7 +190,7 @@ vllm:
     - "--reasoning-config"
     - '{"reasoning_start_str": "<think>", "reasoning_end_str": "</think>"}'
     - "--max-num-seqs"
-    - "1"
+    - "3"
     - "--kv-cache-dtype"
     - "fp8"
 
