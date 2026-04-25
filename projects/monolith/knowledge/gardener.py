@@ -860,7 +860,10 @@ class Gardener:
                     )
                     note_id = file_meta.note_id
                 except Exception:
-                    logger.debug("gardener: failed to parse frontmatter for %s, skipping", new_file)
+                    logger.debug(
+                        "gardener: failed to parse frontmatter for %s, skipping",
+                        new_file,
+                    )
                     continue
                 if not note_id:
                     continue

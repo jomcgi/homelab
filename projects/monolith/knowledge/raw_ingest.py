@@ -82,7 +82,9 @@ def move_phase(*, vault_root: Path, now: datetime) -> MovePhaseStats:
             meta, _ = frontmatter.parse(content)
             title = meta.title or source.stem
         except Exception:
-            logger.debug("move_phase: failed to parse frontmatter for %s, using stem", source)
+            logger.debug(
+                "move_phase: failed to parse frontmatter for %s, using stem", source
+            )
             title = source.stem
 
         target = raw_target_path(
@@ -154,7 +156,9 @@ def reconcile_raw_phase(*, vault_root: Path, session: Session) -> ReconcileRawSt
         try:
             meta, _body = frontmatter.parse(content)
         except Exception:
-            logger.debug("reconcile_raw_phase: failed to parse frontmatter for %s", file_path)
+            logger.debug(
+                "reconcile_raw_phase: failed to parse frontmatter for %s", file_path
+            )
             meta = None
 
         raw_id = compute_raw_id(content)
