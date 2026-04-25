@@ -620,7 +620,7 @@ class TestClassifyGapsHandler:
             select(ScheduledJob).where(ScheduledJob.name == "knowledge.research-gaps")
         ).scalar_one()
         assert job.interval_secs == 300
-        assert job.ttl_secs == 600
+        assert job.ttl_secs == 1200  # was 600
 
     @pytest.mark.asyncio
     async def test_classify_gaps_handler_skips_when_no_token(
