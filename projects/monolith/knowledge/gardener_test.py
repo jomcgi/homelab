@@ -1278,16 +1278,22 @@ class TestGardenerDedupesFrontmatterEachCycle:
 
 
 class TestGardenerGapDiscovery:
-    """Gap discovery and classification are wired into each garden cycle."""
+    """Gap discovery is wired into each garden cycle.
+
+    Classification has been hoisted out of the gardener cycle and is now
+    owned by the ``knowledge.classify-gaps`` scheduled job (see
+    ``service.py``). The gardener only discovers — it must never call
+    ``classify_gaps`` itself.
+    """
 
     @pytest.mark.asyncio
-    async def test_gardener_run_discovers_and_classifies_gaps(
+    async def test_gardener_run_discovers_gaps_without_classifying(
         self, tmp_path, session, caplog
     ):
-        """run() invokes discover_gaps + classify_gaps. With no classifier
-        wired, classification is a no-op: the gap stays at state=discovered
-        and a warning is logged. The review queue only populates once the
-        Task-3 PR lands a real classifier.
+        """run() invokes discover_gaps and leaves the gap at
+        state='discovered' for the classify-gaps scheduled job to pick up.
+        No classifier-missing warning is emitted because the gardener no
+        longer calls classify_gaps.
         """
         from knowledge.models import Gap, Note, NoteLink
 
@@ -1318,13 +1324,15 @@ class TestGardenerGapDiscovery:
             stats = await gardener.run()
 
         assert stats.gaps_discovered == 1
-        assert stats.gaps_classified == 0
 
         gap = session.exec(select(Gap)).one()
         assert gap.state == "discovered"
         assert gap.gap_class is None
 
-        assert any(
+        # The "no classifier wired" warning came from gaps.classify_gaps —
+        # we no longer call it from the gardener cycle, so the warning must
+        # not appear in cycle logs.
+        assert not any(
             "gaps awaiting classification but no classifier is wired"
             in record.getMessage()
             for record in caplog.records
@@ -1335,7 +1343,7 @@ class TestGardenerGapDiscovery:
         self, tmp_path, session, caplog
     ):
         """When discover_gaps raises, the gardener logs the exception and
-        returns zero gap counts rather than failing the whole cycle."""
+        returns a zero discovered count rather than failing the whole cycle."""
         from knowledge.models import Note, NoteLink
 
         src = Note(
@@ -1368,25 +1376,25 @@ class TestGardenerGapDiscovery:
                 stats = await gardener.run()
 
         assert stats.gaps_discovered == 0
-        assert stats.gaps_classified == 0
-        assert "gap pipeline failed after discovering 0 gaps" in caplog.text
+        assert "discover_gaps failed" in caplog.text
 
-    def test_discover_and_classify_gaps_returns_zero_when_session_is_none(
-        self, tmp_path
-    ):
+    def test_discover_gaps_returns_zero_when_session_is_none(self, tmp_path):
         """Session-less gardeners (e.g. dry-run setups) skip the gap step cleanly."""
         gardener = Gardener(vault_root=tmp_path)  # no session
-        assert gardener._discover_and_classify_gaps() == (0, 0)
+        assert gardener._discover_gaps() == 0
 
     @pytest.mark.asyncio
-    async def test_gardener_partial_gap_failure_reports_discovered_count(
-        self, monkeypatch, session, tmp_path, caplog
+    async def test_gardener_does_not_invoke_classify_gaps(
+        self, monkeypatch, tmp_path, session
     ):
-        """If classify_gaps raises after discover_gaps succeeded, the discovered
-        count must still be reported accurately — not reset to 0."""
+        """Legacy classify_gaps stays out of the gardener cycle. The
+        knowledge.classify-gaps scheduled job is the sole caller now.
+        """
+        import knowledge.gaps as gaps_module
         from knowledge.models import Note, NoteLink
 
-        # Seed an unresolved wikilink so discover_gaps has real work to commit.
+        # Seed a real unresolved wikilink so discover_gaps has work to do —
+        # we want to prove classify is NOT called even when gaps exist.
         src = Note(
             note_id="source-note",
             path="_processed/source-note.md",
@@ -1407,116 +1415,30 @@ class TestGardenerGapDiscovery:
         )
         session.commit()
 
-        import knowledge.gaps as gaps_module
+        calls: list[tuple[tuple, dict]] = []
 
-        def exploding_classify(*args, **kwargs):
-            raise RuntimeError("classify boom")
+        def tracker(*args, **kwargs):
+            calls.append((args, kwargs))
+            return 0
 
-        # Do NOT patch discover_gaps — let it succeed and commit.
-        monkeypatch.setattr(gaps_module, "classify_gaps", exploding_classify)
-
-        gardener = Gardener(vault_root=tmp_path, session=session)
-        with caplog.at_level(logging.ERROR, logger="monolith.knowledge.gardener"):
-            stats = await gardener.run()
-
-        # The real correctness guarantee: discovered count is TRUTHFUL even
-        # when classify failed — the gap IS in the DB.
-        assert stats.gaps_discovered == 1
-        assert stats.gaps_classified == 0
-        # The log message should include the discovered count so operators can
-        # trace partial progress.
-        assert "1 gaps" in caplog.text
-
-    @pytest.mark.asyncio
-    async def test_gap_pipeline_failure_rolls_back_classify_mutations(
-        self, monkeypatch, session, tmp_path, caplog
-    ):
-        """When classify_gaps raises mid-batch, the in-memory mutations to Gap
-        rows (gap_class, state, classified_at) must be rolled back so the outer
-        scheduler commit does NOT persist a half-classified batch."""
-        from knowledge.models import Gap, Note, NoteLink
-
-        # Seed a Note + 2 NoteLinks pointing to unresolved targets. discover_gaps
-        # will commit 2 Gap rows; classify_gaps will then mutate them in-memory
-        # and raise before commit. The rollback must undo those mutations.
-        src = Note(
-            note_id="source-note",
-            path="_processed/source-note.md",
-            title="Source Note",
-            content_hash="h-src",
-            type="atom",
-        )
-        session.add(src)
-        session.flush()
-        session.add(
-            NoteLink(
-                src_note_fk=src.id,
-                target_id="missing-one",
-                target_title="missing-one",
-                kind="link",
-                edge_type=None,
-            )
-        )
-        session.add(
-            NoteLink(
-                src_note_fk=src.id,
-                target_id="missing-two",
-                target_title="missing-two",
-                kind="link",
-                edge_type=None,
-            )
-        )
-        session.commit()
-
-        import knowledge.gaps as gaps_module
-
-        def mutating_then_raising(sess):
-            """Apply 'would-be' classification to every discovered gap, then
-            raise before commit. These mutations must NOT land in the DB.
-
-            Mirrors the real ``classify_gaps`` body — attribute mutations on
-            tracked ORM instances are flushed on commit without an explicit
-            ``sess.add()``.
-            """
-            rows = (
-                sess.execute(select(Gap).where(Gap.state == "discovered"))
-                .scalars()
-                .all()
-            )
-            for row in rows:
-                row.gap_class = "external"
-                row.state = "classified"
-            raise RuntimeError("classify boom mid-batch")
-
-        monkeypatch.setattr(gaps_module, "classify_gaps", mutating_then_raising)
+        monkeypatch.setattr(gaps_module, "classify_gaps", tracker)
 
         gardener = Gardener(vault_root=tmp_path, session=session)
-        with caplog.at_level(logging.ERROR, logger="monolith.knowledge.gardener"):
-            stats = await gardener.run()
+        await gardener.run()
 
-        # discover_gaps committed before classify raised; classify mutations
-        # were in-memory only and should be rolled back.
-        assert stats.gaps_discovered == 2
-        assert stats.gaps_classified == 0
+        assert calls == [], (
+            f"gardener must not call classify_gaps; got {len(calls)} call(s)"
+        )
 
-        # Simulate the scheduler's outer session.commit() that runs after
-        # _complete_job — if the rollback didn't happen, the dirty mutations
-        # would be persisted here.
-        session.commit()
+    def test_garden_stats_has_no_gaps_classified_field(self):
+        """gaps_classified is removed from GardenStats — the
+        knowledge.classify-gaps scheduled job owns classification now.
+        """
+        import dataclasses
 
-        # Read back from a FRESH session on the same engine so we're not
-        # observing stale in-memory objects from the gardener's session.
-        engine = session.get_bind()
-        with Session(engine) as fresh:
-            gap_rows = fresh.exec(select(Gap)).all()
-            assert len(gap_rows) == 2
-            for gap in gap_rows:
-                assert gap.state == "discovered", (
-                    f"gap {gap.term}: state={gap.state!r} should have been "
-                    "rolled back to 'discovered'"
-                )
-                assert gap.gap_class is None, (
-                    f"gap {gap.term}: gap_class={gap.gap_class!r} should have "
-                    "been rolled back to None"
-                )
-                assert gap.classified_at is None
+        from knowledge.gardener import GardenStats
+
+        field_names = {f.name for f in dataclasses.fields(GardenStats)}
+        assert "gaps_classified" not in field_names, (
+            f"gaps_classified should be removed; got fields: {sorted(field_names)}"
+        )
