@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 
 VALIDATOR_VERSION = "sonnet-4-6@v1"
 
+# Model is read from the environment so it can be overridden without a code
+# change (e.g. to switch between claude-sonnet-4-5 and claude-sonnet-4-6).
+_CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "sonnet")
+
 _VALIDATE_TIMEOUT_SECS = 180
 _JSON_BLOCK_RE = re.compile(r"\{[\s\S]*\}")
 
@@ -128,7 +132,7 @@ async def validate_research(
         "--print",
         "--dangerously-skip-permissions",
         "--model",
-        "sonnet",
+        _CLAUDE_MODEL,
         "-p",
         prompt,
         stdout=asyncio.subprocess.PIPE,
