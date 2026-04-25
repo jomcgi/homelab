@@ -55,7 +55,6 @@ def test_gap_defaults_state_and_created_at(session):
     note = _make_note(session)
     gap = Gap(
         term="Quantum Coherence",
-        source_note_fk=note.id,
         pipeline_version="gardener@v1",
     )
     # default_factory runs at construction time — verify the UTC tzinfo here
@@ -84,7 +83,6 @@ def test_gap_with_explicit_class_and_context(session):
     gap = Gap(
         term="Linkerd mTLS",
         context="mentioned in [[Linkerd mTLS]] section of networking note",
-        source_note_fk=note.id,
         gap_class="internal",
         answer="Linkerd enables mTLS via sidecar proxies on port 4143.",
         pipeline_version="gardener@v1",
@@ -100,12 +98,11 @@ def test_gap_with_explicit_class_and_context(session):
 
 
 def test_gap_unique_term(session):
-    """A second Gap with the same term must fail, regardless of source_note_fk."""
+    """A second Gap with the same term must fail (UNIQUE(term))."""
     note_a = _make_note(session, "note-a")
     note_b = _make_note(session, "note-b")
     gap1 = Gap(
         term="Duplicate Term",
-        source_note_fk=note_a.id,
         pipeline_version="gardener@v1",
     )
     session.add(gap1)
@@ -113,7 +110,6 @@ def test_gap_unique_term(session):
 
     gap2 = Gap(
         term="Duplicate Term",
-        source_note_fk=note_b.id,
         pipeline_version="gardener@v1",
     )
     session.add(gap2)

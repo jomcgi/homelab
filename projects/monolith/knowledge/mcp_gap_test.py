@@ -79,7 +79,6 @@ def _make_gap(
     gap = Gap(
         term=term,
         context="",
-        source_note_fk=source_fk,
         gap_class=gap_class,
         state=state,
         pipeline_version=GAPS_PIPELINE_VERSION,
