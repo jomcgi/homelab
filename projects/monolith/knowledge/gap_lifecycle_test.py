@@ -119,6 +119,41 @@ def test_discover_gaps_skips_resolved_links(session, tmp_path):
     )
 
 
+def test_discover_gaps_skips_links_resolved_via_alias(session, tmp_path):
+    """Wikilinks slugged to a canonical atom's alias are not gaps.
+
+    Pre-fix, only ``note_id`` was checked — so ``[[Bayes' Theorem]]``
+    slugified to ``bayes-theorem`` would be a false-positive gap when the
+    canonical atom lives at a different slug with "Bayes' Theorem" in
+    ``aliases:``. Post-fix, slugified aliases participate in the coverage
+    check.
+    """
+    src = _make_note(session, "source-note", title="Source")
+    # Canonical lives at a different slug than the wikilink's slugified target.
+    target = Note(
+        note_id="probability-update-rule",
+        path="_processed/probability-update-rule.md",
+        title="Probability Update Rule",
+        content_hash="hash-probability-update-rule",
+        type="atom",
+        aliases=["Bayes' Theorem", "Bayes' Rule"],
+    )
+    session.add(target)
+    session.commit()
+
+    # The wikilink extractor would produce this slug from body text
+    # ``[[Bayes' Theorem]]``; absent alias-awareness this would be a gap.
+    _add_body_link(session, src_fk=src.id, target_id="bayes-theorem")
+
+    created = discover_gaps(session, tmp_path)
+
+    assert created == 0
+    assert session.execute(select(Gap)).scalars().all() == []
+    assert not (tmp_path / RESEARCHING_DIR).exists() or not list(
+        (tmp_path / RESEARCHING_DIR).iterdir()
+    )
+
+
 def test_discover_gaps_is_idempotent(session, tmp_path):
     src = _make_note(session, "src", title="Src")
     _add_body_link(session, src_fk=src.id, target_id="missing")

@@ -93,8 +93,20 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     Idempotent: a subsequent run with no changes returns 0.
     """
     # Collect existing note_ids once so the unresolved filter is a set
-    # membership check (avoids a correlated subquery per row).
-    existing_note_ids = set(session.execute(select(Note.note_id)).scalars().all())
+    # membership check (avoids a correlated subquery per row). Includes
+    # slugified frontmatter aliases so wikilinks pointing at a canonical
+    # atom under one of its aliases (e.g. `[[Bayes' Theorem]]` slugifies
+    # to `bayes-theorem`, but the canonical atom may live at a different
+    # slug with "Bayes' Theorem" in `aliases:`) don't get queued as
+    # false-positive gaps. Mirrors the gardener atomizer's alias-preserving
+    # contract — wherever the gardener writes aliases, the gap-detector
+    # consults them.
+    existing_note_ids: set[str] = set()
+    for note_id, aliases in session.execute(select(Note.note_id, Note.aliases)).all():
+        if note_id:
+            existing_note_ids.add(note_id)
+        for alias in aliases or []:
+            existing_note_ids.add(_slugify(alias))
 
     # All body-wikilink rows. Frontmatter edges (kind='edge') are not
     # treated as gaps — those are typed assertions, not unresolved
