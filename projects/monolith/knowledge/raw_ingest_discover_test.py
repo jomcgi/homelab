@@ -2,15 +2,15 @@
 
 _discover_vault_root_drops() walks the vault root and returns a sorted list
 of .md file Paths that live outside managed directories (_raw, _processed,
-.obsidian, .trash).  All tests use pytest's tmp_path fixture for filesystem
-isolation — no database is needed.
+_researching, .obsidian, .trash).  All tests use pytest's tmp_path fixture
+for filesystem isolation — no database is needed.
 
 Coverage:
 - discovers .md files at the vault root (top-level)
 - discovers .md files in user-created subdirectories
 - ignores non-.md files (at root and in subdirs)
 - ignores files inside excluded top-level directories (_raw, _processed,
-  .obsidian, .trash)
+  _researching, .obsidian, .trash)
 - ignores top-level dotfiles (files/dirs whose names start with '.')
 - ignores .md files that live within a dotfile directory inside a subdir
 - returns an empty list when the vault root does not exist
@@ -161,6 +161,14 @@ class TestDiscoverVaultRootDropsExcludesManaged:
     def test_ignores_trash_directory(self, tmp_path):
         """The .trash directory must be excluded."""
         _write(tmp_path / ".trash" / "deleted.md", "deleted")
+        result = _discover_vault_root_drops(tmp_path)
+        assert result == []
+
+    def test_ignores_researching_directory(self, tmp_path):
+        """_researching/ holds gap stubs owned by the gap pipeline — they
+        must never be picked up by move_phase and reshuffled into _raw/.
+        """
+        _write(tmp_path / "_researching" / "some-gap.md", "---\ntype: gap\n---\n")
         result = _discover_vault_root_drops(tmp_path)
         assert result == []
 
