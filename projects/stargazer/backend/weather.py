@@ -130,7 +130,7 @@ def score_locations(settings: Settings) -> Path:
                 if sun_alt > -12:
                     continue
             except Exception:
-                # If sun calculation fails, skip
+                logger.debug("sun altitude calculation failed at %s, skipping", time)
                 continue
 
             # Extract weather data

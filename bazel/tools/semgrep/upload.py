@@ -33,6 +33,7 @@ def _git(cmd: str) -> str:
             timeout=5,
         ).stdout.strip()
     except Exception:
+        logging.debug("git command %r failed", cmd)
         return ""
 
 

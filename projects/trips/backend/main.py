@@ -121,6 +121,7 @@ class ConnectionManager:
             try:
                 await connection.send_json(message)
             except Exception:
+                logger.debug("broadcast: client disconnected during send, queuing removal")
                 disconnected.append(connection)
 
         for conn in disconnected:

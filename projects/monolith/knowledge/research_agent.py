@@ -9,11 +9,14 @@ faithfully list its own citations.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelSettings, RunContext
@@ -242,6 +245,7 @@ def _call_args_as_dict(call: Any) -> dict[str, Any]:
         try:
             return fn() or {}
         except Exception:
+            logger.debug("args_as_dict() failed on tool call, returning empty dict")
             return {}
     args = getattr(call, "args", None)
     return args if isinstance(args, dict) else {}

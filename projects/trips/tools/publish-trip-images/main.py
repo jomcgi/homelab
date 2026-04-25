@@ -1292,6 +1292,7 @@ def backfill_optics(
                 cache.put(image_key, optics)
                 return False, optics
             except Exception:
+                logger.warning("failed to download or extract EXIF for %s", image_key)
                 return False, None
 
     async def _backfill():
@@ -1321,6 +1322,7 @@ def backfill_optics(
                             if not point_data.get("deleted"):
                                 points.append(point_data)
                         except Exception:
+                            logger.warning("failed to decode NATS message, skipping")
                             pass
                 except nats.errors.TimeoutError:
                     break
