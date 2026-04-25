@@ -276,8 +276,8 @@ class TestVisionClientPayload:
         assert payload["model"] == "qwen3.6-27b"
 
     @pytest.mark.asyncio
-    async def test_payload_includes_max_tokens_4096(self):
-        """describe() sends max_tokens=4096 in the payload."""
+    async def test_payload_includes_max_tokens_default(self):
+        """describe() sends the VISION_MAX_TOKENS default in the payload."""
         client = VisionClient(base_url="http://fake:8080")
 
         with patch("chat.vision.httpx.AsyncClient") as mock_cls:
@@ -285,7 +285,7 @@ class TestVisionClientPayload:
             await client.describe(b"\x89PNG", "image/png")
 
         payload = mock_cls.return_value.post.call_args.kwargs.get("json")
-        assert payload["max_tokens"] == 4096
+        assert payload["max_tokens"] == 8192
 
     @pytest.mark.asyncio
     async def test_payload_system_prompt_matches_module_constant(self):
