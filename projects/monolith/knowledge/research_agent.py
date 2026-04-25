@@ -126,26 +126,53 @@ def create_research_agent(
     @agent.tool
     async def search_knowledge(
         ctx: RunContext[ResearchDeps], query: str, limit: int = 5
-    ) -> str:
-        """Query the user's vault for notes matching ``query``. Use first."""
+    ) -> dict[str, Any]:
+        """Query the user's vault for notes matching ``query``. Use first.
+
+        Returns a structured dict so the harness can recover ``note_ids`` from
+        the audit trail. The model still synthesises against ``text``; the
+        rest is metadata for the citations bundle.
+        """
         result = await _search_knowledge_impl(
             session=ctx.deps.session, query=query, limit=limit
         )
-        return result.text
+        return {"text": result.text, "note_ids": list(result.note_ids)}
 
     @agent.tool_plain
     async def web_search(query: str) -> str:
-        """Search the open web. Returns titles + snippets + URLs."""
+        """Search the open web. Returns titles + snippets + URLs.
+
+        Plain string return is intentional: the URLs are extracted by regex
+        downstream (``_URL_RE``) -- no structured shape is needed.
+        """
         return await _web_search_impl(query)
 
     @agent.tool_plain
-    async def web_fetch(url: str) -> str:
-        """Fetch a single URL's body. Use after web_search picks a candidate."""
+    async def web_fetch(url: str) -> dict[str, Any]:
+        """Fetch a single URL's body. Use after web_search picks a candidate.
+
+        Returns a dict carrying both the synth text (``text``) and the
+        citation metadata (``url``/``content_hash``/``fetched_at``/etc.)
+        that the harness needs to build a sources bundle.
+        """
         result = await _web_fetch_impl(url)
         if result.skipped_reason:
-            return f"(skipped {url}: {result.skipped_reason})"
+            return {
+                "url": url,
+                "content_hash": None,
+                "fetched_at": result.fetched_at,
+                "skipped_reason": result.skipped_reason,
+                "text": f"(skipped {url}: {result.skipped_reason})",
+            }
         truncated_note = " (truncated)" if result.truncated else ""
-        return f"URL: {result.url}{truncated_note}\n\n{result.body}"
+        return {
+            "url": result.url,
+            "content_hash": result.content_hash,
+            "fetched_at": result.fetched_at,
+            "truncated": result.truncated,
+            "skipped_reason": None,
+            "text": f"URL: {result.url}{truncated_note}\n\n{result.body}",
+        }
 
     return agent
 
@@ -156,41 +183,73 @@ _URL_RE = re.compile(r"URL:\s*(https?://\S+)")
 def derive_sources_bundle(message_history: list[Any]) -> list[SourceEntry]:
     """Reconstruct the sources bundle from the agent's tool-call audit trail.
 
-    Walks the message history pairing ``ToolCallPart`` with the matching
-    ``ToolReturnPart``. Knows the shapes of each tool's return value:
-    - web_fetch returns the WebFetchResult (or its text rendering).
-    - search_knowledge returns either the SearchKnowledgeResult or its text.
-    - web_search returns a markdown-ish string with ``URL: <url>`` lines.
+    Pydantic AI returns the run history as a ``list[ModelMessage]`` (each a
+    ``ModelRequest`` or ``ModelResponse`` whose ``.parts`` carry the actual
+    tool-call/tool-return parts). This function flattens that shape, then
+    pairs each ``ToolCallPart`` with its matching ``ToolReturnPart`` *by
+    ``tool_call_id``* (the only safe key when the same tool is invoked
+    multiple times in a single run).
+
+    Tolerates a flat list of bare parts as input as well, which keeps unit
+    tests ergonomic.
+
+    Tool-return content shapes (see the wrappers in ``create_research_agent``):
+    - web_fetch -> dict with url/content_hash/fetched_at/skipped_reason/text
+    - search_knowledge -> dict with text/note_ids
+    - web_search -> str (URLs extracted via ``_URL_RE``)
 
     The harness is the source of truth for citations -- Qwen's prose
     output is never inspected for source attribution.
     """
-    from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        ToolCallPart,
+        ToolReturnPart,
+    )
+
+    parts: list[Any] = []
+    for item in message_history:
+        if isinstance(item, (ModelRequest, ModelResponse)):
+            parts.extend(item.parts)
+        else:
+            # Tolerate a flat list of bare parts (test ergonomics).
+            parts.append(item)
 
     sources: list[SourceEntry] = []
-    pending: dict[int, ToolCallPart] = {}
-    for i, part in enumerate(message_history):
+    pending: dict[str, ToolCallPart] = {}
+    for part in parts:
         if isinstance(part, ToolCallPart):
-            pending[i] = part
+            pending[part.tool_call_id] = part
         elif isinstance(part, ToolReturnPart):
-            call = next(
-                (
-                    c
-                    for k, c in reversed(pending.items())
-                    if c.tool_name == part.tool_name
-                ),
-                None,
-            )
+            call = pending.pop(part.tool_call_id, None)
             if call is None:
                 continue
             sources.append(_extract_source_entry(call, part))
-
     return sources
+
+
+def _call_args_as_dict(call: Any) -> dict[str, Any]:
+    """Best-effort dict view of a ToolCallPart's args.
+
+    Production message shapes carry args as a JSON string (the OpenAI
+    provider populates it from ``dtc.function.arguments``). Pydantic AI's
+    ``BaseToolCallPart.args_as_dict`` already handles both shapes -- prefer
+    it when available, fall back to a manual check otherwise.
+    """
+    fn = getattr(call, "args_as_dict", None)
+    if callable(fn):
+        try:
+            return fn() or {}
+        except Exception:
+            return {}
+    args = getattr(call, "args", None)
+    return args if isinstance(args, dict) else {}
 
 
 def _extract_source_entry(call: Any, ret: Any) -> SourceEntry:
     name = call.tool_name
-    args = getattr(call, "args", {}) or {}
+    args = _call_args_as_dict(call)
     content = getattr(ret, "content", None)
 
     if name == "web_fetch":

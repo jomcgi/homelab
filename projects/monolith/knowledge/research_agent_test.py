@@ -217,7 +217,9 @@ async def test_create_research_agent_runs_to_completion_with_function_model(
 def test_derive_sources_bundle_extracts_tool_calls():
     """Sources bundle is reconstructed from tool-call audit trail, not from prose."""
     history = [
-        ToolCallPart(tool_name="web_fetch", args={"url": "https://a.com"}),
+        ToolCallPart(
+            tool_name="web_fetch", args={"url": "https://a.com"}, tool_call_id="t1"
+        ),
         ToolReturnPart(
             tool_name="web_fetch",
             content={
@@ -226,15 +228,23 @@ def test_derive_sources_bundle_extracts_tool_calls():
                 "fetched_at": "2026-04-25T09:00:00Z",
                 "skipped_reason": None,
             },
+            tool_call_id="t1",
         ),
-        ToolCallPart(tool_name="search_knowledge", args={"query": "x"}),
+        ToolCallPart(
+            tool_name="search_knowledge", args={"query": "x"}, tool_call_id="t2"
+        ),
         ToolReturnPart(
-            tool_name="search_knowledge", content={"note_ids": ["n1", "n2"]}
+            tool_name="search_knowledge",
+            content={"note_ids": ["n1", "n2"]},
+            tool_call_id="t2",
         ),
-        ToolCallPart(tool_name="web_search", args={"query": "x explained"}),
+        ToolCallPart(
+            tool_name="web_search", args={"query": "x explained"}, tool_call_id="t3"
+        ),
         ToolReturnPart(
             tool_name="web_search",
             content="**Title**\nsnippet\nURL: https://b.com\n\n**T2**\ns2\nURL: https://c.com",
+            tool_call_id="t3",
         ),
     ]
 
@@ -255,3 +265,212 @@ def test_derive_sources_bundle_extracts_tool_calls():
     ws = next(s for s in bundle if s.tool == "web_search")
     assert "https://b.com" in ws.result_urls
     assert "https://c.com" in ws.result_urls
+
+
+# ---------------------------------------------------------------------------
+# derive_sources_bundle — production message shapes
+# ---------------------------------------------------------------------------
+
+
+def test_derive_sources_bundle_handles_production_modelmessage_shape():
+    """Production callers pass ``result.all_messages()``: a list of
+    ``ModelRequest``/``ModelResponse`` objects whose ``.parts`` carry the
+    actual tool-call/return parts. The bundle must flatten and pair correctly,
+    not silently return ``[]`` because the top-level items aren't bare parts.
+    """
+    from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart
+
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="Research: merkle tree")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="web_fetch",
+                    args={"url": "https://a.com"},
+                    tool_call_id="abc",
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name="web_fetch",
+                    content={
+                        "url": "https://a.com",
+                        "content_hash": "sha256:abc",
+                        "fetched_at": "2026-04-25T09:00:00Z",
+                        "skipped_reason": None,
+                        "text": "URL: https://a.com\n\nbody",
+                    },
+                    tool_call_id="abc",
+                )
+            ]
+        ),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="search_knowledge",
+                    args={"query": "merkle"},
+                    tool_call_id="def",
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name="search_knowledge",
+                    content={"text": "...", "note_ids": ["n0", "n1"]},
+                    tool_call_id="def",
+                )
+            ]
+        ),
+    ]
+
+    bundle = derive_sources_bundle(history)
+
+    assert {s.tool for s in bundle} == {"web_fetch", "search_knowledge"}
+    fetch = next(s for s in bundle if s.tool == "web_fetch")
+    assert fetch.url == "https://a.com"
+    assert fetch.content_hash == "sha256:abc"
+    skg = next(s for s in bundle if s.tool == "search_knowledge")
+    assert skg.note_ids == ["n0", "n1"]
+
+
+# ---------------------------------------------------------------------------
+# derive_sources_bundle — args delivered as JSON string (production shape)
+# ---------------------------------------------------------------------------
+
+
+def test_derive_sources_bundle_handles_json_string_args():
+    """``ToolCallPart.args`` is a JSON string when populated by the OpenAI
+    provider (``dtc.function.arguments``). The harness must use
+    ``args_as_dict`` (or equivalent) so the URL/query is still extracted.
+    """
+    history = [
+        ToolCallPart(
+            tool_name="web_fetch",
+            args='{"url": "https://a.com"}',
+            tool_call_id="json1",
+        ),
+        ToolReturnPart(
+            tool_name="web_fetch",
+            # No url in content — proves the URL came from args, not content.
+            content={
+                "content_hash": "sha256:zz",
+                "fetched_at": "2026-04-25T09:00:00Z",
+                "skipped_reason": None,
+            },
+            tool_call_id="json1",
+        ),
+        ToolCallPart(
+            tool_name="search_knowledge",
+            args='{"query": "merkle tree"}',
+            tool_call_id="json2",
+        ),
+        ToolReturnPart(
+            tool_name="search_knowledge",
+            content={"note_ids": ["n7"]},
+            tool_call_id="json2",
+        ),
+    ]
+
+    bundle = derive_sources_bundle(history)
+
+    fetch = next(s for s in bundle if s.tool == "web_fetch")
+    assert fetch.url == "https://a.com"
+    assert fetch.content_hash == "sha256:zz"
+    skg = next(s for s in bundle if s.tool == "search_knowledge")
+    assert skg.query == "merkle tree"
+    assert skg.note_ids == ["n7"]
+
+
+# ---------------------------------------------------------------------------
+# derive_sources_bundle — back-to-back same-tool calls pair by tool_call_id
+# ---------------------------------------------------------------------------
+
+
+def test_derive_sources_bundle_pairs_same_tool_back_to_back_by_id():
+    """Two web_fetch calls in a row must pair each ToolReturnPart to its own
+    ToolCallPart by ``tool_call_id`` -- a name-based lookup would either
+    double-pair or pair with the wrong call.
+    """
+    history = [
+        ToolCallPart(
+            tool_name="web_fetch", args={"url": "https://first.com"}, tool_call_id="A"
+        ),
+        ToolCallPart(
+            tool_name="web_fetch",
+            args={"url": "https://second.com"},
+            tool_call_id="B",
+        ),
+        ToolReturnPart(
+            tool_name="web_fetch",
+            content={"url": "https://second.com", "content_hash": "sha256:two"},
+            tool_call_id="B",
+        ),
+        ToolReturnPart(
+            tool_name="web_fetch",
+            content={"url": "https://first.com", "content_hash": "sha256:one"},
+            tool_call_id="A",
+        ),
+    ]
+
+    bundle = derive_sources_bundle(history)
+
+    assert len(bundle) == 2
+    by_url = {s.url: s.content_hash for s in bundle}
+    assert by_url == {
+        "https://first.com": "sha256:one",
+        "https://second.com": "sha256:two",
+    }
+
+
+# ---------------------------------------------------------------------------
+# derive_sources_bundle — dict tool returns from production wrappers
+# ---------------------------------------------------------------------------
+
+
+def test_derive_sources_bundle_extracts_metadata_from_dict_tool_returns():
+    """The wrappers in ``create_research_agent`` return dicts that carry both
+    a synth-friendly ``text`` field and the citation metadata. The harness
+    must read the metadata fields, not the ``text`` field.
+    """
+    history = [
+        ToolCallPart(
+            tool_name="web_fetch", args={"url": "https://x.com"}, tool_call_id="w1"
+        ),
+        ToolReturnPart(
+            tool_name="web_fetch",
+            content={
+                "url": "https://x.com",
+                "content_hash": "sha256:xx",
+                "fetched_at": "2026-04-25T09:00:00Z",
+                "truncated": False,
+                "skipped_reason": None,
+                "text": "URL: https://x.com\n\nbody text",
+            },
+            tool_call_id="w1",
+        ),
+        ToolCallPart(
+            tool_name="search_knowledge",
+            args={"query": "merkle"},
+            tool_call_id="w2",
+        ),
+        ToolReturnPart(
+            tool_name="search_knowledge",
+            content={
+                "text": "**Merkle Tree** (id=n0, type=concept)\nMerkle ...",
+                "note_ids": ["n0", "n1"],
+            },
+            tool_call_id="w2",
+        ),
+    ]
+
+    bundle = derive_sources_bundle(history)
+
+    fetch = next(s for s in bundle if s.tool == "web_fetch")
+    assert fetch.content_hash == "sha256:xx"
+    assert fetch.fetched_at == "2026-04-25T09:00:00Z"
+
+    skg = next(s for s in bundle if s.tool == "search_knowledge")
+    assert skg.note_ids == ["n0", "n1"]
