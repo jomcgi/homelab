@@ -135,28 +135,110 @@ def test_quarantine_writes_failed_research_file_with_attempt_suffix(tmp_path):
 
 
 def test_write_research_raw_byte_stable_on_idempotent_call(tmp_path):
-    """Calling write_research_raw twice with identical args produces an identical file (byte-stable)."""
+    """Calling write_research_raw twice with identical args produces an identical file (byte-stable).
+
+    Uses multiple sources and claims so that any list-order regression
+    (e.g. ``sorted(...)`` or ``list(set(...))``) in the writer would
+    surface as a byte-diff between successive calls.
+    """
     sources = [
         SourceEntry(
-            tool="web_fetch", url="https://a.com", content_hash="x", fetched_at="t"
-        )
+            tool="web_fetch",
+            url="https://a.com",
+            content_hash="sha256:abc",
+            fetched_at="2026-04-25T09:00:00Z",
+        ),
+        SourceEntry(tool="search_knowledge", query="merkle", note_ids=["my-note"]),
+        SourceEntry(
+            tool="web_search", query="merkle tree", result_urls=["https://b.com"]
+        ),
     ]
-    supported = [ValidatedClaim(text="kept", verdict="supported", reason="ok")]
+    supported = [
+        ValidatedClaim(
+            text="A merkle tree hashes pairs of children.",
+            verdict="supported",
+            reason="from a.com",
+        ),
+        ValidatedClaim(
+            text="Used in Bitcoin.", verdict="supported", reason="common knowledge"
+        ),
+    ]
 
     args = dict(
         vault_root=tmp_path,
-        slug="x",
-        title="x",
-        summary="s",
+        slug="merkle-tree",
+        title="merkle-tree",
+        summary="A merkle tree is a hash-chained tree.",
         supported_claims=supported,
         sources=sources,
         claims_dropped=0,
-        qwen_model="q",
-        sonnet_model="s",
-        researched_at="t",
+        qwen_model="qwen3.6-27b",
+        sonnet_model="sonnet-4-6",
+        researched_at="2026-04-25T10:00:00Z",
     )
     path = write_research_raw(**args)
     first = path.read_bytes()
     write_research_raw(**args)
+    second = path.read_bytes()
+    assert first == second
+
+
+def test_quarantine_byte_stable_on_idempotent_call(tmp_path):
+    """Calling quarantine twice with identical args produces an identical file (byte-stable).
+
+    Exercises multi-element ``sonnet_reasons`` and ``sources_attempted``
+    plus populated ``parse_error`` / ``timed_out`` so any list-order or
+    serialization regression in the quarantine writer would surface.
+    """
+    draft_note = ResearchNote(
+        summary="A merkle tree is a hash-chained tree.",
+        claims=[
+            Claim(text="A merkle tree hashes pairs of children."),
+            Claim(text="Used in Bitcoin."),
+        ],
+    )
+    validated = ValidatedResearch(
+        claims=[
+            ValidatedClaim(
+                text="A merkle tree hashes pairs of children.",
+                verdict="unsupported",
+                reason="no source",
+            ),
+            ValidatedClaim(
+                text="Used in Bitcoin.",
+                verdict="speculative",
+                reason="no direct evidence retrieved",
+            ),
+        ],
+        timed_out=True,
+        parse_error="boom",
+    )
+    sources = [
+        SourceEntry(
+            tool="web_fetch",
+            url="https://a.com",
+            content_hash="sha256:abc",
+            fetched_at="2026-04-25T09:00:00Z",
+        ),
+        SourceEntry(tool="search_knowledge", query="merkle", note_ids=["my-note"]),
+        SourceEntry(
+            tool="web_search", query="merkle tree", result_urls=["https://b.com"]
+        ),
+    ]
+
+    args = dict(
+        vault_root=tmp_path,
+        slug="merkle-tree",
+        attempt=3,
+        draft_note=draft_note,
+        validated=validated,
+        sources=sources,
+        qwen_model="qwen3.6-27b",
+        sonnet_model="sonnet-4-6",
+        researched_at="2026-04-25T10:00:00Z",
+    )
+    path = quarantine(**args)
+    first = path.read_bytes()
+    quarantine(**args)
     second = path.read_bytes()
     assert first == second
