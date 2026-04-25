@@ -115,6 +115,8 @@ def _infer_source(meta_source: str | None, rel_parts: tuple[str, ...]) -> str:
         return meta_source
     if GRANDFATHERED_SUBDIR in rel_parts:
         return "grandfathered"
+    if "research" in rel_parts:
+        return "research"
     return "vault-drop"
 
 
