@@ -271,3 +271,102 @@ async def test_handler_skips_non_external_gaps(
         assert g.state == "classified", (
             f"non-external gap {g.term} ({g.gap_class}) was wrongly picked up"
         )
+
+
+@pytest.mark.asyncio
+async def test_handler_recovers_stuck_researching_rows_at_tick_start(session, tmp_path):
+    """A row stuck at state='researching' (prev tick crashed mid-flight) is
+    swept back to 'classified' so it becomes eligible for re-pickup."""
+    with session.begin_nested():
+        session.add(
+            Gap(
+                term="stuck",
+                note_id="stuck",
+                gap_class="external",
+                state="researching",
+                pipeline_version="test",
+            )
+        )
+    session.commit()
+
+    fake_note = ResearchNote(summary="s", claims=[Claim(text="c")])
+    fake_validated = ValidatedResearch(
+        claims=[ValidatedClaim(text="c", verdict="supported", reason="r")]
+    )
+
+    with (
+        patch(
+            "knowledge.research_handler._run_research",
+            AsyncMock(return_value=(fake_note, [])),
+        ),
+        patch(
+            "knowledge.research_handler.validate_research",
+            AsyncMock(return_value=fake_validated),
+        ),
+    ):
+        await research_gaps_handler(session=session, vault_root=tmp_path)
+
+    # Recovery sweep returned it to 'classified', then the same tick re-picked
+    # it up and ran it through to 'committed' (supported claim).
+    gap = session.execute(select(Gap).where(Gap.term == "stuck")).scalar_one()
+    assert gap.state == "committed"
+
+
+@pytest.mark.asyncio
+async def test_handler_skips_when_lock_lost_to_concurrent_writer(
+    session, tmp_path, seed_classified_external_gaps
+):
+    """If another writer flips state out from under the lock UPDATE
+    (rowcount==0), the handler skips the gap silently without invoking
+    Qwen or Sonnet."""
+    seed_classified_external_gaps(1)
+
+    # Simulate the race: between the SELECT (which sees state='classified')
+    # and the lock UPDATE (WHERE id=? AND state='classified'), another
+    # writer flips state to 'researching'. Patch the lock UPDATE seam by
+    # wrapping session.execute -- when we see an UPDATE keyed on the row's
+    # id, do the race-flip first, then let the original UPDATE run (it
+    # will now see no matching rows -> rowcount==0 -> handler skips).
+    real_execute = session.execute
+    race_armed = {"done": False}
+
+    def racing_execute(stmt, *args, **kwargs):
+        compiled = str(stmt).upper()
+        # Distinguish the per-row lock UPDATE from the recovery sweep:
+        # the lock UPDATE is keyed on gaps.id and sets state='researching';
+        # the recovery sweep is keyed on state='researching' and sets
+        # state='classified'. The lock UPDATE binds parameters for the id.
+        is_lock_update = (
+            "UPDATE" in compiled and "GAPS.ID" in compiled and not race_armed["done"]
+        )
+        if is_lock_update:
+            race_armed["done"] = True
+            # Pre-flip: directly mutate the row to 'researching' so the
+            # subsequent UPDATE's WHERE state='classified' matches nothing.
+            real_execute(
+                Gap.__table__.update()
+                .where(Gap.term == "term-0")
+                .values(state="researching")
+            )
+            session.commit()
+        return real_execute(stmt, *args, **kwargs)
+
+    qwen_mock = AsyncMock(
+        return_value=(ResearchNote(summary="s", claims=[Claim(text="c")]), [])
+    )
+    validator_mock = AsyncMock(
+        return_value=ValidatedResearch(
+            claims=[ValidatedClaim(text="c", verdict="supported", reason="r")]
+        )
+    )
+
+    with (
+        patch.object(session, "execute", side_effect=racing_execute),
+        patch("knowledge.research_handler._run_research", qwen_mock),
+        patch("knowledge.research_handler.validate_research", validator_mock),
+    ):
+        await research_gaps_handler(session=session, vault_root=tmp_path)
+
+    # The lock UPDATE saw rowcount==0 and skipped -- Qwen/Sonnet never ran.
+    assert qwen_mock.await_count == 0
+    assert validator_mock.await_count == 0
