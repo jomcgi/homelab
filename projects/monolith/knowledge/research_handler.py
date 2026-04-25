@@ -42,6 +42,25 @@ async def research_gaps_handler(
     vault_root: Path,
 ) -> None:
     """Run one tick of the external research pipeline."""
+    # Recovery sweep: if the previous tick crashed mid-flight (between the
+    # 'researching' lock and any terminal state assignment), the row would
+    # be stuck forever -- the SELECT below filters state='classified', so
+    # nothing would ever pick it back up. Sweep stuck rows back to
+    # 'classified' before each tick. Safe under the single-worker scheduler
+    # model (knowledge.research-gaps is the only writer of these states).
+    stuck = session.execute(
+        Gap.__table__.update()
+        .where(Gap.state == "researching")
+        .values(state="classified")
+    )
+    if stuck.rowcount:
+        logger.warning(
+            "knowledge.research-gaps: recovered %d stuck 'researching' rows to "
+            "'classified'",
+            stuck.rowcount,
+        )
+    session.commit()
+
     candidates = (
         session.execute(
             select(Gap)
@@ -73,6 +92,9 @@ async def research_gaps_handler(
             .values(state="researching")
         )
         session.commit()
+        # NB: gap.state in-memory is now stale (still 'classified'). The Core
+        # UPDATE bypassed the ORM identity map. Don't read gap.state below
+        # this point -- always assign explicitly.
         if result.rowcount == 0:
             logger.info("knowledge.research-gaps: race lost for %s", gap.term)
             continue
@@ -81,6 +103,13 @@ async def research_gaps_handler(
 
 
 async def _process_one(*, session: Session, gap: Gap, vault_root: Path) -> None:
+    # gap.note_id is the slug used for both _inbox/research/<slug>.md and
+    # _failed_research/<slug>-<N>.md. Schema permits NULL, but a classified
+    # external gap reaching this point must have one (the reconciler
+    # always links a stub note before classification). Assert to fail
+    # loudly rather than write files literally named 'None.md'.
+    assert gap.note_id is not None, f"gap {gap.id} ({gap.term}) has no note_id"
+
     researched_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # 1. Run Qwen.
