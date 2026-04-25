@@ -122,6 +122,7 @@ claude \
 	--model claude-opus-4-7 \
 	--append-system-prompt "$(cat "$PROMPT_FILE")" \
 	--add-dir "$VAULT" \
+	-- \
 	"Research the gap at \`_researching/${SLUG}.md\`. Vault root is the current working directory. Stage your output at \`.opus-research/${SLUG}.md\` per the system prompt — do not write at vault root, the wrapper handles promotion. Begin with your synthesis + first question."
 rc=$?
 set -e

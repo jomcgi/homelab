@@ -104,6 +104,7 @@ claude --print \
 	--model claude-opus-4-7 \
 	--append-system-prompt "$(cat "$PROMPT_FILE")" \
 	--add-dir "$VAULT" \
+	-- \
 	"Triage gap stubs in this vault. Working directory is the vault root. Process up to $to_process stubs in batches of $BATCH_SIZE.${FILTER:+ Filter slugs by regex: $FILTER.} Write the consolidated report to \`.opus-research/triage-$ts.md\` per the system prompt."
 
 if [ -f "$report_path" ]; then
