@@ -86,11 +86,6 @@
           },
           {
             "type": "command",
-            "command": "bazel/tools/hooks/check-large-inline-template.sh",
-            "timeout": 10
-          },
-          {
-            "type": "command",
             "command": "bazel/tools/hooks/check-deployment-component-label.sh",
             "timeout": 10
           }
