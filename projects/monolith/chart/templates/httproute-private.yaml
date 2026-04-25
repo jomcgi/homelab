@@ -31,6 +31,14 @@ spec:
       backendRefs:
         - name: {{ include "monolith.fullname" . }}
           port: {{ .Values.service.apiPort | int }}
+    # Scheduler API — pass through to backend without rewriting
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/scheduler
+      backendRefs:
+        - name: {{ include "monolith.fullname" . }}
+          port: {{ .Values.service.apiPort | int }}
     # Chat interface — SvelteKit SSR calls LLM backend, needs long timeout
     - matches:
         - path:
