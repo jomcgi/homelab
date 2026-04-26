@@ -9,6 +9,7 @@ filegroup(
         # Exclude Go-rule reference fixtures that are not tested against yaml_rules.
         # Exclude SQL/generic and kubernetes-specific fixtures that are tested separately.
         exclude = [
+            "fixtures/claude-print-missing-permission-mode.yaml",
             "fixtures/fastapi-bare-tuple-return.yaml",
             "fixtures/no-create-extension-sql.yaml",
             "fixtures/no-discarded-json-marshal.yaml",
@@ -67,6 +68,13 @@ filegroup(
 filegroup(
     name = "require_component_label_in_selector_fixtures",
     srcs = ["fixtures/require-component-label-in-selector.yaml"],
+)
+
+# Fixture for the claude-print-missing-permission-mode rule (languages: generic, paths: shell *.sh).
+# Referenced by //bazel/semgrep/rules:claude_print_missing_permission_mode_test.
+filegroup(
+    name = "claude_print_missing_permission_mode_fixtures",
+    srcs = ["fixtures/claude-print-missing-permission-mode.yaml"],
 )
 
 # Fixtures for kubernetes rules (require-readiness-probe, require-resource-limits, etc.).
