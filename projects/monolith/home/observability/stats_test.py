@@ -27,6 +27,34 @@ def _mock_k8s_client():
     mock.count_pods = AsyncMock(return_value=135)
     mock.count_deployments = AsyncMock(return_value=64)
     mock.count_argocd_applications = AsyncMock(return_value=28)
+    mock.aggregate_node_resources = AsyncMock(
+        return_value={
+            "cpu_used_cores": 4.987,
+            "cpu_capacity_cores": 32.0,
+            "memory_used_bytes": 62.5 * 1024**3,
+            "memory_capacity_bytes": 108.0 * 1024**3,
+        }
+    )
+    mock.close = AsyncMock()
+    return mock
+
+
+def _mock_ch_client():
+    """Mock ClickHouseClient that returns canned GPU values."""
+    mock = MagicMock()
+    queries = {
+        "DCGM_FI_DEV_GPU_UTIL": 73.5,
+        "DCGM_FI_DEV_FB_USED": 18432.0,  # 18 GiB in MiB
+        "DCGM_FI_DEV_FB_FREE": 6144.0,  # 6 GiB in MiB
+    }
+
+    async def query_scalar(sql):
+        for marker, value in queries.items():
+            if marker in sql:
+                return value
+        return None
+
+    mock.query_scalar = AsyncMock(side_effect=query_scalar)
     mock.close = AsyncMock()
     return mock
 
@@ -51,10 +79,12 @@ def _mock_session():
 @pytest.mark.asyncio
 async def test_build_stats_returns_expected_shape():
     mock_client = _mock_k8s_client()
+    mock_ch = _mock_ch_client()
     mock_session = _mock_session()
 
     with (
         patch("home.observability.stats.KubernetesClient", return_value=mock_client),
+        patch("home.observability.stats.ClickHouseClient", return_value=mock_ch),
         patch("home.observability.stats.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
     ):
@@ -67,6 +97,13 @@ async def test_build_stats_returns_expected_shape():
     assert result["cluster"]["pods"] == 135
     assert result["cluster"]["deployments"] == 64
     assert result["cluster"]["argocd_apps"] == 28
+    assert result["cluster"]["cpu_used_cores"] == 4.99
+    assert result["cluster"]["cpu_capacity_cores"] == 32.0
+    assert result["cluster"]["memory_used_gb"] == 62.5
+    assert result["cluster"]["memory_capacity_gb"] == 108.0
+    assert result["gpu"]["utilization_pct"] == 73.5
+    assert result["gpu"]["memory_used_gb"] == 18.0
+    assert result["gpu"]["memory_total_gb"] == 24.0
     assert result["knowledge"]["facts"] == 1309
     assert result["knowledge"]["chunks"] == 5948
     assert result["knowledge"]["raw_inputs"] == 366
@@ -108,9 +145,15 @@ async def test_cluster_counts_handles_k8s_errors():
     mock_client.count_pods = AsyncMock(return_value=10)
     mock_client.count_deployments = AsyncMock(return_value=5)
     mock_client.count_argocd_applications = AsyncMock(return_value=2)
+    mock_client.aggregate_node_resources = AsyncMock(
+        side_effect=Exception("metrics-server unreachable")
+    )
 
     with patch("home.observability.stats.KubernetesClient", return_value=mock_client):
         result = await stats._query_cluster_counts()
 
     assert result["nodes"] == 0  # failed, falls back to 0
     assert result["pods"] == 10
+    # When aggregate_node_resources fails, the resource keys are simply absent.
+    assert "cpu_used_cores" not in result
+    assert "memory_used_gb" not in result

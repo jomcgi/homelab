@@ -6,12 +6,45 @@ observability MCP tooling — keep the interface minimal and read-only.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from kubernetes_asyncio import client, config
 from kubernetes_asyncio.client import ApiClient
 
 logger = logging.getLogger(__name__)
+
+
+_CPU_SUFFIXES = {"n": 1e-9, "u": 1e-6, "m": 1e-3}
+_MEM_SUFFIXES = {
+    "Ki": 1024,
+    "Mi": 1024**2,
+    "Gi": 1024**3,
+    "Ti": 1024**4,
+    "K": 1000,
+    "M": 1000**2,
+    "G": 1000**3,
+    "T": 1000**4,
+}
+
+
+def _parse_cpu(s: str) -> float:
+    """Parse a Kubernetes CPU quantity to cores (e.g. '618m' → 0.618)."""
+    if not s:
+        return 0.0
+    if s[-1] in _CPU_SUFFIXES:
+        return float(s[:-1]) * _CPU_SUFFIXES[s[-1]]
+    return float(s)
+
+
+def _parse_memory(s: str) -> float:
+    """Parse a Kubernetes memory quantity to bytes."""
+    if not s:
+        return 0.0
+    for suffix, mult in _MEM_SUFFIXES.items():
+        if s.endswith(suffix):
+            return float(s[: -len(suffix)]) * mult
+    return float(s)
 
 
 class KubernetesClient:
@@ -54,6 +87,42 @@ class KubernetesClient:
             plural="applications",
         )
         return len(result.get("items", []))
+
+    async def aggregate_node_resources(self) -> dict[str, float]:
+        """Sum CPU and memory across all nodes from the metrics API.
+
+        Returns cores and bytes. Capacity comes from node.status.allocatable
+        (what the scheduler can actually assign), not status.capacity.
+        """
+        api = await self._ensure_client()
+        v1 = client.CoreV1Api(api)
+        custom = client.CustomObjectsApi(api)
+
+        nodes_resp, metrics_resp = await asyncio.gather(
+            v1.list_node(),
+            custom.list_cluster_custom_object(
+                group="metrics.k8s.io", version="v1beta1", plural="nodes"
+            ),
+        )
+
+        cpu_cap = mem_cap = 0.0
+        for n in nodes_resp.items:
+            alloc = n.status.allocatable or {}
+            cpu_cap += _parse_cpu(alloc.get("cpu", "0"))
+            mem_cap += _parse_memory(alloc.get("memory", "0"))
+
+        cpu_used = mem_used = 0.0
+        for item in metrics_resp.get("items", []):
+            usage = item.get("usage", {})
+            cpu_used += _parse_cpu(usage.get("cpu", "0"))
+            mem_used += _parse_memory(usage.get("memory", "0"))
+
+        return {
+            "cpu_used_cores": cpu_used,
+            "cpu_capacity_cores": cpu_cap,
+            "memory_used_bytes": mem_used,
+            "memory_capacity_bytes": mem_cap,
+        }
 
     async def close(self) -> None:
         if self._api:

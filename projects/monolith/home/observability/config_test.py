@@ -10,10 +10,9 @@ class TestTopologyConfig:
         assert TOPOLOGY.cache_ttl == 900
 
     def test_has_groups(self):
-        assert len(TOPOLOGY.groups) == 3
+        assert len(TOPOLOGY.groups) == 2
         ids = [g.id for g in TOPOLOGY.groups]
         assert "monolith" in ids
-        assert "context-forge" in ids
         assert "cluster" in ids
 
     def test_group_children_reference_valid_nodes(self):
@@ -25,7 +24,7 @@ class TestTopologyConfig:
                 )
 
     def test_has_nodes(self):
-        assert len(TOPOLOGY.nodes) == 21
+        assert len(TOPOLOGY.nodes) == 20
 
     def test_external_nodes_have_no_slo(self):
         ext = next(n for n in TOPOLOGY.nodes if n.id == "external")
@@ -40,13 +39,19 @@ class TestTopologyConfig:
                 assert n.slo.window_days == 30
 
     def test_edges(self):
-        assert len(TOPOLOGY.edges) == 15
+        assert len(TOPOLOGY.edges) == 14
 
-    def test_edge_references_valid_nodes(self):
+    def test_edge_references_valid_nodes_or_groups(self):
         node_ids = {n.id for n in TOPOLOGY.nodes}
+        group_ids = {g.id for g in TOPOLOGY.groups}
+        valid_ids = node_ids | group_ids
         for e in TOPOLOGY.edges:
-            assert e.source in node_ids, f"edge source {e.source} not in nodes"
-            assert e.target in node_ids, f"edge target {e.target} not in nodes"
+            assert e.source in valid_ids, (
+                f"edge source {e.source} not in nodes or groups"
+            )
+            assert e.target in valid_ids, (
+                f"edge target {e.target} not in nodes or groups"
+            )
 
     def test_node_groups_reference_valid_groups(self):
         group_ids = {g.id for g in TOPOLOGY.groups}
