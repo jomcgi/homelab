@@ -88,6 +88,29 @@ class KubernetesClient:
         )
         return len(result.get("items", []))
 
+    async def get_argocd_app_status(
+        self, name: str, namespace: str = "argocd"
+    ) -> dict | None:
+        """Return the raw status block of a single ArgoCD Application, or None on miss.
+
+        Lets callers pull whatever subfield they need (operationState.finishedAt,
+        sync.revision, health.status, ...) without baking field choices into the
+        client.
+        """
+        api = await self._ensure_client()
+        custom = client.CustomObjectsApi(api)
+        try:
+            result = await custom.get_namespaced_custom_object(
+                group="argoproj.io",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="applications",
+                name=name,
+            )
+        except client.exceptions.ApiException:
+            return None
+        return result.get("status")
+
     async def aggregate_node_resources(self) -> dict[str, float]:
         """Sum CPU and memory across all nodes from the metrics API.
 
