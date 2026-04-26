@@ -13,7 +13,7 @@ rules:
     verbs: ["list"]
   - apiGroups: ["argoproj.io"]
     resources: ["applications"]
-    verbs: ["list"]
+    verbs: ["list", "get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
