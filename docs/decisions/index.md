@@ -26,6 +26,13 @@ ADRs document significant architectural decisions and their context.
 | ---------------------------------------------------------------------------- | --------------------------------------------- |
 | [001 - Cloudflare Envoy Gateway](networking/001-cloudflare-envoy-gateway.md) | Cloudflare Tunnel + Envoy Gateway for ingress |
 
+## Platform
+
+| ADR                                                                                          | Decision                                                                |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [001 - Obsidian Vault Monolith Migration](platform/001-obsidian-vault-monolith-migration.md) | Migrate Obsidian vault into the monolith on TigerFS                     |
+| [002 - CDN-Cached Data Fetching](platform/002-cdn-cached-data-fetching.md)                   | Public JSON endpoints cache at the Cloudflare edge; clients poll cached |
+
 ## Security
 
 | ADR                                                                                | Decision                                                        |
