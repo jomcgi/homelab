@@ -44,7 +44,7 @@ helm template <release> projects/<service>/chart/ -f projects/<service>/deploy/v
 bazel run //projects/<service>/image:push  # Push container images (CI only)
 ```
 
-**No local test loop.** Don't run `bb remote test` or `bazel test` from a workstation. Mac runners aren't provisioned in the BuildBuddy `workflows` pool (`darwin/arm64` returns "No registered executors"), and the linux fallback is too slow/flaky to be the inner loop. Implement all changes for a task (or batch of tasks), commit with Conventional Commits, push the branch, then monitor the CI run via the `/buildbuddy` skill or `gh pr checks <number> --watch`. Iterate on failures by reading the CI output (`bb view <invocation>` / `bb ask`), pushing fixes.
+**No local test loop.** Don't run `bazel test` from a workstation. Mac runners aren't provisioned in the BuildBuddy `workflows` pool (`darwin/arm64` returns "No registered executors"), and the linux fallback is too slow/flaky to be the inner loop. Implement all changes for a task (or batch of tasks), commit with Conventional Commits, push the branch, then monitor the CI run via `gh pr checks <number> --watch`. Iterate on failures by reading the CI output via the `mcp__buildbuddy__*` tools (see Cluster Investigation), pushing fixes.
 
 For multi-task plans (subagent-driven flow): implementers implement, reviewers review from code reading; **defer all test execution to end-of-plan CI on the pushed branch.**
 
@@ -115,24 +115,23 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 MCP tools (via Context Forge) and `kubectl` are both available for cluster reads. Use `ToolSearch` with `+kubernetes`, `+argocd`, or `+signoz` to load MCP tools. Tool names below are shortened — actual IDs have the `mcp__claude_ai_Homelab__` prefix (e.g., `mcp__claude_ai_Homelab__kubernetes-mcp-resources-list`).
 
-**BuildBuddy MCP setup:** The repo includes a project-scoped `.mcp.json` that auto-registers the BuildBuddy MCP server (`https://jomcgi.buildbuddy.io/mcp`) using `${BUILDBUDDY_API_KEY}` from your shell env. Set that env var (e.g. in `~/.zshrc`) before starting a Claude Code session in this repo, otherwise the `mcp__buildbuddy__*` tools won't load and you'll fall back to the `bb` CLI for everything.
+**BuildBuddy MCP setup:** The repo includes a project-scoped `.mcp.json` that auto-registers the BuildBuddy MCP server (`https://jomcgi.buildbuddy.io/mcp`) using `${BUILDBUDDY_API_KEY}` from your shell env. Set that env var (e.g. in `~/.zshrc`) before starting a Claude Code session in this repo — without it, the `mcp__buildbuddy__*` tools won't load and there's no fallback path for inspecting CI runs.
 
-| Need                             | Tool                                                                                                                                                                                                                                                                  |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **K8s resources**                | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list`                                                                                                                                                                           |
-| **K8s logs**                     | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                                                                                                                                                                                                         |
-| **K8s metrics**                  | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                                                                                                                                                                                                 |
-| **ArgoCD apps**                  | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application`                                                                                                                                                                           |
-| **ArgoCD resources**             | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`                                                                                                                                                                            |
-| **BuildBuddy CI** (programmatic) | `mcp__buildbuddy__get_invocation` (selectors: `invocationId` or `commitSha`) → `get_target` → `get_action` → `get_log`. `get_file_range` reads byte ranges from CAS blob URIs in build events (16 MiB max). Best for structured walks during autonomous CI debugging. |
-| **BuildBuddy CI** (interactive)  | `bb` CLI — `bb view <invocation>`, `bb print`, `bb ask` for human-readable summaries and AI-assisted failure analysis. See `/buildbuddy` skill.                                                                                                                       |
-| **Logs**                         | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`                                                                                                                                                                                        |
-| **Traces**                       | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`                                                                                                                                                                              |
-| **Metrics**                      | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                                                                                                                                                                                             |
-| **Services**                     | `signoz-list-services`, `signoz-get-service-top-operations`                                                                                                                                                                                                           |
-| **Dashboards**                   | `signoz-list-dashboards`, `signoz-get-dashboard`                                                                                                                                                                                                                      |
-| **Alerts**                       | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                                                                                                                                                                                                  |
-| **Agent jobs**                   | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job`                                                                                                                                                             |
+| Need                 | Tool                                                                                                                                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **K8s resources**    | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list`                                                                                                                 |
+| **K8s logs**         | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                                                                                                                                               |
+| **K8s metrics**      | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                                                                                                                                       |
+| **ArgoCD apps**      | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application`                                                                                                                 |
+| **ArgoCD resources** | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`                                                                                                                  |
+| **BuildBuddy CI**    | `mcp__buildbuddy__get_invocation` (selectors: `invocationId` or `commitSha`) → `get_target` → `get_action` → `get_log`. `get_file_range` reads byte ranges from CAS blob URIs in build events (16 MiB max). |
+| **Logs**             | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`                                                                                                                              |
+| **Traces**           | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`                                                                                                                    |
+| **Metrics**          | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                                                                                                                                   |
+| **Services**         | `signoz-list-services`, `signoz-get-service-top-operations`                                                                                                                                                 |
+| **Dashboards**       | `signoz-list-dashboards`, `signoz-get-dashboard`                                                                                                                                                            |
+| **Alerts**           | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                                                                                                                                        |
+| **Agent jobs**       | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job`                                                                                                   |
 
 ## Kubernetes Operations (kubectl)
 
@@ -166,14 +165,11 @@ Runs on every push/PR:
 - **Format check** — standalone formatters + gazelle, auto-commits fixes on PR branches (as `ci-format-bot`)
 - **Test and push** — `bazel test //...`, pushes images on main branch
 
-**Push to test.** This is the inner loop. After the run starts, monitor with the `/buildbuddy` skill or `gh pr checks <number> --watch`. Read failures with `bb view <invocation>` / `bb ask` and push fixes. Don't try to short-circuit with `bb remote test` from your workstation.
+**Push to test.** This is the inner loop. After the run starts, monitor with `gh pr checks <number> --watch`. Read failures via `mcp__buildbuddy__get_invocation` + `get_log` (see Cluster Investigation table). Don't try to short-circuit by running `bazel test` from your workstation.
 
 Static sites deploy via `bazel run //projects/websites:push_all_pages` on main branch (BuildBuddy CI).
 
-**CI failure diagnosis — quote before hypothesizing.** When CI is red, the first action is to fetch the actual log. Two equivalent paths:
-
-- **Programmatic (default for autonomous runs):** `mcp__buildbuddy__get_invocation` (use `commitSha` selector to skip the invocation-ID lookup) → `get_target` to find failing targets → `get_log` for the trace.
-- **Interactive (when a human is reading along):** `bb view <invocation>` / `bb ask` — see `/buildbuddy` skill.
+**CI failure diagnosis — quote before hypothesizing.** When CI is red, the first action is to fetch the actual log: `mcp__buildbuddy__get_invocation` (use `commitSha` selector to skip the invocation-ID lookup) → `get_target` to find failing targets → `get_log` for the trace.
 
 Quote the actual assertion error or exception message verbatim before proposing a cause. Do **not** mention infrastructure issues (BuildBuddy outages, flaky runners, RBE hiccups) unless a real test failure has been ruled out — Claude has hallucinated infra failures here before, and the cost of one wrong "it's just flaky" is several wasted iterations.
 
@@ -184,7 +180,7 @@ Quote the actual assertion error or exception message verbatim before proposing 
 - **Using Dockerfiles** — this repo uses apko exclusively for container images
 - **Running as root** — always use non-root (uid 65532)
 - **Direct internet exposure** — all traffic goes through Cloudflare
-- **Running tests locally or via `bb remote test`** — no `pytest`, `go test`, `npm test`, or `bazel test` from a workstation; the BuildBuddy `workflows` pool has no darwin runners and the linux fallback is too unreliable for inner-loop work. Implement, commit, push, watch CI.
+- **Running tests locally** — no `pytest`, `go test`, `npm test`, or `bazel test` from a workstation; the BuildBuddy `workflows` pool has no darwin runners and the linux fallback is too unreliable for inner-loop work. Implement, commit, push, watch CI.
 - **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
 - **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating a custom one
 - **Hardcoding `.svc.cluster.local` URLs in Go defaults** — when a Helm release is renamed the service name prefix changes silently; set via `envOr("URL", "")` (no default) and configure in `values.yaml`; semgrep rule `no-hardcoded-k8s-service-url` catches this in CI

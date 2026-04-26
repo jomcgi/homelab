@@ -1,6 +1,11 @@
 #!/bin/bash
-# PreToolUse hook: redirects bazel/bazelisk commands to bb remote.
-# Blocks direct bazel invocations so all builds run on BuildBuddy cloud runners.
+# PreToolUse hook: blocks direct bazel/bazelisk invocations.
+# All real Bazel work happens in CI (push the branch). Locally, use `format`
+# for formatting, gazelle, and apko lockfile updates; use the
+# `mcp__buildbuddy__*` tools for inspecting CI runs.
+#
+# (Filename retained for backwards-compat with .claude/settings.json and
+# the BUILD/test wiring; rename is a follow-up cleanup.)
 #
 # Input: JSON on stdin from Claude Code hook system
 # Exit 0: allow the command
@@ -34,20 +39,20 @@ fi
 # Block direct bazel/bazelisk invocations
 if [[ "$COMMAND" == bazel\ * ]] || [[ "$COMMAND" == bazelisk\ * ]] || [[ "$COMMAND" == *"&& bazel"* ]] || [[ "$COMMAND" == *"; bazel"* ]]; then
 	cat >&2 <<-'EOF'
-		BLOCKED: Use `bb remote` instead of direct bazel/bazelisk commands.
+		BLOCKED: Direct bazel/bazelisk invocations are not allowed locally.
 
-		All Bazel commands should run on BuildBuddy cloud runners — no local bazel server.
+		All Bazel work happens in CI:
+		  - Tests / builds / image pushes: commit + push the branch, watch via
+		    `gh pr checks <number> --watch`.
+		  - Apko lockfile updates: run `format` (regenerates all locks via
+		    bazel internally; allowed by this hook).
+		  - Gazelle / BUILD file generation: also part of `format`.
 
-		Examples:
-		  bb remote test //...                    # Run all tests
-		  bb remote build //path/to:target        # Build a target
-		  bb remote query "deps(//path/to:target)" # Query build graph
-		  bb remote run @rules_apko//apko -- lock path/to/apko.yaml
-
-		For CI debugging, use the /buildbuddy skill or:
-		  bb view <invocation_id>
-		  bb print --invocation_id=<id>
-		  bb ask "why did this fail?" --invocation_id=<id>
+		For CI debugging, use the BuildBuddy MCP tools:
+		  mcp__buildbuddy__get_invocation   # Look up by commitSha or invocationId
+		  mcp__buildbuddy__get_target       # Find failing targets in an invocation
+		  mcp__buildbuddy__get_log          # Read the build/test log
+		  mcp__buildbuddy__get_file_range   # Range-read CAS blob artifacts
 	EOF
 	exit 2
 fi
