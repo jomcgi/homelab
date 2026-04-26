@@ -117,12 +117,13 @@ async def _query_cluster_counts() -> dict:
 
 async def _query_gpu() -> dict:
     """Query DCGM GPU utilization and frame buffer usage from ClickHouse."""
-    client = ClickHouseClient(
-        base_url=os.environ.get("CLICKHOUSE_URL", ""),
-        user=os.environ.get("CLICKHOUSE_USER", ""),
-        password=os.environ.get("CLICKHOUSE_PASSWORD", ""),
-    )
+    client = None
     try:
+        client = ClickHouseClient(
+            base_url=os.environ.get("CLICKHOUSE_URL", ""),
+            user=os.environ.get("CLICKHOUSE_USER", ""),
+            password=os.environ.get("CLICKHOUSE_PASSWORD", ""),
+        )
         util, fb_used_mib, fb_free_mib = await asyncio.gather(
             client.query_scalar(_GPU_UTIL_QUERY),
             client.query_scalar(_GPU_FB_USED_QUERY),
@@ -145,7 +146,8 @@ async def _query_gpu() -> dict:
         logger.exception("GPU query failed")
         return {"utilization_pct": None}
     finally:
-        await client.close()
+        if client is not None:
+            await client.close()
 
 
 async def _query_github_latest_commit() -> dict | None:
