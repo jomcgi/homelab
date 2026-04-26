@@ -105,6 +105,40 @@ against. If you genuinely need to rewrite an atom from scratch, first Read
 its current frontmatter, copy the `aliases:` array verbatim into your new
 content, then Write — never lose alias entries.
 
+## Linking to neighboring concepts (forward links)
+
+When the body of an atom names another distinct concept — a named tool,
+heuristic, person, framework, book, method, or term that could stand on
+its own as an atom — wrap it in `[[Concept Name]]`. Examples:
+
+- "Inspired by [[Conway's Law]], we split the team along the seam..."
+- "We measured this with [[DORA Metrics]] over six weeks."
+- "Borrowed the framing from [[The Staff Engineer's Path]]."
+
+Body wikilinks are the gardener's primary mechanism for organic graph
+growth. Unresolved links queue as gaps and feed the external-research
+pipeline — so forward-linking is how a concept earns the right to exist
+on its own atom. This complements `aliases:` (which handles inbound
+resolution from other notes) and typed `edges:` (which captures
+structured semantic relations).
+
+Guardrails — DO wikilink:
+- Named concepts that could each be their own atom (proper nouns,
+  named heuristics, named tools, named frameworks, book titles)
+- The load-bearing 3–5 references per atom — pick the ones a future
+  reader would want to navigate to
+
+Guardrails — DON'T wikilink:
+- Generic words ("the team", "the meeting", "yesterday", "production")
+- Multi-clause phrases — wikilinks must name a single concept
+- Restatements of the atom's own title
+- Every domain noun that happens to appear — quality over quantity
+
+If a wikilink target already exists at `{processed_root}/<slug>.md`,
+prefer that exact slug as the link target. If it doesn't exist, write
+the natural title-cased form — the gap-classifier and aliases system
+handle resolution.
+
 Title: {title}
 
 """
@@ -124,6 +158,19 @@ Steps:
    - id, title, type (atom or fact), tags
    - edges: derives_from: [{note_id}]
 6. Do NOT create a new active/task note. Only create atom or fact notes.
+
+## Linking to neighboring concepts (forward links)
+
+When the body of a distilled atom names another distinct concept — a
+named tool, heuristic, framework, book, or term that could stand on its
+own — wrap it in `[[Concept Name]]`. Body wikilinks queue as gaps and
+feed the external-research pipeline; forward-linking is how the graph
+grows organically from each new atom.
+
+Wikilink load-bearing concepts only (3–5 max per atom). Skip generic
+words ("the team", "production"), multi-clause phrases, and the atom's
+own title. If a target already exists at `{processed_root}/<slug>.md`,
+prefer that slug; otherwise write the natural title-cased form.
 
 Title: {title}
 
@@ -690,7 +737,7 @@ class Gardener:
             "--print",
             "--dangerously-skip-permissions",
             "--allowedTools",
-            "Bash,Read,Write,Edit",
+            "Bash,Read,Write,Edit,WebSearch,WebFetch",
             "-p",
             prompt,
             stdout=asyncio.subprocess.PIPE,

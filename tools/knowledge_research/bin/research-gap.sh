@@ -105,9 +105,18 @@ for stub in _researching/*.md; do
 	fi
 
 	echo "==> researching: $slug"
-	if claude --print \
+	# Why bypassPermissions + explicit --allowedTools: in --print
+	# (non-interactive) mode there's no permission prompt UI, so tool
+	# permissions must come from settings.json or be bypassed. We bypass
+	# and pin the allowlist instead, because this script runs from the
+	# vault dir (not a homelab worktree), so project allowlists in
+	# `homelab/.claude/settings.json` don't apply. The allowlist mirrors
+	# the prompt's two-phase flow — Read/Bash/Glob/Grep for Phase 1 vault
+	# exploration, Task to dispatch the Phase 2 research subagent, and
+	# WebSearch/WebFetch so that subagent can actually fetch sources.
+	if claude --print --permission-mode bypassPermissions \
 		--model "$MODEL" \
-		--permission-mode acceptEdits \
+		--allowedTools "Bash,Read,Write,Edit,Glob,Grep,Task,WebSearch,WebFetch" \
 		--append-system-prompt "$(cat "$PROMPT_FILE")" \
 		--add-dir "$VAULT" \
 		-- \

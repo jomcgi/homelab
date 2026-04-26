@@ -12,6 +12,7 @@ from sqlmodel.pool import StaticPool
 from knowledge.gardener import (
     Gardener,
     _CLAUDE_PROMPT_HEADER,
+    _DISTILL_PROMPT,
     _slugify,
     _split_frontmatter,
 )
@@ -1392,6 +1393,21 @@ class TestPromptTemplateInstructions:
         silently drop the path and Claude will have no file to read.
         """
         assert "{raw_file_path}" in _CLAUDE_PROMPT_HEADER
+
+    def test_prompt_header_encourages_forward_wikilinks(self):
+        """Guard against losing the body-wikilink guidance.
+
+        Body wikilinks ([[...]] in prose) are the trigger for the gap →
+        research → atom pipeline (store.py captures them as kind='link'
+        which feeds gap_classifier). Without this section the gardener
+        emits typed edges only, the graph stops growing organically, and
+        the research pipeline starves for inputs. If this guidance is
+        removed the loop breaks silently — there's no other test that
+        would catch it.
+        """
+        assert "Linking to neighboring concepts" in _CLAUDE_PROMPT_HEADER
+        assert "[[Concept Name]]" in _CLAUDE_PROMPT_HEADER
+        assert "Linking to neighboring concepts" in _DISTILL_PROMPT
 
 
 class TestRecordFailedProvenance:
