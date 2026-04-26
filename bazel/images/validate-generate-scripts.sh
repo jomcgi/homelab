@@ -36,6 +36,48 @@ compare_targets() {
 	fi
 }
 
+# Retry `bazel query` on transient external/infrastructure exit codes.
+# Bazel exit codes: 32=REMOTE_ENVIRONMENTAL_ERROR, 34=REMOTE_ERROR,
+# 36=LOCAL_ENVIRONMENTAL_ERROR, 37=INTERNAL_ERROR, 38=EXTERNAL_DEPS_ERROR,
+# 39=REMOTE_CACHE_EVICTED. CI uses an ephemeral repo cache, so loading-phase
+# queries (kind(..., //...)) periodically hit a transient fetch failure that
+# clears on retry. All other exit codes are surfaced immediately.
+bazel_query_retry() {
+	local query="$1"
+	local attempt=1
+	local max=3
+	local delay=4
+	local rc=0
+	local stderr
+	while [ "$attempt" -le "$max" ]; do
+		stderr=$(mktemp)
+		if bazel query "$query" 2>"$stderr"; then
+			rm -f "$stderr"
+			return 0
+		fi
+		rc=$?
+		case "$rc" in
+		32 | 34 | 36 | 37 | 38 | 39)
+			echo "  bazel query (transient rc=$rc, attempt $attempt/$max): $query" >&2
+			sed 's/^/    /' "$stderr" >&2
+			rm -f "$stderr"
+			if [ "$attempt" -lt "$max" ]; then
+				sleep "$delay"
+				delay=$((delay * 2))
+			fi
+			attempt=$((attempt + 1))
+			;;
+		*)
+			cat "$stderr" >&2
+			rm -f "$stderr"
+			return "$rc"
+			;;
+		esac
+	done
+	echo "  bazel query failed after $max attempts: $query" >&2
+	return "$rc"
+}
+
 # --- Validation 1: generate-push-all.sh ---
 
 echo "Validating generate-push-all.sh ..."
@@ -48,9 +90,9 @@ extract_targets_from_build bazel/images/BUILD >"$TMPDIR_VALIDATE/push_all_grep.t
 
 # Run equivalent bazel queries
 {
-	bazel query 'kind("oci_push", //...)' 2>/dev/null
-	bazel query 'kind("apko_push", //...)' 2>/dev/null
-	bazel query 'kind("helm_push", //...)' 2>/dev/null
+	bazel_query_retry 'kind("oci_push", //...)'
+	bazel_query_retry 'kind("apko_push", //...)'
+	bazel_query_retry 'kind("helm_push", //...)'
 } | LC_ALL=C sort >"$TMPDIR_VALIDATE/push_all_query.txt"
 
 compare_targets "push-all" "$TMPDIR_VALIDATE/push_all_grep.txt" "$TMPDIR_VALIDATE/push_all_query.txt"
@@ -66,7 +108,7 @@ bash bazel/images/generate-push-all-pages.sh
 extract_targets_from_build projects/websites/BUILD >"$TMPDIR_VALIDATE/push_pages_grep.txt"
 
 # Run equivalent bazel query
-bazel query 'kind("wrangler_pages_push", //...)' 2>/dev/null |
+bazel_query_retry 'kind("wrangler_pages_push", //...)' |
 	LC_ALL=C sort >"$TMPDIR_VALIDATE/push_pages_query.txt"
 
 compare_targets "push-all-pages" "$TMPDIR_VALIDATE/push_pages_grep.txt" "$TMPDIR_VALIDATE/push_pages_query.txt"
