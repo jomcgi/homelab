@@ -12,7 +12,3 @@
 
 # Git worktrees have their own formatting
 .claude/worktrees/
-
-# Symlinked routes — source lives in home/frontend, formatted there
-projects/monolith/frontend/src/routes/public
-projects/monolith/frontend/src/routes/private
