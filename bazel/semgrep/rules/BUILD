@@ -263,3 +263,19 @@ semgrep_test(
     rules = [":sql_rules"],
     tags = ["semgrep"],
 )
+
+# claude-print-missing-permission-mode uses languages: [generic] so its fixture is a YAML file.
+# This test wires the rule to its annotation fixture independently of shell_rules_test
+# (which scans shell/*.bash sources and does not include YAML-annotated generic fixtures).
+filegroup(
+    name = "claude_print_missing_permission_mode_rule",
+    srcs = ["shell/claude-print-missing-permission-mode.yaml"],
+)
+
+semgrep_test(
+    name = "claude_print_missing_permission_mode_test",
+    srcs = ["//bazel/semgrep/tests:claude_print_missing_permission_mode_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":claude_print_missing_permission_mode_rule"],
+    tags = ["semgrep"],
+)
