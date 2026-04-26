@@ -265,17 +265,6 @@
         >
           {n.label}
         </text>
-        {#if n.slo?.current != null}
-          {@const pct = Math.round(n.slo.current * 100) / 100}
-          {@const badgeColor = pct >= 99.9 ? "var(--teal, #0d9488)" : pct >= 99 ? "var(--accent, #f59e0b)" : "var(--coral, #e53e3e)"}
-          <text
-            x={pos.x} y={pos.y + HH + 12}
-            class="slo-badge"
-            fill={badgeColor}
-          >
-            {pct.toFixed(2)}%
-          </text>
-        {/if}
       </g>
     {/if}
   {/each}
@@ -345,14 +334,6 @@
   }
 
   .node-label--active { text-decoration: underline; }
-
-  .slo-badge {
-    font-family: var(--mono, "JetBrains Mono", monospace);
-    font-size: 7px;
-    font-weight: 700;
-    text-anchor: middle;
-    letter-spacing: 0.04em;
-  }
 
   .hit-area {
     outline: none;
