@@ -24,6 +24,14 @@ homelab/
 
 **Languages:** Go, Python, JavaScript, Starlark (BUILD files)
 
+## Engineering Philosophy
+
+**Simplest approach first.** Before implementing anything non-trivial, list 2-3 candidate approaches ranked by complexity. Pick the simplest unless you can justify why it's insufficient in one sentence. Wait for an OK on the choice before writing code.
+
+Skip this for: one-line config fixes, typo corrections, mechanical renames, or when the user has already specified the approach. It's for genuine design choices — state machines vs flags, runtime introspection vs lambdas, separate index vs column filter, new framework vs subprocess.
+
+Output shape: "Option A (simplest): …; Option B: … — recommend A unless you want flexibility for X." Then pause.
+
 ## Essential Commands
 
 ```bash
@@ -90,37 +98,41 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 ## Key Patterns
 
-| Pattern                   | Implementation                                                                                                                                                                                                                                                                                                        |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Secrets**               | 1Password Operator (`OnePasswordItem` CRD) — never hardcode                                                                                                                                                                                                                                                           |
-| **Container images**      | apko + rules_apko (not Dockerfiles) — always dual-arch (x86_64 + aarch64)                                                                                                                                                                                                                                             |
-| **Auto image updates**    | ArgoCD Image Updater (`imageupdater.yaml` in `projects/{service}/deploy/`)                                                                                                                                                                                                                                            |
-| **Image pinning**         | Bazel `helm_images_values` deep-merges pinned tags into `values.yaml` at build time — never manually set `@sha256:` digests in deploy values files                                                                                                                                                                    |
-| **Package deps (Python)** | `@pip//package` via aspect_rules_py (not `requirement()`)                                                                                                                                                                                                                                                             |
-| **Package deps (JS)**     | pnpm + rules_js                                                                                                                                                                                                                                                                                                       |
-| **Non-root containers**   | uid 65532 convention, `runAsNonRoot: true`                                                                                                                                                                                                                                                                            |
-| **Helm service names**    | Helm prepends `<release-name>-` to service names. A service `agent-orchestrator` in release `agent-platform` is reachable at `agent-platform-agent-orchestrator.<namespace>.svc.cluster.local`. Never hardcode these URLs in Go application defaults — inject from `values.yaml` env vars.                            |
-| **Chart version bumps**   | When bumping `Chart.yaml` version, ALWAYS also update `targetRevision` in the service's `deploy/application.yaml`. A `chart-version-bot` automates this, but if you bump manually both files must stay in sync. ArgoCD pulls charts from OCI by version — a stale `targetRevision` means the new chart never deploys. |
+| Pattern                    | Implementation                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Secrets**                | 1Password Operator (`OnePasswordItem` CRD) — never hardcode                                                                                                                                                                                                                                                                                                                                                                         |
+| **Container images**       | apko + rules_apko (not Dockerfiles) — always dual-arch (x86_64 + aarch64)                                                                                                                                                                                                                                                                                                                                                           |
+| **Auto image updates**     | ArgoCD Image Updater (`imageupdater.yaml` in `projects/{service}/deploy/`)                                                                                                                                                                                                                                                                                                                                                          |
+| **Image pinning**          | Bazel `helm_images_values` deep-merges pinned tags into `values.yaml` at build time — never manually set `@sha256:` digests in deploy values files                                                                                                                                                                                                                                                                                  |
+| **Package deps (Python)**  | `@pip//package` via aspect_rules_py (not `requirement()`)                                                                                                                                                                                                                                                                                                                                                                           |
+| **Package deps (JS)**      | pnpm + rules_js                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **Non-root containers**    | uid 65532 convention, `runAsNonRoot: true`                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Helm service names**     | Helm prepends `<release-name>-` to service names. A service `agent-orchestrator` in release `agent-platform` is reachable at `agent-platform-agent-orchestrator.<namespace>.svc.cluster.local`. Never hardcode these URLs in Go application defaults — inject from `values.yaml` env vars.                                                                                                                                          |
+| **Chart version bumps**    | When bumping `Chart.yaml` version, ALWAYS also update `targetRevision` in the service's `deploy/application.yaml`. A `chart-version-bot` automates this, but if you bump manually both files must stay in sync. ArgoCD pulls charts from OCI by version — a stale `targetRevision` means the new chart never deploys.                                                                                                               |
+| **RBAC for new endpoints** | New monolith endpoints that read or list cluster resources (Argo apps, deployments, pods, etc.) require corresponding `ClusterRole` rules. Verify the RBAC manifest covers every verb (`get`/`list`/`watch`) the new code calls before merging. Missing verbs fail silently in prod with `Forbidden` errors that look like generic 5xx in dashboards. Most recent example: `bc59d5f0c` granted `get` on `argoproj.io/applications`. |
 
 ## Cluster Investigation
 
 MCP tools (via Context Forge) and `kubectl` are both available for cluster reads. Use `ToolSearch` with `+kubernetes`, `+argocd`, or `+signoz` to load MCP tools. Tool names below are shortened — actual IDs have the `mcp__claude_ai_Homelab__` prefix (e.g., `mcp__claude_ai_Homelab__kubernetes-mcp-resources-list`).
 
-| Need                 | Tool                                                                                                      |
-| -------------------- | --------------------------------------------------------------------------------------------------------- |
-| **K8s resources**    | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list`               |
-| **K8s logs**         | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                                             |
-| **K8s metrics**      | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                                     |
-| **ArgoCD apps**      | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application`               |
-| **ArgoCD resources** | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`                |
-| **BuildBuddy CI**    | Use `bb` CLI directly (`bb view`, `bb print`, `bb ask`) — see `/buildbuddy` skill                         |
-| **Logs**             | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`                            |
-| **Traces**           | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`                  |
-| **Metrics**          | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                                 |
-| **Services**         | `signoz-list-services`, `signoz-get-service-top-operations`                                               |
-| **Dashboards**       | `signoz-list-dashboards`, `signoz-get-dashboard`                                                          |
-| **Alerts**           | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                                      |
-| **Agent jobs**       | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job` |
+**BuildBuddy MCP setup:** The repo includes a project-scoped `.mcp.json` that auto-registers the BuildBuddy MCP server (`https://jomcgi.buildbuddy.io/mcp`) using `${BUILDBUDDY_API_KEY}` from your shell env. Set that env var (e.g. in `~/.zshrc`) before starting a Claude Code session in this repo, otherwise the `mcp__buildbuddy__*` tools won't load and you'll fall back to the `bb` CLI for everything.
+
+| Need                             | Tool                                                                                                                                                                                                                                                                  |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **K8s resources**                | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list`                                                                                                                                                                           |
+| **K8s logs**                     | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                                                                                                                                                                                                         |
+| **K8s metrics**                  | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                                                                                                                                                                                                 |
+| **ArgoCD apps**                  | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application`                                                                                                                                                                           |
+| **ArgoCD resources**             | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`                                                                                                                                                                            |
+| **BuildBuddy CI** (programmatic) | `mcp__buildbuddy__get_invocation` (selectors: `invocationId` or `commitSha`) → `get_target` → `get_action` → `get_log`. `get_file_range` reads byte ranges from CAS blob URIs in build events (16 MiB max). Best for structured walks during autonomous CI debugging. |
+| **BuildBuddy CI** (interactive)  | `bb` CLI — `bb view <invocation>`, `bb print`, `bb ask` for human-readable summaries and AI-assisted failure analysis. See `/buildbuddy` skill.                                                                                                                       |
+| **Logs**                         | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`                                                                                                                                                                                        |
+| **Traces**                       | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`                                                                                                                                                                              |
+| **Metrics**                      | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                                                                                                                                                                                             |
+| **Services**                     | `signoz-list-services`, `signoz-get-service-top-operations`                                                                                                                                                                                                           |
+| **Dashboards**                   | `signoz-list-dashboards`, `signoz-get-dashboard`                                                                                                                                                                                                                      |
+| **Alerts**                       | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                                                                                                                                                                                                  |
+| **Agent jobs**                   | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job`                                                                                                                                                             |
 
 ## Kubernetes Operations (kubectl)
 
@@ -158,13 +170,21 @@ Runs on every push/PR:
 
 Static sites deploy via `bazel run //projects/websites:push_all_pages` on main branch (BuildBuddy CI).
 
+**CI failure diagnosis — quote before hypothesizing.** When CI is red, the first action is to fetch the actual log. Two equivalent paths:
+
+- **Programmatic (default for autonomous runs):** `mcp__buildbuddy__get_invocation` (use `commitSha` selector to skip the invocation-ID lookup) → `get_target` to find failing targets → `get_log` for the trace.
+- **Interactive (when a human is reading along):** `bb view <invocation>` / `bb ask` — see `/buildbuddy` skill.
+
+Quote the actual assertion error or exception message verbatim before proposing a cause. Do **not** mention infrastructure issues (BuildBuddy outages, flaky runners, RBE hiccups) unless a real test failure has been ruled out — Claude has hallucinated infra failures here before, and the cost of one wrong "it's just flaky" is several wasted iterations.
+
+**Bumping config values that tests assert on.** When changing a TTL, timeout, `max_tokens`, retry count, or any numeric config, `grep` the test tree for the old value first and update assertions in the same commit. Otherwise CI fails on the test, you (or I) misattribute it to flakiness, and the fix takes a second push.
+
 ## Anti-Patterns
 
 - **Using Dockerfiles** — this repo uses apko exclusively for container images
 - **Running as root** — always use non-root (uid 65532)
 - **Direct internet exposure** — all traffic goes through Cloudflare
-- **Running tests locally** — no `pytest`, `go test`, `npm test`, `bazel test`, or `bb remote test` from a workstation; tests live in CI on push
-- **Trying to iterate with `bb remote test`** — the BuildBuddy `workflows` pool has no darwin runners and the linux fallback is too unreliable for inner-loop work; push the branch and let CI run instead
+- **Running tests locally or via `bb remote test`** — no `pytest`, `go test`, `npm test`, or `bazel test` from a workstation; the BuildBuddy `workflows` pool has no darwin runners and the linux fallback is too unreliable for inner-loop work. Implement, commit, push, watch CI.
 - **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
 - **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating a custom one
 - **Hardcoding `.svc.cluster.local` URLs in Go defaults** — when a Helm release is renamed the service name prefix changes silently; set via `envOr("URL", "")` (no default) and configure in `values.yaml`; semgrep rule `no-hardcoded-k8s-service-url` catches this in CI
