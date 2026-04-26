@@ -47,9 +47,9 @@
     return `${Math.round(hours / 24)}d`;
   }
 
-  const MARQUEE_ITEMS = buildMarquee(data.stats);
+  let MARQUEE_ITEMS = $state(buildMarquee(data.stats));
 
-  /* ── Scroll-triggered reveals ─────────────── */
+  /* ── Scroll-triggered reveals + age tick ─────────────── */
   onMount(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -65,7 +65,18 @@
     for (const el of document.querySelectorAll(".reveal")) {
       observer.observe(el);
     }
-    return () => observer.disconnect();
+
+    // Re-render the marquee on a fixed cadence so "deployed Xm ago" advances
+    // as wall-clock time passes. 30s catches every minute boundary within
+    // ~30s; below 60min the displayed value is in minutes, above it's hours.
+    const tick = setInterval(() => {
+      MARQUEE_ITEMS = buildMarquee(data.stats);
+    }, 30_000);
+
+    return () => {
+      observer.disconnect();
+      clearInterval(tick);
+    };
   });
 </script>
 
