@@ -554,13 +554,13 @@ TOPOLOGY = TopologyConfig(
             label="QWEN 3",
             tier="critical",
             description="qwen 3 inference",
-            slo=_slo(_container_ready_query("llama-cpp", "llama-server", "llama-cpp-")),
+            slo=_slo(_container_ready_query("inference", "llama-server", "inference-")),
             metrics=[
-                MetricConfig(key="reqs", query=_llamacpp_requests_query("llama-cpp")),
-                MetricConfig(key="tokens", query=_llamacpp_tokens_query("llama-cpp")),
+                MetricConfig(key="reqs", query=_llamacpp_requests_query("inference")),
+                MetricConfig(key="tokens", query=_llamacpp_tokens_query("inference")),
                 MetricConfig(
                     key="mem",
-                    query=_container_memory_mb_query("llama-cpp", "llama-cpp"),
+                    query=_container_memory_mb_query("inference", "inference"),
                     unit=" MB",
                 ),
             ],
@@ -572,20 +572,20 @@ TOPOLOGY = TopologyConfig(
             description="voyage-4 embedding",
             slo=_slo(
                 _container_ready_query(
-                    "llama-cpp", "llama-server", "llama-cpp-embeddings-"
+                    "inference", "llama-server", "inference-embeddings-"
                 )
             ),
             metrics=[
                 MetricConfig(
-                    key="reqs", query=_llamacpp_requests_query("llama-cpp-embeddings")
+                    key="reqs", query=_llamacpp_requests_query("inference-embeddings")
                 ),
                 MetricConfig(
-                    key="tokens", query=_llamacpp_tokens_query("llama-cpp-embeddings")
+                    key="tokens", query=_llamacpp_tokens_query("inference-embeddings")
                 ),
                 MetricConfig(
                     key="mem",
                     query=_container_memory_mb_query(
-                        "llama-cpp", "llama-cpp-embeddings"
+                        "inference", "inference-embeddings"
                     ),
                     unit=" MB",
                 ),
@@ -606,7 +606,7 @@ TOPOLOGY = TopologyConfig(
             tier="critical",
             group="monolith",
             description="model context protocol server",
-            slo=_slo(_container_ready_query("monolith", "monolith")),
+            slo=_slo(_container_ready_query("monolith", "backend")),
         ),
         # --- cluster / infra ---
         NodeConfig(
@@ -684,23 +684,43 @@ TOPOLOGY = TopologyConfig(
         EdgeConfig(source="cloudflare", target="monolith"),
         EdgeConfig(source="cloudflare", target="agent-platform"),
         EdgeConfig(source="knowledge", target="postgres"),
-        EdgeConfig(source="knowledge", target="voyage-embedder"),
+        EdgeConfig(
+            source="knowledge",
+            target="voyage-embedder",
+            linkerd=_linkerd("monolith", "inference", "inference-embeddings"),
+        ),
         EdgeConfig(
             source="knowledge",
             target="llama-cpp",
-            linkerd=_linkerd("monolith", "llama-cpp", "llama-cpp"),
+            linkerd=_linkerd("monolith", "inference", "inference"),
         ),
         EdgeConfig(
             source="chat",
             target="llama-cpp",
-            linkerd=_linkerd("monolith", "llama-cpp", "llama-cpp"),
+            linkerd=_linkerd("monolith", "inference", "inference"),
         ),
         EdgeConfig(source="chat", target="discord"),
         EdgeConfig(source="chat", target="knowledge"),
         EdgeConfig(source="mcp", target="knowledge"),
         EdgeConfig(source="nats", target="agent-platform", bidi=True),
-        EdgeConfig(source="agent-platform", target="context-forge"),
-        EdgeConfig(source="context-forge", target="mcp"),
+        EdgeConfig(
+            source="agent-platform",
+            target="context-forge",
+            linkerd=_linkerd(
+                "agent-platform-agent-orchestrator",
+                "mcp",
+                "context-forge-gateway-mcp-stack-mcpgateway",
+            ),
+        ),
+        EdgeConfig(
+            source="context-forge",
+            target="mcp",
+            linkerd=_linkerd(
+                "context-forge-gateway-mcp-stack-mcpgateway",
+                "monolith",
+                "monolith",
+            ),
+        ),
         EdgeConfig(source="cloudflare", target="context-forge"),
     ],
 )
