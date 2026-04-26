@@ -223,3 +223,171 @@ async def test_cluster_counts_handles_k8s_errors():
     # When aggregate_node_resources fails, the resource keys are simply absent.
     assert "cpu_used_cores" not in result
     assert "memory_used_gb" not in result
+
+
+# ---------------------------------------------------------------------------
+# _query_gpu
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_query_gpu_returns_correct_values():
+    """Happy path: utilization_pct + memory values divided by 1024, rounded."""
+    mock_ch = _mock_ch_client()
+
+    with patch("home.observability.stats.ClickHouseClient", return_value=mock_ch):
+        result = await stats._query_gpu()
+
+    assert result["utilization_pct"] == 73.5
+    # 18432 MiB / 1024 = 18.0 GiB
+    assert result["memory_used_gb"] == 18.0
+    # (18432 + 6144) MiB / 1024 = 24.0 GiB
+    assert result["memory_total_gb"] == 24.0
+
+
+@pytest.mark.asyncio
+async def test_query_gpu_memory_rounding():
+    """memory_used_gb and memory_total_gb are rounded to 1 decimal place."""
+    mock_ch = MagicMock()
+
+    # 1100 MiB used, 500 MiB free
+    # used_gb = round(1100/1024, 1) = round(1.07421..., 1) = 1.1
+    # total_gb = round(1600/1024, 1) = round(1.5625, 1) = 1.6
+    async def query_scalar(sql):
+        if "DCGM_FI_DEV_GPU_UTIL" in sql:
+            return 55.0
+        if "DCGM_FI_DEV_FB_USED" in sql:
+            return 1100.0
+        if "DCGM_FI_DEV_FB_FREE" in sql:
+            return 500.0
+        return None
+
+    mock_ch.query_scalar = AsyncMock(side_effect=query_scalar)
+    mock_ch.close = AsyncMock()
+
+    with patch("home.observability.stats.ClickHouseClient", return_value=mock_ch):
+        result = await stats._query_gpu()
+
+    assert result["memory_used_gb"] == round(1100 / 1024, 1)
+    assert result["memory_total_gb"] == round(1600 / 1024, 1)
+
+
+@pytest.mark.asyncio
+async def test_query_gpu_partial_failure_omits_memory():
+    """If one memory query raises, memory keys are absent but utilization_pct is kept."""
+    mock_ch = MagicMock()
+
+    async def query_scalar(sql):
+        if "DCGM_FI_DEV_GPU_UTIL" in sql:
+            return 60.0
+        if "DCGM_FI_DEV_FB_USED" in sql:
+            raise RuntimeError("ClickHouse timeout")
+        if "DCGM_FI_DEV_FB_FREE" in sql:
+            return 4096.0
+        return None
+
+    mock_ch.query_scalar = AsyncMock(side_effect=query_scalar)
+    mock_ch.close = AsyncMock()
+
+    with patch("home.observability.stats.ClickHouseClient", return_value=mock_ch):
+        result = await stats._query_gpu()
+
+    # utilization_pct should still be present from the successful query
+    assert result["utilization_pct"] == 60.0
+    # memory keys require both fb_used and fb_free — partial failure drops them
+    assert "memory_used_gb" not in result
+    assert "memory_total_gb" not in result
+
+
+@pytest.mark.asyncio
+async def test_query_gpu_total_failure_returns_none_utilization():
+    """If the outer ClickHouseClient construction itself explodes, returns sentinel."""
+    with patch(
+        "home.observability.stats.ClickHouseClient",
+        side_effect=Exception("connection refused"),
+    ):
+        result = await stats._query_gpu()
+
+    assert result == {"utilization_pct": None}
+
+
+@pytest.mark.asyncio
+async def test_query_gpu_all_queries_fail_returns_none_utilization():
+    """If every scalar query raises, utilization_pct is None and memory absent."""
+    mock_ch = MagicMock()
+    mock_ch.query_scalar = AsyncMock(side_effect=Exception("ClickHouse unavailable"))
+    mock_ch.close = AsyncMock()
+
+    with patch("home.observability.stats.ClickHouseClient", return_value=mock_ch):
+        result = await stats._query_gpu()
+
+    assert result["utilization_pct"] is None
+    assert "memory_used_gb" not in result
+    assert "memory_total_gb" not in result
+
+
+# ---------------------------------------------------------------------------
+# _query_argocd_monolith_deploy
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_query_argocd_monolith_deploy_returns_expected_dict():
+    """Returns {"finished_at": <timestamp>} when operationState is present."""
+    mock_k8s = MagicMock()
+    mock_k8s.get_argocd_app_status = AsyncMock(
+        return_value={
+            "operationState": {"finishedAt": "2026-04-25T10:05:00Z"},
+            "health": {"status": "Healthy"},
+        }
+    )
+    mock_k8s.close = AsyncMock()
+
+    with patch("home.observability.stats.KubernetesClient", return_value=mock_k8s):
+        result = await stats._query_argocd_monolith_deploy()
+
+    assert result == {"finished_at": "2026-04-25T10:05:00Z"}
+    mock_k8s.get_argocd_app_status.assert_called_once_with(stats.ARGOCD_APP_NAME)
+
+
+@pytest.mark.asyncio
+async def test_query_argocd_monolith_deploy_returns_none_when_no_status():
+    """Returns None if get_argocd_app_status returns falsy."""
+    mock_k8s = MagicMock()
+    mock_k8s.get_argocd_app_status = AsyncMock(return_value=None)
+    mock_k8s.close = AsyncMock()
+
+    with patch("home.observability.stats.KubernetesClient", return_value=mock_k8s):
+        result = await stats._query_argocd_monolith_deploy()
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_query_argocd_monolith_deploy_returns_none_when_no_finished_at():
+    """Returns None if operationState exists but has no finishedAt field."""
+    mock_k8s = MagicMock()
+    mock_k8s.get_argocd_app_status = AsyncMock(
+        return_value={"operationState": {"phase": "Running"}}
+    )
+    mock_k8s.close = AsyncMock()
+
+    with patch("home.observability.stats.KubernetesClient", return_value=mock_k8s):
+        result = await stats._query_argocd_monolith_deploy()
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_query_argocd_monolith_deploy_returns_none_on_exception():
+    """Returns None (does not raise) if the Kubernetes call fails."""
+    mock_k8s = MagicMock()
+    mock_k8s.get_argocd_app_status = AsyncMock(
+        side_effect=Exception("k8s API unavailable")
+    )
+    mock_k8s.close = AsyncMock()
+
+    with patch("home.observability.stats.KubernetesClient", return_value=mock_k8s):
+        result = await stats._query_argocd_monolith_deploy()
+
+    assert result is None
