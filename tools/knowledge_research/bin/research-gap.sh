@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# Batch-research external gaps via Opus 4.7.
+# Batch-research external gaps via the claude CLI.
 #
 # Usage:
-#   research-gap.sh [--max N] [--vault PATH] [--filter PATTERN]
+#   research-gap.sh [--max N] [--vault PATH] [--filter PATTERN] [--model ID]
 #
 # Iterates _researching/*.md, skips already-researched and non-external
 # gaps, invokes claude per stub. Resumable.
 #
+# Model selection: defaults to claude-opus-4-7. Override with --model or
+# the MODEL env var (e.g. MODEL=claude-sonnet-4-6 when quota-constrained).
+#
 # Two-step write flow:
-#   1. Opus writes to <vault>/.opus-research/<slug>.md (Phase A skips
-#      dot-prefixed dirs, so no race with the ingest job).
+#   1. claude writes to <vault>/.opus-research/<slug>.md (Phase A skips
+#      dot-prefixed dirs, so no race with the ingest job). The staging
+#      dir name is historical — it stages output regardless of model.
 #   2. After claude exits cleanly, this script atomically promotes the
 #      staged file to <vault>/<slug>.md, where Phase A picks it up.
 
@@ -26,6 +30,7 @@ PROMPT_FILE="$SELF_DIR/../prompts/research-external.system.md"
 VAULT="${VAULT:-}"
 MAX=50
 FILTER=""
+MODEL="${MODEL:-claude-opus-4-7}"
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -39,6 +44,10 @@ while [ $# -gt 0 ]; do
 		;;
 	--filter)
 		FILTER="$2"
+		shift 2
+		;;
+	--model)
+		MODEL="$2"
 		shift 2
 		;;
 	-h | --help)
@@ -97,7 +106,7 @@ for stub in _researching/*.md; do
 
 	echo "==> researching: $slug"
 	if claude --print \
-		--model claude-opus-4-7 \
+		--model "$MODEL" \
 		--permission-mode acceptEdits \
 		--append-system-prompt "$(cat "$PROMPT_FILE")" \
 		--add-dir "$VAULT" \
