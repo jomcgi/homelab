@@ -1,3 +1,5 @@
+import { PAGE_CACHE_CONTROL } from "$lib/cache-headers.js";
+
 const API_BASE = process.env.API_BASE || "http://localhost:8000";
 
 const STATIC_TOPOLOGY = {
@@ -211,11 +213,12 @@ async function _fetchJson(fetchFn, path) {
   }
 }
 
-export async function load({ fetch }) {
+export async function load({ fetch, setHeaders }) {
   const [topology, stats] = await Promise.all([
     _fetchJson(fetch, "/api/home/observability/topology"),
     _fetchJson(fetch, "/api/home/observability/stats"),
   ]);
+  setHeaders({ "cache-control": PAGE_CACHE_CONTROL });
   return {
     topology: topology ?? STATIC_TOPOLOGY,
     stats,
