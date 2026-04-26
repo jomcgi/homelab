@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "buildbuddy": {
+      "type": "http",
+      "url": "https://jomcgi.buildbuddy.io/mcp",
+      "headers": {
+        "Authorization": "Bearer ${BUILDBUDDY_API_KEY}"
+      }
+    }
+  }
+}
