@@ -13,7 +13,7 @@ Locally, use:
 
 - **`format`** — standalone formatter (no Bazel required), runs as a pre-commit hook
 - **`gh pr checks`** — monitor CI results
-- **`/buildbuddy`** — debug CI failures via `bb` CLI
+- **`mcp__buildbuddy__*` tools** — debug CI failures by walking invocations, targets, actions, and logs (see CLAUDE.md → Cluster Investigation)
 
 ## Local Commands
 
@@ -57,12 +57,7 @@ BUILD files are still written locally — they define what CI builds.
 
 ### Querying Build Graph
 
-```bash
-# Run on BuildBuddy cloud runners (no local bazel server)
-bb remote query //charts/todo/...
-bb remote query "rdeps(//..., //charts/todo/image:image)"
-bb remote query "deps(//charts/todo/image:image)"
-```
+Ad-hoc `bazel query` (deps, rdeps, target patterns) isn't run locally — there's no local bazel server. For one-off questions, the simplest path is reading a recent BuildBuddy invocation via `mcp__buildbuddy__get_invocation` to see what targets actually built. For programmatic graph traversal, add a temporary CI step that runs `bazel query` and prints results, then push the branch and read the output via the MCP.
 
 ### Gazelle (BUILD File Generation)
 
@@ -81,23 +76,21 @@ For apko.yaml structure, BUILD.bazel patterns, and package reference, see the `c
 ### Updating Lock Files
 
 ```bash
-# Update all locks (recommended)
-format
-
-# Update a single lock
-bb remote run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
+format    # Regenerates all apko lock files via bazel/tools/format/update-apko-locks.sh
 ```
+
+`format` walks every `apko.yaml` in the repo and regenerates its `apko.lock.json` — `git diff` then shows only the locks that actually changed, so commit just those.
 
 ## Debugging CI Failures
 
-Use the `/buildbuddy` skill or the `bb` CLI directly:
+Use the `mcp__buildbuddy__*` tools:
 
-1. Get invocation ID: `gh pr checks --json link | jq -r '.[] | select(.link | contains("buildbuddy")) | .link'`
-2. View invocation: `bb view <invocation_id>`
-3. Get logs: `bb print --invocation_id=<id>`
-4. AI diagnosis: `bb ask "why did this fail?" --invocation_id=<id>`
+1. Look up the invocation: `mcp__buildbuddy__get_invocation` with the `commitSha` selector. Always `git rev-parse <short>` to a full 40-char SHA first — short SHAs silently miss.
+2. Find failing targets: `mcp__buildbuddy__get_target` (filter by tag or label).
+3. Read the log: `mcp__buildbuddy__get_log` for the failing invocation.
+4. For large artifacts: `mcp__buildbuddy__get_file_range` with the CAS blob URI from build events (16 MiB ranges).
 
-> **Important:** Always `git rev-parse` short SHAs to full 40-char before using with BuildBuddy.
+Per CLAUDE.md's CI failure diagnosis rule: quote the actual assertion error before hypothesizing — don't blame infrastructure until a real test failure has been ruled out.
 
 ## Workflow Integration
 
