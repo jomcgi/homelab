@@ -1,0 +1,378 @@
+<script>
+  import { onMount } from "svelte";
+  import { Nav, Sticker, Marquee, Footer } from "$lib/public/components";
+  import HomepageTopology from "./HomepageTopology.svelte";
+
+  let { data } = $props();
+
+  /** Build marquee items from /stats data, falling back to non-numeric items
+   *  when a metric is unavailable so the ticker never shows fabricated numbers. */
+  function buildMarquee(stats) {
+    const items = ["~/homelab"];
+    const c = stats?.cluster;
+    const g = stats?.gpu;
+    const k = stats?.knowledge;
+
+    if (c?.nodes != null && c?.pods != null) items.push(`${c.nodes} nodes · ${c.pods} pods`);
+    if (c?.cpu_used_cores != null && c?.cpu_capacity_cores != null) {
+      items.push(`cpu: ${c.cpu_used_cores} / ${c.cpu_capacity_cores} cores`);
+    }
+    if (c?.memory_used_gb != null && c?.memory_capacity_gb != null) {
+      items.push(`mem: ${c.memory_used_gb} / ${c.memory_capacity_gb} gb`);
+    }
+    if (g?.utilization_pct != null) {
+      const memPart = g?.memory_used_gb != null && g?.memory_total_gb != null
+        ? ` · ${g.memory_used_gb} / ${g.memory_total_gb} gb`
+        : "";
+      items.push(`gpu: ${g.utilization_pct}%${memPart}`);
+    }
+    if (c?.argocd_apps != null) items.push(`argocd: ${c.argocd_apps} apps`);
+    if (k?.facts != null) items.push(`kg: ${k.facts.toLocaleString()} notes`);
+    items.push("go · python · sveltekit");
+    return items;
+  }
+
+  const MARQUEE_ITEMS = buildMarquee(data.stats);
+
+  /* ── Scroll-triggered reveals ─────────────── */
+  onMount(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("in");
+            observer.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.15 },
+    );
+    for (const el of document.querySelectorAll(".reveal")) {
+      observer.observe(el);
+    }
+    return () => observer.disconnect();
+  });
+</script>
+
+<svelte:head>
+  <title>jomcgi</title>
+  <meta
+    name="description"
+    content="Platform engineering, observability, developer experience. Ten years of staff-eng-shaped moves."
+  />
+</svelte:head>
+
+<!-- ═══ Nav ═══ -->
+<Nav route="home" />
+
+<!-- ═══ Top marquee ═══ -->
+<Marquee items={MARQUEE_ITEMS} />
+
+<div class="above-fold">
+<!-- ═══ Hero ═══ -->
+<section class="hero">
+  <!-- decorative shapes -->
+  <svg class="deco deco-diamond-1" width="28" height="28" viewBox="0 0 24 24"
+    ><path d="M12,2 L22,12 L12,22 L2,12 Z" fill="none" stroke="var(--ink)" stroke-width="2" /></svg
+  >
+  <svg class="deco deco-circle-1" width="18" height="18" viewBox="0 0 24 24"
+    ><circle cx="12" cy="12" r="10" fill="var(--coral)" stroke="var(--ink)" stroke-width="2" /></svg
+  >
+  <svg class="deco deco-star" width="56" height="56" viewBox="0 0 40 40"
+    ><path
+      d="M20,2 L22.5,14 L34,10 L26,20 L34,30 L22.5,26 L20,38 L17.5,26 L6,30 L14,20 L6,10 L17.5,14 Z"
+      fill="var(--blue)"
+      stroke="var(--ink)"
+      stroke-width="2"
+      stroke-linejoin="round"
+    /></svg
+  >
+  <svg class="deco deco-cloud" width="120" height="60" viewBox="0 0 120 60"
+    ><path
+      d="M10,45 Q 8,30 22,28 Q 26,14 42,18 Q 54,10 66,20 Q 82,16 88,30 Q 104,28 108,44 Q 108,52 98,52 L 20,52 Q 10,52 10,45 Z"
+      fill="none"
+      stroke="var(--ink)"
+      stroke-width="2.5"
+      stroke-linejoin="round"
+    /></svg
+  >
+  <svg class="deco deco-squiggle" width="80" height="24" viewBox="0 0 80 24"
+    ><path
+      d="M2,12 Q 10,2 18,12 T 34,12 T 50,12 T 66,12 T 78,12"
+      fill="none"
+      stroke="var(--ink)"
+      stroke-width="2.5"
+      stroke-linecap="round"
+    /></svg
+  >
+  <svg class="deco deco-diamond-2" width="18" height="18" viewBox="0 0 24 24"
+    ><path d="M12,2 L22,12 L12,22 L2,12 Z" fill="none" stroke="var(--ink)" stroke-width="2" /></svg
+  >
+
+  <div class="wrap hero-content">
+    <h1 class="hero-headline">ten years ago i was underwriting policies<br />and winning insurance hackathons.<br />now i'm building production grade infra<br />for weekend side quests and keeping<br /><a href="https://semgrep.dev" class="hero-mono">semgrep</a> online.</h1>
+    <div class="hero-cta-row">
+      <a href="#homelab" class="btn btn-primary">SEE MY HOMELAB <span class="btn-arr">→</span></a>
+      <a href="#homelab" class="btn btn-secondary">TALK TO MY NOTES</a>
+    </div>
+    <Sticker color="var(--coral)" rotate={-5} class="sticker-hero">← BUILT THIS SITE TOO</Sticker>
+  </div>
+</section>
+
+<!-- ═══ Bio panel (yellow) ═══ -->
+<section class="bio-panel reveal">
+  <!-- decorative shapes -->
+  <svg class="deco deco-bio-squiggle" width="80" height="24" viewBox="0 0 80 24"
+    ><path
+      d="M2,12 Q 10,2 18,12 T 34,12 T 50,12 T 66,12 T 78,12"
+      fill="none"
+      stroke="var(--ink)"
+      stroke-width="2.5"
+      stroke-linecap="round"
+    /></svg
+  >
+  <svg class="deco deco-bio-diamond" width="20" height="20" viewBox="0 0 24 24"
+    ><path d="M12,2 L22,12 L12,22 L2,12 Z" fill="none" stroke="var(--ink)" stroke-width="2" /></svg
+  >
+  <svg class="deco deco-bio-circle" width="24" height="24" viewBox="0 0 24 24"
+    ><circle cx="12" cy="12" r="10" fill="none" stroke="var(--ink)" stroke-width="2" /></svg
+  >
+  <Sticker color="var(--paper)" rotate={-3} class="sticker-bio">A LITTLE ABOUT ME</Sticker>
+
+  <div class="wrap bio-content">
+    <p class="bio-sub">
+      I'm Joe, from Scotland, living in Vancouver.<br />
+      Monorepo enthusiast. Lover of <a href="https://brutalistwebsites.com/" class="bio-link">brutalist websites</a>.<br />
+      Care<em>mad</em> about developer experience.
+    </p>
+    <h2 class="bio-headline">Boring infrastructure<br />is a feature.</h2>
+  </div>
+</section>
+
+</div>
+
+<!-- ═══ SLO Topology (blue) ═══ -->
+<HomepageTopology topology={data.topology} />
+
+<!-- ═══ Footer ═══ -->
+<Footer />
+
+
+<style>
+  /* ── Above-fold wrapper ─────────────────── */
+  .above-fold {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Hero ─────────────────────────────────── */
+  .hero {
+    background: var(--cream);
+    padding: 88px 0 96px;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .hero-content {
+    max-width: 1360px;
+    text-align: left;
+    position: relative;
+  }
+
+  .hero-headline {
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: clamp(20px, 2.6vw, 38px);
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+    margin: 0 0 44px;
+    color: var(--ink);
+  }
+
+  .hero-mono {
+    text-decoration-line: underline;
+    text-decoration-color: var(--blue);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+    transition: text-decoration-color 160ms ease;
+  }
+
+  .hero-mono:hover {
+    text-decoration-color: var(--coral);
+  }
+
+  .hero-cta-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .btn-arr {
+    margin-left: 6px;
+  }
+
+  :global(.sticker-hero) {
+    position: absolute;
+    right: 8%;
+    bottom: -4px;
+    font-size: 11px;
+  }
+
+  /* ── Decorative shapes ───────────────────── */
+  .deco {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  /* Decos live in the gutter outside .hero-content's 1360px max-width.
+     `max(Xpx, calc(50% - 720px - offset))` keeps them ≥X from the
+     viewport edge but never inside the content box. */
+  .deco-diamond-1 {
+    width: 28px;
+    height: 28px;
+    top: 56px;
+    left: max(16px, calc(50% - 720px));
+  }
+
+  .deco-circle-1 {
+    width: 18px;
+    height: 18px;
+    top: 140px;
+    left: max(8px, calc(50% - 740px));
+  }
+
+  .deco-star {
+    width: 56px;
+    height: 56px;
+    top: 60px;
+    right: max(16px, calc(50% - 720px));
+    transform: rotate(-12deg);
+  }
+
+  .deco-cloud {
+    width: 120px;
+    height: 60px;
+    bottom: 40px;
+    left: max(8px, calc(50% - 760px));
+    opacity: 0.9;
+  }
+
+  .deco-squiggle {
+    width: 80px;
+    height: 24px;
+    bottom: 80px;
+    right: max(24px, calc(50% - 730px));
+  }
+
+  .deco-diamond-2 {
+    width: 18px;
+    height: 18px;
+    bottom: 120px;
+    right: max(8px, calc(50% - 740px));
+  }
+
+  .deco-bio-squiggle {
+    width: 80px;
+    height: 24px;
+    top: 32px;
+    right: max(16px, calc(50% - 720px));
+  }
+
+  .deco-bio-diamond {
+    width: 20px;
+    height: 20px;
+    top: 60px;
+    left: max(16px, calc(50% - 720px));
+  }
+
+  .deco-bio-circle {
+    width: 24px;
+    height: 24px;
+    bottom: 50px;
+    left: max(8px, calc(50% - 740px));
+  }
+
+  /* ── Bio panel ───────────────────────────── */
+  .bio-panel {
+    background: var(--accent);
+    border-bottom: 1px solid var(--ink);
+    padding: 56px 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bio-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+    max-width: 1360px;
+  }
+
+  .bio-headline {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(32px, 3.8vw, 56px);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+
+  .bio-sub {
+    font-family: var(--sans);
+    font-size: clamp(20px, 1.8vw, 26px);
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+
+  .bio-link {
+    text-decoration-line: underline;
+    text-decoration-color: var(--ink-3);
+    text-underline-offset: 3px;
+    transition: text-decoration-color 160ms ease;
+  }
+
+  .bio-link:hover {
+    text-decoration-color: var(--coral);
+  }
+
+  :global(.sticker-bio) {
+    position: absolute;
+    top: 40px;
+    left: 6%;
+  }
+
+  /* ── Responsive ──────────────────────────── */
+  @media (max-width: 1900px) {
+    :global(.sticker-bio) {
+      display: none !important;
+    }
+  }
+
+  @media (max-width: 1100px) {
+    .bio-content {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .hero {
+      padding: 56px 0 64px;
+    }
+    .bio-panel {
+      padding: 56px 0;
+    }
+    .bio-content {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    :global(.sticker-hero) {
+      display: none !important;
+    }
+    .deco {
+      display: none;
+    }
+  }
+</style>
