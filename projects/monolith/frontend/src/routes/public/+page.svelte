@@ -73,7 +73,7 @@
   <title>jomcgi</title>
   <meta
     name="description"
-    content="Platform engineering, observability, developer experience. Ten years of staff-eng-shaped moves."
+    content="Platform engineering, observability, developer experience."
   />
 </svelte:head>
 
