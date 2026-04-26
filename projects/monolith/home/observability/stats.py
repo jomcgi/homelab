@@ -1,10 +1,12 @@
 """Public stats endpoint — exposes non-sensitive cluster and knowledge metrics.
 
-Gathers data from three sources:
+Gathers data from four sources:
 1. Kubernetes API — node, deployment, pod, ArgoCD application counts
-   plus aggregate CPU/memory usage and capacity from the metrics API.
+   plus aggregate CPU/memory usage and capacity from the metrics API,
+   and the monolith ArgoCD Application's last sync time.
 2. ClickHouse (SigNoz) — DCGM GPU utilization and frame buffer usage.
 3. PostgreSQL — knowledge.notes, knowledge.chunks, knowledge.raw_inputs counts.
+4. GitHub API — latest commit on main (unauthenticated; public repo).
 
 Cached for 60 seconds so live metrics (CPU/mem/GPU) feel current without
 hammering ClickHouse or the metrics-server on every page load.
@@ -18,11 +20,15 @@ import os
 import time
 from datetime import datetime, timezone
 
+import httpx
 from sqlalchemy import text
 
 from app.db import get_engine
 from home.observability.clickhouse import ClickHouseClient
 from shared.kubernetes import KubernetesClient
+
+GITHUB_REPO = "jomcgi/homelab"
+ARGOCD_APP_NAME = "monolith"
 
 logger = logging.getLogger(__name__)
 
@@ -142,20 +148,87 @@ async def _query_gpu() -> dict:
         await client.close()
 
 
+async def _query_github_latest_commit() -> dict | None:
+    """Fetch the latest commit on main from the public GitHub API.
+
+    Returns {"sha": <7-char>, "committed_at": <iso>} or None on any failure.
+    Unauthenticated (60 req/hr per IP); the 60s stats cache keeps us under that.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as http:
+            resp = await http.get(
+                f"https://api.github.com/repos/{GITHUB_REPO}/commits/main",
+                headers={"Accept": "application/vnd.github+json"},
+            )
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        return {
+            "sha": data["sha"][:7],
+            "committed_at": data["commit"]["committer"]["date"],
+        }
+    except Exception:
+        logger.exception("GitHub commit fetch failed")
+        return None
+
+
+async def _query_argocd_monolith_deploy() -> dict | None:
+    """Last-sync timestamp of the monolith ArgoCD Application.
+
+    Reads status.operationState.finishedAt — the wall-clock moment the most
+    recent sync (manual or auto) finished, regardless of result. None if the
+    Application is missing or has no operationState yet.
+    """
+    k8s = KubernetesClient()
+    try:
+        status = await k8s.get_argocd_app_status(ARGOCD_APP_NAME)
+        if not status:
+            return None
+        finished_at = (status.get("operationState") or {}).get("finishedAt")
+        return {"finished_at": finished_at} if finished_at else None
+    except Exception:
+        logger.exception("ArgoCD monolith status fetch failed")
+        return None
+    finally:
+        await k8s.close()
+
+
+async def _query_deploy() -> dict:
+    """Combine 'latest commit on main' + 'last deploy' into one block.
+
+    Each subquery is independent and fail-soft — if one source is unavailable,
+    the other still surfaces. Returns {} if both fail; the frontend skips
+    items whose data is absent.
+    """
+    commit, deploy = await asyncio.gather(
+        _query_github_latest_commit(),
+        _query_argocd_monolith_deploy(),
+    )
+    out: dict = {}
+    if commit:
+        out["latest_commit_sha"] = commit["sha"]
+        out["latest_commit_at"] = commit["committed_at"]
+    if deploy:
+        out["deployed_at"] = deploy["finished_at"]
+    return out
+
+
 async def build_stats() -> dict:
     """Collect all stats and return the response payload."""
     engine = get_engine()
 
-    cluster_counts, knowledge_counts, gpu = await asyncio.gather(
+    cluster_counts, knowledge_counts, gpu, deploy = await asyncio.gather(
         _query_cluster_counts(),
         _query_knowledge_counts(engine),
         _query_gpu(),
+        _query_deploy(),
     )
 
     return {
         "cluster": cluster_counts,
         "knowledge": knowledge_counts,
         "gpu": gpu,
+        "deploy": deploy,
         "platform": {
             "in_production_since": "2025-01",
         },

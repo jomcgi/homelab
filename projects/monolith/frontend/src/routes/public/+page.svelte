@@ -5,13 +5,14 @@
 
   let { data } = $props();
 
-  /** Build marquee items from /stats data, falling back to non-numeric items
-   *  when a metric is unavailable so the ticker never shows fabricated numbers. */
+  /** Build marquee items from /stats data, skipping any item whose source
+   *  is unavailable so the ticker never shows fabricated numbers. */
   function buildMarquee(stats) {
     const items = ["~/homelab"];
     const c = stats?.cluster;
     const g = stats?.gpu;
     const k = stats?.knowledge;
+    const d = stats?.deploy;
 
     if (c?.nodes != null && c?.pods != null) items.push(`${c.nodes} nodes · ${c.pods} pods`);
     if (c?.cpu_used_cores != null && c?.cpu_capacity_cores != null) {
@@ -28,8 +29,22 @@
     }
     if (c?.argocd_apps != null) items.push(`argocd: ${c.argocd_apps} apps`);
     if (k?.facts != null) items.push(`kg: ${k.facts.toLocaleString()} notes`);
-    items.push("go · python · sveltekit");
+    if (d?.latest_commit_sha) items.push(`last commit: ${d.latest_commit_sha}`);
+    if (d?.deployed_at) {
+      const ago = formatAgo(d.deployed_at);
+      if (ago) items.push(`deployed ${ago} ago`);
+    }
     return items;
+  }
+
+  function formatAgo(iso) {
+    const then = Date.parse(iso);
+    if (!Number.isFinite(then)) return null;
+    const minutes = Math.max(0, Math.round((Date.now() - then) / 60_000));
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 48) return `${hours}h`;
+    return `${Math.round(hours / 24)}d`;
   }
 
   const MARQUEE_ITEMS = buildMarquee(data.stats);

@@ -87,6 +87,15 @@ async def test_build_stats_returns_expected_shape():
         patch("home.observability.stats.ClickHouseClient", return_value=mock_ch),
         patch("home.observability.stats.get_engine", return_value=MagicMock()),
         patch("sqlmodel.Session", return_value=mock_session),
+        patch(
+            "home.observability.stats._query_deploy",
+            new_callable=AsyncMock,
+            return_value={
+                "latest_commit_sha": "abc1234",
+                "latest_commit_at": "2026-04-25T10:00:00Z",
+                "deployed_at": "2026-04-25T10:05:00Z",
+            },
+        ),
     ):
         mock_session.__enter__ = MagicMock(return_value=mock_session)
         mock_session.__exit__ = MagicMock(return_value=False)
@@ -107,8 +116,65 @@ async def test_build_stats_returns_expected_shape():
     assert result["knowledge"]["facts"] == 1309
     assert result["knowledge"]["chunks"] == 5948
     assert result["knowledge"]["raw_inputs"] == 366
+    assert result["deploy"]["latest_commit_sha"] == "abc1234"
+    assert result["deploy"]["deployed_at"] == "2026-04-25T10:05:00Z"
     assert result["platform"]["in_production_since"] == "2025-01"
     assert "cached_at" in result
+
+
+@pytest.mark.asyncio
+async def test_query_deploy_combines_github_and_argocd():
+    commit_payload = {
+        "sha": "abcdef1234567890",
+        "commit": {"committer": {"date": "2026-04-25T10:00:00Z"}},
+    }
+    mock_resp = MagicMock(status_code=200)
+    mock_resp.json = MagicMock(return_value=commit_payload)
+    mock_http = MagicMock()
+    mock_http.get = AsyncMock(return_value=mock_resp)
+    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
+    mock_http.__aexit__ = AsyncMock(return_value=False)
+
+    mock_k8s = MagicMock()
+    mock_k8s.get_argocd_app_status = AsyncMock(
+        return_value={"operationState": {"finishedAt": "2026-04-25T10:05:00Z"}}
+    )
+    mock_k8s.close = AsyncMock()
+
+    with (
+        patch("home.observability.stats.httpx.AsyncClient", return_value=mock_http),
+        patch("home.observability.stats.KubernetesClient", return_value=mock_k8s),
+    ):
+        result = await stats._query_deploy()
+
+    assert result["latest_commit_sha"] == "abcdef1"
+    assert result["latest_commit_at"] == "2026-04-25T10:00:00Z"
+    assert result["deployed_at"] == "2026-04-25T10:05:00Z"
+
+
+@pytest.mark.asyncio
+async def test_query_deploy_returns_partial_when_one_source_fails():
+    """If GitHub is down but ArgoCD answers, the deployed_at item still surfaces."""
+    mock_resp = MagicMock(status_code=503)
+    mock_http = MagicMock()
+    mock_http.get = AsyncMock(return_value=mock_resp)
+    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
+    mock_http.__aexit__ = AsyncMock(return_value=False)
+
+    mock_k8s = MagicMock()
+    mock_k8s.get_argocd_app_status = AsyncMock(
+        return_value={"operationState": {"finishedAt": "2026-04-25T10:05:00Z"}}
+    )
+    mock_k8s.close = AsyncMock()
+
+    with (
+        patch("home.observability.stats.httpx.AsyncClient", return_value=mock_http),
+        patch("home.observability.stats.KubernetesClient", return_value=mock_k8s),
+    ):
+        result = await stats._query_deploy()
+
+    assert "latest_commit_sha" not in result
+    assert result["deployed_at"] == "2026-04-25T10:05:00Z"
 
 
 @pytest.mark.asyncio
