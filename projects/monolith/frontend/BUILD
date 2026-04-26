@@ -25,6 +25,10 @@ js_library(
         "package.json",
         "svelte.config.js",
         "vite.config.js",
+        # Per-service routes and shared components, reached via symlinks in
+        # src/lib/public and src/routes/{public,private}. Pulled in here so
+        # Vite can resolve the symlink targets inside the Bazel sandbox.
+        "//projects/monolith/home/frontend:src",
     ],
     deps = [
         ":node_modules/@sveltejs/adapter-node",
