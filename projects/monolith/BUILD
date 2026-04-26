@@ -7,6 +7,7 @@
 # gazelle:exclude home
 # gazelle:exclude scheduler
 # gazelle:exclude shared
+# gazelle:exclude stars
 # gazelle:semgrep_exclude_rules avoid-sqlalchemy-text,sqlmodel-datetime-without-factory,tainted-fastapi-http-request-httpx,tainted-path-traversal-stdlib-fastapi
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_rules_py//py:defs.bzl", "py_library")
@@ -37,6 +38,7 @@ py_venv_binary(
             "home/**/*.py",
             "scheduler/**/*.py",
             "shared/**/*.py",
+            "stars/**/*.py",
         ],
         exclude = [
             "**/*_test.py",
@@ -61,6 +63,7 @@ py_library(
             "home/**/*.py",
             "scheduler/**/*.py",
             "shared/**/*.py",
+            "stars/**/*.py",
         ],
         exclude = [
             "**/*_test.py",
@@ -70,6 +73,7 @@ py_library(
     ),  # keep
     visibility = ["//:__subpackages__"],
     deps = [
+        "@pip//astral",
         "@pip//discord_py",
         "@pip//dulwich",
         "@pip//fastapi",
@@ -2714,5 +2718,40 @@ py_test(
         ":monolith_backend",
         ":shared_testing",
         "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "stars_scoring_test",
+    srcs = ["stars/scoring_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pydantic",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "stars_service_test",
+    srcs = ["stars/service_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
+    name = "stars_router_test",
+    srcs = ["stars/router_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//pytest",
+        "@pip//sqlmodel",
     ],
 )
