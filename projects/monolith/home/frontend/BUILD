@@ -9,12 +9,12 @@ js_library(
     name = "src",
     srcs = glob(
         ["**/*"],
+        allow_empty = True,
         exclude = [
             "BUILD",
             "node_modules/**",
             "**/*.test.js",
         ],
-        allow_empty = True,
     ),
     visibility = ["//projects/monolith/frontend:__pkg__"],
 )
