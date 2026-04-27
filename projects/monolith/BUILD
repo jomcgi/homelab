@@ -2237,7 +2237,10 @@ py_test(
         ":monolith_backend",
         "@pip//fastapi",
         "@pip//httpx",
+        "@pip//pgvector",
         "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
     ],
 )
 
