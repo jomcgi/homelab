@@ -152,8 +152,15 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     # false-positive gaps. Mirrors the gardener atomizer's alias-preserving
     # contract — wherever the gardener writes aliases, the gap-detector
     # consults them.
+    # Exclude type='gap' Notes: stubs are placeholders for unresolved
+    # wikilinks, not resolved targets. Including them shadows the slug
+    # in slug_refs, which prevents Phase A from ever seeing wikilinks
+    # to discardable stubs — the bug that left ~600 discardable stubs
+    # untouched cycle after cycle until this fix landed.
     existing_note_ids: set[str] = set()
-    for note_id, aliases in session.execute(select(Note.note_id, Note.aliases)).all():
+    for note_id, aliases in session.execute(
+        select(Note.note_id, Note.aliases).where(Note.type != "gap")
+    ).all():
         if note_id:
             existing_note_ids.add(note_id)
         for alias in aliases or []:
