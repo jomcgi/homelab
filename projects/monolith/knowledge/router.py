@@ -80,6 +80,7 @@ async def search_knowledge(
     return {"results": results}
 
 
+# Mirrors PAGE_CACHE_CONTROL in projects/monolith/frontend/src/lib/cache-headers.js — keep in sync.
 _GRAPH_CACHE_CONTROL = (
     "public, s-maxage=60, stale-while-revalidate=86400, stale-if-error=31536000"
 )
