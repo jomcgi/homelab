@@ -5,12 +5,17 @@
 
   let { children } = $props();
 
-  // Active-state derivation: map URL pathname to the Nav's slug list.
-  // Returns the slug to highlight, or "" for no active link.
+  // Active-state derivation. The hooks.js reroute remaps
+  // public.jomcgi.dev/* → /public/* and private.jomcgi.dev/* → /private/*
+  // internally, but $page.url reflects the *browser* URL. So:
+  // - /notes (any host) → "notes"
+  // - any URL on public.jomcgi.dev → "home"
+  // - everything else → no active state
   let activeRoute = $derived.by(() => {
+    const host = $page.url.hostname;
     const path = $page.url.pathname;
     if (path === "/notes" || path.startsWith("/notes/")) return "notes";
-    if (path === "/public" || path.startsWith("/public/")) return "home";
+    if (host.startsWith("public.")) return "home";
     return "";
   });
 </script>

@@ -3,7 +3,7 @@
   let { route = "home" } = $props();
 
   const items = [
-    { slug: "home", label: "HOME", href: "https://public.jomcgi.dev/public" },
+    { slug: "home", label: "HOME", href: "https://public.jomcgi.dev/" },
     { slug: "notes", label: "NOTES", href: "https://private.jomcgi.dev/notes" },
     {
       slug: "engineering",
