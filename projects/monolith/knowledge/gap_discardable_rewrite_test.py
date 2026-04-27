@@ -81,6 +81,25 @@ def _add_body_link(session: Session, *, src_fk: int, target_id: str) -> None:
     session.commit()
 
 
+def _index_stub_as_note(session: Session, slug: str) -> Note:
+    """Mirror what the production reconciler does: index a stub file as a
+    ``Note(type='gap')`` row. Without this, tests miss the resolution-shadowing
+    interaction where ``existing_note_ids`` would otherwise filter the slug
+    out of ``slug_refs``.
+    """
+    note = Note(
+        note_id=slug,
+        path=f"_researching/{slug}.md",
+        title=slug,
+        content_hash=f"stub-{slug}",
+        type="gap",
+    )
+    session.add(note)
+    session.commit()
+    session.refresh(note)
+    return note
+
+
 def _write_source(tmp_path: Path, note_id: str, body: str) -> Path:
     path = tmp_path / "_processed" / f"{note_id}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -174,6 +193,38 @@ def test_discardable_no_refs_no_rewrite(monkeypatch, session, tmp_path):
     discover_gaps(session, tmp_path)
     # Stub is preserved (Task 4 deletes it; here we only verify Phase A doesn't blow up).
     assert stub_path.exists()
+
+
+def test_phase_a_fires_when_stub_indexed_as_note(monkeypatch, session, tmp_path):
+    """Regression: in production, the reconciler indexes every stub file as
+    a ``Note(type='gap')`` row. Before the resolution-shadowing fix,
+    ``discover_gaps`` built ``existing_note_ids`` from ALL Note rows including
+    gap stubs, so wikilinks pointing at a stub were filtered out of
+    ``slug_refs`` and Phase A never ran. The bug presented as: 661
+    discardable stubs with active inbound links sat untouched cycle after
+    cycle, with only fresh-this-cycle stubs (whose Note row hadn't been
+    indexed yet) getting rewritten. The fix excludes ``type='gap'`` Notes
+    from ``existing_note_ids`` so stub-targeting wikilinks are correctly
+    treated as unresolved and reach Phase A.
+    """
+    monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
+    src_path = _write_source(
+        tmp_path,
+        "src",
+        "---\nid: src\ntitle: Src\ntype: atom\n---\n\nWe use [[Discardable]] often.\n",
+    )
+    _write_stub(tmp_path, "discardable", triaged="discardable")
+    src = _make_note(session, "src", title="Src")
+    # The critical line — the reconciler creates this in production but the
+    # other Phase A tests skip it, masking the bug.
+    _index_stub_as_note(session, "discardable")
+    _add_body_link(session, src_fk=src.id, target_id="discardable")
+
+    discover_gaps(session, tmp_path)
+
+    rewritten = src_path.read_text()
+    assert "[[Discardable]]" not in rewritten
+    assert "We use Discardable often." in rewritten
 
 
 def test_tombstone_removes_gap_when_refs_gone(monkeypatch, session, tmp_path):
