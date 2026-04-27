@@ -266,9 +266,6 @@ async def research_gaps_handler(session: Session) -> datetime | None:
             "knowledge.research-gaps: CLAUDE_CODE_OAUTH_TOKEN not set, skipping"
         )
         return None
-    if not os.environ.get("LLAMA_CPP_URL"):
-        logger.warning("knowledge.research-gaps: LLAMA_CPP_URL not set, skipping")
-        return None
 
     vault_root = Path(os.environ.get(VAULT_ROOT_ENV, DEFAULT_VAULT_ROOT))
 
