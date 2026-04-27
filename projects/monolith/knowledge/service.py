@@ -35,7 +35,9 @@ _CLASSIFY_INTERVAL_SECS = 60  # 1-minute tick
 _CLASSIFY_TTL_SECS = 360  # 300s subprocess timeout + 60s headroom
 _CLASSIFY_BATCH_SIZE = 10
 _RESEARCH_INTERVAL_SECS = 300
-_RESEARCH_TTL_SECS = 1200  # 20min lock-lease (Qwen + Sonnet round-trips can be slow)
+_RESEARCH_TTL_SECS = (
+    1200  # 20min lock-lease (Sonnet research runs can be slow with web tools)
+)
 _GIT_READY_SENTINEL = ".git-ready"
 _SYNC_READY_SENTINEL = ".sync-ready"
 _GIT_AUTHOR = b"vault-backup <vault-backup@monolith.local>"
