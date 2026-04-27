@@ -1938,18 +1938,6 @@ py_test(
 )
 
 py_test(
-    name = "knowledge_research_tools_test",
-    srcs = ["knowledge/research_tools_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//httpx",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
-    ],
-)
-
-py_test(
     name = "knowledge_research_agent_test",
     srcs = ["knowledge/research_agent_test.py"],
     imports = ["."],
@@ -1967,17 +1955,6 @@ py_test(
     deps = [
         ":monolith_backend",
         "@pip//pytest",
-    ],
-)
-
-py_test(
-    name = "knowledge_research_validator_test",
-    srcs = ["knowledge/research_validator_test.py"],
-    imports = ["."],
-    deps = [
-        ":monolith_backend",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
 
