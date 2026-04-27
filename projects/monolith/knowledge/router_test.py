@@ -745,6 +745,36 @@ class TestGraphEndpoint:
 
         cache_control = response.headers["cache-control"]
         assert "public" in cache_control
-        assert "s-maxage=" in cache_control
+        assert "s-maxage=3600" in cache_control
         assert "stale-while-revalidate=" in cache_control
         assert "stale-if-error=" in cache_control
+
+        # Conditional GET prerequisites: a stable ETag and a Last-Modified.
+        assert response.headers["etag"]
+        assert response.headers["last-modified"]
+
+    def test_graph_endpoint_returns_304_on_matching_if_none_match(self, real_session):
+        store = KnowledgeStore(real_session)
+        _upsert(
+            store,
+            note_id="id-a",
+            path="a.md",
+            content_hash="h-a",
+            title="A",
+            metadata=_meta(title="A", type="atom"),
+            n_chunks=0,
+        )
+
+        app.dependency_overrides[get_session] = lambda: real_session
+        try:
+            c = TestClient(app, raise_server_exceptions=False)
+            first = c.get("/api/knowledge/graph")
+            etag = first.headers["etag"]
+            second = c.get("/api/knowledge/graph", headers={"If-None-Match": etag})
+        finally:
+            app.dependency_overrides.clear()
+
+        assert second.status_code == 304
+        assert second.content == b""
+        assert second.headers["etag"] == etag
+        assert "s-maxage=3600" in second.headers["cache-control"]

@@ -15,11 +15,12 @@ from __future__ import annotations
 
 import logging
 import os
+from email.utils import format_datetime
 from pathlib import Path
 from typing import Literal
 
 import yaml
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -80,24 +81,48 @@ async def search_knowledge(
     return {"results": results}
 
 
-# Mirrors PAGE_CACHE_CONTROL in projects/monolith/frontend/src/lib/cache-headers.js — keep in sync.
+# Mirrors NOTES_PAGE_CACHE_CONTROL in projects/monolith/frontend/src/lib/cache-headers.js — keep in sync.
 _GRAPH_CACHE_CONTROL = (
-    "public, s-maxage=60, stale-while-revalidate=86400, stale-if-error=31536000"
+    "public, s-maxage=3600, stale-while-revalidate=86400, stale-if-error=31536000"
 )
+
+
+def _graph_etag(graph: dict) -> str:
+    """Stable ETag for a graph payload.
+
+    Combines max(indexed_at) with node count so deletions invalidate even
+    when the surviving notes' timestamps don't move.
+    """
+    indexed_at = graph.get("indexed_at")
+    stamp = indexed_at.isoformat() if indexed_at is not None else "null"
+    return f'"{stamp}-{len(graph["nodes"])}"'
 
 
 @router.get("/graph")
 def get_graph(
+    request: Request,
     response: Response,
     session: Session = Depends(get_session),
-) -> dict:
+):
     """Return the full knowledge graph for the /notes visualisation.
 
     Heavily CDN-cached: the gardener mutates the graph on a schedule, so
-    60s freshness with 24h SWR is generous and saves repeated DB hits.
+    1h freshness with 24h SWR is generous and saves repeated DB hits.
+    Conditional GETs short-circuit with 304 via ETag/Last-Modified.
     """
-    response.headers["Cache-Control"] = _GRAPH_CACHE_CONTROL
-    return KnowledgeStore(session).get_graph()
+    graph = KnowledgeStore(session).get_graph()
+    etag = _graph_etag(graph)
+    headers = {"Cache-Control": _GRAPH_CACHE_CONTROL, "ETag": etag}
+    indexed_at = graph.get("indexed_at")
+    if indexed_at is not None:
+        headers["Last-Modified"] = format_datetime(indexed_at, usegmt=True)
+
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+
+    for key, value in headers.items():
+        response.headers[key] = value
+    return graph
 
 
 @router.get("/notes/{note_id}")
