@@ -56,14 +56,6 @@
     labelMaxCount: 60,
   };
 
-  // Used by applyFilters() to scale forces when a cluster is hidden.
-  // Derived from CLUSTER_COLORS rather than hardcoded so adding a new
-  // cluster CSS var is enough — no graph code change required.
-  const CLUSTER_COUNT = Math.max(
-    1,
-    new Set(Object.values(CLUSTER_COLORS)).size,
-  );
-
   // Internal mutable state. simNodes/simEdges are the d3-mutated copies
   // (positions, velocities, resolved source/target object refs).
   let stage; // root div
@@ -313,7 +305,12 @@
       const neigh = neighborsOf.get(selectedNode.id);
       if (neigh) for (const id of neigh) add(byId.get(id));
     }
-    add(hovered);
+    // hovered is intentionally excluded from the candidate list. If we
+    // added it here, its label box would claim space in `placed` and
+    // the greedy collision pass would push out other labels around it,
+    // so visible labels would flicker as the mouse moved over high-
+    // degree areas. Hover is a transient overlay — drawn after the
+    // layout pass, on top, with no influence on which labels are shown.
 
     if (transform.k > CFG.labelMinZoom) {
       const [x0, y0] = transform.invert([0, 0]);
@@ -357,8 +354,7 @@
 
     let drawn = 0;
     for (const n of candidates) {
-      if (drawn >= CFG.labelMaxCount && n !== selectedNode && n !== hovered)
-        continue;
+      if (drawn >= CFG.labelMaxCount && n !== selectedNode) continue;
 
       const sx = n.x * transform.k + transform.x;
       const sy = n.y * transform.k + transform.y;
@@ -385,8 +381,7 @@
           break;
         }
       }
-      const force = n === selectedNode || n === hovered;
-      if (overlap && !force) continue;
+      if (overlap && n !== selectedNode) continue;
       placed.push({ bx, by, bw, bh, node: n });
 
       ctx.fillStyle = "#FFFFFF";
@@ -398,6 +393,42 @@
       ctx.fillText(t, bx + padX, by + padY);
       drawn++;
     }
+
+    // Hover overlay. Painted on top of the layout pass so it doesn't
+    // perturb which other labels are visible. Skipped if the loop
+    // above already drew this node (selected, neighbour of selected,
+    // or a high-degree visible label) — in those cases the existing
+    // entry already wins click hit-tests.
+    if (
+      hovered &&
+      hovered !== selectedNode &&
+      activeClusters.has(hovered.cluster) &&
+      !placed.some((p) => p.node === hovered)
+    ) {
+      const sx = hovered.x * transform.k + transform.x;
+      const sy = hovered.y * transform.k + transform.y;
+      const m = ctx.measureText(hovered.title);
+      const padX = 4;
+      const padY = 3;
+      const bw = m.width + padX * 2;
+      const bh = fontPx + padY * 2;
+      const bx = sx + hovered.r * transform.k + 5;
+      const by = sy - bh / 2;
+      if (!(bx + bw < 0 || bx > w || by + bh < 0 || by > h)) {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#141414";
+        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+        ctx.fillStyle = "#141414";
+        ctx.fillText(hovered.title, bx + padX, by + padY);
+        // findNode() iterates placedLabels in order; prepending gives
+        // the hovered label priority for click hit-tests when it
+        // visually overlaps a layout-pass label.
+        placed.unshift({ bx, by, bw, bh, node: hovered });
+      }
+    }
+
     // Publish for findNode() to hit-test.
     placedLabels = placed;
   }
@@ -482,7 +513,6 @@
     const ys = [];
     for (const n of simNodes) {
       if (!activeClusters.has(n.cluster)) continue;
-      if (n._parked) continue;
       const neigh = neighborsOf.get(n.id);
       if (!neigh || neigh.size === 0) continue;
       xs.push(n.x);
@@ -540,77 +570,6 @@
       // simulation.on("tick", render) is wired during the chunk.
       await new Promise((r) => requestAnimationFrame(r));
     }
-  }
-
-  function applyFilters() {
-    if (!simulation) return;
-    const activeLinks = simEdges.filter((l) => {
-      const s = typeof l.source === "object" ? l.source : byId.get(l.source);
-      const t = typeof l.target === "object" ? l.target : byId.get(l.target);
-      return (
-        s && t && activeClusters.has(s.cluster) && activeClusters.has(t.cluster)
-      );
-    });
-    let activeCount = 0;
-
-    for (const n of simNodes) {
-      const isActive = activeClusters.has(n.cluster);
-      if (isActive) {
-        activeCount++;
-        if (n._parked) {
-          n.x = n._parkedX;
-          n.y = n._parkedY;
-          n.vx = 0;
-          n.vy = 0;
-          n._parked = false;
-        }
-        n.fx = null;
-        n.fy = null;
-      } else {
-        if (!n._parked) {
-          n._parkedX = n.x;
-          n._parkedY = n.y;
-          n._parked = true;
-        }
-        n.fx = -1e6;
-        n.fy = -1e6;
-      }
-    }
-
-    const factor = Math.min(
-      4.5,
-      CLUSTER_COUNT / Math.max(1, activeClusters.size || 1),
-    );
-
-    simulation
-      .force("charge")
-      .strength(CFG.charge * factor);
-    simulation.force(
-      "link",
-      forceLink(activeLinks)
-        .id((d) => d.id)
-        .distance(CFG.linkDistance * factor)
-        .strength(0.45 / Math.sqrt(factor)),
-    );
-
-    if (activeCount > 0 && stage) {
-      let sumX = 0;
-      let sumY = 0;
-      for (const node of simNodes) {
-        if (!activeClusters.has(node.cluster)) continue;
-        sumX += node.x;
-        sumY += node.y;
-      }
-      const dx = stage.clientWidth / 2 - sumX / activeCount;
-      const dy = stage.clientHeight / 2 - sumY / activeCount;
-      for (const node of simNodes) {
-        if (!activeClusters.has(node.cluster)) continue;
-        node.x += dx;
-        node.y += dy;
-      }
-    }
-
-    simulation.alpha(0.6).restart();
   }
 
   // ───────────────────────── pointer handlers ─────────────────────────
@@ -857,19 +816,15 @@
     render();
   });
 
-  // Cluster toggle reflows the layout. Skip the initial fire — without
-  // this guard, the effect runs once at mount and kicks the sim with
-  // alpha=0.6, undoing the pre-tick settle and making the page visibly
-  // shake for ~3 seconds while alpha decays.
-  let activeClustersFirstRun = true;
+  // Cluster toggle is a render-time mask, not a layout reflow: the
+  // initial settle places ALL nodes (cluster colours just for paint),
+  // and render() gates every node and edge on activeClusters. Toggling
+  // a chip therefore just shows/hides without perturbing positions —
+  // the layout stays exactly where the user left it, which is the
+  // whole reason this graph feels stable.
   $effect(() => {
     activeClusters; // dependency
-    if (activeClustersFirstRun) {
-      activeClustersFirstRun = false;
-      return;
-    }
-    if (!simulation) return;
-    applyFilters();
+    if (!ctx) return;
     render();
   });
 
