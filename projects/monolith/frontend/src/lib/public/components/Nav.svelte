@@ -3,11 +3,29 @@
   let { route = "home" } = $props();
 
   const items = [
-    { slug: "home", label: "HOME", href: "/public" },
-    { slug: "engineering", label: "ENGINEERING", href: "https://jomcgi.dev/engineering/" },
+    { slug: "home", label: "HOME", href: "https://public.jomcgi.dev/public" },
+    { slug: "notes", label: "NOTES", href: "https://private.jomcgi.dev/notes" },
+    {
+      slug: "engineering",
+      label: "ENGINEERING",
+      href: "https://jomcgi.dev/engineering/",
+    },
     { slug: "cv", label: "CV", href: "https://jomcgi.dev/cv/" },
   ];
 </script>
+
+<svelte:head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin="anonymous"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+</svelte:head>
 
 <nav class="md-nav">
   <div class="md-nav-inner">
@@ -26,12 +44,15 @@
 </nav>
 
 <style>
+  /* Nav is shared 1:1 across tiers (public.jomcgi.dev + private.jomcgi.dev).
+     Colours and font are hardcoded — not theme-able — so the component
+     looks identical regardless of which tier's design tokens are loaded. */
   .md-nav {
     position: sticky;
     top: 0;
     z-index: 50;
-    background: var(--paper);
-    border-bottom: 2px solid var(--ink);
+    background: #ffffff;
+    border-bottom: 2px solid #1a1a1a;
   }
 
   .md-nav-inner {
@@ -53,11 +74,12 @@
 
   .md-nav-link {
     padding: 8px 12px;
-    font-family: var(--mono);
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
     font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.1em;
-    color: var(--ink-2);
+    color: #2a2824;
+    text-decoration: none;
     transition: color 160ms ease;
     position: relative;
   }
@@ -69,13 +91,13 @@
     right: 12px;
     bottom: 2px;
     height: 2px;
-    background: var(--coral);
+    background: #ff7169;
     transform: scaleX(0);
     transition: transform 160ms ease;
   }
 
   .md-nav-link:hover {
-    color: var(--ink);
+    color: #1a1a1a;
   }
 
   .md-nav-link:hover::after {
@@ -83,11 +105,11 @@
   }
 
   .md-nav-link.active {
-    color: var(--ink);
+    color: #1a1a1a;
   }
 
   .md-nav-link.active::after {
-    background: var(--ink);
+    background: #1a1a1a;
     transform: scaleX(1);
   }
 

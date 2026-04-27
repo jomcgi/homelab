@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { Nav, Sticker, Marquee, Footer } from "$lib/public/components";
+  import { Sticker, Marquee, Footer } from "$lib/public/components";
   import HomepageTopology from "./HomepageTopology.svelte";
 
   let { data } = $props();
@@ -88,8 +88,7 @@
   />
 </svelte:head>
 
-<!-- ═══ Nav ═══ -->
-<Nav route="home" />
+<!-- Nav is rendered by the root +layout.svelte (shared 1:1 across tiers). -->
 
 <!-- ═══ Top marquee ═══ -->
 <Marquee items={MARQUEE_ITEMS} />

@@ -51,9 +51,8 @@ js_library(
         # Platform-specific native binaries for Linux CI (loaded at runtime via require())
         ":node_modules/@rollup/rollup-linux-x64-gnu",
         ":node_modules/@esbuild/linux-x64",
-        # Shared web kit (tokens + nav) consumed across stacks.
+        # Shared design tokens consumed via @import in lib/global.css.
         "//projects/websites/shared:css",
-        "//projects/websites/shared:nav",
     ],
 )
 
