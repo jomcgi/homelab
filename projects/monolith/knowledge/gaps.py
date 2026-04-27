@@ -298,15 +298,45 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     if inserted or backfilled:
         session.commit()
 
-    if new_items or backfilled or rewrites_applied or rewrites_dryrun:
+    # Phase B: tombstone discardable gaps whose source links are gone.
+    #
+    # A Gap row whose note_id is NOT in this cycle's slug_refs has zero
+    # inbound wikilinks (note_links was authoritative for slug_refs above).
+    # When such a gap's stub is marked triaged: discardable, the user has
+    # said "this concept is closed — clean it up." Delete the row and the
+    # stub together. Stubs marked keep / unmarked are preserved: a missing
+    # stub or a non-discardable marker means we never tombstone, so an
+    # orphan gap row from a deleted source note doesn't get blown away
+    # unintentionally — only user-triaged-discardable gaps reach this branch.
+    present_slugs = set(slug_refs.keys())
+    tombstoned = 0
+    for gap in all_gaps:
+        if not gap.note_id or gap.note_id in present_slugs:
+            continue
+        stub_for_gap = stub_dir / f"{gap.note_id}.md"
+        if not is_discardable(stub_for_gap):
+            continue
+        session.delete(gap)
+        try:
+            stub_for_gap.unlink()
+        except FileNotFoundError:
+            pass  # idempotent — already gone
+        tombstoned += 1
+
+    if tombstoned:
+        session.commit()
+
+    if new_items or backfilled or rewrites_applied or rewrites_dryrun or tombstoned:
         logger.info(
             "gaps.discover_gaps: inserted=%d backfilled_note_id=%d "
-            "stubs_written=%d rewrites_applied=%d rewrites_dryrun=%d",
+            "stubs_written=%d rewrites_applied=%d rewrites_dryrun=%d "
+            "tombstoned=%d",
             inserted,
             backfilled,
             stubs_written,
             rewrites_applied,
             rewrites_dryrun,
+            tombstoned,
         )
     return new_items
 
