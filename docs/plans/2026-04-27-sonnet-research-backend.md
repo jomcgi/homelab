@@ -7,7 +7,7 @@
 **Architecture:**
 
 - Single `claude --print --output-format stream-json --model sonnet --allowedTools "Read,Glob,Grep,WebSearch,WebFetch" -p <prompt>` subprocess, `cwd=vault_root` so Read/Glob/Grep are scoped to the user's notes (matches `gardener.py` pattern).
-- Sonnet emits a JSON `ResearchNote` with claims that include `source_refs` (URLs or `vault:<path>`).
+- Sonnet first **triages** the gap (research / personal / discard), then conditionally produces a `ResearchNote` with claims that include `source_refs` (URLs or `vault:<path>`). See "Plan amendment" below for the disposition trichotomy and per-disposition handler routing.
 - Harness parses the stream-json transcript to extract the audit trail of tool calls Sonnet _actually_ invoked, then drops any claim whose `source_refs` aren't in the audit trail. No second LLM call.
 - `research_validator.py` and `research_tools.py` are **deleted**, not refactored.
 - Frontmatter field renamed `qwen_model`/`sonnet_model` → `agent_model: sonnet`.
@@ -23,6 +23,47 @@
 Worktree already cut at `/tmp/claude-worktrees/sonnet-research-backend` from `origin/main`. Branch: `feat/sonnet-research-backend`.
 
 All file paths below are relative to that worktree root. **Never `cd ~/repos/homelab` during execution** — it auto-fetches and is for reads only.
+
+---
+
+## Plan amendment 2026-04-27: triage step inside the Sonnet researcher
+
+After Task 1 landed, we agreed to add a first-pass triage inside the Sonnet subprocess. Rationale: the upstream `gap_classifier.py` only sees a stub's frontmatter (id, title, referenced_by) when it classifies, while the new researcher has full Read/Glob/Grep access to the vault — so it can catch upstream mis-classifications and skip wasted research runs. This refinement lands in Tasks 2/4/6; Tasks 1, 3, 5, 7, 8 are unchanged.
+
+### Disposition trichotomy
+
+Sonnet emits a top-level `disposition` before any claim work:
+
+```json
+{
+  "disposition": "research" | "personal" | "discard",
+  "reason": "<one sentence>",
+  "summary": "...",        // only when disposition == "research"
+  "claims": [...]           // only when disposition == "research"
+}
+```
+
+### Per-disposition handler routing
+
+| Disposition | Meaning                                                       | Handler action                                                                                                                                                                                                                                       |
+| ----------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `research`  | External-researchable; here are the claims                    | Run mechanical citation filter against audit trail. If 0 surviving claims → quarantine path (existing). Else write `_inbox/research/<slug>.md` and set `gap.state = "committed"`.                                                                    |
+| `personal`  | Sonnet found this is actually personal / only Joe can resolve | Set `gap.gap_class = "internal"`, `gap.state = "classified"`. **No vault file written.** The flipped `gap_class` is the marker — existing internal-gap workflow surfaces it. `research_attempts` NOT bumped (this isn't a research-budget consumer). |
+| `discard`   | Irrelevant / typo / already-defined / not worth researching   | Set `gap.gap_class = "parked"`, `gap.state = "parked"`. **No vault file written.** Reconciler / tombstoning process handles cleanup. Terminal — does NOT consume one of the 3 retry attempts.                                                        |
+
+### Decisions locked
+
+1. **`personal` → `gap_class = internal`** (reuse existing type; no new state machine value).
+2. **`discard` → state-only update** (no quarantine file, no forensic marker; reconciler tombstones it via the existing process).
+3. **`discard` is terminal** (does not increment `research_attempts`; the 3-strikes-and-park budget is reserved for citation-failure quarantines from the `research` path).
+
+### Tasks affected
+
+- **Task 2 (research_agent rewrite):** prompt gains a triage section; output JSON gains `disposition` and `reason`; `run_research` returns `(disposition, note, sources, reason)` (or a wrapper dataclass). Tests cover all three dispositions plus the citation-filter case.
+- **Task 4 (research_handler):** routes on `disposition` first. The `research` branch is what was already in the plan; `personal` and `discard` are new state-update branches.
+- **Task 6 (e2e test):** three end-to-end paths instead of two.
+
+Tasks 3 (writer), 5 (deletes), 7 (TTL comment), 8 (PR) are unchanged.
 
 ---
 
