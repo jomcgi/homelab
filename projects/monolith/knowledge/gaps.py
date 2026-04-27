@@ -295,6 +295,12 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
         if row_inserted or stub_newly_written:
             new_items += 1
 
+    # Snapshot (gap, note_id) pairs BEFORE the commit. SQLAlchemy's
+    # expire_on_commit=True default would otherwise expire every Gap
+    # instance in `all_gaps`, turning the Phase B loop's note_id reads
+    # into N round-trip SELECTs.
+    gap_candidates = [(g, g.note_id) for g in all_gaps if g.note_id]
+
     if inserted or backfilled:
         session.commit()
 
@@ -310,10 +316,10 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     # unintentionally — only user-triaged-discardable gaps reach this branch.
     present_slugs = set(slug_refs.keys())
     tombstoned = 0
-    for gap in all_gaps:
-        if not gap.note_id or gap.note_id in present_slugs:
+    for gap, gap_note_id in gap_candidates:
+        if gap_note_id in present_slugs:
             continue
-        stub_for_gap = stub_dir / f"{gap.note_id}.md"
+        stub_for_gap = stub_dir / f"{gap_note_id}.md"
         if not is_discardable(stub_for_gap):
             continue
         session.delete(gap)
