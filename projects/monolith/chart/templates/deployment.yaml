@@ -102,6 +102,10 @@ spec:
             {{- if .Values.knowledge.enabled }}
             - name: VAULT_ROOT
               value: {{ .Values.knowledge.vault.mountPath }}
+            {{- if .Values.knowledge.gaps.rewriteDiscardable }}
+            - name: KNOWLEDGE_GAPS_REWRITE_DISCARDABLE
+              value: "1"
+            {{- end }}
             {{- if .Values.knowledge.gitRemote }}
             - name: VAULT_GIT_REMOTE
               value: {{ .Values.knowledge.gitRemote | quote }}
