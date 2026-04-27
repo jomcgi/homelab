@@ -109,7 +109,9 @@ async def _query_cluster_counts() -> dict:
                 }
             )
         else:
-            logger.warning("Node resource aggregation failed: %s", resources)
+            logger.warning(
+                "Node resource aggregation failed: %s", resources, exc_info=resources
+            )
         return result
     finally:
         await k8s.close()
