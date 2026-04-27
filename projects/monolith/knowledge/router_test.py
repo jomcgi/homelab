@@ -517,7 +517,7 @@ class TestReviewQueueEndpoint:
             r = note_client.get("/api/knowledge/gaps/review-queue")
 
         assert r.status_code == 200
-        terms = [g["term"] for g in r.json()["gaps"]]
+        terms = [g["term"] for g in r.json().get("gaps", [])]
         assert terms == ["alpha", "beta"]
 
 
@@ -633,3 +633,126 @@ class TestAnswerGapEndpoint:
             )
 
         assert r.json().get("detail") == msg
+
+
+# ---------------------------------------------------------------------------
+# Graph endpoint tests
+# ---------------------------------------------------------------------------
+#
+# Unlike the search/notes/gap tests above (which mock KnowledgeStore), the
+# /graph endpoint is exercised end-to-end against a real in-memory SQLite
+# session — we want to assert that the actual graph payload (nodes + edges)
+# threads through to the response. The _meta/_upsert helpers below mirror
+# the equivalents in store_test.py (we don't import them across test files
+# because Bazel's per-test py_test targets exclude sibling *_test.py srcs).
+
+from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
+from sqlmodel.pool import StaticPool  # noqa: E402
+
+from knowledge.frontmatter import ParsedFrontmatter  # noqa: E402
+from knowledge.links import Link  # noqa: E402
+from knowledge.store import KnowledgeStore  # noqa: E402
+
+
+def _meta(**kw):
+    return ParsedFrontmatter(**kw)
+
+
+def _chunks(n):
+    return [
+        {"index": i, "section_header": f"H{i}", "text": f"chunk {i}"} for i in range(n)
+    ]
+
+
+def _vecs(n):
+    return [[float(i)] * 1024 for i in range(n)]
+
+
+def _upsert(
+    store,
+    *,
+    note_id="a-id",
+    path="a.md",
+    content_hash="h1",
+    title="A",
+    metadata=None,
+    n_chunks=1,
+    links=None,
+):
+    metadata = metadata or _meta(title=title)
+    store.upsert_note(
+        note_id=note_id,
+        path=path,
+        content_hash=content_hash,
+        title=title,
+        metadata=metadata,
+        chunks=_chunks(n_chunks),
+        vectors=_vecs(n_chunks),
+        links=links or [],
+    )
+
+
+@pytest.fixture()
+def real_session():
+    """Real in-memory SQLite session — mirrors store_test.py's session fixture."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    original_schemas = {}
+    for table in SQLModel.metadata.tables.values():
+        if table.schema is not None:
+            original_schemas[table.name] = table.schema
+            table.schema = None
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session
+    for table in SQLModel.metadata.tables.values():
+        if table.name in original_schemas:
+            table.schema = original_schemas[table.name]
+
+
+class TestGraphEndpoint:
+    """Tests for GET /api/knowledge/graph."""
+
+    def test_graph_endpoint_returns_nodes_edges_and_cache_header(self, real_session):
+        store = KnowledgeStore(real_session)
+        # Seed two atom notes with a body wikilink from id-a -> id-b.
+        _upsert(
+            store,
+            note_id="id-a",
+            path="a.md",
+            content_hash="h-a",
+            title="A",
+            metadata=_meta(title="A", type="atom"),
+            links=[Link(target="id-b", display=None)],
+        )
+        _upsert(
+            store,
+            note_id="id-b",
+            path="b.md",
+            content_hash="h-b",
+            title="B",
+            metadata=_meta(title="B", type="atom"),
+        )
+
+        app.dependency_overrides[get_session] = lambda: real_session
+        try:
+            c = TestClient(app, raise_server_exceptions=False)
+            response = c.get("/api/knowledge/graph")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert {n["id"] for n in body["nodes"]} == {"id-a", "id-b"}
+        assert len(body["edges"]) == 1
+        assert body["edges"][0]["source"] == "id-a"
+        assert body["edges"][0]["target"] == "id-b"
+
+        cache_control = response.headers["cache-control"]
+        assert "public" in cache_control
+        assert "s-maxage=" in cache_control
+        assert "stale-while-revalidate=" in cache_control
+        assert "stale-if-error=" in cache_control

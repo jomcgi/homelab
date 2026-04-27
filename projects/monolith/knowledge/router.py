@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -78,6 +78,25 @@ async def search_knowledge(
         type_filter=type,
     )
     return {"results": results}
+
+
+_GRAPH_CACHE_CONTROL = (
+    "public, s-maxage=60, stale-while-revalidate=86400, stale-if-error=31536000"
+)
+
+
+@router.get("/graph")
+def get_graph(
+    response: Response,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Return the full knowledge graph for the /notes visualisation.
+
+    Heavily CDN-cached: the gardener mutates the graph on a schedule, so
+    60s freshness with 24h SWR is generous and saves repeated DB hits.
+    """
+    response.headers["Cache-Control"] = _GRAPH_CACHE_CONTROL
+    return KnowledgeStore(session).get_graph()
 
 
 @router.get("/notes/{note_id}")
