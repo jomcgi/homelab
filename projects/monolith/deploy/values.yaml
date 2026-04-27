@@ -5,10 +5,10 @@ backend:
   otelEndpoint: "http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318/v1/traces"
   resources:
     requests:
-      memory: "256Mi"
+      memory: "3Gi"
       cpu: "10m"
     limits:
-      memory: "512Mi"
+      memory: "3Gi"
 
 frontend:
   otelCollectorUrl: "http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318"
