@@ -383,38 +383,12 @@ import '../styling/global.css';
             opacity: 0.6;
         }
     </style>
-    <script is:inline>
-        // Dark mode: check localStorage first, then system preference
-        (function() {
-            const stored = localStorage.getItem('darkMode');
-            if (stored === 'true') {
-                document.documentElement.classList.add('dark-pending');
-            } else if (stored === 'false') {
-                // Explicitly light mode
-            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                document.documentElement.classList.add('dark-pending');
-            }
-        })();
-    </script>
 </head>
 <body>
-    <script is:inline>
-        // Apply dark mode immediately to avoid flash
-        if (document.documentElement.classList.contains('dark-pending')) {
-            document.body.classList.add('dark');
-            document.documentElement.classList.remove('dark-pending');
-        }
-
-        window.toggleDarkMode = function() {
-            document.body.classList.toggle('dark');
-            localStorage.setItem('darkMode', document.body.classList.contains('dark'));
-        };
-    </script>
     <div class="container">
         <header>
             <div class="identity-header">
                 <span>Identity</span>
-                <button class="toggle-btn" onclick="toggleDarkMode()">INVERT</button>
             </div>
             <div class="identity-content">
                 <h1>Joe McGinley</h1>
