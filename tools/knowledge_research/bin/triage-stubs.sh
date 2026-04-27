@@ -114,6 +114,7 @@ echo "Batch size: $BATCH_SIZE"
 echo "Report path: $report_path"
 echo
 
+# nosemgrep: bazel.semgrep.rules.shell.claude-print-missing-permission-mode -- --permission-mode is on the next line; the rule doesn't follow `\`-continuations.
 claude --print \
 	--model claude-opus-4-7 \
 	--permission-mode acceptEdits \
@@ -184,12 +185,13 @@ mark_section() {
 # don't get re-triaged, and research-gap.sh can pick them up.
 marked_keep=$(mark_section keep "Valid (external|internal)")
 
-# `triaged: discardable` for stubs the user can clean up at any time.
-# Marking instead of deleting prevents the gap-detector from re-creating
-# them (the classifier doesn't check aliases on canonical atoms, so a
-# deleted stub gets regenerated on the next gap-detection cycle). The
-# marker is invisible to gap-detector (which is create-if-not-exists)
-# and to the wrapper's eligibility loop.
+# `triaged: discardable` instructs the gardener to close out the gap.
+# When KNOWLEDGE_GAPS_REWRITE_DISCARDABLE is on, discover_gaps detects
+# this marker, rewrites every [[X]] -> bare text in source notes that
+# linked to it, then tombstones the gap row + stub once no references
+# remain. Convergence takes two discover_gaps cycles after the marker
+# lands: cycle one rewrites, the reconciler picks up the hash change
+# and rebuilds note_links, cycle two tombstones.
 marked_discardable=0
 for section in "Already covered" "Garbage" "Misclassified"; do
 	count=$(mark_section discardable "$section")
