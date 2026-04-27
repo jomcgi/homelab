@@ -31,6 +31,7 @@ Design notes:
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -40,6 +41,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from knowledge.gap_stubs import RESEARCHING_DIR, write_stub
+from knowledge.gap_unlinkify import is_discardable, unlinkify_if_changed
 from knowledge.gardener import _slugify
 from knowledge.models import Gap, Note, NoteLink
 
@@ -69,6 +71,55 @@ _USER_REVIEW_CLASSES = {"internal", "hybrid"}
 
 # Valid classifier outputs — mirrors the CHECK constraint on gaps.gap_class.
 _VALID_GAP_CLASSES = frozenset({"external", "internal", "hybrid", "parked"})
+
+
+def _rewrite_sources(
+    session: Session,
+    vault_root: Path,
+    slug: str,
+    source_note_ids: list[str],
+    *,
+    dry_run: bool,
+) -> int:
+    """Rewrite ``[[X]]`` -> bare text in every source note whose body links to ``slug``.
+
+    Looks up each source note's on-disk path via ``Note.path``, runs
+    :func:`unlinkify_if_changed` against the body, and writes back unless
+    ``dry_run`` is True. Returns the count of notes whose bodies would
+    change (or did change). FileNotFound / OSError on any individual
+    file is logged and skipped — the loop must not abort because one
+    source note got renamed or moved.
+    """
+    rows = session.execute(
+        select(Note.note_id, Note.path).where(Note.note_id.in_(source_note_ids))
+    ).all()
+    touched = 0
+    for _note_id, rel_path in rows:
+        abs_path = vault_root / rel_path
+        try:
+            body = abs_path.read_text()
+        except (FileNotFoundError, OSError):
+            logger.warning(
+                "gaps._rewrite_sources: could not read %s for slug=%s",
+                abs_path,
+                slug,
+            )
+            continue
+        new_body = unlinkify_if_changed(body, {slug})
+        if new_body is None:
+            continue
+        touched += 1
+        if not dry_run:
+            try:
+                abs_path.write_text(new_body)
+            except OSError:
+                logger.warning(
+                    "gaps._rewrite_sources: write failed for %s slug=%s",
+                    abs_path,
+                    slug,
+                )
+                touched -= 1  # don't claim a write that didn't happen
+    return touched
 
 
 def discover_gaps(session: Session, vault_root: Path) -> int:
@@ -164,11 +215,36 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     stubs_written = 0
     backfilled = 0
     new_items = 0
+    rewrite_enabled = os.environ.get(
+        "KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", ""
+    ).lower() in {"1", "true", "yes"}
+    rewrites_applied = 0
+    rewrites_dryrun = 0
 
     for slug, refs in slug_refs.items():
         canonical_term = slug_canonical_term[slug]
         refs_sorted = sorted(refs)
         row_inserted = False
+
+        # Phase A: when the stub for this slug has triaged: discardable, the
+        # user has explicitly said "this isn't a gap worth tracking — strip
+        # the wikilinks from source bodies and stop refreshing the stub."
+        # Behind a feature flag while the behaviour bakes; default off is a
+        # dry-run that just logs how many notes WOULD be rewritten.
+        stub_path = stub_dir / f"{slug}.md"
+        if is_discardable(stub_path) and refs_sorted:
+            touched = _rewrite_sources(
+                session,
+                vault_root,
+                slug,
+                refs_sorted,
+                dry_run=not rewrite_enabled,
+            )
+            if rewrite_enabled:
+                rewrites_applied += touched
+            else:
+                rewrites_dryrun += touched
+            continue  # Skip upsert + write_stub for discardable stubs.
 
         existing = existing_by_note_id.get(slug)
         if existing is None:
@@ -199,7 +275,7 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
 
         # Stub write is unconditional — write_stub is idempotent. Track whether
         # a new stub was actually written so we can surface healing work.
-        stub_path = stub_dir / f"{slug}.md"
+        # ``stub_path`` was set above before the discardable short-circuit.
         stub_existed = stub_path.exists()
         write_stub(
             vault_root=vault_root,
@@ -222,12 +298,15 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
     if inserted or backfilled:
         session.commit()
 
-    if new_items or backfilled:
+    if new_items or backfilled or rewrites_applied or rewrites_dryrun:
         logger.info(
-            "gaps.discover_gaps: inserted=%d backfilled_note_id=%d stubs_written=%d",
+            "gaps.discover_gaps: inserted=%d backfilled_note_id=%d "
+            "stubs_written=%d rewrites_applied=%d rewrites_dryrun=%d",
             inserted,
             backfilled,
             stubs_written,
+            rewrites_applied,
+            rewrites_dryrun,
         )
     return new_items
 
