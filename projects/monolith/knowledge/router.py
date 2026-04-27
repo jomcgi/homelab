@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
 from typing import Literal
@@ -87,15 +88,29 @@ _GRAPH_CACHE_CONTROL = (
 )
 
 
-def _graph_etag(graph: dict) -> str:
+def _as_utc(value: datetime | None) -> datetime | None:
+    """Coerce a datetime to tz-aware UTC.
+
+    Postgres returns tz-aware values; SQLite (used in tests) can return
+    naive ones even though we always write tz-aware UTC. Treat naive
+    datetimes as UTC so downstream formatters and ETag stamps are stable
+    across both backends.
+    """
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _graph_etag(node_count: int, indexed_at: datetime | None) -> str:
     """Stable ETag for a graph payload.
 
     Combines max(indexed_at) with node count so deletions invalidate even
     when the surviving notes' timestamps don't move.
     """
-    indexed_at = graph.get("indexed_at")
     stamp = indexed_at.isoformat() if indexed_at is not None else "null"
-    return f'"{stamp}-{len(graph["nodes"])}"'
+    return f'"{stamp}-{node_count}"'
 
 
 @router.get("/graph")
@@ -111,9 +126,9 @@ def get_graph(
     Conditional GETs short-circuit with 304 via ETag/Last-Modified.
     """
     graph = KnowledgeStore(session).get_graph()
-    etag = _graph_etag(graph)
+    indexed_at = _as_utc(graph.get("indexed_at"))
+    etag = _graph_etag(len(graph["nodes"]), indexed_at)
     headers = {"Cache-Control": _GRAPH_CACHE_CONTROL, "ETag": etag}
-    indexed_at = graph.get("indexed_at")
     if indexed_at is not None:
         headers["Last-Modified"] = format_datetime(indexed_at, usegmt=True)
 
