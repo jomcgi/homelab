@@ -6,7 +6,7 @@
   // surface — search box, legend, side panel, and status bar live in
   // sibling components and drive this one via props/events.
 
-  import { onMount, onDestroy, createEventDispatcher } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import {
     forceSimulation,
     forceLink,
@@ -38,9 +38,10 @@
     selectedId = null,
     searchTerm = "",
     activeClusters = new Set(),
+    onNodeClick = () => {},
+    onNodeHover = () => {},
+    onZoom = () => {},
   } = $props();
-
-  const dispatch = createEventDispatcher();
 
   // Force-sim tuning lifted from the prototype.
   const CFG = {
@@ -542,8 +543,7 @@
       if (n !== hovered) {
         hovered = n;
         overNode = !!n;
-        dispatch(
-          "nodeHover",
+        onNodeHover(
           n ? { id: n.id, title: n.title } : { id: null, title: null },
         );
         render();
@@ -554,9 +554,9 @@
   function handleMouseUp(e) {
     if (mouseDownAt && !didMove) {
       if (mouseDownAt.node) {
-        dispatch("nodeClick", { id: mouseDownAt.node.id });
+        onNodeClick({ id: mouseDownAt.node.id });
       } else if (e.target === canvas) {
-        dispatch("nodeClick", { id: null });
+        onNodeClick({ id: null });
       }
     }
     mouseDownAt = null;
@@ -567,7 +567,7 @@
     if (hovered) {
       hovered = null;
       overNode = false;
-      dispatch("nodeHover", { id: null, title: null });
+      onNodeHover({ id: null, title: null });
       render();
     }
   }
@@ -626,7 +626,7 @@
       })
       .on("zoom", (e) => {
         transform = e.transform;
-        dispatch("zoom", transform.k);
+        onZoom(transform.k);
         if (e.sourceEvent && e.sourceEvent.type === "mousemove") {
           panning = true;
         }
