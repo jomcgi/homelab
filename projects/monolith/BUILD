@@ -1955,11 +1955,8 @@ py_test(
     imports = ["."],
     deps = [
         ":monolith_backend",
-        "@pip//pgvector",
-        "@pip//pydantic_ai_slim",
         "@pip//pytest",
         "@pip//pytest_asyncio",
-        "@pip//sqlmodel",
     ],
 )
 
