@@ -61,6 +61,12 @@ clickhouse:
 knowledge:
   enabled: false
   gitRemote: ""
+  gaps:
+    # When true, the gardener rewrites [[X]] -> bare text in source notes
+    # whose stub is marked `triaged: discardable`, then tombstones the gap
+    # row + stub once no references remain. Off by default — opt-in per
+    # cluster.
+    rewriteDiscardable: false
   headlessSync:
     image:
       repository: ghcr.io/jomcgi/homelab/projects/monolith/obsidian-image
