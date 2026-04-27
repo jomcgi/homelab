@@ -248,6 +248,42 @@ async def test_research_disposition_all_claims_dropped_yields_empty_claims(
 
 
 @pytest.mark.asyncio
+async def test_raw_claims_preserved_for_quarantine_forensics(tmp_path: Path) -> None:
+    """When the citation filter drops all claims, raw_claims still carries
+    the pre-filter list so the quarantine writer can record what Sonnet
+    tried to say."""
+    transcript = _stream_json(
+        _tool_use("t1", "WebSearch", query="foo"),  # search only; no fetches
+        _tool_result("t1"),
+        _final_text(
+            json.dumps(
+                {
+                    "disposition": "research",
+                    "reason": "publicly-researchable",
+                    "summary": "x",
+                    "claims": [
+                        {"text": "would-be claim 1", "source_refs": ["https://h1"]},
+                        {"text": "would-be claim 2", "source_refs": ["https://h2"]},
+                    ],
+                }
+            )
+        ),
+    )
+    proc = _make_proc(transcript)
+
+    with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=proc)):
+        result = await run_research(term="foo", vault_root=tmp_path)
+
+    assert result.disposition == "research"
+    assert result.note is not None
+    assert result.note.claims == []  # all dropped by mech filter
+    assert [c.text for c in result.raw_claims] == [
+        "would-be claim 1",
+        "would-be claim 2",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_personal_disposition(tmp_path: Path) -> None:
     transcript = _stream_json(
         _tool_use("t1", "Glob", pattern="**/*.md"),

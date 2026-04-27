@@ -150,11 +150,17 @@ class ResearchResult:
     ``note`` is populated only when ``disposition == "research"``. The
     handler routes on ``disposition`` -- the ``personal`` / ``discard``
     branches don't read ``note`` at all.
+
+    ``raw_claims`` is Sonnet's emitted claims **before** the mechanical
+    citation filter, populated only for ``disposition == "research"``.
+    The handler uses it for quarantine forensics: when ``note.claims``
+    is empty post-filter, ``raw_claims`` shows what Sonnet tried to say.
     """
 
     disposition: Disposition
     reason: str
     note: ResearchNote | None = None
+    raw_claims: tuple[Claim, ...] = ()
     sources: tuple[SourceEntry, ...] = ()
 
 
@@ -250,6 +256,7 @@ async def run_research(
         disposition="research",
         reason=reason,
         note=note_post,
+        raw_claims=tuple(note_pre.claims),
         sources=sources,
     )
 

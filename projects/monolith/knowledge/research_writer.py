@@ -1,8 +1,9 @@
 """Vault writers for research raws and failed-research quarantine files.
 
-Both writers produce idempotent, byte-stable markdown with YAML frontmatter
-suitable for raw_ingest pickup. The schema of the frontmatter is the
-ground-truth provenance for every atom that gets committed downstream.
+Both writers produce idempotent, byte-stable markdown with YAML
+frontmatter suitable for raw_ingest pickup. The schema of the
+frontmatter is the ground-truth provenance for every atom that gets
+committed downstream.
 """
 
 from __future__ import annotations
@@ -13,11 +14,10 @@ from typing import Any
 
 import yaml
 
-from knowledge.research_agent import PIPELINE_VERSION, ResearchNote, SourceEntry
-from knowledge.research_validator import (
-    VALIDATOR_VERSION,
-    ValidatedClaim,
-    ValidatedResearch,
+from knowledge.research_agent import (
+    PIPELINE_VERSION,
+    Claim,
+    SourceEntry,
 )
 
 INBOX_RESEARCH_DIR = "_inbox/research"
@@ -25,7 +25,12 @@ FAILED_RESEARCH_DIR = "_failed_research"
 
 
 def _source_to_fm(s: SourceEntry) -> dict[str, Any]:
-    """Serialize a SourceEntry to a frontmatter-friendly dict, omitting Nones."""
+    """Serialize a SourceEntry to a frontmatter-friendly dict.
+
+    Drops empty / None values so frontmatter stays tight; today both
+    fields are always populated, but kept defensive for future shape
+    extensions.
+    """
     return {k: v for k, v in asdict(s).items() if v not in (None, [], "")}
 
 
@@ -39,14 +44,16 @@ def write_research_raw(
     slug: str,
     title: str,
     summary: str,
-    supported_claims: list[ValidatedClaim],
+    supported_claims: list[Claim],
     sources: list[SourceEntry],
-    claims_dropped: int,
-    qwen_model: str,
-    sonnet_model: str,
+    agent_model: str,
     researched_at: str,
 ) -> Path:
-    """Write the validated research raw to ``_inbox/research/<slug>.md``."""
+    """Write the post-filter research raw to ``_inbox/research/<slug>.md``.
+
+    ``supported_claims`` is the post-filter claim list -- every claim
+    has at least one source_ref that the agent actually retrieved.
+    """
     out_dir = vault_root / INBOX_RESEARCH_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{slug}.md"
@@ -56,31 +63,21 @@ def write_research_raw(
         "id": slug,
         "title": f"Research note: {title}",
         "derived_from_gap": slug,
-        "qwen_model": qwen_model,
-        "sonnet_model": sonnet_model,
-        "validator_version": VALIDATOR_VERSION,
+        "agent_model": agent_model,
         "pipeline_version": PIPELINE_VERSION,
         "researched_at": researched_at,
         "sources": [_source_to_fm(s) for s in sources],
         "claims_supported": len(supported_claims),
-        "claims_dropped": claims_dropped,
     }
 
-    body_lines = [
-        f"## Summary\n\n{summary}\n",
-        "## Supported claims",
-    ]
+    body_lines = [f"## Summary\n\n{summary}\n", "## Supported claims"]
     for c in supported_claims:
-        body_lines.append(f"- {c.text} _[{c.reason}]_")
+        refs = ", ".join(c.source_refs)
+        body_lines.append(f"- {c.text} _[{refs}]_")
     body_lines.append("")
     body_lines.append("## Sources")
     for s in sources:
-        if s.tool == "web_fetch" and s.url:
-            body_lines.append(f"- web_fetch: {s.url}")
-        elif s.tool == "search_knowledge":
-            body_lines.append(f"- search_knowledge: {s.query} → {s.note_ids}")
-        elif s.tool == "web_search":
-            body_lines.append(f"- web_search: {s.query} → {s.result_urls}")
+        body_lines.append(f"- {s.tool}: {s.ref}")
 
     body = "\n".join(body_lines) + "\n"
     out_path.write_text(f"---\n{_yaml_dump(fm)}---\n\n{body}")
@@ -92,14 +89,19 @@ def quarantine(
     vault_root: Path,
     slug: str,
     attempt: int,
-    draft_note: ResearchNote,
-    validated: ValidatedResearch,
+    summary: str,
+    pre_filter_claims: list[Claim],
     sources: list[SourceEntry],
-    qwen_model: str,
-    sonnet_model: str,
+    agent_model: str,
     researched_at: str,
 ) -> Path:
-    """Write a fully-rejected research draft to ``_failed_research/<slug>-<N>.md``."""
+    """Write a fully-rejected research draft to ``_failed_research/<slug>-<N>.md``.
+
+    A draft is "rejected" when the post-filter claim list is empty -- i.e.
+    every claim cited a source the agent didn't actually retrieve. The
+    pre-filter claims are persisted for forensics so we can see what
+    Sonnet *tried* to say even though the citations didn't check out.
+    """
     out_dir = vault_root / FAILED_RESEARCH_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{slug}-{attempt}.md"
@@ -109,18 +111,11 @@ def quarantine(
         "id": f"{slug}-{attempt}",
         "derived_from_gap": slug,
         "attempt": attempt,
-        "qwen_model": qwen_model,
-        "sonnet_model": sonnet_model,
-        "validator_version": VALIDATOR_VERSION,
+        "agent_model": agent_model,
         "pipeline_version": PIPELINE_VERSION,
         "researched_at": researched_at,
-        "sonnet_reasons": [
-            {"claim": c.text, "verdict": c.verdict, "reason": c.reason}
-            for c in validated.claims
-        ],
-        "parse_error": validated.parse_error,
-        "timed_out": validated.timed_out,
         "sources_attempted": [_source_to_fm(s) for s in sources],
+        "claims_emitted": len(pre_filter_claims),
     }
 
     body_lines = [
@@ -128,12 +123,13 @@ def quarantine(
         "",
         "## Summary",
         "",
-        draft_note.summary,
+        summary,
         "",
-        "## Claims (Qwen)",
+        "## Claims (pre-filter)",
     ]
-    for c in draft_note.claims:
-        body_lines.append(f"- {c.text}")
+    for c in pre_filter_claims:
+        refs = ", ".join(c.source_refs) if c.source_refs else "(no refs)"
+        body_lines.append(f"- {c.text} _[{refs}]_")
     body = "\n".join(body_lines) + "\n"
     out_path.write_text(f"---\n{_yaml_dump(fm)}---\n\n{body}")
     return out_path
