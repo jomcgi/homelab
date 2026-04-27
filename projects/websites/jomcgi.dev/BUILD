@@ -31,10 +31,7 @@ vite_build(
         "package.json",
         "tailwind.config.mjs",
     ],
-    bazel_deps = [
-        "//projects/websites/shared:css",
-        "//projects/websites/shared:nav",
-    ],
+    bazel_deps = ["//projects/websites/shared:css"],
     config = "astro.config.mjs",
     tool = ":astro",
     visibility = ["//visibility:public"],

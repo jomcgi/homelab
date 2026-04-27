@@ -45,3 +45,11 @@
   --border-heavy: 2px solid var(--fg);
   --border-thin: 1px solid var(--fg);
 }
+
+body.dark {
+  --bg: #000;
+  --fg: #fff;
+  --border: #fff;
+  --accent: #00aaff;
+  --muted: #888;
+}
