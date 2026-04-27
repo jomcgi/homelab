@@ -3,6 +3,14 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [sveltekit()],
+  resolve: {
+    // Svelte 5's package.json `exports` uses `browser` for the client
+    // bundle and `default` for the server. If `browser` isn't in the
+    // resolved conditions, you get `index-server.js` on the client —
+    // onMount becomes a noop and onDestroy crashes accessing
+    // ssr_context.r. Pinning the conditions explicitly avoids that.
+    conditions: ["browser", "module", "import", "default"],
+  },
   build: {
     target: "es2022",
   },

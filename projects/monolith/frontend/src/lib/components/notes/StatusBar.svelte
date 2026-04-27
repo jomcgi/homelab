@@ -23,12 +23,13 @@
 <div class="statusbar">
   <div class="statusbar-track">
     <span class="stat">~/KG</span>
-    <span class="stat"><strong>{nodeCount}</strong> NOTES</span>
-    <span class="stat"><strong>{edgeCount}</strong> LINKS</span>
+    <span class="stat"><strong>{nodeCount.toLocaleString()}</strong> NOTES</span>
+    <span class="stat"><strong>{edgeCount.toLocaleString()}</strong> LINKS</span>
     <span class="stat"><strong>{clusterCount}</strong> CLUSTERS</span>
     <span class="stat">ZOOM <strong>{zoom.toFixed(2)}</strong>×</span>
     <span class="stat">HOVER <strong>{hoverTitle}</strong></span>
     <span class="stat">LAST INDEX <strong>{formatAgo(indexedAt)}</strong></span>
+    <span class="stat">~/KG</span>
   </div>
 </div>
 
@@ -36,18 +37,19 @@
   .statusbar {
     position: relative;
     height: 32px;
-    background: var(--bg);
-    border-bottom: var(--border-heavy);
+    background: #f5d90a;
+    border-bottom: 1.5px solid #141414;
     overflow: hidden;
     z-index: 4;
-    font-family: var(--font-mono);
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+    color: #141414;
   }
   .statusbar-track {
     display: flex;
     align-items: center;
     height: 100%;
     white-space: nowrap;
-    padding: 0 var(--space-md);
+    padding: 0 24px;
     gap: 32px;
     font-size: 11px;
     letter-spacing: 0.06em;
@@ -61,7 +63,7 @@
     content: "";
     width: 5px;
     height: 5px;
-    background: var(--fg);
+    background: #141414;
     border-radius: 50%;
     display: inline-block;
     margin-right: 4px;

@@ -6,7 +6,7 @@
   // surface — search box, legend, side panel, and status bar live in
   // sibling components and drive this one via props/events.
 
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
   import {
     forceSimulation,
     forceLink,
@@ -46,10 +46,10 @@
   // Force-sim tuning lifted from the prototype.
   const CFG = {
     linkDistance: 26,
-    charge: -34,
+    charge: -50,
     collidePad: 1.8,
-    baseRadius: 3.2,
-    hubBoost: 0.55,
+    baseRadius: 2.8,
+    hubBoost: 0.5,
     edgeOpacity: 0.16,
     edgeOpacityActive: 0.85,
     labelMinZoom: 1.2,
@@ -91,6 +91,16 @@
   let hovered = $state(null);
   let panning = $state(false);
   let overNode = $state(false);
+  // Last drawn label rectangles, kept around so findNode() can hit-test
+  // against them. Labels are painted directly to canvas, so without
+  // this lookup users can't click the label to navigate (only the
+  // tiny coloured dot itself).
+  let placedLabels = [];
+  // Layout-calculation overlay state. The chrome (status bar / search /
+  // legend / nav) renders immediately on mount; the canvas is hidden
+  // behind a "stabilising graph…" badge until pre-ticks finish in the
+  // background — so the user never stares at a frozen page.
+  let settling = $state(true);
 
   let mouseDownAt = null;
   let didMove = false;
@@ -98,18 +108,10 @@
   // ───────────────────────── helpers ─────────────────────────
 
   function resolveColors() {
-    const styles = getComputedStyle(document.documentElement);
-    const out = {};
-    for (const [type, varRef] of Object.entries(CLUSTER_COLORS)) {
-      // varRef looks like 'var(--cluster-atom)'. Extract the variable name.
-      const m = varRef.match(/var\((--[^)]+)\)/);
-      const cssVar = m ? m[1] : null;
-      const value = cssVar ? styles.getPropertyValue(cssVar).trim() : "";
-      out[type] = value || "#888";
-    }
-    // Also resolve --cluster-other for unknown types.
-    out.__other = styles.getPropertyValue("--cluster-other").trim() || "#888";
-    return out;
+    // CLUSTER_COLORS now ships concrete hex values, so this is just a
+    // shallow copy plus the fallback for unknown types. Kept as a fn
+    // so the call sites don't need to change.
+    return { ...CLUSTER_COLORS, __other: "#FFFFFF" };
   }
 
   function colorForResolved(type) {
@@ -169,6 +171,14 @@
   }
 
   function findNode(mx, my) {
+    // Label hit-test first: labels are big rectangles, easier targets
+    // than 3px node disks. Since labels are drawn in screen coords
+    // (post-transform), we test mx/my directly against their boxes.
+    for (const p of placedLabels) {
+      if (mx >= p.bx && mx <= p.bx + p.bw && my >= p.by && my <= p.by + p.bh) {
+        return p.node;
+      }
+    }
     if (!quadtree) return null;
     const [x, y] = transform.invert([mx, my]);
     const r = 14 / transform.k;
@@ -240,8 +250,10 @@
       ctx.stroke();
     }
 
-    // Nodes.
-    ctx.lineWidth = Math.max(0.6, 1.2 / transform.k);
+    // Nodes. Thin stroke so the cluster colour fill dominates visually
+    // — at the prototype's 3.2px radius a 1.2px stroke ate most of the
+    // disk, making nodes read as black dots.
+    ctx.lineWidth = Math.max(0.4, 0.8 / transform.k);
     for (const n of simNodes) {
       if (!activeClusters.has(n.cluster)) continue;
       const dim = filtering && !matchSet.has(n.id);
@@ -270,14 +282,10 @@
       ctx.stroke();
     }
 
-    // Selected box — uses --accent (blue) per the public site palette.
+    // Selected box — coral red per the prototype's aesthetic.
     if (selectedNode) {
       const s = selectedNode.r + 6 / transform.k;
-      const accent =
-        getComputedStyle(document.documentElement)
-          .getPropertyValue("--accent")
-          .trim() || "#3a6df0";
-      ctx.strokeStyle = accent;
+      ctx.strokeStyle = "#FF6B5B";
       ctx.lineWidth = Math.max(1.5, 2 / transform.k);
       ctx.strokeRect(selectedNode.x - s, selectedNode.y - s, s * 2, s * 2);
     }
@@ -339,6 +347,9 @@
       for (const n of vis) add(n);
     }
 
+    // `placed` accumulates this frame's label rects + their owning
+    // nodes; we copy it into `placedLabels` at the end so findNode()
+    // can hit-test clicks against the labels.
     const placed = [];
     const fontPx = 11;
     ctx.font = `500 ${fontPx}px JetBrains Mono, ui-monospace, monospace`;
@@ -376,7 +387,7 @@
       }
       const force = n === selectedNode || n === hovered;
       if (overlap && !force) continue;
-      placed.push({ bx, by, bw, bh });
+      placed.push({ bx, by, bw, bh, node: n });
 
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(bx, by, bw, bh);
@@ -387,6 +398,8 @@
       ctx.fillText(t, bx + padX, by + padY);
       drawn++;
     }
+    // Publish for findNode() to hit-test.
+    placedLabels = placed;
   }
 
   // ───────────────────────── focus / filter ─────────────────────────
@@ -397,12 +410,23 @@
     const h = stage.clientHeight;
     const m = 20;
 
-    // Without surrounding UI metrics, just use a centred viewport box.
-    // The parent component is responsible for placing the search box,
-    // legend, and panel; viewport-padding here keeps the focus pleasant
-    // even when those overlay it.
-    const left = m;
-    const right = w - m;
+    // Inspect the overlay rects (search/legend/panel) so the focused
+    // node centres in the *visible* whitespace rather than the
+    // absolute viewport. Without this the panel covers ~half the
+    // canvas yet the selected node still snaps to canvas-centre,
+    // which puts it under the panel.
+    const stageRect = stage.getBoundingClientRect();
+    // Overlays are siblings of `.stage` inside `.notes-stage`, so
+    // query against the document, not the stage itself.
+    const search = document.querySelector(".search")?.getBoundingClientRect();
+    const legend = document.querySelector(".legend")?.getBoundingClientRect();
+    const panel = document.querySelector(".panel")?.getBoundingClientRect();
+
+    let left = m;
+    if (search) left = Math.max(left, search.right - stageRect.left + m);
+    if (legend) left = Math.max(left, legend.right - stageRect.left + m);
+    let right = w - m;
+    if (panel) right = Math.min(right, panel.left - stageRect.left - m);
     const top = m;
     const bottom = h - m;
     const acx = (left + right) / 2;
@@ -443,6 +467,79 @@
         zoomBehavior.transform,
         zoomIdentity.translate(acx, acy).scale(k).translate(-cx, -cy),
       );
+  }
+
+  function fitToBbox() {
+    if (!stage || simNodes.length === 0) return;
+    // Fit only to nodes that are actually *connected* to something,
+    // and use 5th–95th percentile bounds. Disconnected leaves (e.g.
+    // gap stubs with no edges yet) form a ring at the equilibrium of
+    // centering vs charge force and would dominate the bbox if we
+    // included them — net effect is a tiny central cluster surrounded
+    // by ring of "edges to nowhere", which is the opposite of "fit
+    // the meaningful payload".
+    const xs = [];
+    const ys = [];
+    for (const n of simNodes) {
+      if (!activeClusters.has(n.cluster)) continue;
+      if (n._parked) continue;
+      const neigh = neighborsOf.get(n.id);
+      if (!neigh || neigh.size === 0) continue;
+      xs.push(n.x);
+      ys.push(n.y);
+    }
+    if (xs.length === 0) return;
+    xs.sort((a, b) => a - b);
+    ys.sort((a, b) => a - b);
+    const p = 0.05;
+    const lo = Math.floor(xs.length * p);
+    const hi = Math.ceil(xs.length * (1 - p)) - 1;
+    const minX = xs[lo];
+    const maxX = xs[hi];
+    const minY = ys[lo];
+    const maxY = ys[hi];
+    if (!isFinite(minX)) return;
+    const w = stage.clientWidth;
+    const h = stage.clientHeight;
+    const bw = Math.max(1, maxX - minX);
+    const bh = Math.max(1, maxY - minY);
+    const padding = 60;
+    const k = Math.min(
+      (w - padding * 2) / bw,
+      (h - padding * 2) / bh,
+      // Don't zoom past 1.5× even if the layout is tiny; ratio of
+      // typical zoom-in feels weird at startup.
+      1.5,
+    );
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const next = zoomIdentity
+      .translate(w / 2, h / 2)
+      .scale(k)
+      .translate(-cx, -cy);
+    transform = next;
+    // Sync with d3.zoom's internal transform so subsequent pan/zoom
+    // gestures continue from this fit instead of snapping back.
+    if (zoomBehavior) {
+      select(canvas).call(zoomBehavior.transform, next);
+    }
+  }
+
+  async function settleLayoutAsync() {
+    const total = 600;
+    const chunk = 40;
+    let done = 0;
+    while (done < total) {
+      const target = Math.min(done + chunk, total);
+      while (done < target) {
+        simulation.tick();
+        done++;
+      }
+      // Yield one frame so the chrome and the loading badge stay
+      // responsive. The visible canvas updates every chunk because
+      // simulation.on("tick", render) is wired during the chunk.
+      await new Promise((r) => requestAnimationFrame(r));
+    }
   }
 
   function applyFilters() {
@@ -592,7 +689,7 @@
       )
       .force(
         "charge",
-        forceManyBody().strength(CFG.charge).theta(0.95).distanceMax(400),
+        forceManyBody().strength(CFG.charge).theta(0.95).distanceMax(250),
       )
       .force(
         "collide",
@@ -600,20 +697,58 @@
           .radius((d) => d.r + CFG.collidePad)
           .strength(0.7),
       )
-      .force("x", forceX(stage.clientWidth / 2).strength(0.02))
-      .force("y", forceY(stage.clientHeight / 2).strength(0.02))
+      // Per-node centering strength. Connected nodes get the prototype's
+      // gentle 0.06 so cluster shape can express itself. Orphans (no
+      // edges) get a stronger 0.28 so they pile near the centre instead
+      // of drifting to the equilibrium ring at the canvas edge — they're
+      // high-value conversion candidates (gap stubs that could become
+      // knowledge), so visible and close > pushed to the boundary.
+      .force(
+        "x",
+        forceX(stage.clientWidth / 2).strength((d) => {
+          const n = neighborsOf.get(d.id);
+          return n && n.size > 0 ? 0.06 : 0.28;
+        }),
+      )
+      .force(
+        "y",
+        forceY(stage.clientHeight / 2).strength((d) => {
+          const n = neighborsOf.get(d.id);
+          return n && n.size > 0 ? 0.06 : 0.28;
+        }),
+      )
       .velocityDecay(0.5)
       .alphaDecay(0.018);
 
-    for (let i = 0; i < 220; i++) simulation.tick();
-    simulation.on("tick", render);
-
-    rebuildQuadtree();
+    // Run pre-ticks asynchronously so the page chrome (status bar,
+    // search, legend) is interactive while the graph layout settles.
+    // Synchronous 600 ticks blocked the main thread for ~1-2 seconds
+    // on the real KG. Yielding every 40 ticks via requestAnimationFrame
+    // keeps the page responsive; total wall-clock is similar but UX is
+    // dramatically better.
+    //
+    // Crucially: we DON'T attach a render() tick callback during
+    // settle. The overlay covers the canvas, so painting in-progress
+    // frames would only matter if the overlay leaked transparency.
+    // After settle finishes we attach the tick listener (for legend
+    // toggle / focusNode driven motion) and reveal in place.
+    settleLayoutAsync().then(() => {
+      simulation.stop();
+      simulation.on("tick", render);
+      rebuildQuadtree();
+      fitToBbox();
+      render();
+      settling = false;
+    });
 
     zoomBehavior = d3Zoom()
       .scaleExtent([0.15, 8])
       .filter((event) => {
-        if (event.type === "wheel") return !event.ctrlKey;
+        // Allow ALL wheel events. Trackpad pinch is delivered as
+        // wheel + ctrlKey (a quirk of how browsers expose pinch
+        // gestures); blocking ctrlKey here breaks pinch-to-zoom.
+        // Plain mouse-wheel and trackpad-pinch both reach d3-zoom.
+        if (event.type === "wheel") return true;
         if (event.type === "mousedown" || event.type === "touchstart") {
           const r = canvas.getBoundingClientRect();
           const mx =
@@ -649,28 +784,28 @@
     });
     resizeObserver.observe(stage);
 
-    // Settle the sim a touch — same trick the prototype uses to avoid
-    // the layout looking frozen on first paint after pre-ticks.
-    setTimeout(() => simulation.alphaTarget(0).alpha(0.05).restart(), 100);
-
-    // Initial render with seeded positions before ticks fire.
+    // Initial blank-canvas paint while pre-ticks run in the background.
     render();
-  });
 
-  onDestroy(() => {
-    if (simulation) {
-      simulation.on("tick", null);
-      simulation.stop();
-    }
-    if (resizeObserver) resizeObserver.disconnect();
-    if (canvas) {
-      canvas.removeEventListener("mousedown", handleMouseDown);
-      canvas.removeEventListener("mousemove", handleMouseMove);
-      canvas.removeEventListener("mouseleave", handleMouseLeave);
-    }
-    if (typeof window !== "undefined") {
-      window.removeEventListener("mouseup", handleMouseUp);
-    }
+    // Cleanup runs on component destroy. Returning it from onMount
+    // sidesteps Svelte 5's `onDestroy` which (under our build) resolves
+    // to the SSR export and crashes on client (svelte/package.json
+    // exports map's `default` is the server bundle).
+    return () => {
+      if (simulation) {
+        simulation.on("tick", null);
+        simulation.stop();
+      }
+      if (resizeObserver) resizeObserver.disconnect();
+      if (canvas) {
+        canvas.removeEventListener("mousedown", handleMouseDown);
+        canvas.removeEventListener("mousemove", handleMouseMove);
+        canvas.removeEventListener("mouseleave", handleMouseLeave);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("mouseup", handleMouseUp);
+      }
+    };
   });
 
   // ───────────────────────── reactive effects ─────────────────────────
@@ -678,10 +813,21 @@
   // Rebuild the graph and restart the sim when nodes/edges change.
   // Tracked via referential identity — the parent should pass new array
   // refs when the data set actually changes.
+  //
+  // BUT: the parent's `nodesWithDegree` is a $derived.by that produces
+  // a new array every time the parent re-renders (any unrelated state
+  // change like updating `hoverTitle` re-runs the derived). We can't
+  // tell "real shape change" from "spurious new ref" just from the
+  // ===, so fingerprint by length + first/last id and only restart the
+  // sim when that fingerprint actually changes. Otherwise hovering a
+  // node re-kicks the sim with alpha=0.6 and the whole graph hops.
+  let lastDataFingerprint = "";
   $effect(() => {
-    // touch nodes/edges to register the dependency
-    nodes;
-    edges;
+    const fp =
+      `${nodes.length}:${edges.length}:` +
+      `${nodes[0]?.id ?? ""}:${nodes[nodes.length - 1]?.id ?? ""}`;
+    if (fp === lastDataFingerprint) return;
+    lastDataFingerprint = fp;
     if (!simulation || !ctx) return;
     rebuildGraph();
     simulation.nodes(simNodes);
@@ -711,9 +857,17 @@
     render();
   });
 
-  // Cluster toggle reflows the layout.
+  // Cluster toggle reflows the layout. Skip the initial fire — without
+  // this guard, the effect runs once at mount and kicks the sim with
+  // alpha=0.6, undoing the pre-tick settle and making the page visibly
+  // shake for ~3 seconds while alpha decays.
+  let activeClustersFirstRun = true;
   $effect(() => {
     activeClusters; // dependency
+    if (activeClustersFirstRun) {
+      activeClustersFirstRun = false;
+      return;
+    }
     if (!simulation) return;
     applyFilters();
     render();
@@ -734,6 +888,11 @@
     class:panning
     class:over-node={overNode}
   ></canvas>
+  {#if settling}
+    <div class="settling-overlay">
+      <div class="settling-badge">LOADING KNOWLEDGE GRAPH</div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -742,7 +901,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: var(--bg);
+    background: #f1ebdc;
   }
   .stage::before {
     content: "";
@@ -761,5 +920,52 @@
   }
   canvas.over-node {
     cursor: pointer;
+  }
+  .settling-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1ebdc;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .settling-overlay::before {
+    /* Repaint the dotted texture on top so the loading overlay matches
+       the final canvas surface — otherwise the reveal looks like a
+       background swap. */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(0, 0, 0, 0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+  .settling-badge {
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    background: #ffffff;
+    color: #141414;
+    border: 1.5px solid #141414;
+    box-shadow: 4px 4px 0 #141414;
+    padding: 8px 14px;
+  }
+  .settling-badge::after {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #ff6b5b;
+    border: 1px solid #141414;
+    margin-left: 10px;
+    vertical-align: middle;
+    animation: settling-pulse 0.8s infinite;
+  }
+  @keyframes settling-pulse {
+    50% {
+      background: #f5d90a;
+    }
   }
 </style>
