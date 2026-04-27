@@ -87,6 +87,8 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 **Plan & design files:** The brainstorming and writing-plans skills save to `docs/plans/`. Create a worktree **before** saving any plan or design documents — they must land on the feature branch, not main. A PreToolUse hook enforces this.
 
+**Code review cadence for multi-step plans.** When executing a multi-task implementation plan (subagent-driven, executing-plans, or any multi-commit feature), do **one comprehensive code review per merged PR** at the end of the implementation — not per sub-task or per commit. Per-task spec/quality reviewer dispatches accumulate cost disproportionate to their value when an end-of-PR review catches the same issues against the full diff. Implementer subagents should still self-review before each commit; that's where intra-task discipline lives. This overrides the per-task review steps in the `superpowers:subagent-driven-development` skill — that skill was calibrated for an autonomous setting; in our workflow the PR is the review boundary.
+
 ## Context Loading Rules
 
 - **Security changes**: Read `docs/security.md` FIRST
