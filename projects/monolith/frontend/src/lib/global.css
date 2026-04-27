@@ -29,7 +29,7 @@ a {
 }
 
 /* ── Shared design tokens (canonical source) ── */
-@import "../../../websites/shared/tokens.css";
+@import "../../../../websites/shared/tokens.css";
 
 /* ── Private-only intermediate aliases ──────── */
 /*
