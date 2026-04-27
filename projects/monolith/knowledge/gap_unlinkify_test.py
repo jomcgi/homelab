@@ -89,3 +89,59 @@ def test_link_inside_fence_does_not_consume_outer_link():
     assert "Outer Foo." in out
     assert "Fenced [[Foo]] stays." in out
     assert "After Foo." in out
+
+
+def test_is_discardable_true(tmp_path):
+    from knowledge.gap_unlinkify import is_discardable
+
+    stub = tmp_path / "foo.md"
+    stub.write_text("---\nid: foo\ntype: gap\ntriaged: discardable\n---\n\nbody\n")
+    assert is_discardable(stub) is True
+
+
+def test_is_discardable_false_when_keep(tmp_path):
+    from knowledge.gap_unlinkify import is_discardable
+
+    stub = tmp_path / "foo.md"
+    stub.write_text("---\nid: foo\ntriaged: keep\n---\n\nbody\n")
+    assert is_discardable(stub) is False
+
+
+def test_is_discardable_false_when_unmarked(tmp_path):
+    from knowledge.gap_unlinkify import is_discardable
+
+    stub = tmp_path / "foo.md"
+    stub.write_text("---\nid: foo\n---\n\nbody\n")
+    assert is_discardable(stub) is False
+
+
+def test_is_discardable_false_when_missing(tmp_path):
+    from knowledge.gap_unlinkify import is_discardable
+
+    assert is_discardable(tmp_path / "nope.md") is False
+
+
+def test_is_discardable_false_on_malformed_frontmatter(tmp_path):
+    from knowledge.gap_unlinkify import is_discardable
+
+    stub = tmp_path / "bad.md"
+    stub.write_text("not frontmatter at all\n")
+    assert is_discardable(stub) is False
+
+
+def test_is_discardable_false_on_yaml_error(tmp_path):
+    from knowledge.gap_unlinkify import is_discardable
+
+    stub = tmp_path / "broken.md"
+    # Tab in YAML value triggers YAMLError; never raises out of is_discardable.
+    stub.write_text("---\nid:\ttab-in-value\n---\nbody\n")
+    assert is_discardable(stub) is False
+
+
+def test_is_discardable_false_on_non_dict_frontmatter(tmp_path):
+    from knowledge.gap_unlinkify import is_discardable
+
+    stub = tmp_path / "list.md"
+    # Top-level YAML is a list, not a mapping — defensive return False.
+    stub.write_text("---\n- foo\n- bar\n---\nbody\n")
+    assert is_discardable(stub) is False

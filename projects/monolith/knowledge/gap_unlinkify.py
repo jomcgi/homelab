@@ -12,6 +12,10 @@ instead of an unresolved link.
 The rewrite is intentionally narrow: only links whose slug appears in
 ``target_slugs`` are touched, and code regions (fenced and inline) are left
 alone so that documentation-style examples like ``\\`[[example]]\\`` survive.
+
+Also exposes :func:`is_discardable`, a fully-defensive predicate over a stub's
+``triaged: discardable`` frontmatter marker — used by callers to decide whether
+the unlinkify+delete path applies to a given stub.
 """
 
 from __future__ import annotations
@@ -19,6 +23,9 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Iterable
+from pathlib import Path
+
+import yaml
 
 # Mirror knowledge.links so wikilink detection is identical in both directions.
 _FENCED = re.compile(r"```.*?```", re.DOTALL)
@@ -89,3 +96,32 @@ def unlinkify_if_changed(body: str, target_slugs: Iterable[str]) -> str | None:
     if new_body == body:
         return None
     return new_body
+
+
+def is_discardable(stub_path: Path) -> bool:
+    """Return True iff the stub frontmatter has triaged: discardable.
+
+    Defensive on every failure mode (missing file, no frontmatter,
+    malformed YAML, non-dict frontmatter): all return False rather
+    than raise. The triage marker is advisory; an unparseable stub
+    must NOT cause us to mutate source notes based on bad data.
+    """
+    try:
+        text = stub_path.read_text()
+    except OSError:
+        return False
+
+    if not text.startswith("---\n"):
+        return False
+    parts = text.split("---\n", 2)
+    if len(parts) < 3:
+        return False
+
+    try:
+        meta = yaml.safe_load(parts[1])
+    except yaml.YAMLError:
+        return False
+
+    if not isinstance(meta, dict):
+        return False
+    return meta.get("triaged") == "discardable"
