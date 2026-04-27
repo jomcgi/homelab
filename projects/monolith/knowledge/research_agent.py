@@ -1,286 +1,332 @@
-"""Qwen-driven research agent (Pydantic AI on llama.cpp).
+"""Sonnet-driven research agent with first-pass triage.
 
-Mirrors chat/agent.py shape but with a research-focused system prompt,
-three retrieval tools, and a structured ResearchNote output type.
-Sources are reconstructed mechanically from the agent's tool-call audit
-trail (see derive_sources_bundle) -- Qwen's prose is never trusted to
-faithfully list its own citations.
+Replaces the Qwen+Pydantic-AI agent and the separate Sonnet validator.
+A single ``claude --print --output-format stream-json`` invocation:
+
+  1. Triages the gap into one of three dispositions:
+     - ``research``: external-researchable; produce claims with citations
+     - ``personal``: actually personal/internal; bail and let the handler
+       flip ``gap.gap_class = internal``
+     - ``discard``: irrelevant / duplicate / not worth researching; bail
+       and let the handler park the gap
+  2. When ``research``, uses Claude's built-in WebSearch/WebFetch/Read/
+     Glob/Grep tools to retrieve sources and emit a ``ResearchNote``.
+
+The harness then runs a mechanical citation check (only on ``research``
+disposition): each claim must cite at least one source the agent
+actually retrieved (per the stream-json audit trail). Claims with no
+retrieved sources are dropped; the handler quarantines a research run
+that produces zero surviving claims.
+
+Triage is a refinement of the upstream ``gap_classifier``, not a
+replacement -- the classifier only sees stub frontmatter, while the
+researcher has full vault access and can catch mis-classifications.
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Literal
+
+from knowledge.research_audit_trail import AuditTrail, parse_stream_json
 
 logger = logging.getLogger(__name__)
 
-from pydantic import BaseModel, Field
-from pydantic_ai import Agent, ModelSettings, RunContext
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from sqlmodel import Session
+PIPELINE_VERSION = "research-pipeline@v2"
 
-from knowledge.research_tools import (
-    search_knowledge as _search_knowledge_impl,
-    web_fetch as _web_fetch_impl,
-    web_search as _web_search_impl,
-)
+# Read from env so the model can be swapped (e.g. claude-sonnet-4-6 ->
+# claude-sonnet-4-7) without a code change. ``sonnet`` is the alias for
+# the latest Sonnet release.
+AGENT_MODEL = os.getenv("CLAUDE_RESEARCH_MODEL", "sonnet")
 
-# Empty default deliberate: hardcoding the in-cluster URL is blocked by
-# the no-hardcoded-k8s-service-url semgrep rule (release-name renames silently
-# break DNS). The Helm chart injects LLAMA_CPP_URL via env from values.yaml;
-# tests bypass this entirely by passing an explicit ``model=`` to
-# ``create_research_agent``.
-LLAMA_CPP_URL = os.environ.get("LLAMA_CPP_URL", "")
-QWEN_MODEL_ID = "qwen3.6-27b"
-PIPELINE_VERSION = "research-pipeline@v1"
+SONNET_ALLOWED_TOOLS = "Read,Glob,Grep,WebSearch,WebFetch"
+
+_RESEARCH_TIMEOUT_SECS = 600  # 10min cap for a full Sonnet research run
+_JSON_BLOCK_RE = re.compile(r"\{[\s\S]*\}")
+
+Disposition = Literal["research", "personal", "discard"]
+_VALID_DISPOSITIONS: frozenset[str] = frozenset({"research", "personal", "discard"})
 
 
-_RESEARCH_SYSTEM_PROMPT = """\
-You are a research agent for a knowledge graph. Your job is to research a
-single term -- referenced in the user's vault but not yet defined -- and
-produce a structured ResearchNote.
+_RESEARCH_PROMPT = """\
+You are a research agent for a knowledge graph. Your job is to triage and
+optionally research a single term -- referenced in the user's vault but
+not yet defined.
 
-You have three tools:
+The user's vault is mounted at the current working directory. Files are
+markdown notes; their frontmatter includes ``id`` and ``title``.
 
-- **search_knowledge(query)** -- query the user's existing vault notes.
-  Use this FIRST. The user's prior thinking is more trusted than any web
-  source.
-- **web_search(query)** -- search the open web (SearXNG). Returns titles,
-  snippets, and URLs.
-- **web_fetch(url)** -- fetch a single URL's body. Use this to get the
-  actual page content for the URLs that look most relevant from
-  web_search results. Snippets alone are not enough to substantiate
-  claims.
+## Step 1: Triage
+
+Use Read / Glob / Grep to inspect the vault first. Decide one of three
+dispositions:
+
+- **research**: The term is publicly-researchable (a concept, product,
+  technique, etc.) and your vault inspection didn't reveal it's actually
+  personal or already-defined. Continue to Step 2.
+- **personal**: The term is personal to the user -- a friend's name, a
+  shorthand for a private project, an emotional concept tied to their
+  own life, etc. The web cannot answer this; only the user can.
+- **discard**: The term is irrelevant (typo, formatting noise),
+  duplicative of an existing well-defined concept in the vault, or
+  otherwise not worth researching.
+
+**Privacy-conservative default:** when in doubt between research and
+personal, choose **personal**. Over-routing to the user is tolerated;
+over-routing to the web is treated as a defect.
+
+## Step 2: Research (only if disposition == "research")
+
+Use WebSearch to find candidate sources, then WebFetch the URLs that
+look most relevant. Snippets alone are not enough to substantiate
+claims -- always WebFetch a page before citing it.
 
 ## Output
 
-Return a ResearchNote with:
-- ``summary`` (3-5 sentences): what the term means and why it matters.
-- ``claims`` (list of Claim): each claim is one factual statement
-  attributable to the evidence you retrieved. Only make a claim if you
-  retrieved evidence supporting it. Quality over quantity -- 3 strong
-  claims is better than 8 weak ones.
+Emit JSON ONLY (no surrounding prose, no fences) in this exact shape:
 
-Do NOT invent citations. The harness records every tool call you make
-and reconstructs the sources bundle automatically -- your job is just to
-produce supportable claims.
+{{
+  "disposition": "research" | "personal" | "discard",
+  "reason": "<one-sentence explanation of the disposition>",
+  "summary": "<3-5 sentence summary>",
+  "claims": [
+    {{
+      "text": "<one factual claim>",
+      "source_refs": ["<url-you-WebFetch'd>", "vault:<path-you-Read>"]
+    }}
+  ]
+}}
+
+When ``disposition`` is ``"personal"`` or ``"discard"``:
+- Omit ``summary`` and ``claims`` (or set them to ``null`` / ``[]``).
+- Make ``reason`` informative -- what about your vault inspection led
+  you to this verdict.
+
+## Rules
+
+- Every claim MUST list at least one ``source_ref`` that you actually
+  retrieved with WebFetch (URL) or Read (``vault:<rel-path>``). The
+  harness verifies refs against your tool-call audit trail; claims
+  citing un-retrieved sources are dropped automatically.
+- Quality over quantity: 3 strong claims beats 8 weak ones.
+- No prose outside the JSON object. No fences. No commentary.
+
+## Term to research
+
+{term}
+
+This term appears as an unresolved [[wikilink]] in the user's vault.
+Triage first; research only if disposition is ``research``.
 """
 
 
-class Claim(BaseModel):
-    text: str = Field(description="A single factual claim about the term.")
+@dataclass(frozen=True)
+class Claim:
+    text: str
+    source_refs: tuple[str, ...] = ()
 
 
-class ResearchNote(BaseModel):
+@dataclass(frozen=True)
+class ResearchNote:
     summary: str
-    claims: list[Claim] = Field(default_factory=list)
-
-
-@dataclass
-class ResearchDeps:
-    session: Session
-    vault_root: Path
+    claims: list[Claim] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
 class SourceEntry:
-    tool: str  # "web_fetch" | "web_search" | "search_knowledge"
-    url: str | None = None
-    content_hash: str | None = None
-    fetched_at: str | None = None
-    query: str | None = None
-    note_ids: list[str] = field(default_factory=list)
-    result_urls: list[str] = field(default_factory=list)
-    skipped_reason: str | None = None
+    tool: str
+    ref: str
 
 
-def create_research_agent(
-    *, model: Any | None = None, base_url: str | None = None
-) -> Agent[ResearchDeps, ResearchNote]:
-    """Build the Pydantic AI agent.
+@dataclass(frozen=True)
+class ResearchResult:
+    """The complete result of one research run.
 
-    Pass an explicit ``model`` (e.g. ``pydantic_ai.models.function.FunctionModel``)
-    to drive a deterministic test loop; otherwise the default Qwen-on-llama.cpp
-    model is used.
+    ``note`` is populated only when ``disposition == "research"``. The
+    handler routes on ``disposition`` -- the ``personal`` / ``discard``
+    branches don't read ``note`` at all.
     """
-    if model is None:
-        url = base_url or LLAMA_CPP_URL
-        model = OpenAIChatModel(
-            QWEN_MODEL_ID,
-            provider=OpenAIProvider(base_url=f"{url}/v1", api_key="not-needed"),
-        )
 
-    agent: Agent[ResearchDeps, ResearchNote] = Agent(
-        model,
-        deps_type=ResearchDeps,
-        output_type=ResearchNote,
-        system_prompt=_RESEARCH_SYSTEM_PROMPT,
-        model_settings=ModelSettings(
-            temperature=0.4,  # lower than chat -- research is less creative
-            top_p=0.95,
-        ),
+    disposition: Disposition
+    reason: str
+    note: ResearchNote | None = None
+    sources: tuple[SourceEntry, ...] = ()
+
+
+async def run_research(
+    *,
+    term: str,
+    vault_root: Path,
+    claude_bin: str = "claude",
+) -> ResearchResult:
+    """Spawn the Sonnet research subprocess and return a ResearchResult.
+
+    For ``disposition == "research"``, the returned ``note.claims`` is
+    already post-filter -- claims whose source_refs are not in the audit
+    trail have been dropped. The handler quarantines when ``note`` is
+    populated but ``note.claims == []``.
+
+    Raises ``RuntimeError`` on infra failures (timeout, non-zero exit,
+    no JSON found, malformed JSON, invalid disposition value) -- the
+    handler reverts state without bumping ``research_attempts`` in those
+    cases.
+    """
+    prompt = _RESEARCH_PROMPT.format(term=term)
+    start = time.monotonic()
+
+    proc = await asyncio.create_subprocess_exec(
+        claude_bin,
+        "--print",
+        "--dangerously-skip-permissions",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--model",
+        AGENT_MODEL,
+        "--allowedTools",
+        SONNET_ALLOWED_TOOLS,
+        "-p",
+        prompt,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        cwd=vault_root,
+        # HOME=/ in the container (non-root uid 65532) is not writable, so
+        # claude cannot create ~/.claude/ and exits silently with code 0.
+        # Mirrors gardener.py / gap_classifier.py.
+        env={**os.environ, "HOME": "/tmp"},
     )
 
-    @agent.tool
-    async def search_knowledge(
-        ctx: RunContext[ResearchDeps], query: str, limit: int = 5
-    ) -> dict[str, Any]:
-        """Query the user's vault for notes matching ``query``. Use first.
-
-        Returns a structured dict so the harness can recover ``note_ids`` from
-        the audit trail. The model still synthesises against ``text``; the
-        rest is metadata for the citations bundle.
-        """
-        result = await _search_knowledge_impl(
-            session=ctx.deps.session, query=query, limit=limit
+    try:
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=_RESEARCH_TIMEOUT_SECS
         )
-        return {"text": result.text, "note_ids": list(result.note_ids)}
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise RuntimeError(
+            f"research_agent: claude timed out after {_RESEARCH_TIMEOUT_SECS}s"
+        )
 
-    @agent.tool_plain
-    async def web_search(query: str) -> str:
-        """Search the open web. Returns titles + snippets + URLs.
+    duration_ms = int((time.monotonic() - start) * 1000)
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"research_agent: claude exit {proc.returncode}: "
+            f"{stderr.decode(errors='replace')[:300]}"
+        )
 
-        Plain string return is intentional: the URLs are extracted by regex
-        downstream (``_URL_RE``) -- no structured shape is needed.
-        """
-        return await _web_search_impl(query)
+    transcript = stdout.decode(errors="replace")
+    trail = parse_stream_json(transcript, vault_root=vault_root)
+    sources = tuple(SourceEntry(tool=e.tool, ref=e.ref) for e in trail.entries)
 
-    @agent.tool_plain
-    async def web_fetch(url: str) -> dict[str, Any]:
-        """Fetch a single URL's body. Use after web_search picks a candidate.
+    parsed = _parse_response(transcript)
+    disposition = parsed["disposition"]
+    reason = parsed.get("reason") or ""
 
-        Returns a dict carrying both the synth text (``text``) and the
-        citation metadata (``url``/``content_hash``/``fetched_at``/etc.)
-        that the harness needs to build a sources bundle.
-        """
-        result = await _web_fetch_impl(url)
-        if result.skipped_reason:
-            return {
-                "url": url,
-                "content_hash": None,
-                "fetched_at": result.fetched_at,
-                "skipped_reason": result.skipped_reason,
-                "text": f"(skipped {url}: {result.skipped_reason})",
-            }
-        truncated_note = " (truncated)" if result.truncated else ""
-        return {
-            "url": result.url,
-            "content_hash": result.content_hash,
-            "fetched_at": result.fetched_at,
-            "truncated": result.truncated,
-            "skipped_reason": None,
-            "text": f"URL: {result.url}{truncated_note}\n\n{result.body}",
-        }
+    if disposition != "research":
+        logger.info(
+            "research_agent: term=%s disposition=%s duration_ms=%d",
+            term,
+            disposition,
+            duration_ms,
+        )
+        return ResearchResult(disposition=disposition, reason=reason, sources=sources)
 
-    return agent
-
-
-_URL_RE = re.compile(r"URL:\s*(https?://\S+)")
-
-
-def derive_sources_bundle(message_history: list[Any]) -> list[SourceEntry]:
-    """Reconstruct the sources bundle from the agent's tool-call audit trail.
-
-    Pydantic AI returns the run history as a ``list[ModelMessage]`` (each a
-    ``ModelRequest`` or ``ModelResponse`` whose ``.parts`` carry the actual
-    tool-call/tool-return parts). This function flattens that shape, then
-    pairs each ``ToolCallPart`` with its matching ``ToolReturnPart`` *by
-    ``tool_call_id``* (the only safe key when the same tool is invoked
-    multiple times in a single run).
-
-    Tolerates a flat list of bare parts as input as well, which keeps unit
-    tests ergonomic.
-
-    Tool-return content shapes (see the wrappers in ``create_research_agent``):
-    - web_fetch -> dict with url/content_hash/fetched_at/skipped_reason/text
-    - search_knowledge -> dict with text/note_ids
-    - web_search -> str (URLs extracted via ``_URL_RE``)
-
-    The harness is the source of truth for citations -- Qwen's prose
-    output is never inspected for source attribution.
-    """
-    from pydantic_ai.messages import (
-        ModelRequest,
-        ModelResponse,
-        ToolCallPart,
-        ToolReturnPart,
+    note_pre = _build_note(parsed)
+    note_post = _filter_claims(note_pre, trail)
+    logger.info(
+        "research_agent: term=%s disposition=research "
+        "claims_emitted=%d claims_kept=%d duration_ms=%d",
+        term,
+        len(note_pre.claims),
+        len(note_post.claims),
+        duration_ms,
+    )
+    return ResearchResult(
+        disposition="research",
+        reason=reason,
+        note=note_post,
+        sources=sources,
     )
 
-    parts: list[Any] = []
-    for item in message_history:
-        if isinstance(item, (ModelRequest, ModelResponse)):
-            parts.extend(item.parts)
-        else:
-            # Tolerate a flat list of bare parts (test ergonomics).
-            parts.append(item)
 
-    sources: list[SourceEntry] = []
-    pending: dict[str, ToolCallPart] = {}
-    for part in parts:
-        if isinstance(part, ToolCallPart):
-            pending[part.tool_call_id] = part
-        elif isinstance(part, ToolReturnPart):
-            call = pending.pop(part.tool_call_id, None)
-            if call is None:
-                continue
-            sources.append(_extract_source_entry(call, part))
-    return sources
+def _parse_response(transcript: str) -> dict:
+    """Extract and validate the JSON object from the stream-json transcript.
 
-
-def _call_args_as_dict(call: Any) -> dict[str, Any]:
-    """Best-effort dict view of a ToolCallPart's args.
-
-    Production message shapes carry args as a JSON string (the OpenAI
-    provider populates it from ``dtc.function.arguments``). Pydantic AI's
-    ``BaseToolCallPart.args_as_dict`` already handles both shapes -- prefer
-    it when available, fall back to a manual check otherwise.
+    Walks the transcript for the final assistant text part (or the
+    ``result`` event's ``result`` field) and extracts the first JSON
+    block. Validates that ``disposition`` is one of the three allowed
+    values. Raises ``RuntimeError`` on malformed input.
     """
-    fn = getattr(call, "args_as_dict", None)
-    if callable(fn):
+    candidate: str | None = None
+    for line in transcript.splitlines():
+        if not line.strip():
+            continue
         try:
-            return fn() or {}
-        except Exception:
-            logger.debug("args_as_dict() failed on tool call, returning empty dict")
-            return {}
-    args = getattr(call, "args", None)
-    return args if isinstance(args, dict) else {}
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") == "assistant":
+            for part in (event.get("message") or {}).get("content") or []:
+                if isinstance(part, dict) and part.get("type") == "text":
+                    candidate = part.get("text") or candidate
+        elif event.get("type") == "result":
+            result_text = event.get("result")
+            if isinstance(result_text, str):
+                candidate = result_text
+
+    if candidate is None:
+        raise RuntimeError("research_agent: no JSON in transcript")
+
+    match = _JSON_BLOCK_RE.search(candidate)
+    if match is None:
+        raise RuntimeError("research_agent: no JSON block in final text")
+
+    try:
+        data = json.loads(match.group(0))
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"research_agent: malformed JSON: {e}") from e
+
+    if not isinstance(data, dict):
+        raise RuntimeError("research_agent: JSON is not an object")
+    disposition = data.get("disposition")
+    if disposition not in _VALID_DISPOSITIONS:
+        raise RuntimeError(f"research_agent: invalid disposition {disposition!r}")
+    return data
 
 
-def _extract_source_entry(call: Any, ret: Any) -> SourceEntry:
-    name = call.tool_name
-    args = _call_args_as_dict(call)
-    content = getattr(ret, "content", None)
+def _build_note(parsed: dict) -> ResearchNote:
+    """Build a ResearchNote from the parsed JSON's summary + claims."""
+    summary = str(parsed.get("summary") or "").strip()
+    raw_claims = parsed.get("claims") or []
+    claims = [
+        Claim(
+            text=str(c.get("text", "")).strip(),
+            source_refs=tuple(str(r) for r in (c.get("source_refs") or [])),
+        )
+        for c in raw_claims
+        if isinstance(c, dict) and c.get("text")
+    ]
+    return ResearchNote(summary=summary, claims=claims)
 
-    if name == "web_fetch":
-        url = args.get("url", "")
-        if isinstance(content, dict):
-            return SourceEntry(
-                tool="web_fetch",
-                url=content.get("url") or url,
-                content_hash=content.get("content_hash"),
-                fetched_at=content.get("fetched_at"),
-                skipped_reason=content.get("skipped_reason"),
-            )
-        return SourceEntry(tool="web_fetch", url=url)
 
-    if name == "search_knowledge":
-        if isinstance(content, dict):
-            return SourceEntry(
-                tool="search_knowledge",
-                query=args.get("query"),
-                note_ids=list(content.get("note_ids", [])),
-            )
-        return SourceEntry(tool="search_knowledge", query=args.get("query"))
+def _filter_claims(note: ResearchNote, trail: AuditTrail) -> ResearchNote:
+    """Drop claims whose source_refs are not in the audit trail's citable set.
 
-    if name == "web_search":
-        urls: list[str] = []
-        if isinstance(content, str):
-            urls = _URL_RE.findall(content)
-        return SourceEntry(tool="web_search", query=args.get("query"), result_urls=urls)
-
-    return SourceEntry(tool=name)
+    A claim survives iff it has at least one source_ref AND at least one
+    of those refs was actually retrieved by the agent (in trail.refs --
+    which is WebFetch URLs + Read paths only; queries are not citable).
+    """
+    valid = trail.refs
+    kept = [
+        c
+        for c in note.claims
+        if c.source_refs and any(r in valid for r in c.source_refs)
+    ]
+    return ResearchNote(summary=note.summary, claims=kept)
