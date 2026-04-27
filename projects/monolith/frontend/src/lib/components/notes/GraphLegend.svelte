@@ -1,5 +1,5 @@
 <script>
-  import { colorFor } from "./clusters.js";
+  import { colorFor, labelFor } from "./clusters.js";
 
   let { nodes, activeClusters, onToggle } = $props();
 
@@ -30,9 +30,9 @@
     >
       <span class="left">
         <span class="swatch" style:background={colorFor(type)}></span>
-        <span class="name">{type}</span>
+        <span class="name">{labelFor(type)}</span>
       </span>
-      <span class="count">{count}</span>
+      <span class="count">{count.toLocaleString()}</span>
     </div>
   {/each}
 </div>
@@ -42,13 +42,14 @@
     position: absolute;
     left: 20px;
     bottom: 20px;
-    background: var(--bg);
-    border: var(--border-heavy);
-    box-shadow: 4px 4px 0 var(--fg);
+    background: #ffffff;
+    border: 1.5px solid #141414;
+    box-shadow: 4px 4px 0 #141414;
     padding: 12px 14px;
     min-width: 200px;
     z-index: 5;
-    font-family: var(--font-mono);
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+    color: #141414;
   }
   h4 {
     margin: 0 0 8px;
@@ -67,7 +68,7 @@
     user-select: none;
   }
   .legend-row:hover {
-    color: var(--accent);
+    color: #ff6b5b;
   }
   .legend-row.off {
     opacity: 0.35;
@@ -76,7 +77,7 @@
   .legend-row .swatch {
     width: 12px;
     height: 12px;
-    border: 1.5px solid var(--fg);
+    border: 1.5px solid #141414;
     flex-shrink: 0;
   }
   .legend-row .name {
@@ -84,7 +85,7 @@
   }
   .legend-row .count {
     font-size: 10px;
-    color: var(--muted);
+    color: #8a857a;
   }
   .legend-row .left {
     display: flex;

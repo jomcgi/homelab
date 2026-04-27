@@ -42,20 +42,21 @@
     position: absolute;
     top: 20px;
     left: 20px;
-    background: var(--bg);
-    border: var(--border-heavy);
-    box-shadow: 4px 4px 0 var(--fg);
+    background: #ffffff;
+    border: 1.5px solid #141414;
+    box-shadow: 4px 4px 0 #141414;
     padding: 10px 12px;
     width: 280px;
     z-index: 5;
-    font-family: var(--font-mono);
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+    color: #141414;
   }
   label {
     display: block;
     font-size: 9px;
     letter-spacing: 0.12em;
     margin-bottom: 6px;
-    color: var(--muted);
+    color: #8a857a;
   }
   input {
     width: 100%;
@@ -64,24 +65,24 @@
     background: transparent;
     font-family: inherit;
     font-size: 14px;
-    color: var(--fg);
+    color: #141414;
     padding: 0;
-    caret-color: var(--accent);
+    caret-color: #ff6b5b;
   }
   input::placeholder {
-    color: rgba(0, 0, 0, 0.32);
+    color: rgba(20, 20, 20, 0.32);
   }
   .search-hint {
     margin-top: 6px;
     font-size: 9px;
     letter-spacing: 0.1em;
-    color: var(--muted);
+    color: #8a857a;
   }
   kbd {
     font-family: inherit;
     font-size: 9px;
-    border: 1px solid var(--fg);
+    border: 1px solid #141414;
     padding: 1px 5px;
-    background: var(--surface);
+    background: #f1ebdc;
   }
 </style>

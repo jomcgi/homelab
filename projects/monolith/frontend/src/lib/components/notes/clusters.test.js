@@ -2,19 +2,19 @@ import { describe, it, expect } from "vitest";
 import { colorFor, CLUSTER_COLORS } from "./clusters.js";
 
 describe("colorFor", () => {
-  it("returns the mapped colour for known types", () => {
-    expect(colorFor("atom")).toBe("var(--cluster-atom)");
-    expect(colorFor("gap")).toBe("var(--cluster-gap)");
-    expect(colorFor("paper")).toBe("var(--cluster-paper)");
+  it("returns the mapped hex for known types", () => {
+    expect(colorFor("atom")).toBe("#F5D90A");
+    expect(colorFor("gap")).toBe("#FF6B5B");
+    expect(colorFor("paper")).toBe("#5DD879");
   });
 
-  it("aliases legacy 'fact' type to atom colour", () => {
-    expect(colorFor("fact")).toBe(CLUSTER_COLORS.atom);
+  it("renders 'fact' as green (distinct from yellow atoms)", () => {
+    expect(colorFor("fact")).toBe("#5DD879");
   });
 
-  it("falls back to --cluster-other for unknown types", () => {
-    expect(colorFor("recipe")).toBe("var(--cluster-other)");
-    expect(colorFor(undefined)).toBe("var(--cluster-other)");
-    expect(colorFor(null)).toBe("var(--cluster-other)");
+  it("falls back to white for unknown types", () => {
+    expect(colorFor("recipe")).toBe("#FFFFFF");
+    expect(colorFor(undefined)).toBe("#FFFFFF");
+    expect(colorFor(null)).toBe("#FFFFFF");
   });
 });
