@@ -141,3 +141,75 @@ def test_glob_grep_recorded_as_query_entries() -> None:
     refs = {e.ref for e in trail.entries}
     assert refs == {"glob:**/*.md", "grep:kubernetes"}
     assert trail.refs == frozenset()  # not citable
+
+
+def test_empty_transcript_yields_empty_trail() -> None:
+    trail = parse_stream_json("")
+    assert trail.entries == ()
+    assert trail.refs == frozenset()
+
+
+def test_tool_use_missing_id_skipped() -> None:
+    """A tool_use event without an ``id`` field must not crash the parser
+    (covers the ``part['id']`` KeyError class)."""
+    transcript = _ndjson(
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "name": "WebFetch",
+                        "input": {"url": "https://example.com/no-id"},
+                    },
+                ]
+            },
+        },
+        _tool_use("t1", "WebFetch", url="https://example.com/ok", prompt="..."),
+        _tool_result("t1"),
+    )
+    trail = parse_stream_json(transcript)
+    assert trail.refs == frozenset({"https://example.com/ok"})
+
+
+def test_same_tool_use_id_overwrites_first() -> None:
+    """Two tool_use events sharing an id: second overwrites first; the
+    single tool_result pairs with the second. Documents current behavior."""
+    transcript = _ndjson(
+        _tool_use("dup", "WebFetch", url="https://example.com/first", prompt="..."),
+        _tool_use("dup", "WebFetch", url="https://example.com/second", prompt="..."),
+        _tool_result("dup"),
+    )
+    trail = parse_stream_json(transcript)
+    assert trail.refs == frozenset({"https://example.com/second"})
+
+
+def test_tool_result_before_tool_use_dropped() -> None:
+    """A tool_result that arrives before any tool_use with that id is
+    silently dropped (no entry, no error)."""
+    transcript = _ndjson(
+        _tool_result("orphan"),
+        _tool_use("t1", "WebFetch", url="https://example.com/ok", prompt="..."),
+        _tool_result("t1"),
+    )
+    trail = parse_stream_json(transcript)
+    assert trail.refs == frozenset({"https://example.com/ok"})
+
+
+def test_read_path_with_dotdot_falls_outside_vault() -> None:
+    """A path containing ``..`` is not naively rewritten as vault: -- the
+    is_relative_to check operates on the raw components, so a path like
+    /vault/notes/../../etc/passwd is NOT classified as in-vault. Documents
+    this is a deliberate, security-adjacent choice."""
+    transcript = _ndjson(
+        _tool_use("t1", "Read", file_path="/vault/notes/../../etc/passwd"),
+        _tool_result("t1"),
+    )
+    trail = parse_stream_json(transcript, vault_root="/vault")
+    # is_relative_to("/vault") on "/vault/notes/../../etc/passwd" returns
+    # True (component-wise, the first segment matches), so it gets the
+    # vault: prefix with the literal ../.. preserved. This is a deliberate
+    # choice: we record what the agent passed, we do not silently
+    # canonicalise. A downstream caller comparing refs sees the dot-dot
+    # path and can flag it.
+    assert trail.entries[0].ref == "vault:notes/../../etc/passwd"

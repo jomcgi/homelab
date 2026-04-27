@@ -23,10 +23,6 @@ logger = logging.getLogger(__name__)
 # WebFetch -> URL, Read -> vault: or absolute path.
 _CITABLE_TOOLS = frozenset({"WebFetch", "Read"})
 
-# Tools whose invocations are recorded for debugging but do NOT yield
-# citable refs (a claim cannot cite a search query).
-_RECORDED_TOOLS = frozenset({"WebSearch", "Glob", "Grep"})
-
 
 @dataclass(frozen=True)
 class AuditEntry:
@@ -75,7 +71,10 @@ def parse_stream_json(
         if event.get("type") == "assistant":
             for part in _iter_content(event):
                 if part.get("type") == "tool_use":
-                    pending[part["id"]] = (
+                    tu_id = part.get("id")
+                    if tu_id is None:
+                        continue
+                    pending[tu_id] = (
                         part.get("name", ""),
                         part.get("input", {}) or {},
                     )
@@ -84,7 +83,9 @@ def parse_stream_json(
                 if part.get("type") != "tool_result":
                     continue
                 tu_id = part.get("tool_use_id")
-                if tu_id is None or part.get("is_error"):
+                if tu_id is None:
+                    continue
+                if part.get("is_error"):
                     pending.pop(tu_id, None)
                     continue
                 call = pending.pop(tu_id, None)
@@ -130,11 +131,18 @@ def _to_entry(name: str, args: dict, vault_root: str | None) -> AuditEntry | Non
 
 def _normalize_read_path(path: str, vault_root: str | None) -> str:
     """Map an absolute Read path to ``vault:<rel>`` if it lies inside vault_root,
-    else return the path unchanged. Keeps citation refs short and stable."""
+    else return the path unchanged.
+
+    Uses string-prefix matching on un-resolved paths -- we deliberately do NOT
+    follow symlinks. The production vault is a PVC mount, and resolving one
+    side but not the other (e.g. when the agent passes a path that wasn't
+    canonicalised) would silently mis-classify an in-vault Read as outside-
+    vault, breaking citation-ref stability.
+    """
     if vault_root is None:
         return path
-    try:
-        rel = Path(path).resolve().relative_to(Path(vault_root).resolve())
-    except (ValueError, OSError):
+    p = Path(path)
+    root = Path(vault_root)
+    if not p.is_relative_to(root):
         return path
-    return f"vault:{rel}"
+    return f"vault:{p.relative_to(root)}"
