@@ -1,244 +1,132 @@
-"""Tests for research raw + quarantine writers."""
+"""Tests for the vault writers (research raws and quarantine drafts)."""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import yaml
 
-from knowledge.research_agent import Claim, ResearchNote, SourceEntry
-from knowledge.research_validator import ValidatedClaim, ValidatedResearch
-from knowledge.research_writer import (
-    FAILED_RESEARCH_DIR,
-    INBOX_RESEARCH_DIR,
-    quarantine,
-    write_research_raw,
-)
+from knowledge.research_agent import Claim, SourceEntry
+from knowledge.research_writer import quarantine, write_research_raw
 
 
-def test_write_research_raw_creates_inbox_research_file_with_full_frontmatter(tmp_path):
-    note = ResearchNote(
-        summary="A merkle tree is a hash-chained tree.",
-        claims=[
-            Claim(text="A merkle tree hashes pairs of children."),
-            Claim(text="Used in Bitcoin."),
-        ],
-    )
-    sources = [
-        SourceEntry(
-            tool="web_fetch",
-            url="https://a.com",
-            content_hash="sha256:abc",
-            fetched_at="2026-04-25T09:00:00Z",
-        ),
-        SourceEntry(tool="search_knowledge", query="merkle", note_ids=["my-note"]),
-        SourceEntry(
-            tool="web_search", query="merkle tree", result_urls=["https://b.com"]
-        ),
-    ]
-    supported = [
-        ValidatedClaim(
-            text="A merkle tree hashes pairs of children.",
-            verdict="supported",
-            reason="from a.com",
-        ),
-        ValidatedClaim(
-            text="Used in Bitcoin.", verdict="supported", reason="common knowledge"
-        ),
-    ]
-
-    path = write_research_raw(
-        vault_root=tmp_path,
-        slug="merkle-tree",
-        title="merkle-tree",
-        summary=note.summary,
-        supported_claims=supported,
-        sources=sources,
-        claims_dropped=0,
-        qwen_model="qwen3.6-27b",
-        sonnet_model="sonnet-4-6",
-        researched_at="2026-04-25T10:00:00Z",
-    )
-
-    assert path == tmp_path / INBOX_RESEARCH_DIR / "merkle-tree.md"
+def _read_fm(path: Path) -> dict:
     text = path.read_text()
-    assert text.startswith("---\n")
-    fm = yaml.safe_load(text.split("---\n", 2)[1])
+    _, fm, _ = text.split("---", 2)
+    return yaml.safe_load(fm)
+
+
+def test_write_research_raw_minimal(tmp_path: Path) -> None:
+    out = write_research_raw(
+        vault_root=tmp_path,
+        slug="foo",
+        title="Foo",
+        summary="A short summary.",
+        supported_claims=[
+            Claim(text="Foo is a thing.", source_refs=("https://example.com/a",))
+        ],
+        sources=[SourceEntry(tool="WebFetch", ref="https://example.com/a")],
+        agent_model="sonnet",
+        researched_at="2026-04-27T12:00:00Z",
+    )
+    fm = _read_fm(out)
     assert fm["type"] == "research"
-    assert fm["id"] == "merkle-tree"
-    assert fm["derived_from_gap"] == "merkle-tree"
-    assert fm["claims_supported"] == 2
-    assert fm["claims_dropped"] == 0
-    assert len(fm["sources"]) == 3
-    assert fm["sources"][0]["tool"] == "web_fetch"
-    assert fm["sources"][0]["url"] == "https://a.com"
-    assert "merkle tree hashes pairs" in text
-    assert "Used in Bitcoin" in text
-
-
-def test_write_research_raw_drops_unsupported_claims_from_body(tmp_path):
-    """Only supported claims appear in the body — dropped claims live in claims_dropped count."""
-    sources = [
-        SourceEntry(
-            tool="web_fetch", url="https://a.com", content_hash="x", fetched_at="t"
-        )
-    ]
-    supported = [ValidatedClaim(text="kept", verdict="supported", reason="ok")]
-
-    path = write_research_raw(
-        vault_root=tmp_path,
-        slug="x",
-        title="x",
-        summary="s",
-        supported_claims=supported,
-        sources=sources,
-        claims_dropped=2,
-        qwen_model="q",
-        sonnet_model="s",
-        researched_at="t",
-    )
-
-    text = path.read_text()
-    fm = yaml.safe_load(text.split("---\n", 2)[1])
+    assert fm["agent_model"] == "sonnet"
+    assert fm["pipeline_version"] == "research-pipeline@v2"
     assert fm["claims_supported"] == 1
-    assert fm["claims_dropped"] == 2
-    assert "kept" in text
+    assert fm["sources"] == [{"tool": "WebFetch", "ref": "https://example.com/a"}]
+    body = out.read_text()
+    assert "## Summary" in body
+    assert "Foo is a thing." in body
+    assert "_[https://example.com/a]_" in body
+    assert "## Sources" in body
+    assert "- WebFetch: https://example.com/a" in body
 
 
-def test_quarantine_writes_failed_research_file_with_attempt_suffix(tmp_path):
-    note = ResearchNote(summary="bad", claims=[Claim(text="unsubstantiated")])
-    validated = ValidatedResearch(
-        claims=[
-            ValidatedClaim(
-                text="unsubstantiated", verdict="unsupported", reason="no source"
-            ),
-        ]
-    )
-
-    path = quarantine(
+def test_write_research_raw_multi_source(tmp_path: Path) -> None:
+    out = write_research_raw(
         vault_root=tmp_path,
-        slug="x",
+        slug="bar",
+        title="Bar",
+        summary="A multi-source summary.",
+        supported_claims=[
+            Claim(
+                text="Bar combines vault and web.",
+                source_refs=("https://example.com/b", "vault:notes/bar.md"),
+            ),
+        ],
+        sources=[
+            SourceEntry(tool="WebFetch", ref="https://example.com/b"),
+            SourceEntry(tool="Read", ref="vault:notes/bar.md"),
+        ],
+        agent_model="sonnet",
+        researched_at="2026-04-27T12:00:00Z",
+    )
+    body = out.read_text()
+    assert "_[https://example.com/b, vault:notes/bar.md]_" in body
+    assert "- WebFetch: https://example.com/b" in body
+    assert "- Read: vault:notes/bar.md" in body
+
+
+def test_quarantine_writes_failed_research(tmp_path: Path) -> None:
+    out = quarantine(
+        vault_root=tmp_path,
+        slug="foo",
         attempt=2,
-        draft_note=note,
-        validated=validated,
-        sources=[],
-        qwen_model="q",
-        sonnet_model="s",
-        researched_at="t",
+        summary="A summary that didn't pan out.",
+        pre_filter_claims=[
+            Claim(
+                text="claim Sonnet emitted",
+                source_refs=("https://h1", "https://h2"),
+            ),
+            Claim(text="another would-be claim", source_refs=()),
+        ],
+        sources=[SourceEntry(tool="WebSearch", ref="foo query")],
+        agent_model="sonnet",
+        researched_at="2026-04-27T12:00:00Z",
     )
-
-    assert path == tmp_path / FAILED_RESEARCH_DIR / "x-2.md"
-    text = path.read_text()
-    fm = yaml.safe_load(text.split("---\n", 2)[1])
+    fm = _read_fm(out)
     assert fm["type"] == "failed_research"
+    assert fm["id"] == "foo-2"
     assert fm["attempt"] == 2
-    assert fm["derived_from_gap"] == "x"
-    assert "unsubstantiated" in text
+    assert fm["agent_model"] == "sonnet"
+    assert fm["pipeline_version"] == "research-pipeline@v2"
+    assert fm["claims_emitted"] == 2
+    body = out.read_text()
+    assert "# Failed research draft (attempt 2)" in body
+    assert "## Claims (pre-filter)" in body
+    assert "- claim Sonnet emitted _[https://h1, https://h2]_" in body
+    assert "- another would-be claim _[(no refs)]_" in body
+    # Old "Claims (Qwen)" header must not appear.
+    assert "## Claims (Qwen)" not in body
 
 
-def test_write_research_raw_byte_stable_on_idempotent_call(tmp_path):
-    """Calling write_research_raw twice with identical args produces an identical file (byte-stable).
-
-    Uses multiple sources and claims so that any list-order regression
-    (e.g. ``sorted(...)`` or ``list(set(...))``) in the writer would
-    surface as a byte-diff between successive calls.
-    """
-    sources = [
-        SourceEntry(
-            tool="web_fetch",
-            url="https://a.com",
-            content_hash="sha256:abc",
-            fetched_at="2026-04-25T09:00:00Z",
-        ),
-        SourceEntry(tool="search_knowledge", query="merkle", note_ids=["my-note"]),
-        SourceEntry(
-            tool="web_search", query="merkle tree", result_urls=["https://b.com"]
-        ),
-    ]
-    supported = [
-        ValidatedClaim(
-            text="A merkle tree hashes pairs of children.",
-            verdict="supported",
-            reason="from a.com",
-        ),
-        ValidatedClaim(
-            text="Used in Bitcoin.", verdict="supported", reason="common knowledge"
-        ),
-    ]
-
-    args = dict(
+def test_quarantine_path_format(tmp_path: Path) -> None:
+    out = quarantine(
         vault_root=tmp_path,
-        slug="merkle-tree",
-        title="merkle-tree",
-        summary="A merkle tree is a hash-chained tree.",
-        supported_claims=supported,
-        sources=sources,
-        claims_dropped=0,
-        qwen_model="qwen3.6-27b",
-        sonnet_model="sonnet-4-6",
-        researched_at="2026-04-25T10:00:00Z",
+        slug="thing",
+        attempt=1,
+        summary="x",
+        pre_filter_claims=[],
+        sources=[],
+        agent_model="sonnet",
+        researched_at="2026-04-27T12:00:00Z",
     )
-    path = write_research_raw(**args)
-    first = path.read_bytes()
-    write_research_raw(**args)
-    second = path.read_bytes()
-    assert first == second
+    assert out.parent.name == "_failed_research"
+    assert out.name == "thing-1.md"
 
 
-def test_quarantine_byte_stable_on_idempotent_call(tmp_path):
-    """Calling quarantine twice with identical args produces an identical file (byte-stable).
-
-    Exercises multi-element ``sonnet_reasons`` and ``sources_attempted``
-    plus populated ``parse_error`` / ``timed_out`` so any list-order or
-    serialization regression in the quarantine writer would surface.
-    """
-    draft_note = ResearchNote(
-        summary="A merkle tree is a hash-chained tree.",
-        claims=[
-            Claim(text="A merkle tree hashes pairs of children."),
-            Claim(text="Used in Bitcoin."),
-        ],
-    )
-    validated = ValidatedResearch(
-        claims=[
-            ValidatedClaim(
-                text="A merkle tree hashes pairs of children.",
-                verdict="unsupported",
-                reason="no source",
-            ),
-            ValidatedClaim(
-                text="Used in Bitcoin.",
-                verdict="speculative",
-                reason="no direct evidence retrieved",
-            ),
-        ],
-        timed_out=True,
-        parse_error="boom",
-    )
-    sources = [
-        SourceEntry(
-            tool="web_fetch",
-            url="https://a.com",
-            content_hash="sha256:abc",
-            fetched_at="2026-04-25T09:00:00Z",
-        ),
-        SourceEntry(tool="search_knowledge", query="merkle", note_ids=["my-note"]),
-        SourceEntry(
-            tool="web_search", query="merkle tree", result_urls=["https://b.com"]
-        ),
-    ]
-
-    args = dict(
+def test_research_raw_path_format(tmp_path: Path) -> None:
+    out = write_research_raw(
         vault_root=tmp_path,
-        slug="merkle-tree",
-        attempt=3,
-        draft_note=draft_note,
-        validated=validated,
-        sources=sources,
-        qwen_model="qwen3.6-27b",
-        sonnet_model="sonnet-4-6",
-        researched_at="2026-04-25T10:00:00Z",
+        slug="thing",
+        title="Thing",
+        summary="x",
+        supported_claims=[],
+        sources=[],
+        agent_model="sonnet",
+        researched_at="2026-04-27T12:00:00Z",
     )
-    path = quarantine(**args)
-    first = path.read_bytes()
-    quarantine(**args)
-    second = path.read_bytes()
-    assert first == second
+    assert out.parent.name == "research"
+    assert out.parent.parent.name == "_inbox"
+    assert out.name == "thing.md"
