@@ -569,3 +569,74 @@ def test_get_graph_drops_edges_with_unresolved_targets(session):
 
     assert any(n["id"] == "id-a" for n in result["nodes"])
     assert result["edges"] == []
+
+
+def test_get_graph_returns_empty_for_empty_session(session):
+    store = KnowledgeStore(session)
+
+    result = store.get_graph()
+
+    assert result["nodes"] == []
+    assert result["edges"] == []
+    assert result["indexed_at"] is None
+
+
+def test_get_graph_drops_typed_edges_with_unresolved_targets(session):
+    store = KnowledgeStore(session)
+
+    # Source note A has a frontmatter typed edge (kind='edge') pointing at a
+    # target that does not exist in the notes table. Unlike get_note_links()
+    # — which preserves the edge with resolved_note_id=None — get_graph()
+    # must drop it, just like body-wikilink edges (kind='link').
+    _upsert(
+        store,
+        note_id="id-a",
+        path="a.md",
+        content_hash="h-a",
+        title="A",
+        metadata=_meta(
+            title="A",
+            type="atom",
+            edges={"refines": ["missing-target"]},
+        ),
+    )
+
+    result = store.get_graph()
+
+    assert any(n["id"] == "id-a" for n in result["nodes"])
+    assert result["edges"] == []
+
+
+def test_get_graph_preserves_edge_type_when_target_resolves(session):
+    store = KnowledgeStore(session)
+
+    # Source note A has a typed edge (kind='edge') pointing at note B which
+    # does exist — the edge should survive with edge_type preserved.
+    _upsert(
+        store,
+        note_id="id-a",
+        path="a.md",
+        content_hash="h-a",
+        title="A",
+        metadata=_meta(
+            title="A",
+            type="atom",
+            edges={"refines": ["id-b"]},
+        ),
+    )
+    _upsert(
+        store,
+        note_id="id-b",
+        path="b.md",
+        content_hash="h-b",
+        title="B",
+        metadata=_meta(title="B", type="atom"),
+    )
+
+    result = store.get_graph()
+
+    typed_edges = [e for e in result["edges"] if e["kind"] == "edge"]
+    assert len(typed_edges) == 1
+    assert typed_edges[0]["source"] == "id-a"
+    assert typed_edges[0]["target"] == "id-b"
+    assert typed_edges[0]["edge_type"] == "refines"
