@@ -14,6 +14,7 @@ no shared conftest covers this concern.
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 import yaml
@@ -22,6 +23,8 @@ from sqlmodel.pool import StaticPool
 
 from knowledge.gaps import GAPS_PIPELINE_VERSION, discover_gaps
 from knowledge.models import Gap, Note, NoteLink
+from knowledge.reconciler import Reconciler
+from knowledge.store import KnowledgeStore
 
 
 @pytest.fixture(name="session")
@@ -314,3 +317,87 @@ def test_tombstone_handles_missing_stub_file(monkeypatch, session, tmp_path):
     # Without a discardable stub, we don't dare tombstone — leave it.
     rows = session.execute(select(Gap).where(Gap.note_id == "ghost")).scalars().all()
     assert len(rows) == 1
+
+
+def _embed_client() -> AsyncMock:
+    client = AsyncMock()
+    # Reconciler calls embed_batch on each cycle; return correctly-shaped fake vectors.
+    client.embed_batch.side_effect = lambda texts: [[0.1] * 1024 for _ in texts]
+    return client
+
+
+async def _run_reconciler(session: Session, vault_root: Path) -> None:
+    rec = Reconciler(
+        store=KnowledgeStore(session=session),
+        embed_client=_embed_client(),
+        vault_root=vault_root,
+    )
+    await rec.run()
+
+
+@pytest.mark.asyncio
+async def test_two_cycle_convergence(monkeypatch, session, tmp_path):
+    """End-to-end proof that the design's two-cycle convergence terminates.
+
+    Cycle 1: Reconciler ingests the source note + the discardable stub,
+    populating Note/NoteLink rows. discover_gaps then rewrites the source
+    body via Phase A; the stub still exists this cycle.
+
+    Cycle 2: Reconciler re-ingests the rewritten source (hash changed), so
+    links.extract finds no [[Throwaway]] and the NoteLink row is deleted.
+    discover_gaps then sees no slug refs and tombstones the Gap row + stub
+    via Phase B.
+    """
+    monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
+
+    # Vault: one source note with a wikilink to a discardable stub.
+    src_path = _write_source(
+        tmp_path,
+        "src",
+        (
+            "---\nid: src\ntitle: Src\ntype: atom\n---\n\n"
+            "We use [[Throwaway]] sometimes.\n"
+        ),
+    )
+    stub_path = _write_stub(tmp_path, "throwaway", triaged="discardable")
+
+    # Pre-existing Gap row, modelling reality: discover_gaps would have
+    # inserted this on an earlier cycle (before the user marked the stub
+    # discardable). Phase A short-circuits Gap insertion when the stub is
+    # already discardable, so without this seed Phase B has nothing to
+    # iterate over and the stub never gets unlinked.
+    session.add(
+        Gap(
+            term="throwaway",
+            note_id="throwaway",
+            pipeline_version=GAPS_PIPELINE_VERSION,
+            state="discovered",
+        )
+    )
+    session.commit()
+
+    # Reconciler #1: ingest source, populate Note + NoteLink (and the
+    # discardable stub itself as a type:gap Note row).
+    await _run_reconciler(session, tmp_path)
+
+    # discover_gaps #1: Phase A rewrites the source body in-place. The
+    # stub still exists (write_stub was skipped for this slug).
+    discover_gaps(session, tmp_path)
+    rewritten = src_path.read_text()
+    assert "[[Throwaway]]" not in rewritten
+    assert "We use Throwaway sometimes." in rewritten
+    assert stub_path.exists()
+
+    # Reconciler #2: source hash changed → re-ingest → links.extract
+    # returns no Throwaway → NoteLink row for that target is deleted.
+    await _run_reconciler(session, tmp_path)
+
+    # discover_gaps #2: slug_refs no longer contains 'throwaway' → Phase B
+    # tombstones the Gap row + stub.
+    discover_gaps(session, tmp_path)
+
+    rows = (
+        session.execute(select(Gap).where(Gap.note_id == "throwaway")).scalars().all()
+    )
+    assert rows == []
+    assert not stub_path.exists()
