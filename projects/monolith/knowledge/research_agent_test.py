@@ -11,7 +11,7 @@ import pytest
 
 from knowledge.research_agent import (
     AGENT_MODEL,
-    Claim,  # noqa: F401  (asserted at import time per the export checklist)
+    Claim,
     ResearchResult,
     SONNET_ALLOWED_TOOLS,
     SourceEntry,
@@ -131,7 +131,9 @@ async def test_research_disposition_with_valid_citations(tmp_path: Path) -> None
     assert result.reason == "publicly-researchable concept"
     assert result.note is not None
     assert result.note.summary == "term means X"
-    assert [c.text for c in result.note.claims] == ["Claim A"]
+    assert result.note.claims == [
+        Claim(text="Claim A", source_refs=("https://example.com/a",))
+    ]
     assert result.sources == (
         SourceEntry(tool="WebFetch", ref="https://example.com/a"),
     )
@@ -168,6 +170,48 @@ async def test_research_disposition_drops_unsourced_claims(tmp_path: Path) -> No
     assert result.disposition == "research"
     assert result.note is not None
     assert [c.text for c in result.note.claims] == ["kept"]
+
+
+@pytest.mark.asyncio
+async def test_claim_with_partial_valid_refs_dropped(tmp_path: Path) -> None:
+    """A claim must have ALL its source_refs in the audit trail; one
+    hallucinated co-citation is enough to drop the claim. This is
+    deliberately stricter than 'any ref valid' -- a real URL alongside
+    a fabricated one would otherwise look authoritative to readers."""
+    transcript = _stream_json(
+        _tool_use("t1", "WebFetch", url="https://example.com/real", prompt="..."),
+        _tool_result("t1"),
+        _final_text(
+            json.dumps(
+                {
+                    "disposition": "research",
+                    "reason": "publicly-researchable",
+                    "summary": "x",
+                    "claims": [
+                        {
+                            "text": "claim with one real and one hallucinated ref",
+                            "source_refs": [
+                                "https://example.com/real",
+                                "https://example.com/hallucinated",
+                            ],
+                        },
+                        {
+                            "text": "claim with all real refs",
+                            "source_refs": ["https://example.com/real"],
+                        },
+                    ],
+                }
+            )
+        ),
+    )
+    proc = _make_proc(transcript)
+
+    with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=proc)):
+        result = await run_research(term="foo", vault_root=tmp_path)
+
+    assert result.disposition == "research"
+    assert result.note is not None
+    assert [c.text for c in result.note.claims] == ["claim with all real refs"]
 
 
 @pytest.mark.asyncio
