@@ -59,9 +59,9 @@
       {selectedId}
       {searchTerm}
       {activeClusters}
-      on:nodeClick={(e) => selectNode(e.detail.id)}
-      on:nodeHover={(e) => (hoverTitle = e.detail.title ?? "—")}
-      on:zoom={(e) => (zoom = e.detail)}
+      onNodeClick={(e) => selectNode(e.id)}
+      onNodeHover={(e) => (hoverTitle = e.title ?? "—")}
+      onZoom={(k) => (zoom = k)}
     />
 
     <GraphSearch value={searchTerm} onChange={(v) => (searchTerm = v)} />

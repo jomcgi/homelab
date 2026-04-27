@@ -315,14 +315,26 @@
   });
 
   // ── Todo ─────────────────────────────────────
+  // /api/home was removed in the 2026-04-17 Home-module refactor; the
+  // backend now returns 404. Until this page is re-pointed at the
+  // knowledge.tasks endpoint, fall back to sane defaults when data.todo
+  // isn't shaped right so SSR doesn't crash with "cannot read .task".
   // svelte-ignore state_referenced_locally
-  let goal = $state(data.todo.weekly.task);
+  let goal = $state(data.todo?.weekly?.task ?? "");
   // svelte-ignore state_referenced_locally
-  let goalDone = $state(data.todo.weekly.done);
+  let goalDone = $state(data.todo?.weekly?.done ?? false);
   // svelte-ignore state_referenced_locally
-  let daily = $state(data.todo.daily.map((d) => d.task));
+  let daily = $state(
+    Array.isArray(data.todo?.daily)
+      ? data.todo.daily.map((d) => d.task ?? "")
+      : ["", "", ""],
+  );
   // svelte-ignore state_referenced_locally
-  let dailyDone = $state(data.todo.daily.map((d) => d.done));
+  let dailyDone = $state(
+    Array.isArray(data.todo?.daily)
+      ? data.todo.daily.map((d) => d.done ?? false)
+      : [false, false, false],
+  );
   let editing = $state(false);
 
   let goalRef = $state(null);
