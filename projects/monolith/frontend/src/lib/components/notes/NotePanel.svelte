@@ -97,16 +97,11 @@
         <h5>BACKLINKS</h5>
         <ul class="link-list">
           {#each backlinks.slice(0, 10) as nb}
-            <li
-              onclick={() => onSelect(nb.id)}
-              onkeydown={(e) => {
-                if (e.key === "Enter" || e.key === " ") onSelect(nb.id);
-              }}
-              role="button"
-              tabindex="0"
-            >
-              <span class="swatch" style:background={colorFor(nb.type)}></span>
-              <span>{nb.title}</span>
+            <li>
+              <button type="button" class="link-row" onclick={() => onSelect(nb.id)}>
+                <span class="swatch" style:background={colorFor(nb.type)}></span>
+                <span>{nb.title}</span>
+              </button>
             </li>
           {/each}
           {#if backlinks.length === 0}
@@ -121,16 +116,11 @@
         <h5>OUTGOING</h5>
         <ul class="link-list">
           {#each outgoing.slice(0, 10) as nb}
-            <li
-              onclick={() => onSelect(nb.id)}
-              onkeydown={(e) => {
-                if (e.key === "Enter" || e.key === " ") onSelect(nb.id);
-              }}
-              role="button"
-              tabindex="0"
-            >
-              <span class="swatch" style:background={colorFor(nb.type)}></span>
-              <span>{nb.title}</span>
+            <li>
+              <button type="button" class="link-row" onclick={() => onSelect(nb.id)}>
+                <span class="swatch" style:background={colorFor(nb.type)}></span>
+                <span>{nb.title}</span>
+              </button>
             </li>
           {/each}
           {#if outgoing.length === 0}
@@ -311,18 +301,30 @@
     margin: 0;
   }
   .link-list li {
-    padding: 3px 0;
+    padding: 0;
+    font-size: 11px;
+  }
+  .link-list .link-row {
+    all: unset;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 7px;
-    font-size: 11px;
+    width: 100%;
+    padding: 3px 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
   }
-  .link-list li:hover {
+  .link-list .link-row:hover {
     color: var(--accent);
+  }
+  .link-list .link-row:focus-visible {
+    outline: 1.5px solid var(--fg);
+    outline-offset: 2px;
   }
   .link-list .swatch {
     width: 8px;

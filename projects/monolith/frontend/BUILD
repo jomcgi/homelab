@@ -51,6 +51,11 @@ js_library(
         # Platform-specific native binaries for Linux CI (loaded at runtime via require())
         ":node_modules/@rollup/rollup-linux-x64-gnu",
         ":node_modules/@esbuild/linux-x64",
+        # d3 sub-packages used by the /notes graph view
+        ":node_modules/d3-force",
+        ":node_modules/d3-quadtree",
+        ":node_modules/d3-selection",
+        ":node_modules/d3-zoom",
         # Shared design tokens consumed via @import in lib/global.css.
         "//projects/websites/shared:css",
     ],
