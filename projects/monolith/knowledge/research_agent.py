@@ -29,7 +29,6 @@ import asyncio
 import json
 import logging
 import os
-import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -49,7 +48,6 @@ AGENT_MODEL = os.getenv("CLAUDE_RESEARCH_MODEL", "sonnet")
 SONNET_ALLOWED_TOOLS = "Read,Glob,Grep,WebSearch,WebFetch"
 
 _RESEARCH_TIMEOUT_SECS = 600  # 10min cap for a full Sonnet research run
-_JSON_BLOCK_RE = re.compile(r"\{[\s\S]*\}")
 
 Disposition = Literal["research", "personal", "discard"]
 _VALID_DISPOSITIONS: frozenset[str] = frozenset({"research", "personal", "discard"})
@@ -259,12 +257,13 @@ async def run_research(
 def _parse_response(transcript: str) -> dict:
     """Extract and validate the JSON object from the stream-json transcript.
 
-    Walks the transcript for the final assistant text part (or the
-    ``result`` event's ``result`` field) and extracts the first JSON
-    block. Validates that ``disposition`` is one of the three allowed
-    values. Raises ``RuntimeError`` on malformed input.
+    Prefers the canonical ``result`` event when present; falls back to the
+    last assistant text part. Validates that ``disposition`` is one of the
+    three allowed values. Raises ``RuntimeError`` on any malformed input.
     """
-    candidate: str | None = None
+    result_text: str | None = None
+    last_assistant_text: str | None = None
+
     for line in transcript.splitlines():
         if not line.strip():
             continue
@@ -272,24 +271,28 @@ def _parse_response(transcript: str) -> dict:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if event.get("type") == "assistant":
+        etype = event.get("type")
+        if etype == "result":
+            r = event.get("result")
+            if isinstance(r, str):
+                result_text = r
+        elif etype == "assistant":
             for part in (event.get("message") or {}).get("content") or []:
                 if isinstance(part, dict) and part.get("type") == "text":
-                    candidate = part.get("text") or candidate
-        elif event.get("type") == "result":
-            result_text = event.get("result")
-            if isinstance(result_text, str):
-                candidate = result_text
+                    text = part.get("text")
+                    if text:
+                        last_assistant_text = text
 
+    candidate = result_text if result_text is not None else last_assistant_text
     if candidate is None:
         raise RuntimeError("research_agent: no JSON in transcript")
 
-    match = _JSON_BLOCK_RE.search(candidate)
-    if match is None:
+    block = _extract_json_block(candidate)
+    if block is None:
         raise RuntimeError("research_agent: no JSON block in final text")
 
     try:
-        data = json.loads(match.group(0))
+        data = json.loads(block)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"research_agent: malformed JSON: {e}") from e
 
@@ -299,6 +302,43 @@ def _parse_response(transcript: str) -> dict:
     if disposition not in _VALID_DISPOSITIONS:
         raise RuntimeError(f"research_agent: invalid disposition {disposition!r}")
     return data
+
+
+def _extract_json_block(s: str) -> str | None:
+    """Extract the first balanced top-level JSON object from ``s``.
+
+    Walks the string character-by-character, tracking brace depth while
+    respecting JSON string-escape semantics. Returns ``None`` if no
+    balanced object is found. More robust than a greedy/non-greedy regex
+    when the candidate carries explanatory text around the JSON.
+    """
+    depth = 0
+    start = -1
+    in_str = False
+    escape = False
+    for i, ch in enumerate(s):
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            if depth == 0:
+                continue  # stray closing brace before any opener; skip
+            depth -= 1
+            if depth == 0 and start != -1:
+                return s[start : i + 1]
+    return None
 
 
 def _build_note(parsed: dict) -> ResearchNote:
@@ -317,16 +357,20 @@ def _build_note(parsed: dict) -> ResearchNote:
 
 
 def _filter_claims(note: ResearchNote, trail: AuditTrail) -> ResearchNote:
-    """Drop claims whose source_refs are not in the audit trail's citable set.
+    """Drop claims with any unretrieved source_ref.
 
-    A claim survives iff it has at least one source_ref AND at least one
-    of those refs was actually retrieved by the agent (in trail.refs --
-    which is WebFetch URLs + Read paths only; queries are not citable).
+    A claim survives iff it has at least one source_ref AND **every**
+    ref was actually retrieved by the agent (i.e. is in ``trail.refs``,
+    which is WebFetch URLs + Read paths only -- queries are not citable).
+
+    Stricter than "any ref valid" on purpose: a claim citing one real
+    URL alongside a hallucinated one would otherwise survive and present
+    the hallucinated URL as authoritative to downstream readers.
     """
     valid = trail.refs
     kept = [
         c
         for c in note.claims
-        if c.source_refs and any(r in valid for r in c.source_refs)
+        if c.source_refs and all(r in valid for r in c.source_refs)
     ]
     return ResearchNote(summary=note.summary, claims=kept)
