@@ -2,7 +2,7 @@ apiVersion: v2
 name: stargazer
 description: Dark Sky Location Finder - identifies best stargazing locations in Scotland
 type: application
-version: 0.2.1
+version: 0.2.2
 appVersion: "0.1.0"
 maintainers:
   - name: homelab

@@ -40,10 +40,10 @@ securityContext:
 resources:
   limits:
     cpu: 100m
-    memory: 512Mi
+    memory: 2Gi
   requests:
     cpu: 100m
-    memory: 512Mi
+    memory: 2Gi
 
 # Persistent storage for data
 persistence:
