@@ -1964,6 +1964,16 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_research_audit_trail_test",
+    srcs = ["knowledge/research_audit_trail_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "knowledge_research_validator_test",
     srcs = ["knowledge/research_validator_test.py"],
     imports = ["."],
