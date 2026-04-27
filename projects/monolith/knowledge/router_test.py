@@ -4,11 +4,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
 
 from app.db import get_session
 from app.main import app
+from knowledge.frontmatter import ParsedFrontmatter
+from knowledge.links import Link
 from knowledge.router import get_embedding_client
 from knowledge.service import VAULT_ROOT_ENV
+from knowledge.store import KnowledgeStore
 
 FAKE_EMBEDDING = [0.1] * 1024
 
@@ -635,25 +640,9 @@ class TestAnswerGapEndpoint:
         assert r.json().get("detail") == msg
 
 
-# ---------------------------------------------------------------------------
-# Graph endpoint tests
-# ---------------------------------------------------------------------------
-#
-# Unlike the search/notes/gap tests above (which mock KnowledgeStore), the
-# /graph endpoint is exercised end-to-end against a real in-memory SQLite
-# session — we want to assert that the actual graph payload (nodes + edges)
-# threads through to the response. The _meta/_upsert helpers below mirror
-# the equivalents in store_test.py (we don't import them across test files
-# because Bazel's per-test py_test targets exclude sibling *_test.py srcs).
-
-from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
-from sqlmodel.pool import StaticPool  # noqa: E402
-
-from knowledge.frontmatter import ParsedFrontmatter  # noqa: E402
-from knowledge.links import Link  # noqa: E402
-from knowledge.store import KnowledgeStore  # noqa: E402
-
-
+# The _meta/_upsert helpers below mirror the equivalents in store_test.py
+# (we don't import them across test files because Bazel's per-test py_test
+# targets exclude sibling *_test.py srcs).
 def _meta(**kw):
     return ParsedFrontmatter(**kw)
 
@@ -719,6 +708,7 @@ class TestGraphEndpoint:
     def test_graph_endpoint_returns_nodes_edges_and_cache_header(self, real_session):
         store = KnowledgeStore(real_session)
         # Seed two atom notes with a body wikilink from id-a -> id-b.
+        # n_chunks=0: get_graph() doesn't read Chunk/embeddings; keep test scope tight.
         _upsert(
             store,
             note_id="id-a",
@@ -726,6 +716,7 @@ class TestGraphEndpoint:
             content_hash="h-a",
             title="A",
             metadata=_meta(title="A", type="atom"),
+            n_chunks=0,
             links=[Link(target="id-b", display=None)],
         )
         _upsert(
@@ -735,6 +726,7 @@ class TestGraphEndpoint:
             content_hash="h-b",
             title="B",
             metadata=_meta(title="B", type="atom"),
+            n_chunks=0,
         )
 
         app.dependency_overrides[get_session] = lambda: real_session
