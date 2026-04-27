@@ -17,11 +17,11 @@ from pathlib import Path
 
 import pytest
 import yaml
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
-from knowledge.gaps import discover_gaps
-from knowledge.models import Note, NoteLink
+from knowledge.gaps import GAPS_PIPELINE_VERSION, discover_gaps
+from knowledge.models import Gap, Note, NoteLink
 
 
 @pytest.fixture(name="session")
@@ -171,3 +171,146 @@ def test_discardable_no_refs_no_rewrite(monkeypatch, session, tmp_path):
     discover_gaps(session, tmp_path)
     # Stub is preserved (Task 4 deletes it; here we only verify Phase A doesn't blow up).
     assert stub_path.exists()
+
+
+def test_tombstone_removes_gap_when_refs_gone(monkeypatch, session, tmp_path):
+    """Phase B: a discardable Gap row whose source links are gone is deleted,
+    and its stub file is unlinked, in the same discover_gaps call."""
+    monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
+    # Pre-existing Gap row + discardable stub, but NO source notes
+    # reference it (simulating "post-rewrite" steady state).
+    session.add(
+        Gap(
+            term="discardable-concept",
+            note_id="discardable-concept",
+            pipeline_version=GAPS_PIPELINE_VERSION,
+            state="discovered",
+        )
+    )
+    session.commit()
+    stub_path = _write_stub(tmp_path, "discardable-concept", triaged="discardable")
+
+    discover_gaps(session, tmp_path)
+
+    rows = (
+        session.execute(select(Gap).where(Gap.note_id == "discardable-concept"))
+        .scalars()
+        .all()
+    )
+    assert rows == []
+    assert not stub_path.exists()
+
+
+def test_tombstone_preserves_keep_marked_stubs_with_no_refs(
+    monkeypatch, session, tmp_path
+):
+    """A 'keep' stub with no refs is NOT tombstoned — only discardable is."""
+    monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
+    session.add(
+        Gap(
+            term="kept-concept",
+            note_id="kept-concept",
+            pipeline_version=GAPS_PIPELINE_VERSION,
+            state="discovered",
+        )
+    )
+    session.commit()
+    stub_path = _write_stub(tmp_path, "kept-concept", triaged="keep")
+
+    discover_gaps(session, tmp_path)
+
+    rows = (
+        session.execute(select(Gap).where(Gap.note_id == "kept-concept"))
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert stub_path.exists()
+
+
+def test_tombstone_preserves_unmarked_stubs_with_no_refs(
+    monkeypatch, session, tmp_path
+):
+    """A stub without any triage marker is NOT tombstoned."""
+    monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
+    session.add(
+        Gap(
+            term="orphan-concept",
+            note_id="orphan-concept",
+            pipeline_version=GAPS_PIPELINE_VERSION,
+            state="discovered",
+        )
+    )
+    session.commit()
+    stub_path = _write_stub(tmp_path, "orphan-concept", triaged=None)
+
+    discover_gaps(session, tmp_path)
+
+    rows = (
+        session.execute(select(Gap).where(Gap.note_id == "orphan-concept"))
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert stub_path.exists()
+
+
+def test_tombstone_preserves_gap_when_refs_still_present(
+    monkeypatch, session, tmp_path
+):
+    """Even with triaged: discardable, a gap with active source links is
+    NOT tombstoned in the same cycle — Phase A rewrites first, Phase B
+    only fires once references have been cleared (next cycle)."""
+    monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
+    session.add(
+        Gap(
+            term="active-discardable",
+            note_id="active-discardable",
+            pipeline_version=GAPS_PIPELINE_VERSION,
+            state="discovered",
+        )
+    )
+    session.commit()
+    stub_path = _write_stub(tmp_path, "active-discardable", triaged="discardable")
+    # Live source link.
+    src_body = (
+        "---\nid: src\ntitle: Src\ntype: atom\n---\n\n"
+        "We use [[Active Discardable]] often.\n"
+    )
+    _write_source(tmp_path, "src", src_body)
+    src = _make_note(session, "src", title="Src")
+    _add_body_link(session, src_fk=src.id, target_id="active-discardable")
+
+    discover_gaps(session, tmp_path)
+
+    # Source got rewritten (Phase A) but Gap row + stub still exist
+    # because the slug was in slug_refs this cycle.
+    rows = (
+        session.execute(select(Gap).where(Gap.note_id == "active-discardable"))
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert stub_path.exists()
+
+
+def test_tombstone_handles_missing_stub_file(monkeypatch, session, tmp_path):
+    """If the stub file is already gone but the Gap row remains (data drift),
+    is_discardable returns False so we leave the orphan row alone."""
+    monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
+    session.add(
+        Gap(
+            term="ghost",
+            note_id="ghost",
+            pipeline_version=GAPS_PIPELINE_VERSION,
+            state="discovered",
+        )
+    )
+    session.commit()
+    # No stub written — simulates a stale Gap row whose stub was manually deleted.
+
+    discover_gaps(session, tmp_path)
+
+    # Without a discardable stub, we don't dare tombstone — leave it.
+    rows = session.execute(select(Gap).where(Gap.note_id == "ghost")).scalars().all()
+    assert len(rows) == 1
