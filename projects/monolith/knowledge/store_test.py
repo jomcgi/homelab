@@ -521,3 +521,51 @@ class TestGetNoteLinks:
 
     def test_missing_note_returns_empty(self, store):
         assert store.get_note_links("nonexistent") == []
+
+
+def test_get_graph_returns_nodes_and_edges(session):
+    store = KnowledgeStore(session)
+
+    # Seed two notes with a body wikilink from id-a to id-b.
+    _upsert(
+        store,
+        note_id="id-a",
+        path="a.md",
+        content_hash="h-a",
+        title="A",
+        metadata=_meta(title="A", type="atom"),
+        links=[Link(target="id-b", display=None)],
+    )
+    _upsert(
+        store,
+        note_id="id-b",
+        path="b.md",
+        content_hash="h-b",
+        title="B",
+        metadata=_meta(title="B", type="atom"),
+    )
+
+    result = store.get_graph()
+
+    assert {n["id"] for n in result["nodes"]} == {"id-a", "id-b"}
+    assert any(e["source"] == "id-a" and e["target"] == "id-b" for e in result["edges"])
+    assert result["indexed_at"] is not None
+
+
+def test_get_graph_drops_edges_with_unresolved_targets(session):
+    store = KnowledgeStore(session)
+    _upsert(
+        store,
+        note_id="id-a",
+        path="a.md",
+        content_hash="h-a",
+        title="A",
+        metadata=_meta(title="A", type="atom"),
+        # Edge points at a target that does not exist in the notes table.
+        links=[Link(target="nonexistent", display=None)],
+    )
+
+    result = store.get_graph()
+
+    assert any(n["id"] == "id-a" for n in result["nodes"])
+    assert result["edges"] == []

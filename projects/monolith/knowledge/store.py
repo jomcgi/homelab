@@ -332,6 +332,47 @@ class KnowledgeStore:
             "tags": list(row.tags or []),
         }
 
+    def get_graph(self) -> dict:
+        """Return the full knowledge graph: nodes (notes) and edges (links).
+
+        Edges with unresolved targets (target_id pointing to a string that
+        doesn't match any note's note_id) are dropped — gap-promoted
+        wikilinks survive as edges into ``type='gap'`` nodes.
+        """
+        note_rows = self.session.execute(
+            select(Note.note_id, Note.title, Note.type, Note.indexed_at)
+        ).all()
+        note_ids = {row.note_id for row in note_rows}
+
+        link_rows = self.session.execute(
+            select(
+                Note.note_id.label("source"),
+                NoteLink.target_id.label("target"),
+                NoteLink.kind,
+                NoteLink.edge_type,
+            ).join(Note, NoteLink.src_note_fk == Note.id)
+        ).all()
+
+        edges = [
+            {
+                "source": row.source,
+                "target": row.target,
+                "kind": row.kind,
+                "edge_type": row.edge_type,
+            }
+            for row in link_rows
+            if row.target in note_ids
+        ]
+
+        return {
+            "nodes": [
+                {"id": row.note_id, "title": row.title, "type": row.type}
+                for row in note_rows
+            ],
+            "edges": edges,
+            "indexed_at": max((row.indexed_at for row in note_rows), default=None),
+        }
+
     def get_note_links(self, note_id: str) -> list[dict]:
         """Fetch all outgoing links/edges for a note by its stable note_id."""
         note_fk = self.session.execute(
