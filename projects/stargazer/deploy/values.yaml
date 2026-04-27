@@ -11,14 +11,16 @@ persistence:
   storageClass: longhorn
   accessMode: ReadWriteMany # Allow multiple pods to access the same volume
   size: 5Gi
-# Resource limits
+# Resource limits — pyosmium streams a 120MB OSM PBF in T7 (extract_roads)
+# and the BackReferenceWriter holds way→node references in memory; 256Mi
+# OOM-killed every cronjob run. 512Mi gives ~2x headroom over observed peak.
 resources:
   limits:
     cpu: 100m
-    memory: 256Mi
+    memory: 512Mi
   requests:
     cpu: 100m
-    memory: 256Mi
+    memory: 512Mi
 # OpenTelemetry configuration
 config:
   opentelemetry:
