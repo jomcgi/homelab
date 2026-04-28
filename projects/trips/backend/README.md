@@ -72,7 +72,7 @@ MaxAge: 8760h # 365 days
 ### Connection
 
 ```javascript
-const ws = new WebSocket("wss://trips-api.jomcgi.dev/ws/live");
+const ws = new WebSocket("wss://api.jomcgi.dev/trips/ws/live");
 ```
 
 **Authentication:** None (public read-only endpoint)
@@ -155,7 +155,7 @@ pong
 ### Example Client
 
 ```javascript
-const ws = new WebSocket("wss://trips-api.jomcgi.dev/ws/live");
+const ws = new WebSocket("wss://api.jomcgi.dev/trips/ws/live");
 
 ws.onopen = () => {
   console.log("Connected to trip updates");
@@ -256,13 +256,13 @@ Get all trip points.
 
 ```bash
 # Get all points
-curl -H "X-API-Key: $TRIP_API_KEY" https://trips-api.jomcgi.dev/api/points
+curl -H "X-API-Key: $TRIP_API_KEY" https://api.jomcgi.dev/trips/api/points
 
 # Get first 100 points
-curl -H "X-API-Key: $TRIP_API_KEY" https://trips-api.jomcgi.dev/api/points?limit=100
+curl -H "X-API-Key: $TRIP_API_KEY" https://api.jomcgi.dev/trips/api/points?limit=100
 
 # Paginate: skip first 100, get next 100
-curl -H "X-API-Key: $TRIP_API_KEY" https://trips-api.jomcgi.dev/api/points?limit=100&offset=100
+curl -H "X-API-Key: $TRIP_API_KEY" https://api.jomcgi.dev/trips/api/points?limit=100&offset=100
 ```
 
 ### GET /api/points/{point_id}
@@ -416,7 +416,7 @@ Deployed via ArgoCD to Kubernetes cluster.
 
 - Helm chart: `projects/trips/chart/`
 - Overlay: `projects/trips/deploy/`
-- Service URL: https://trips-api.jomcgi.dev
+- Service URL: https://api.jomcgi.dev/trips
 
 **Dependencies:**
 

@@ -144,7 +144,7 @@ Returns a flat list of vessels joined with their latest positions. Each entry co
 
 ```bash
 # Get all vessels
-curl https://ships-api.jomcgi.dev/api/vessels
+curl https://ships.jomcgi.dev/api/vessels
 ```
 
 ### GET /api/vessels/{mmsi}
@@ -186,7 +186,7 @@ Same flat structure as the vessels list, with additional computed fields for the
 **Example:**
 
 ```bash
-curl https://ships-api.jomcgi.dev/api/vessels/316001234
+curl https://ships.jomcgi.dev/api/vessels/316001234
 ```
 
 **Error responses:**
@@ -226,13 +226,13 @@ Get position history for a vessel.
 
 ```bash
 # Get all positions (last 7 days)
-curl https://ships-api.jomcgi.dev/api/vessels/316001234/track
+curl https://ships.jomcgi.dev/api/vessels/316001234/track
 
 # Get positions from last hour
-curl https://ships-api.jomcgi.dev/api/vessels/316001234/track?since=1h
+curl https://ships.jomcgi.dev/api/vessels/316001234/track?since=1h
 
 # Get last 100 positions
-curl https://ships-api.jomcgi.dev/api/vessels/316001234/track?limit=100
+curl https://ships.jomcgi.dev/api/vessels/316001234/track?limit=100
 ```
 
 ### WS /ws/live
@@ -286,7 +286,7 @@ Subsequently, batched position updates are broadcast as vessels move:
 **Example client:**
 
 ```javascript
-const ws = new WebSocket("wss://ships-api.jomcgi.dev/ws/live");
+const ws = new WebSocket("wss://ships.jomcgi.dev/ws/live");
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
@@ -452,7 +452,7 @@ Deployed via ArgoCD to Kubernetes cluster.
 
 - Helm chart: `projects/ships/chart/`
 - Overlay: `projects/ships/deploy/`
-- Service URL: https://ships-api.jomcgi.dev
+- Service URL: https://ships.jomcgi.dev
 
 **Persistent storage:**
 
