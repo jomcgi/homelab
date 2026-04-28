@@ -110,7 +110,7 @@ async def _query_cluster_counts() -> dict:
             )
         else:
             logger.warning(
-                "Node resource aggregation failed: %s", resources, exc_info=resources
+                "Node resource aggregation failed: %s", resources, exc_info=True
             )
         return result
     finally:
