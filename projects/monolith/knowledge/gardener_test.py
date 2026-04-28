@@ -372,6 +372,8 @@ class TestIngestOneClaude:
         allowed_tools = args[allowed_idx + 1]
         assert "Bash" in allowed_tools
         assert "Write" in allowed_tools
+        assert "WebSearch" in allowed_tools
+        assert "WebFetch" in allowed_tools
         assert kwargs.get("cwd") == vault
         assert kwargs.get("env", {}).get("HOME") == "/tmp"
 
