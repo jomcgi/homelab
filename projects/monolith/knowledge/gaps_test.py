@@ -102,9 +102,7 @@ def _add_body_link(session: Session, *, src_fk: int, target_id: str) -> None:
     session.commit()
 
 
-def _write_stub(
-    tmp_path: Path, slug: str, *, triaged: str | None = None
-) -> Path:
+def _write_stub(tmp_path: Path, slug: str, *, triaged: str | None = None) -> Path:
     """Write a minimal gap stub, optionally with a triaged marker."""
     path = tmp_path / RESEARCHING_DIR / f"{slug}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -271,9 +269,7 @@ class TestRewriteSources:
             )
 
         assert count == 0
-        assert any(
-            "could not read" in r.getMessage() for r in caplog.records
-        )
+        assert any("could not read" in r.getMessage() for r in caplog.records)
 
     def test_oserror_on_write_is_logged_and_not_counted(
         self, session, tmp_path, caplog
@@ -396,8 +392,7 @@ class TestDiscoverGapsPhaseA:
         sees those wikilinks as unresolved."""
         monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
         src_body = (
-            "---\nid: src\ntitle: Src\ntype: atom\n---\n\n"
-            "We use [[Throwaway]] often.\n"
+            "---\nid: src\ntitle: Src\ntype: atom\n---\n\nWe use [[Throwaway]] often.\n"
         )
         src_path = _write_source_file(tmp_path, "src", src_body)
         _write_stub(tmp_path, "throwaway", triaged="discardable")
@@ -455,9 +450,7 @@ class TestDiscoverGapsPhaseB:
         assert rows == []
         assert not stub_path.exists()
 
-    def test_does_not_tombstone_keep_marked_stub(
-        self, monkeypatch, session, tmp_path
-    ):
+    def test_does_not_tombstone_keep_marked_stub(self, monkeypatch, session, tmp_path):
         """triaged: keep -> preserved even with no source refs."""
         monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
         session.add(
@@ -481,9 +474,7 @@ class TestDiscoverGapsPhaseB:
         assert len(rows) == 1
         assert stub_path.exists()
 
-    def test_does_not_tombstone_unmarked_stub(
-        self, monkeypatch, session, tmp_path
-    ):
+    def test_does_not_tombstone_unmarked_stub(self, monkeypatch, session, tmp_path):
         """A stub without any triage marker is preserved."""
         monkeypatch.setenv("KNOWLEDGE_GAPS_REWRITE_DISCARDABLE", "1")
         session.add(
@@ -527,9 +518,7 @@ class TestDiscoverGapsPhaseB:
         discover_gaps(session, tmp_path)
 
         rows = (
-            session.execute(select(Gap).where(Gap.note_id == "ghost"))
-            .scalars()
-            .all()
+            session.execute(select(Gap).where(Gap.note_id == "ghost")).scalars().all()
         )
         assert len(rows) == 1
 
@@ -641,8 +630,7 @@ class TestClassifyGapsEdgeCases:
 
         assert result == 0
         assert not any(
-            "gaps awaiting classification" in r.getMessage()
-            for r in caplog.records
+            "gaps awaiting classification" in r.getMessage() for r in caplog.records
         )
 
     def test_none_classifier_with_pending_gaps_logs_warning(
@@ -658,8 +646,7 @@ class TestClassifyGapsEdgeCases:
 
         assert result == 0
         assert any(
-            "gaps awaiting classification" in r.getMessage()
-            for r in caplog.records
+            "gaps awaiting classification" in r.getMessage() for r in caplog.records
         )
 
     def test_invalid_classifier_output_falls_back_to_internal(
