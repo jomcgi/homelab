@@ -11,6 +11,7 @@ filegroup(
         exclude = [
             "fixtures/claude-print-missing-permission-mode.yaml",
             "fixtures/fastapi-bare-tuple-return.yaml",
+            "fixtures/logger-exc-info-non-boolean.yaml",
             "fixtures/no-create-extension-sql.yaml",
             "fixtures/no-discarded-json-marshal.yaml",
             "fixtures/no-shared-preload-libraries-cnpg.yaml",
