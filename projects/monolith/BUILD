@@ -1938,6 +1938,19 @@ py_test(
 )
 
 py_test(
+    name = "knowledge_gaps_test",
+    srcs = ["knowledge/gaps_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//pgvector",
+        "@pip//pytest",
+        "@pip//sqlalchemy",
+        "@pip//sqlmodel",
+    ],
+)
+
+py_test(
     name = "knowledge_research_agent_test",
     srcs = ["knowledge/research_agent_test.py"],
     imports = ["."],
