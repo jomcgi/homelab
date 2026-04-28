@@ -8,13 +8,16 @@ rules:
       - pattern-not: logger.$METHOD(..., exc_info=False, ...)
       - pattern-not: logging.$METHOD(..., exc_info=True, ...)
       - pattern-not: logging.$METHOD(..., exc_info=False, ...)
+      - pattern-not: logger.$METHOD(..., exc_info=$E(...), ...)
+      - pattern-not: logging.$METHOD(..., exc_info=$E(...), ...)
     message: >-
-      `exc_info=` is set to a non-boolean value. Only `True` or `False` are valid;
-      passing a variable (e.g. an exception object or dict) causes Python's logging
-      to treat it as truthy and attach a stale or irrelevant traceback from
-      `sys.exc_info()` rather than the actual exception. Use `exc_info=True` inside
-      an `except` block to capture the current exception, or remove `exc_info`
-      entirely if no traceback is needed.
+      `exc_info=` is set to a non-boolean value. Only `True`, `False`, or an
+      exception instance (e.g. `task.exception()`) are valid. Passing a plain
+      variable (e.g. a dict or arbitrary object) causes Python's logging to treat
+      it as truthy and attach a stale or irrelevant traceback from `sys.exc_info()`
+      rather than the actual exception. Use `exc_info=True` inside an `except`
+      block, `exc_info=task.exception()` for asyncio task exceptions, or remove
+      `exc_info` entirely if no traceback is needed.
     languages: [python]
     severity: ERROR
     metadata:
