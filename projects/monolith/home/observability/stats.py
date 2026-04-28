@@ -109,8 +109,12 @@ async def _query_cluster_counts() -> dict:
                 }
             )
         else:
+            # resources is an Exception from asyncio.gather(return_exceptions=True).
+            # We are not in an except block so exc_info=True would attach no traceback
+            # (sys.exc_info() returns (None, None, None)). The exception message is
+            # already visible via the %s format arg.
             logger.warning(
-                "Node resource aggregation failed: %s", resources, exc_info=True
+                "Node resource aggregation failed: %s", resources, exc_info=False
             )
         return result
     finally:

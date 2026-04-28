@@ -42,3 +42,9 @@ logging.warning("module-level no trace", exc_info=False)
 
 # ok: logger.exception always attaches traceback; no exc_info needed
 logger.exception("unhandled exception")
+
+# ok: exc_info=task.exception() passes an exception instance directly (Python 3.2+)
+logger.error("Background task %s failed", task.get_name(), exc_info=task.exception())
+
+# ok: exc_info=callable() — any callable returning an exception is valid
+logging.error("async task failed", exc_info=fut.exception())
