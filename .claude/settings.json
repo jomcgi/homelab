@@ -93,6 +93,11 @@
             "type": "command",
             "command": "bazel/tools/hooks/check-hardcoded-model-subprocess.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-allowed-tools-prompt-sync.sh",
+            "timeout": 10
           }
         ]
       }
