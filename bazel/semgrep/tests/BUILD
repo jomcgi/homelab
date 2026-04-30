@@ -13,6 +13,7 @@ filegroup(
             "fixtures/fastapi-bare-tuple-return.yaml",
             "fixtures/logger-exc-info-non-boolean.yaml",
             "fixtures/no-create-extension-sql.yaml",
+            "fixtures/no-deprecated-api-subdomain.yaml",
             "fixtures/no-discarded-json-marshal.yaml",
             "fixtures/no-shared-preload-libraries-cnpg.yaml",
             "fixtures/no-unquoted-helm-range-args.yaml",
