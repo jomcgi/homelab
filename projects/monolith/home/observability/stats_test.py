@@ -211,11 +211,16 @@ async def test_cluster_counts_handles_k8s_errors():
     mock_client.count_pods = AsyncMock(return_value=10)
     mock_client.count_deployments = AsyncMock(return_value=5)
     mock_client.count_argocd_applications = AsyncMock(return_value=2)
-    mock_client.aggregate_node_resources = AsyncMock(
-        side_effect=Exception("metrics-server unreachable")
-    )
+    # Keep a reference to the exception so we can verify it is forwarded to logger.warning
+    # as a positional arg (not as exc_info=), which is the correct pattern outside an
+    # except block.
+    resources_error = Exception("metrics-server unreachable")
+    mock_client.aggregate_node_resources = AsyncMock(side_effect=resources_error)
 
-    with patch("home.observability.stats.KubernetesClient", return_value=mock_client):
+    with (
+        patch("home.observability.stats.KubernetesClient", return_value=mock_client),
+        patch("home.observability.stats.logger") as mock_logger,
+    ):
         result = await stats._query_cluster_counts()
 
     assert result["nodes"] == 0  # failed, falls back to 0
@@ -223,6 +228,15 @@ async def test_cluster_counts_handles_k8s_errors():
     # When aggregate_node_resources fails, the resource keys are simply absent.
     assert "cpu_used_cores" not in result
     assert "memory_used_gb" not in result
+    # Regression guard: exc_info must be False (not the exception object).
+    # Passing an Exception instance as exc_info outside an except block is a bug —
+    # the original code had exc_info=resources which was wrong; it was fixed to
+    # exc_info=False. This assertion ensures that regression cannot silently creep back.
+    mock_logger.warning.assert_called_once_with(
+        "Node resource aggregation failed: %s",
+        resources_error,
+        exc_info=False,
+    )
 
 
 # ---------------------------------------------------------------------------
