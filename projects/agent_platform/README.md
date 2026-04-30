@@ -17,5 +17,5 @@ See [docs/agents.md](../../docs/agents.md) for the full architecture.
 | **goose_agent**          | Goose agent container and configuration |
 | **inference**            | On-cluster LLM inference and embedding inference (model configured per environment) |
 | **vllm**                 | Alternative LLM serving backend (full Helm chart with templates and vendored dependencies in `vllm/deploy/` — not wired to ArgoCD) |
-| **chart**                | Umbrella Helm chart for all agent platform components |
+| **chart**                | Umbrella Helm chart bundling orchestrator, sandboxes, MCP servers, and NATS (`cluster_agents`, `inference`, and `api_gateway` have separate ArgoCD Applications) |
 | **deploy**               | ArgoCD Application, kustomization, and cluster-specific values |
