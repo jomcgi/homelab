@@ -230,6 +230,22 @@ semgrep_test(
     tags = ["semgrep"],
 )
 
+# no-deprecated-api-subdomain uses languages: [generic] scoped to projects/**/*.md.
+# This test wires the rule to its colocated annotation fixture independently of
+# generic_rules_test (which only scans no-stale-repo-paths fixtures).
+filegroup(
+    name = "no_deprecated_api_subdomain_rule",
+    srcs = ["generic/no-deprecated-api-subdomain.yaml"],
+)
+
+semgrep_test(
+    name = "no_deprecated_api_subdomain_test",
+    srcs = ["generic/no-deprecated-api-subdomain.txt"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":no_deprecated_api_subdomain_rule"],
+    tags = ["semgrep"],
+)
+
 semgrep_test(
     name = "shell_rules_test",
     srcs = glob(["shell/*.bash"]),

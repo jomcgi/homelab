@@ -114,7 +114,7 @@ gantt
 
 ### Phase 2: Cloudflare Access
 
-- [ ] Create Cloudflare Access application for `trips-api.jomcgi.dev/api/images`
+- [ ] Create Cloudflare Access application for `api.jomcgi.dev/trips/api/images`
 - [ ] Create service token for local client
 - [ ] Test auth flow with curl
 
@@ -153,7 +153,7 @@ SEAWEEDFS_SECRET_KEY=...
 ### Client (local)
 
 ```bash
-TRIPS_API_URL=https://trips-api.jomcgi.dev
+TRIPS_API_URL=https://api.jomcgi.dev/trips
 CF_ACCESS_CLIENT_ID=<from cloudflare>
 CF_ACCESS_CLIENT_SECRET=<from cloudflare>
 ```
@@ -167,7 +167,7 @@ curl -X POST http://localhost:8000/api/images \
   -F "file=@/path/to/image.jpg"
 
 # Test with Cloudflare Access (production)
-curl -X POST https://trips-api.jomcgi.dev/api/images \
+curl -X POST https://api.jomcgi.dev/trips/api/images \
   -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
   -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
   -H "X-Image-Source: gopro" \
