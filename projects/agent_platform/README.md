@@ -12,9 +12,9 @@ See [docs/agents.md](../../docs/agents.md) for the full architecture.
 | ------------------------ | ----------- |
 | **orchestrator**         | Go service that dispatches agent jobs via NATS JetStream |
 | **sandboxes**            | Shell setup script for MCP profiles (`setup-mcp-profiles.sh`); Kubernetes sandbox pod definitions live in `chart/sandboxes/` and `chart/agent-sandbox/` |
-| **cluster_agents**       | Go service that monitors cluster health and runs autonomous improvement agents (patrol, escalator, PR fix, README freshness, test coverage, and rules) |
-| **api_gateway**          | Nginx-based API gateway with route-based backend selection for api.jomcgi.dev |
-| **goose_agent**          | Goose agent container and configuration |
+| **cluster_agents**       | Go service that monitors cluster health and runs autonomous improvement agents (patrol, escalator, PR fix, README freshness, test coverage, rules, `collector_alerts`, and `git_activity_gate`). `collector_alerts` monitors SigNoz alert rules; `git_activity_gate` gates autonomous agent runs on recent git activity. |
+| **api_gateway**          | Nginx-based API gateway with route-based backend selection for api.jomcgi.dev. Has its own Helm chart and ArgoCD Application in `api_gateway/deploy/` (not part of the umbrella chart), with nginx reverse proxy, cluster-info sidecar, and SLO alerting templates. |
+| **goose_agent**          | Goose agent container and configuration. Includes 19 agent recipe YAML files in `image/recipes/` (deep-plan, code-fix, research, web-research, adr-writer, bazel, ci-debug, feature, pr-review, and more) and the apko container image definition in `image/`. |
 | **inference**            | On-cluster LLM inference and embedding inference (model configured per environment) |
 | **vllm**                 | Alternative LLM serving backend (full Helm chart with templates and vendored dependencies in `vllm/deploy/` — not wired to ArgoCD) |
 | **chart**                | Umbrella Helm chart for all agent platform components |
