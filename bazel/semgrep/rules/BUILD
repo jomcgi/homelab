@@ -158,6 +158,22 @@ semgrep_test(
     tags = ["semgrep"],
 )
 
+# no-create-event-dispatcher-runes uses languages: [generic] scoped to projects/**/*.svelte.
+# Wired to its own .svelte annotation fixture independently of typescript_rules_test
+# (which only scans *.ts fixtures).
+filegroup(
+    name = "no_create_event_dispatcher_runes_rule",
+    srcs = ["typescript/no-create-event-dispatcher-runes.yaml"],
+)
+
+semgrep_test(
+    name = "no_create_event_dispatcher_runes_test",
+    srcs = ["//bazel/semgrep/tests:no_create_event_dispatcher_runes_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":no_create_event_dispatcher_runes_rule"],
+    tags = ["semgrep"],
+)
+
 semgrep_test(
     name = "generic_rules_test",
     srcs = ["//bazel/semgrep/tests:no_stale_repo_paths_fixtures"],

@@ -37,6 +37,13 @@ filegroup(
     srcs = glob(["fixtures/*.ts"]),
 )
 
+# Fixture for the no-create-event-dispatcher-runes rule (languages: generic, paths: projects/**/*.svelte).
+# Referenced by //bazel/semgrep/rules:no_create_event_dispatcher_runes_test.
+filegroup(
+    name = "no_create_event_dispatcher_runes_fixtures",
+    srcs = ["fixtures/no-create-event-dispatcher-runes.svelte"],
+)
+
 # Fixture for the no-stale-repo-paths rule (languages: generic).
 # Referenced by //bazel/semgrep/rules:generic_rules_test.
 filegroup(
