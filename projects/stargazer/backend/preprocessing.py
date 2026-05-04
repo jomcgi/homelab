@@ -50,6 +50,7 @@ def georeference_raster(settings: Settings) -> Path:
             str(europe_tif),
         ],
         check=True,
+        timeout=300,
     )
 
     # Step 2: Clip to Scotland bounds
@@ -67,6 +68,7 @@ def georeference_raster(settings: Settings) -> Path:
             str(scotland_tif),
         ],
         check=True,
+        timeout=300,
     )
 
     logger.info(f"Created georeferenced raster: {scotland_tif}")
@@ -195,6 +197,7 @@ def extract_roads(settings: Settings) -> Path:
             "lines",
         ],
         check=True,
+        timeout=300,
     )
 
     logger.info(f"Extracted roads to {output_geojson}")
