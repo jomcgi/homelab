@@ -33,9 +33,10 @@ def get_cf_token(hostname: str = DEFAULT_HOSTNAME) -> str:
             "Install it to authenticate with Cloudflare Access."
         )
 
-    subprocess.run(  # nosemgrep: subprocess-run-no-timeout
+    subprocess.run(
         ["cloudflared", "access", "login", f"https://{hostname}"],
         check=True,
+        timeout=300,  # 5 minutes to complete browser-based auth
     )
 
     token = _read_token(hostname)
