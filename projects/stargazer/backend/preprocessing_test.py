@@ -178,6 +178,17 @@ class TestGeoreferenceRaster:
         for call in mock_run.call_args_list:
             assert call.kwargs.get("check") is True
 
+    def test_timeout_300_passed_to_subprocess_run(self, tmp_path: Path):
+        settings = make_settings(tmp_path)
+        (settings.raw_dir / "Europe2024.png").touch()
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            georeference_raster(settings)
+
+        for call in mock_run.call_args_list:
+            assert call.kwargs.get("timeout") == 300
+
     def test_returns_scotland_tif_path(self, tmp_path: Path):
         settings = make_settings(tmp_path)
         (settings.raw_dir / "Europe2024.png").touch()
@@ -351,6 +362,25 @@ class TestExtractRoads:
 
         cmd = mock_run.call_args[0][0]
         assert "GeoJSON" in cmd
+
+    def test_timeout_300_passed_to_subprocess_run(self, tmp_path: Path):
+        settings = make_settings(tmp_path)
+        (settings.raw_dir / "scotland-latest.osm.pbf").touch()
+
+        with (
+            patch("osmium.BackReferenceWriter") as mock_writer,
+            patch("osmium.FileProcessor", return_value=[]),
+            patch("subprocess.run") as mock_run,
+        ):
+            mock_writer_inst = MagicMock()
+            mock_writer.return_value = mock_writer_inst
+            mock_writer_inst.__enter__ = MagicMock()
+            mock_writer_inst.__exit__ = MagicMock(return_value=False)
+            mock_run.return_value = MagicMock(returncode=0)
+
+            extract_roads(settings)
+
+        assert mock_run.call_args.kwargs.get("timeout") == 300
 
     def test_returns_geojson_path(self, tmp_path: Path):
         settings = make_settings(tmp_path)
