@@ -43,6 +43,24 @@ class TestGetCfToken:
             assert result == "fresh-token"
             assert call_count == 1
 
+    def test_subprocess_run_called_with_timeout_300(self, tmp_path):
+        """subprocess.run must be invoked with timeout=300 during cloudflared login."""
+        token_file = tmp_path / "private.jomcgi.dev-token"
+
+        def fake_login(*args, **kwargs):
+            token_file.write_text("tok")
+
+        with (
+            patch("tools.cli.auth.CF_TOKEN_DIR", tmp_path),
+            patch(
+                "tools.cli.auth.shutil.which", return_value="/usr/local/bin/cloudflared"
+            ),
+            patch("tools.cli.auth.subprocess.run", side_effect=fake_login) as mock_run,
+        ):
+            get_cf_token()
+            _, kwargs = mock_run.call_args
+            assert kwargs.get("timeout") == 300
+
     def test_custom_hostname_reads_matching_token(self, tmp_path):
         """Custom hostname resolves the file containing that hostname in its name."""
         token_file = tmp_path / "custom.example.com-token"
