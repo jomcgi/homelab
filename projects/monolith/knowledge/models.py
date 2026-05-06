@@ -34,10 +34,12 @@ GapState = Literal[
     "discovered",
     "classified",
     "in_review",
+    "researching",
     "researched",
     "verified",
     "consolidated",
     "committed",
+    "parked",
     "rejected",
 ]
 
