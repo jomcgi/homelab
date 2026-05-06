@@ -182,11 +182,23 @@ def discover_gaps(session: Session, vault_root: Path) -> int:
 
     # Phase 1: accumulate per-term breadcrumbs. One term can be referenced
     # by many source notes; the stub's referenced_by reflects that.
+    #
+    # ``NoteLink.target_id`` is the raw wikilink text (``Steve Krug``),
+    # while ``existing_note_ids`` is a set of slugs (``steve-krug``) plus
+    # slugified aliases. Slugify the target before the membership check
+    # so a wikilink to an existing note resolves correctly regardless of
+    # casing, spaces, or punctuation. Without this, every ``[[Title Case
+    # Term]]`` to a `_processed/<slug>.md` note creates a Gap row that
+    # only Sonnet's filesystem inspection can later catch and discard --
+    # one full Sonnet call per duplicate that should never have been
+    # queued. ``referenced_by`` is still keyed by the raw target so the
+    # downstream slug-fold (Phase 2) preserves the canonical wikilink
+    # text for ``slug_canonical_term``.
     referenced_by: dict[str, set[str]] = {}
     contexts: dict[str, str] = {}
     for row in link_rows:
         target_id = row.target_id
-        if target_id in existing_note_ids:
+        if _slugify(target_id) in existing_note_ids:
             continue
         referenced_by.setdefault(target_id, set()).add(row.note_id)
         # First-writer wins for context — legacy breadcrumb; the stub's
