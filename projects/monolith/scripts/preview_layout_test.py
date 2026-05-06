@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import pathlib
+import re
 
 # ---------------------------------------------------------------------------
 # Import the hyphenated script via importlib
@@ -28,8 +29,16 @@ main = _mod.main
 # ---------------------------------------------------------------------------
 
 
-def test_preview_layout_writes_html_with_circles(tmp_path):
-    """Snapshot in -> preview HTML out, with the right shapes baked in."""
+def test_preview_layout_writes_html_with_baked_data(tmp_path):
+    """Snapshot in -> self-contained HTML out, with computed positions
+    baked into the embedded data array.
+
+    The HTML injects <circle> / <line> elements at runtime via
+    document.createElementNS, so they don't appear as literal substrings
+    in the static body. We assert against the script's data array, which
+    is the actual contract: nodes and edges arrive in the embedded JSON
+    with finite positions, and the runtime renders them.
+    """
     snap = tmp_path / "graph.json"
     snap.write_text(
         json.dumps(
@@ -47,10 +56,21 @@ def test_preview_layout_writes_html_with_circles(tmp_path):
     assert rc == 0
     assert out.exists()
     body = out.read_text()
+
+    # Sanity: well-formed HTML with an SVG host and a render script.
     assert "<svg" in body
-    assert body.count("<circle") == 2  # one per node
-    assert "<line" in body  # one edge
-    assert "</html>" in body  # well-formed close
+    assert "</html>" in body
+    assert "createElementNS" in body  # runtime renders nodes + edges
+
+    # The script bakes the data in. Pull it out and validate shape.
+    match = re.search(r"const data = (\{.*?\});", body)
+    assert match, "data array not found in script"
+    data = json.loads(match.group(1))
+    assert len(data["nodes"]) == 2
+    assert len(data["edges"]) == 1
+    for node in data["nodes"]:
+        assert isinstance(node["x"], (int, float))
+        assert isinstance(node["y"], (int, float))
 
 
 def test_preview_layout_handles_missing_optional_keys(tmp_path):

@@ -29,22 +29,40 @@ class TestComputeLayout:
 
         assert first == second
 
-    def test_compute_layout_preserves_prior_positions_under_no_op_refine(self):
-        """Surviving nodes' final positions stay near their priors."""
-        nodes = [
-            _node("a", 0.1, 0.2),
-            _node("b", -0.3, 0.4),
-            _node("c", 0.5, -0.1),
-        ]
+    def test_compute_layout_is_a_fixed_point_when_seeded_with_its_own_output(
+        self,
+    ):
+        """Stability property the gardener relies on: layout is a fixed point.
+
+        Running compute_layout twice on the same graph, with the second pass
+        seeded from the first pass's output, produces nearly identical
+        positions. This is what keeps the graph from teleporting between
+        gardener cycles when nothing has changed.
+
+        We can't assert "positions stay near arbitrary priors" because
+        NetworkX spring_layout post-normalizes via _rescale_layout to fit
+        [-scale, +scale] regardless of where priors sat — the fixed-point
+        check is the right shape.
+        """
+        nodes_initial = [_node("a"), _node("b"), _node("c")]
         edges = [EdgeRef("a", "b"), EdgeRef("b", "c")]
         params = LayoutParams(iterations=50, seed=42)
 
-        positions = compute_layout(nodes, edges, params)
+        first = compute_layout(nodes_initial, edges, params)
 
-        for n in nodes:
-            x, y = positions[n.id]
-            assert abs(x - n.prior_x) < 0.1, f"{n.id} drifted in x: {n.prior_x} -> {x}"
-            assert abs(y - n.prior_y) < 0.1, f"{n.id} drifted in y: {n.prior_y} -> {y}"
+        # Seed pass 2 from pass 1's output.
+        nodes_seeded = [
+            _node("a", *first["a"]),
+            _node("b", *first["b"]),
+            _node("c", *first["c"]),
+        ]
+        second = compute_layout(nodes_seeded, edges, params)
+
+        for nid in ("a", "b", "c"):
+            x1, y1 = first[nid]
+            x2, y2 = second[nid]
+            assert abs(x1 - x2) < 0.05, f"{nid} x drifted between passes: {x1} -> {x2}"
+            assert abs(y1 - y2) < 0.05, f"{nid} y drifted between passes: {y1} -> {y2}"
 
     def test_compute_layout_places_new_node_finitely(self):
         """A newcomer joining a prior-positioned graph gets a finite (x, y)."""
