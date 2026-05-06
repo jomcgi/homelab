@@ -25,6 +25,25 @@ build:ci --noexperimental_check_output_files  # Skip local stat() for remote-cac
 build:ci --remote_retries=7  # Retry transient gRPC failures (default 5)
 build:ci --grpc_keepalive_timeout=10s  # Detect dead connections faster (default 20s)
 
+# Cache Merkle tree computations across actions; cuts client CPU when
+# many actions share dep subgraphs (rules_apko / rules_oci layer trees).
+build:ci --experimental_remote_merkle_tree_cache
+
+# If BB evicts a cache entry between analysis and execution, retry the
+# action with fresh inputs instead of failing the build.
+build:ci --experimental_remote_cache_eviction_retries=5
+
+# Content-Defined Chunking (Bazel 9.1+): chunked uploads + dedup for
+# files >2 MiB. Server-side CDC is already on; this enables it on the
+# upload path. Most useful for large byte-stable outputs (Go binaries,
+# linker outputs) — diminished benefit on compressed tar.gz layers.
+build:ci --experimental_remote_cache_chunking
+
+# BES (Build Event Service) optimizations
+build:ci --bes_upload_mode=fully_async  # Don't block build completion on BES upload
+build:ci --remote_build_event_upload=minimal  # Reference files in BES, don't upload them all
+build:ci --nolegacy_important_outputs  # Drop deprecated bloat field from BES events
+
 # =============================================================================
 # BuildBuddy Managed Toolchains
 # =============================================================================
