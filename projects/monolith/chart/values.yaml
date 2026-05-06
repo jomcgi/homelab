@@ -84,6 +84,11 @@ knowledge:
         cpu: "50m"
       limits:
         memory: "384Mi"
+  layout:
+    linkDistance: 0.05
+    iterations: 50
+    seed: 42
+    scale: 1.0
 
 chat:
   enabled: false

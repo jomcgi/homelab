@@ -9,6 +9,8 @@ and prod produce the same result.
 from __future__ import annotations
 
 import math
+import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import networkx as nx
@@ -45,6 +47,21 @@ class LayoutParams:
             raise ValueError(f"iterations must be positive, got {self.iterations}")
         if not (self.scale > 0 and math.isfinite(self.scale)):
             raise ValueError(f"scale must be positive and finite, got {self.scale}")
+
+    @classmethod
+    def from_env(cls, environ: Mapping[str, str] | None = None) -> "LayoutParams":
+        """Read layout knobs from environment variables, falling back to defaults.
+
+        Invalid values raise ValueError via __post_init__ — the pod fails to
+        start, ArgoCD surfaces CrashLoopBackOff, no silent fallback.
+        """
+        env = environ if environ is not None else os.environ
+        return cls(
+            link_distance=float(env.get("KNOWLEDGE_LAYOUT_LINK_DISTANCE", "0.05")),
+            iterations=int(env.get("KNOWLEDGE_LAYOUT_ITERATIONS", "50")),
+            seed=int(env.get("KNOWLEDGE_LAYOUT_SEED", "42")),
+            scale=float(env.get("KNOWLEDGE_LAYOUT_SCALE", "1.0")),
+        )
 
 
 def compute_layout(
