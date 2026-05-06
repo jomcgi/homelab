@@ -3,13 +3,18 @@
 Mocks ``run_research`` directly (the single boundary). Exercises:
   - happy path (research disposition with surviving claims)
   - infra failure (RuntimeError from run_research)
-  - personal disposition (gap_class flip, no file)
-  - discard disposition (gap parked, no file)
-  - all-claims-dropped quarantine (research disposition, empty post-filter claims)
-  - park-at-threshold after repeated quarantines
+  - personal disposition (gap_class flip, stub removed)
+  - discard disposition (gap parked, stub removed)
+  - all-claims-dropped quarantine below threshold (stub kept for retry)
+  - park-at-threshold after repeated quarantines (stub removed)
   - race-lost (state already changed before lock)
   - stuck-row recovery sweep
   - privacy guard (non-external gap skipped after lock)
+
+Stub-removal assertions guard against the reconcile-revert loop where
+a stub left at ``status: classified`` causes the reconciler to overwrite
+the handler's terminal-state DB write on its next cycle, so the same
+gap gets researched indefinitely.
 """
 
 from __future__ import annotations
@@ -82,6 +87,23 @@ def _make_gap(
     return gap
 
 
+def _write_stub(vault_root: Path, slug: str) -> Path:
+    """Write a minimal classified gap stub at _researching/<slug>.md."""
+    stub_dir = vault_root / "_researching"
+    stub_dir.mkdir(parents=True, exist_ok=True)
+    stub = stub_dir / f"{slug}.md"
+    stub.write_text(
+        "---\n"
+        f"id: {slug}\n"
+        f"title: {slug}\n"
+        "type: gap\n"
+        "status: classified\n"
+        "gap_class: external\n"
+        "---\n"
+    )
+    return stub
+
+
 def _research_result_with_claims() -> ResearchResult:
     note = ResearchNote(
         summary="Linkerd uses mTLS for service-to-service auth.",
@@ -135,10 +157,11 @@ async def test_research_disposition_writes_raw_and_marks_committed(
 
 
 @pytest.mark.asyncio
-async def test_personal_disposition_flips_gap_class_no_file(
+async def test_personal_disposition_flips_gap_class_and_removes_stub(
     session: Session, tmp_path: Path
 ) -> None:
     gap = _make_gap(session)
+    stub = _write_stub(tmp_path, "linkerd-mtls")
 
     personal = ResearchResult(
         disposition="personal",
@@ -156,15 +179,42 @@ async def test_personal_disposition_flips_gap_class_no_file(
     assert gap.gap_class == "internal"
     assert gap.state == "classified"
     assert gap.research_attempts == 0  # not bumped
+    assert not stub.exists()  # reconciler can no longer revert the DB row
     assert not (tmp_path / "_inbox").exists()
     assert not (tmp_path / "_failed_research").exists()
 
 
 @pytest.mark.asyncio
-async def test_discard_disposition_parks_gap_no_file(
+async def test_personal_disposition_tolerates_missing_stub(
+    session: Session, tmp_path: Path
+) -> None:
+    """Stub deletion is idempotent: a missing stub is not an error."""
+    gap = _make_gap(session)
+    # Deliberately do NOT write a stub.
+
+    personal = ResearchResult(
+        disposition="personal",
+        reason="term appears only in journal-style notes",
+        sources=(SourceEntry(tool="Glob", ref="glob:**/*.md"),),
+    )
+
+    with patch(
+        "knowledge.research_handler.run_research",
+        AsyncMock(return_value=personal),
+    ):
+        await research_gaps_handler(session=session, vault_root=tmp_path)
+
+    session.refresh(gap)
+    assert gap.gap_class == "internal"
+    assert gap.state == "classified"
+
+
+@pytest.mark.asyncio
+async def test_discard_disposition_parks_gap_and_removes_stub(
     session: Session, tmp_path: Path
 ) -> None:
     gap = _make_gap(session)
+    stub = _write_stub(tmp_path, "linkerd-mtls")
 
     discard = ResearchResult(
         disposition="discard",
@@ -181,15 +231,18 @@ async def test_discard_disposition_parks_gap_no_file(
     assert gap.gap_class == "parked"
     assert gap.state == "parked"
     assert gap.research_attempts == 0  # not bumped
+    assert not stub.exists()
     assert not (tmp_path / "_inbox").exists()
     assert not (tmp_path / "_failed_research").exists()
 
 
 @pytest.mark.asyncio
-async def test_all_claims_dropped_quarantines_and_bumps_attempts(
+async def test_all_claims_dropped_quarantines_and_keeps_stub_below_threshold(
     session: Session, tmp_path: Path
 ) -> None:
+    """Below threshold the stub stays so the next tick retries the gap."""
     gap = _make_gap(session)
+    stub = _write_stub(tmp_path, "linkerd-mtls")
 
     with patch(
         "knowledge.research_handler.run_research",
@@ -200,15 +253,17 @@ async def test_all_claims_dropped_quarantines_and_bumps_attempts(
     session.refresh(gap)
     assert gap.research_attempts == 1
     assert gap.state == "classified"  # below threshold
+    assert stub.exists()  # retained for the next research tick
     assert (tmp_path / "_failed_research" / "linkerd-mtls-1.md").exists()
     assert not (tmp_path / "_inbox" / "research" / "linkerd-mtls.md").exists()
 
 
 @pytest.mark.asyncio
-async def test_quarantine_at_threshold_parks_gap(
+async def test_quarantine_at_threshold_parks_gap_and_removes_stub(
     session: Session, tmp_path: Path
 ) -> None:
     gap = _make_gap(session, research_attempts=RESEARCH_PARK_THRESHOLD - 1)
+    stub = _write_stub(tmp_path, "linkerd-mtls")
 
     with patch(
         "knowledge.research_handler.run_research",
@@ -219,6 +274,7 @@ async def test_quarantine_at_threshold_parks_gap(
     session.refresh(gap)
     assert gap.research_attempts == RESEARCH_PARK_THRESHOLD
     assert gap.state == "parked"
+    assert not stub.exists()
 
 
 @pytest.mark.asyncio

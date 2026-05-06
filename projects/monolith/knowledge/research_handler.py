@@ -7,14 +7,22 @@ optionally researches), routes per disposition.
   - ``research`` + non-empty post-filter claims: write the research raw,
     state -> "committed".
   - ``research`` + empty post-filter claims (everything failed citation
-    check): quarantine the draft, bump ``research_attempts``, park at
-    >= RESEARCH_PARK_THRESHOLD.
+    check): quarantine the draft, bump ``research_attempts``. Below
+    threshold the stub is left in place so the next tick retries; at
+    threshold the gap is parked and the stub is deleted.
   - ``personal``: gap_class flips to ``internal``, state stays
-    ``classified`` (no vault file). Sonnet caught a mis-classification.
-  - ``discard``: gap_class flips to ``parked``, state -> ``parked`` (no
-    vault file). Sonnet decided this isn't worth researching at all.
+    ``classified``. Sonnet caught a mis-classification. The stub is
+    deleted -- if the term reappears in another note, the gardener
+    will queue a fresh stub for re-classification.
+  - ``discard``: gap_class flips to ``parked``, state -> ``parked``.
+    Sonnet decided this isn't worth researching at all. Stub deleted.
   - Infra failures (claude subprocess timeout / non-zero exit / parse
     error) revert state without burning a research attempt.
+
+Stubs MUST be deleted on every terminal disposition: the reconciler
+projects ``_researching/<slug>.md`` frontmatter into the Gap row on
+every cycle, so a stub left at ``status: classified`` reverts the DB
+back to ``classified`` and the gap is re-picked indefinitely.
 
 Triage is a refinement of the upstream ``gap_classifier``, not a
 replacement -- the classifier's "external" candidates flow into here,
@@ -29,6 +37,7 @@ from pathlib import Path
 
 from sqlmodel import Session, select
 
+from knowledge.gap_stubs import RESEARCHING_DIR
 from knowledge.models import Gap
 from knowledge.research_agent import AGENT_MODEL, ResearchResult, run_research
 from knowledge.research_writer import quarantine, write_research_raw
@@ -37,6 +46,22 @@ logger = logging.getLogger(__name__)
 
 RESEARCH_BATCH_SIZE = 3
 RESEARCH_PARK_THRESHOLD = 3
+
+
+def _delete_stub(vault_root: Path, slug: str) -> None:
+    # The reconciler projects _researching/<slug>.md frontmatter into the
+    # Gap row on every cycle. If we leave the stub at status=classified
+    # after the handler flipped the DB row to a terminal state, the next
+    # reconciler tick reverts state -> classified and the gap gets
+    # re-picked next research tick. This caused the same five gaps to be
+    # re-researched ~every 5 minutes for days. Removing the stub stops
+    # the projection; the orphan Gap row is harmless (the SELECT filters
+    # state='classified', which the row no longer is).
+    stub = vault_root / RESEARCHING_DIR / f"{slug}.md"
+    try:
+        stub.unlink()
+    except FileNotFoundError:
+        pass
 
 
 async def research_gaps_handler(*, session: Session, vault_root: Path) -> None:
@@ -130,6 +155,7 @@ async def _process_one(*, session: Session, gap: Gap, vault_root: Path) -> None:
         gap.gap_class = "internal"
         gap.state = "classified"
         session.commit()
+        _delete_stub(vault_root, gap.note_id)
         logger.info(
             "knowledge.research-gaps: %s -> personal (gap_class=internal); reason=%s",
             gap.term,
@@ -141,6 +167,7 @@ async def _process_one(*, session: Session, gap: Gap, vault_root: Path) -> None:
         gap.gap_class = "parked"
         gap.state = "parked"
         session.commit()
+        _delete_stub(vault_root, gap.note_id)
         logger.info(
             "knowledge.research-gaps: %s -> discard (gap_class=parked); reason=%s",
             gap.term,
@@ -178,6 +205,8 @@ async def _process_one(*, session: Session, gap: Gap, vault_root: Path) -> None:
         gap.research_attempts = attempt
         gap.state = "parked" if attempt >= RESEARCH_PARK_THRESHOLD else "classified"
         session.commit()
+        if gap.state == "parked":
+            _delete_stub(vault_root, gap.note_id)
         logger.info(
             "knowledge.research-gaps: rejected %s (attempt=%d, state=%s)",
             gap.term,

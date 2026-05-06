@@ -83,6 +83,25 @@ def _read_frontmatter(path: Path) -> dict:
     return yaml.safe_load(fm)
 
 
+def _write_stub(vault_root: Path, slug: str) -> Path:
+    """Mirror of the gardener's stub write so terminal-disposition tests can
+    assert the handler removes the stub (and breaks the reconcile-revert
+    loop)."""
+    stub_dir = vault_root / "_researching"
+    stub_dir.mkdir(parents=True, exist_ok=True)
+    stub = stub_dir / f"{slug}.md"
+    stub.write_text(
+        "---\n"
+        f"id: {slug}\n"
+        f"title: {slug}\n"
+        "type: gap\n"
+        "status: classified\n"
+        "gap_class: external\n"
+        "---\n"
+    )
+    return stub
+
+
 @pytest.mark.asyncio
 async def test_e2e_research_disposition_writes_raw_and_marks_committed(
     session: Session, tmp_path: Path
@@ -201,11 +220,12 @@ async def test_e2e_research_disposition_empty_claims_quarantines_and_bumps(
 
 
 @pytest.mark.asyncio
-async def test_e2e_personal_disposition_flips_gap_class_no_vault_file(
+async def test_e2e_personal_disposition_flips_gap_class_and_removes_stub(
     session: Session, tmp_path: Path
 ) -> None:
-    """personal: gap_class -> internal, no vault files written."""
+    """personal: gap_class -> internal, stub deleted, no other vault writes."""
     gap = _make_gap(session, term="my-private-project", note_id="my-private-project")
+    stub = _write_stub(tmp_path, "my-private-project")
 
     result = ResearchResult(
         disposition="personal",
@@ -224,16 +244,18 @@ async def test_e2e_personal_disposition_flips_gap_class_no_vault_file(
     assert gap.state == "classified"
     assert gap.research_attempts == 0  # personal does NOT burn an attempt
 
+    assert not stub.exists()
     assert not (tmp_path / "_inbox").exists()
     assert not (tmp_path / "_failed_research").exists()
 
 
 @pytest.mark.asyncio
-async def test_e2e_discard_disposition_parks_gap_no_vault_file(
+async def test_e2e_discard_disposition_parks_gap_and_removes_stub(
     session: Session, tmp_path: Path
 ) -> None:
-    """discard: gap parked, no vault files written."""
+    """discard: gap parked, stub deleted, no other vault writes."""
     gap = _make_gap(session, term="fooo", note_id="fooo")
+    stub = _write_stub(tmp_path, "fooo")
 
     result = ResearchResult(
         disposition="discard",
@@ -251,5 +273,6 @@ async def test_e2e_discard_disposition_parks_gap_no_vault_file(
     assert gap.state == "parked"
     assert gap.research_attempts == 0  # discard does NOT burn an attempt
 
+    assert not stub.exists()
     assert not (tmp_path / "_inbox").exists()
     assert not (tmp_path / "_failed_research").exists()
