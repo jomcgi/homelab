@@ -106,14 +106,20 @@ spec:
             - name: KNOWLEDGE_GAPS_REWRITE_DISCARDABLE
               value: "1"
             {{- end }}
-            - name: KNOWLEDGE_LAYOUT_LINK_DISTANCE
-              value: {{ .Values.knowledge.layout.linkDistance | quote }}
-            - name: KNOWLEDGE_LAYOUT_ITERATIONS
-              value: {{ .Values.knowledge.layout.iterations | quote }}
+            - name: KNOWLEDGE_LAYOUT_SCALING_RATIO
+              value: {{ .Values.knowledge.layout.scalingRatio | quote }}
+            - name: KNOWLEDGE_LAYOUT_GRAVITY
+              value: {{ .Values.knowledge.layout.gravity | quote }}
+            - name: KNOWLEDGE_LAYOUT_MAX_ITER
+              value: {{ .Values.knowledge.layout.maxIter | quote }}
+            - name: KNOWLEDGE_LAYOUT_LINLOG
+              value: {{ .Values.knowledge.layout.linlog | quote }}
+            - name: KNOWLEDGE_LAYOUT_CORE_FRACTION
+              value: {{ .Values.knowledge.layout.coreFraction | quote }}
+            - name: KNOWLEDGE_LAYOUT_RING_RADIUS_FRACTION
+              value: {{ .Values.knowledge.layout.ringRadiusFraction | quote }}
             - name: KNOWLEDGE_LAYOUT_SEED
               value: {{ .Values.knowledge.layout.seed | quote }}
-            - name: KNOWLEDGE_LAYOUT_SCALE
-              value: {{ .Values.knowledge.layout.scale | quote }}
             {{- if .Values.knowledge.gitRemote }}
             - name: VAULT_GIT_REMOTE
               value: {{ .Values.knowledge.gitRemote | quote }}

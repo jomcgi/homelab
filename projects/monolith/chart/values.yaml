@@ -85,10 +85,13 @@ knowledge:
       limits:
         memory: "384Mi"
   layout:
-    linkDistance: 0.05
-    iterations: 50
+    scalingRatio: 2.0
+    gravity: 0.5
+    maxIter: 100
+    linlog: true
+    coreFraction: 0.99
+    ringRadiusFraction: 0.995
     seed: 42
-    scale: 1.0
 
 chat:
   enabled: false
