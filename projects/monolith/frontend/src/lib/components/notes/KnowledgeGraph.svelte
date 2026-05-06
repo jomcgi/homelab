@@ -1,20 +1,13 @@
 <script>
-  // Force-directed knowledge graph rendered to a canvas. Ported from the
-  // single-file prototype: d3 force sim, quadtree hit-testing, zoom/pan
-  // with click-vs-drag detection, viewport-aware zoom-to-node, and
-  // greedy-collision label drawing. The component is purely the graph
-  // surface — search box, legend, side panel, and status bar live in
-  // sibling components and drive this one via props/events.
+  // Knowledge graph rendered to a canvas. Layout positions (`node.x`,
+  // `node.y`) are computed server-side by the gardener every reconcile
+  // cycle and shipped on the wire — the client just paints. We keep the
+  // quadtree hit-test, the d3-zoom pan/zoom + click-vs-drag detection,
+  // viewport-aware zoom-to-node, and the greedy-collision label drawer.
+  // Search box, legend, side panel, and status bar live in sibling
+  // components and drive this one via props/events.
 
   import { onMount } from "svelte";
-  import {
-    forceSimulation,
-    forceLink,
-    forceManyBody,
-    forceCollide,
-    forceX,
-    forceY,
-  } from "d3-force";
   import { select } from "d3-selection";
   import { zoom as d3Zoom, zoomIdentity } from "d3-zoom";
   import { quadtree as d3Quadtree } from "d3-quadtree";
@@ -43,11 +36,10 @@
     onZoom = () => {},
   } = $props();
 
-  // Force-sim tuning lifted from the prototype.
+  // Render-time tuning. Layout knobs (linkDistance, charge, collide) now
+  // live server-side in the gardener's LayoutParams — see
+  // `projects/monolith/backend/internal/knowledge/layout.go`.
   const CFG = {
-    linkDistance: 26,
-    charge: -50,
-    collidePad: 1.8,
     baseRadius: 2.8,
     hubBoost: 0.5,
     edgeOpacity: 0.16,
@@ -56,14 +48,15 @@
     labelMaxCount: 60,
   };
 
-  // Internal mutable state. simNodes/simEdges are the d3-mutated copies
-  // (positions, velocities, resolved source/target object refs).
+  // Internal mutable state. simNodes/simEdges are local copies of the
+  // server-supplied data with x/y rescaled into pixel space and edges
+  // kept as string-id references (we resolve to objects in render via
+  // `byId.get(...)`).
   let stage; // root div
   let canvas; // <canvas>
   let ctx; // 2d context
   let dpr = 1;
   let resizeObserver;
-  let simulation;
   let quadtree;
   let transform = zoomIdentity;
   let zoomBehavior;
@@ -88,11 +81,6 @@
   // this lookup users can't click the label to navigate (only the
   // tiny coloured dot itself).
   let placedLabels = [];
-  // Layout-calculation overlay state. The chrome (status bar / search /
-  // legend / nav) renders immediately on mount; the canvas is hidden
-  // behind a "stabilising graph…" badge until pre-ticks finish in the
-  // background — so the user never stares at a frozen page.
-  let settling = $state(true);
 
   let mouseDownAt = null;
   let didMove = false;
@@ -115,19 +103,45 @@
     return CFG.baseRadius + CFG.hubBoost * Math.log2(1 + (degree || 0));
   }
 
+  function jitter() {
+    return (Math.random() - 0.5) * 100;
+  }
+
+  // Server positions arrive in NetworkX `spring_layout` units —
+  // approximately [-scale, +scale] (default scale=1.0). The render loop,
+  // quadtree, and zoom transform all live in pixel space, so we project
+  // server coords into pixels here. We multiply by half the smaller
+  // canvas dimension (minus a margin) so the layout fills the available
+  // viewport regardless of how `params.scale` is configured server-side,
+  // then translate to canvas centre. fitToBbox() will further refine the
+  // initial zoom once the data is in.
+  function projectXY(n, cx, cy, span) {
+    const sx = Number.isFinite(n.x) ? n.x * span + cx : cx + jitter();
+    const sy = Number.isFinite(n.y) ? n.y * span + cy : cy + jitter();
+    return [sx, sy];
+  }
+
   function rebuildGraph() {
-    // Build mutable copies — d3-force mutates x/y/vx/vy in place and
-    // forceLink replaces source/target strings with object refs.
-    simNodes = nodes.map((n) => ({
-      id: n.id,
-      title: n.title,
-      cluster: n.type,
-      degree: n.degree ?? 0,
-      r: radiusFor(n.degree ?? 0),
-      color: colorForResolved(n.type),
-      x: 0,
-      y: 0,
-    }));
+    const w = stage?.clientWidth ?? canvas?.width ?? 1200;
+    const h = stage?.clientHeight ?? canvas?.height ?? 800;
+    const cx = w / 2;
+    const cy = h / 2;
+    const margin = 60;
+    const span = Math.max(50, Math.min(w, h) / 2 - margin);
+
+    simNodes = nodes.map((n) => {
+      const [x, y] = projectXY(n, cx, cy, span);
+      return {
+        id: n.id,
+        title: n.title,
+        cluster: n.type,
+        degree: n.degree ?? 0,
+        r: radiusFor(n.degree ?? 0),
+        color: colorForResolved(n.type),
+        x,
+        y,
+      };
+    });
     simEdges = edges.map((e) => ({
       source: e.source,
       target: e.target,
@@ -136,7 +150,7 @@
     byId = new Map(simNodes.map((n) => [n.id, n]));
     neighborsOf = new Map(simNodes.map((n) => [n.id, new Set()]));
     for (const e of simEdges) {
-      // edges still hold string ids at this point (forceLink resolves later)
+      // Edges hold string ids; render() resolves on demand via byId.
       const s = neighborsOf.get(e.source);
       const t = neighborsOf.get(e.target);
       if (s) s.add(e.target);
@@ -555,23 +569,6 @@
     }
   }
 
-  async function settleLayoutAsync() {
-    const total = 600;
-    const chunk = 40;
-    let done = 0;
-    while (done < total) {
-      const target = Math.min(done + chunk, total);
-      while (done < target) {
-        simulation.tick();
-        done++;
-      }
-      // Yield one frame so the chrome and the loading badge stay
-      // responsive. The visible canvas updates every chunk because
-      // simulation.on("tick", render) is wired during the chunk.
-      await new Promise((r) => requestAnimationFrame(r));
-    }
-  }
-
   // ───────────────────────── pointer handlers ─────────────────────────
 
   function handleMouseDown(e) {
@@ -635,70 +632,13 @@
     ctx = canvas.getContext("2d");
     resolved = resolveColors();
 
-    rebuildGraph();
+    // resize() before rebuildGraph() so the projection picks up the real
+    // stage size — server x/y are normalised to ~[-1, +1] and we scale
+    // them against the canvas dimensions.
     resize();
-
-    simulation = forceSimulation(simNodes)
-      .force(
-        "link",
-        forceLink(simEdges)
-          .id((d) => d.id)
-          .distance(CFG.linkDistance)
-          .strength(0.45),
-      )
-      .force(
-        "charge",
-        forceManyBody().strength(CFG.charge).theta(0.95).distanceMax(250),
-      )
-      .force(
-        "collide",
-        forceCollide()
-          .radius((d) => d.r + CFG.collidePad)
-          .strength(0.7),
-      )
-      // Per-node centering strength. Connected nodes get the prototype's
-      // gentle 0.06 so cluster shape can express itself. Orphans (no
-      // edges) get a stronger 0.28 so they pile near the centre instead
-      // of drifting to the equilibrium ring at the canvas edge — they're
-      // high-value conversion candidates (gap stubs that could become
-      // knowledge), so visible and close > pushed to the boundary.
-      .force(
-        "x",
-        forceX(stage.clientWidth / 2).strength((d) => {
-          const n = neighborsOf.get(d.id);
-          return n && n.size > 0 ? 0.06 : 0.28;
-        }),
-      )
-      .force(
-        "y",
-        forceY(stage.clientHeight / 2).strength((d) => {
-          const n = neighborsOf.get(d.id);
-          return n && n.size > 0 ? 0.06 : 0.28;
-        }),
-      )
-      .velocityDecay(0.5)
-      .alphaDecay(0.018);
-
-    // Run pre-ticks asynchronously so the page chrome (status bar,
-    // search, legend) is interactive while the graph layout settles.
-    // Synchronous 600 ticks blocked the main thread for ~1-2 seconds
-    // on the real KG. Yielding every 40 ticks via requestAnimationFrame
-    // keeps the page responsive; total wall-clock is similar but UX is
-    // dramatically better.
-    //
-    // Crucially: we DON'T attach a render() tick callback during
-    // settle. The overlay covers the canvas, so painting in-progress
-    // frames would only matter if the overlay leaked transparency.
-    // After settle finishes we attach the tick listener (for legend
-    // toggle / focusNode driven motion) and reveal in place.
-    settleLayoutAsync().then(() => {
-      simulation.stop();
-      simulation.on("tick", render);
-      rebuildQuadtree();
-      fitToBbox();
-      render();
-      settling = false;
-    });
+    rebuildGraph();
+    rebuildQuadtree();
+    fitToBbox();
 
     zoomBehavior = d3Zoom()
       .scaleExtent([0.15, 8])
@@ -743,7 +683,7 @@
     });
     resizeObserver.observe(stage);
 
-    // Initial blank-canvas paint while pre-ticks run in the background.
+    // First paint with the server-supplied positions.
     render();
 
     // Cleanup runs on component destroy. Returning it from onMount
@@ -751,10 +691,6 @@
     // to the SSR export and crashes on client (svelte/package.json
     // exports map's `default` is the server bundle).
     return () => {
-      if (simulation) {
-        simulation.on("tick", null);
-        simulation.stop();
-      }
       if (resizeObserver) resizeObserver.disconnect();
       if (canvas) {
         canvas.removeEventListener("mousedown", handleMouseDown);
@@ -769,17 +705,17 @@
 
   // ───────────────────────── reactive effects ─────────────────────────
 
-  // Rebuild the graph and restart the sim when nodes/edges change.
-  // Tracked via referential identity — the parent should pass new array
-  // refs when the data set actually changes.
+  // Rebuild the graph when nodes/edges change. Tracked via referential
+  // identity — the parent should pass new array refs when the data set
+  // actually changes.
   //
   // BUT: the parent's `nodesWithDegree` is a $derived.by that produces
   // a new array every time the parent re-renders (any unrelated state
   // change like updating `hoverTitle` re-runs the derived). We can't
   // tell "real shape change" from "spurious new ref" just from the
-  // ===, so fingerprint by length + first/last id and only restart the
-  // sim when that fingerprint actually changes. Otherwise hovering a
-  // node re-kicks the sim with alpha=0.6 and the whole graph hops.
+  // ===, so fingerprint by length + first/last id and only rebuild
+  // when that fingerprint actually changes. Otherwise hovering a node
+  // would re-project all coords and the picture would micro-jitter.
   let lastDataFingerprint = "";
   $effect(() => {
     const fp =
@@ -787,17 +723,8 @@
       `${nodes[0]?.id ?? ""}:${nodes[nodes.length - 1]?.id ?? ""}`;
     if (fp === lastDataFingerprint) return;
     lastDataFingerprint = fp;
-    if (!simulation || !ctx) return;
+    if (!ctx) return;
     rebuildGraph();
-    simulation.nodes(simNodes);
-    simulation.force(
-      "link",
-      forceLink(simEdges)
-        .id((d) => d.id)
-        .distance(CFG.linkDistance)
-        .strength(0.45),
-    );
-    simulation.alpha(0.6).restart();
     rebuildQuadtree();
     render();
   });
@@ -806,7 +733,7 @@
   // animate the viewport to it. Falsy selectedId is a no-op (the parent
   // handles closing the panel).
   $effect(() => {
-    if (!simulation) return;
+    if (!ctx) return;
     if (!selectedId) {
       render();
       return;
@@ -816,12 +743,12 @@
     render();
   });
 
-  // Cluster toggle is a render-time mask, not a layout reflow: the
-  // initial settle places ALL nodes (cluster colours just for paint),
-  // and render() gates every node and edge on activeClusters. Toggling
-  // a chip therefore just shows/hides without perturbing positions —
-  // the layout stays exactly where the user left it, which is the
-  // whole reason this graph feels stable.
+  // Cluster toggle is a render-time mask, not a layout reflow: server
+  // positions are computed for every node regardless of cluster (cluster
+  // colours just for paint), and render() gates every node and edge on
+  // activeClusters. Toggling a chip therefore just shows/hides without
+  // perturbing positions — the layout stays exactly where the user left
+  // it, which is the whole reason this graph feels stable.
   $effect(() => {
     activeClusters; // dependency
     if (!ctx) return;
@@ -843,11 +770,6 @@
     class:panning
     class:over-node={overNode}
   ></canvas>
-  {#if settling}
-    <div class="settling-overlay">
-      <div class="settling-badge">LOADING KNOWLEDGE GRAPH</div>
-    </div>
-  {/if}
 </div>
 
 <style>
@@ -875,52 +797,5 @@
   }
   canvas.over-node {
     cursor: pointer;
-  }
-  .settling-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f1ebdc;
-    pointer-events: none;
-    z-index: 10;
-  }
-  .settling-overlay::before {
-    /* Repaint the dotted texture on top so the loading overlay matches
-       the final canvas surface — otherwise the reveal looks like a
-       background swap. */
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(rgba(0, 0, 0, 0.07) 1px, transparent 1px);
-    background-size: 24px 24px;
-    pointer-events: none;
-  }
-  .settling-badge {
-    font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    background: #ffffff;
-    color: #141414;
-    border: 1.5px solid #141414;
-    box-shadow: 4px 4px 0 #141414;
-    padding: 8px 14px;
-  }
-  .settling-badge::after {
-    content: "";
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    background: #ff6b5b;
-    border: 1px solid #141414;
-    margin-left: 10px;
-    vertical-align: middle;
-    animation: settling-pulse 0.8s infinite;
-  }
-  @keyframes settling-pulse {
-    50% {
-      background: #f5d90a;
-    }
   }
 </style>
