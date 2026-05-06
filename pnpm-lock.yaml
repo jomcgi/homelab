@@ -228,9 +228,6 @@ importers:
       "@opentelemetry/semantic-conventions":
         specifier: ^1.28.0
         version: 1.40.0
-      d3-force:
-        specifier: ^3.0.0
-        version: 3.0.0
       d3-quadtree:
         specifier: ^3.0.1
         version: 3.0.1
@@ -1364,7 +1361,6 @@ packages:
         integrity: sha512-S5qOXrKV8BQEzJPVxAwnryi2+Iq5pB40gTEIT69BQONqR7JH1EPIcQ/Uiv9mCnn05jff9umq/5nqzxlqTOg9NA==,
       }
     engines: { node: ">=18" }
-    cpu: [x64]
     os: [linux]
 
   "@esbuild/netbsd-arm64@0.27.2":
@@ -2708,7 +2704,6 @@ packages:
       {
         integrity: sha512-3AHmtQq/ppNuUspKAlvA8HtLybkDflkMuLK4DPo77DfthRb71V84/c4MlWJXixZz4uruIH4uaa07IqoAkG64fg==,
       }
-    cpu: [x64]
     os: [linux]
 
   "@rollup/rollup-linux-x64-gnu@4.60.1":
@@ -9196,7 +9191,6 @@ packages:
         integrity: sha512-rBl295dIbTxEY4nl3fFue18qFPdU/ASUOLicg+1pa3suBRtJR8lKCoLFkhcg1VApSGujDjgcOiTqAsu5cnq/3w==,
       }
     engines: { node: ">=22.0.0" }
-    cpu: [x64, arm64]
     os: [darwin, linux, win32]
     hasBin: true
 
