@@ -250,10 +250,11 @@ async def test_e2e_personal_disposition_flips_gap_class_and_removes_stub(
 
 
 @pytest.mark.asyncio
-async def test_e2e_discard_disposition_parks_gap_and_removes_stub(
+async def test_e2e_discard_disposition_parks_gap_and_marks_stub_discardable(
     session: Session, tmp_path: Path
 ) -> None:
-    """discard: gap parked, stub deleted, no other vault writes."""
+    """discard: gap parked, stub marked ``triaged: discardable`` so the
+    next gardener tick can rewrite source wikilinks. No other vault writes."""
     gap = _make_gap(session, term="fooo", note_id="fooo")
     stub = _write_stub(tmp_path, "fooo")
 
@@ -273,6 +274,13 @@ async def test_e2e_discard_disposition_parks_gap_and_removes_stub(
     assert gap.state == "parked"
     assert gap.research_attempts == 0  # discard does NOT burn an attempt
 
-    assert not stub.exists()
+    assert stub.exists()
+    import yaml as _yaml
+
+    fm = _yaml.safe_load(stub.read_text().split("---\n", 2)[1])
+    assert fm["triaged"] == "discardable"
+    assert fm["status"] == "parked"
+    assert fm["gap_class"] == "parked"
+
     assert not (tmp_path / "_inbox").exists()
     assert not (tmp_path / "_failed_research").exists()

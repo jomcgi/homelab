@@ -37,6 +37,7 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
+import yaml
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
@@ -53,19 +54,65 @@ RESEARCH_PARK_THRESHOLD = 3
 
 
 def _delete_stub(vault_root: Path, slug: str) -> None:
-    # The reconciler projects _researching/<slug>.md frontmatter into the
-    # Gap row on every cycle. If we leave the stub at status=classified
-    # after the handler flipped the DB row to a terminal state, the next
-    # reconciler tick reverts state -> classified and the gap gets
-    # re-picked next research tick. This caused the same five gaps to be
-    # re-researched ~every 5 minutes for days. Removing the stub stops
-    # the projection; the orphan Gap row is harmless (the SELECT filters
-    # state='classified', which the row no longer is).
+    # Used by the personal/quarantine paths where we want the gardener
+    # to be free to recreate the stub if the term reappears. The reconciler
+    # projects stub frontmatter into the Gap row on every cycle, so leaving
+    # a stub at status=classified after the handler flipped the DB row to a
+    # terminal state would cause the next reconciler tick to revert state
+    # -> classified and the gap would be re-picked next research tick.
+    # Removing the stub stops the projection.
     stub = vault_root / RESEARCHING_DIR / f"{slug}.md"
     try:
         stub.unlink()
     except FileNotFoundError:
         pass
+
+
+def _mark_stub_discardable(vault_root: Path, slug: str) -> None:
+    """Mark the stub as ``triaged: discardable`` so the gardener can
+    rewrite source wikilinks on its next tick.
+
+    Without this, every Sonnet ``discard`` is a treadmill: the gap row
+    ends up parked, gets cleaned up, and then the gardener re-discovers
+    the same wikilink in source notes and creates a new stub. Marking
+    the stub plugs ``research_handler`` into the existing Phase A
+    discardable-rewrite path in ``gaps.discover_gaps`` (gated by
+    ``KNOWLEDGE_GAPS_REWRITE_DISCARDABLE``; default off = dry-run that
+    just logs ``rewrites_dryrun=N``).
+
+    Also overwrites ``status`` and ``gap_class`` to ``parked`` so the
+    next reconciler tick projects matching values onto the Gap row
+    instead of reverting it to the classifier's earlier classified+external
+    state. ``parked`` is in the migration's CHECK list and in the
+    reconciler's ``_VALID_GAP_STATES`` (also extended in this commit).
+
+    Idempotent: missing stub is a no-op; an already-marked stub is left
+    alone to avoid mtime churn.
+    """
+    stub = vault_root / RESEARCHING_DIR / f"{slug}.md"
+    try:
+        text = stub.read_text()
+    except FileNotFoundError:
+        return
+    if not text.startswith("---\n"):
+        return
+    parts = text.split("---\n", 2)
+    if len(parts) < 3:
+        return
+    meta = yaml.safe_load(parts[1])
+    if not isinstance(meta, dict):
+        return
+    if (
+        meta.get("triaged") == "discardable"
+        and meta.get("status") == "parked"
+        and meta.get("gap_class") == "parked"
+    ):
+        return  # already marked — skip the write to keep mtime stable.
+    meta["triaged"] = "discardable"
+    meta["status"] = "parked"
+    meta["gap_class"] = "parked"
+    fm_str = yaml.dump(meta, default_flow_style=False, sort_keys=False)
+    stub.write_text(f"---\n{fm_str}---\n{parts[2]}")
 
 
 async def research_gaps_handler(*, session: Session, vault_root: Path) -> None:
@@ -241,7 +288,7 @@ async def _process_one(*, session: Session, gap: Gap, vault_root: Path) -> None:
         gap.gap_class = "parked"
         gap.state = "parked"
         session.commit()
-        _delete_stub(vault_root, gap.note_id)
+        _mark_stub_discardable(vault_root, gap.note_id)
         logger.info(
             "knowledge.research-gaps: %s -> discard (gap_class=parked); reason=%s",
             gap.term,

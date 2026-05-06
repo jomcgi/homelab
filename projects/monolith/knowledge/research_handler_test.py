@@ -213,9 +213,16 @@ async def test_personal_disposition_tolerates_missing_stub(
 
 
 @pytest.mark.asyncio
-async def test_discard_disposition_parks_gap_and_removes_stub(
+async def test_discard_disposition_parks_gap_and_marks_stub_discardable(
     session: Session, tmp_path: Path
 ) -> None:
+    """Discards plug into the Phase A discardable-rewrite path.
+
+    The stub must stay in place with ``triaged: discardable`` so the next
+    gardener tick sees it and (eventually) rewrites source wikilinks.
+    Status and gap_class are set to ``parked`` so the reconciler projects
+    matching values onto the Gap row instead of reverting it.
+    """
     gap = _make_gap(session)
     stub = _write_stub(tmp_path, "linkerd-mtls")
 
@@ -234,9 +241,78 @@ async def test_discard_disposition_parks_gap_and_removes_stub(
     assert gap.gap_class == "parked"
     assert gap.state == "parked"
     assert gap.research_attempts == 0  # not bumped
-    assert not stub.exists()
+    assert stub.exists(), "stub must remain so the gardener can pick up the marker"
+
+    import yaml as _yaml
+
+    parts = stub.read_text().split("---\n", 2)
+    fm = _yaml.safe_load(parts[1])
+    assert fm["triaged"] == "discardable"
+    assert fm["status"] == "parked"
+    assert fm["gap_class"] == "parked"
+
     assert not (tmp_path / "_inbox").exists()
     assert not (tmp_path / "_failed_research").exists()
+
+
+@pytest.mark.asyncio
+async def test_discard_disposition_tolerates_missing_stub(
+    session: Session, tmp_path: Path
+) -> None:
+    """Marker write is idempotent: missing stub is not an error."""
+    gap = _make_gap(session)
+    # Deliberately do NOT write a stub.
+
+    discard = ResearchResult(
+        disposition="discard",
+        reason="not worth tracking",
+    )
+
+    with patch(
+        "knowledge.research_handler.run_research",
+        AsyncMock(return_value=discard),
+    ):
+        await research_gaps_handler(session=session, vault_root=tmp_path)
+
+    session.refresh(gap)
+    assert gap.state == "parked"
+    assert gap.gap_class == "parked"
+    assert not (tmp_path / "_researching" / "linkerd-mtls.md").exists()
+
+
+@pytest.mark.asyncio
+async def test_discard_marker_is_idempotent_on_already_marked_stub(
+    session: Session, tmp_path: Path
+) -> None:
+    """Re-discarding an already-marked stub doesn't churn the file's mtime."""
+    gap = _make_gap(session)
+    stub = _write_stub(tmp_path, "linkerd-mtls")
+
+    # Pre-mark the stub as if a previous discard had already run.
+    import yaml as _yaml
+
+    parts = stub.read_text().split("---\n", 2)
+    fm = _yaml.safe_load(parts[1])
+    fm["triaged"] = "discardable"
+    fm["status"] = "parked"
+    fm["gap_class"] = "parked"
+    stub.write_text(f"---\n{_yaml.dump(fm, sort_keys=False)}---\n{parts[2]}")
+    pre_mtime = stub.stat().st_mtime_ns
+
+    discard = ResearchResult(
+        disposition="discard",
+        reason="duplicate gap",
+    )
+
+    with patch(
+        "knowledge.research_handler.run_research",
+        AsyncMock(return_value=discard),
+    ):
+        await research_gaps_handler(session=session, vault_root=tmp_path)
+
+    assert stub.stat().st_mtime_ns == pre_mtime, (
+        "already-marked stub must not be rewritten"
+    )
 
 
 @pytest.mark.asyncio

@@ -32,10 +32,12 @@ _VALID_GAP_STATES = frozenset(
         "discovered",
         "classified",
         "in_review",
+        "researching",
         "researched",
         "verified",
         "consolidated",
         "committed",
+        "parked",
         "rejected",
     }
 )
