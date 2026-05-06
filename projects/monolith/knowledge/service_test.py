@@ -1,10 +1,12 @@
 """Tests for knowledge service startup registration and handlers."""
 
 import logging
+import math
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlmodel import select
 
 from knowledge import service
 from knowledge.gardener import GardenStats
@@ -737,3 +739,184 @@ class TestClassifyGapsHandler:
 
         # Batch capped at 10
         assert captured_size == 10
+
+
+class TestReconcileHandlerLayout:
+    """Integration tests covering the layout pass that runs at the end of
+    every reconcile cycle. Goes through the real Reconciler against an
+    in-memory SQLite session — the layout step must populate ``layout_x``
+    / ``layout_y`` on Note rows, must not roll back upserts when layout
+    fails, and must produce stable positions across no-op cycles.
+    """
+
+    @pytest.fixture(name="session")
+    def session_fixture(self):
+        """In-memory SQLite session with schema stripped (SQLite has no schemas).
+
+        Mirrors the fixture in ``reconciler_test.py`` so the full
+        Reconciler → DB flow works end-to-end.
+        """
+        from sqlmodel import Session, SQLModel, create_engine
+        from sqlmodel.pool import StaticPool
+
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        original_schemas = {}
+        for table in SQLModel.metadata.tables.values():
+            if table.schema is not None:
+                original_schemas[table.name] = table.schema
+                table.schema = None
+        try:
+            SQLModel.metadata.create_all(engine)
+            with Session(engine) as db:
+                yield db
+        finally:
+            for table in SQLModel.metadata.tables.values():
+                if table.name in original_schemas:
+                    table.schema = original_schemas[table.name]
+
+    @pytest.fixture
+    def fake_embed_client(self):
+        """Async mock that returns a deterministic 1024-dim vector per text."""
+        client = AsyncMock()
+        client.embed_batch.side_effect = lambda texts: [[0.1] * 1024 for _ in texts]
+        return client
+
+    def _setup_vault(self, tmp_path: Path) -> None:
+        """Create the _processed/ directory the reconciler walks."""
+        (tmp_path / "_processed").mkdir(exist_ok=True)
+        (tmp_path / ".sync-ready").touch()
+
+    def _write_note(self, tmp_path: Path, rel: str, content: str) -> None:
+        p = tmp_path / "_processed" / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+
+    @pytest.mark.asyncio
+    async def test_reconcile_handler_populates_layout_positions(
+        self, monkeypatch, tmp_path, session, fake_embed_client
+    ):
+        """After reconcile_handler runs, every note has finite layout_x/layout_y."""
+        from knowledge.models import Note
+
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        self._setup_vault(tmp_path)
+        # Two notes with a wikilink between them so layout sees an edge.
+        self._write_note(
+            tmp_path,
+            "a.md",
+            "---\nid: a\ntitle: A\n---\nLinks to [[b]].",
+        )
+        self._write_note(
+            tmp_path,
+            "b.md",
+            "---\nid: b\ntitle: B\n---\nBack to [[a]].",
+        )
+
+        with patch("knowledge.service.EmbeddingClient", return_value=fake_embed_client):
+            await service.reconcile_handler(session)
+
+        notes = list(session.scalars(select(Note)))
+        assert len(notes) == 2
+        for note in notes:
+            assert note.layout_x is not None, f"{note.note_id} has no layout_x"
+            assert note.layout_y is not None, f"{note.note_id} has no layout_y"
+            assert math.isfinite(note.layout_x)
+            assert math.isfinite(note.layout_y)
+
+    @pytest.mark.asyncio
+    async def test_reconcile_handler_layout_failure_does_not_roll_back_upserts(
+        self, monkeypatch, tmp_path, session, fake_embed_client, caplog
+    ):
+        """Layout exception is caught; upsert state is preserved."""
+        from knowledge.models import Note
+
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        self._setup_vault(tmp_path)
+        self._write_note(
+            tmp_path,
+            "a.md",
+            "---\nid: a\ntitle: A\n---\nBody.",
+        )
+
+        def boom(_session):
+            raise RuntimeError("boom")
+
+        # Patch at the import target — same module the handler resolves
+        # the name through at call time.
+        monkeypatch.setattr("knowledge.service._run_layout_pass", boom)
+
+        with (
+            patch("knowledge.service.EmbeddingClient", return_value=fake_embed_client),
+            caplog.at_level(logging.ERROR, logger="knowledge.service"),
+        ):
+            result = await service.reconcile_handler(session)
+
+        # Handler returned normally despite the layout exception.
+        assert result is None
+        # Failure was logged at ERROR via logger.exception.
+        assert any("knowledge.layout: pass failed" in r.message for r in caplog.records)
+        # The upsert was committed: the new note exists.
+        notes = list(session.scalars(select(Note)))
+        assert len(notes) == 1
+        assert notes[0].note_id == "a"
+        # And the layout pass didn't run, so positions are still None.
+        assert notes[0].layout_x is None
+        assert notes[0].layout_y is None
+
+    @pytest.mark.asyncio
+    async def test_reconcile_handler_preserves_positions_across_no_op_cycles(
+        self, monkeypatch, tmp_path, session, fake_embed_client
+    ):
+        """Positions are stable when nothing on disk changes between cycles.
+
+        The seed-and-refine flow seeds spring_layout with the prior
+        positions, so a no-op cycle should reproduce essentially the
+        same coordinates.
+        """
+        from knowledge.models import Note
+
+        monkeypatch.setenv("VAULT_ROOT", str(tmp_path))
+        self._setup_vault(tmp_path)
+        self._write_note(
+            tmp_path,
+            "a.md",
+            "---\nid: a\ntitle: A\n---\nLinks to [[b]].",
+        )
+        self._write_note(
+            tmp_path,
+            "b.md",
+            "---\nid: b\ntitle: B\n---\nBack to [[a]].",
+        )
+        self._write_note(
+            tmp_path,
+            "c.md",
+            "---\nid: c\ntitle: C\n---\nIsolated body.",
+        )
+
+        with patch("knowledge.service.EmbeddingClient", return_value=fake_embed_client):
+            await service.reconcile_handler(session)
+
+        first_pass: dict[str, tuple[float, float]] = {}
+        for note in session.scalars(select(Note)):
+            assert note.layout_x is not None and note.layout_y is not None
+            first_pass[note.note_id] = (note.layout_x, note.layout_y)
+
+        # Second cycle, no filesystem changes.
+        with patch("knowledge.service.EmbeddingClient", return_value=fake_embed_client):
+            await service.reconcile_handler(session)
+
+        # SQLAlchemy may serve the same instance from the identity map; expire
+        # the session so we re-read the row from the DB.
+        session.expire_all()
+        for note in session.scalars(select(Note)):
+            prev_x, prev_y = first_pass[note.note_id]
+            assert abs(note.layout_x - prev_x) < 0.1, (
+                f"{note.note_id} drifted on x: {prev_x} → {note.layout_x}"
+            )
+            assert abs(note.layout_y - prev_y) < 0.1, (
+                f"{note.note_id} drifted on y: {prev_y} → {note.layout_y}"
+            )
