@@ -338,9 +338,21 @@ class KnowledgeStore:
         Edges with unresolved targets (target_id pointing to a string that
         doesn't match any note's note_id) are dropped — gap-promoted
         wikilinks survive as edges into ``type='gap'`` nodes.
+
+        Each node payload also ships server-computed ``degree`` (count of
+        incident visible edges, matching what the client used to compute)
+        and persisted ``x`` / ``y`` layout positions (``None`` until a
+        layout job has run).
         """
         note_rows = self.session.execute(
-            select(Note.note_id, Note.title, Note.type, Note.indexed_at)
+            select(
+                Note.note_id,
+                Note.title,
+                Note.type,
+                Note.indexed_at,
+                Note.layout_x,
+                Note.layout_y,
+            )
         ).all()
         note_ids = {row.note_id for row in note_rows}
 
@@ -364,9 +376,28 @@ class KnowledgeStore:
             if row.target in note_ids
         ]
 
+        # Compute degree from the response edges so server-side semantics
+        # match exactly what the client used to compute (increment both
+        # endpoints of each visible edge).
+        degree_by_note_id: dict[str, int] = {}
+        for edge in edges:
+            degree_by_note_id[edge["source"]] = (
+                degree_by_note_id.get(edge["source"], 0) + 1
+            )
+            degree_by_note_id[edge["target"]] = (
+                degree_by_note_id.get(edge["target"], 0) + 1
+            )
+
         return {
             "nodes": [
-                {"id": row.note_id, "title": row.title, "type": row.type}
+                {
+                    "id": row.note_id,
+                    "title": row.title,
+                    "type": row.type,
+                    "degree": degree_by_note_id.get(row.note_id, 0),
+                    "x": row.layout_x,
+                    "y": row.layout_y,
+                }
                 for row in note_rows
             ],
             "edges": edges,
