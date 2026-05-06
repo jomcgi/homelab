@@ -12,6 +12,7 @@
   import { zoom as d3Zoom, zoomIdentity } from "d3-zoom";
   import { quadtree as d3Quadtree } from "d3-quadtree";
   import { colorFor, CLUSTER_COLORS } from "./clusters.js";
+  import { radiusFor, projectXY } from "./knowledge-graph-layout.js";
 
   /**
    * @typedef {{ id: string, title: string, type: string, degree: number }} Node
@@ -99,27 +100,15 @@
     return resolved.__other ?? "#888";
   }
 
-  function radiusFor(degree) {
-    return CFG.baseRadius + CFG.hubBoost * Math.log2(1 + (degree || 0));
-  }
-
-  function jitter() {
-    return (Math.random() - 0.5) * 100;
-  }
-
   // Server positions arrive in NetworkX `spring_layout` units —
   // approximately [-scale, +scale] (default scale=1.0). The render loop,
-  // quadtree, and zoom transform all live in pixel space, so we project
-  // server coords into pixels here. We multiply by half the smaller
-  // canvas dimension (minus a margin) so the layout fills the available
-  // viewport regardless of how `params.scale` is configured server-side,
-  // then translate to canvas centre. fitToBbox() will further refine the
-  // initial zoom once the data is in.
-  function projectXY(n, cx, cy, span) {
-    const sx = Number.isFinite(n.x) ? n.x * span + cx : cx + jitter();
-    const sy = Number.isFinite(n.y) ? n.y * span + cy : cy + jitter();
-    return [sx, sy];
-  }
+  // quadtree, and zoom transform all live in pixel space, so projectXY
+  // (in ./knowledge-graph-layout.js) projects server coords into pixels.
+  // We multiply by half the smaller canvas dimension (minus a margin) so
+  // the layout fills the available viewport regardless of how
+  // `params.scale` is configured server-side, then translate to canvas
+  // centre. fitToBbox() will further refine the initial zoom once the
+  // data is in.
 
   function rebuildGraph() {
     const w = stage?.clientWidth ?? canvas?.width ?? 1200;
@@ -136,7 +125,7 @@
         title: n.title,
         cluster: n.type,
         degree: n.degree ?? 0,
-        r: radiusFor(n.degree ?? 0),
+        r: radiusFor(n.degree ?? 0, CFG),
         color: colorForResolved(n.type),
         x,
         y,
