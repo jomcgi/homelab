@@ -42,16 +42,16 @@ plots them and never runs a force simulation.
 
 ## Design decisions (locked)
 
-| Dimension              | Decision                                                                    |
-| ---------------------- | --------------------------------------------------------------------------- |
-| Layout language        | Python force-directed (NetworkX `spring_layout`)                            |
-| Cadence                | At end of every reconcile cycle, post-commit                                |
-| Stability              | Soft: seed prior positions, run 50–100 refine iterations                    |
-| Frontend behavior      | Pure render — strip d3-force, plot positions verbatim                       |
-| Storage                | `layout_x`, `layout_y` columns on `knowledge.notes`                         |
-| Tunability (params)    | Helm `values.yaml` → env → `LayoutParams.from_env()`                        |
-| Tunability (iteration) | Local `preview_layout.py` script + `homelab knowledge recompute-layout` CLI |
-| Orphan handling        | None initially — iterate on standard params; revisit only if visually wrong |
+| Dimension              | Decision                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Layout language        | Python force-directed (NetworkX `spring_layout`)                                                               |
+| Cadence                | At end of every reconcile cycle, post-commit                                                                   |
+| Stability              | Soft: seed prior positions, run 50–100 refine iterations                                                       |
+| Frontend behavior      | Pure render — strip d3-force, plot positions verbatim                                                          |
+| Storage                | `layout_x`, `layout_y` columns on `knowledge.notes`                                                            |
+| Tunability (params)    | Helm `values.yaml` → env → `LayoutParams.from_env()`                                                           |
+| Tunability (iteration) | Local `preview-layout.py` script + `homelab scheduler jobs run-now knowledge.reconcile` to skip the 5-min wait |
+| Orphan handling        | None initially — iterate on standard params; revisit only if visually wrong                                    |
 
 ## Architecture
 
@@ -136,10 +136,12 @@ layout_y DOUBLE PRECISION` on `knowledge.notes`. Both nullable; backfill
 8. **`requirements.txt` + relevant `BUILD.bazel`** — add `networkx` to pip
    deps and the monolith `py_library`. Run `format` to update generated
    files.
-9. **`homelab` CLI** — new subcommand `homelab knowledge recompute-layout`
-   that triggers a one-shot layout pass through the same lock-leased
-   scheduler infrastructure. The escape hatch for "I edited values, don't
-   want to wait 5 minutes."
+9. **No new CLI subcommand needed.** The existing
+   `homelab scheduler jobs run-now knowledge.reconcile` already triggers
+   the reconcile job on the next scheduler tick, and (post this design)
+   the layout pass runs as the last step of every reconcile. The escape
+   hatch for "I edited values, don't want to wait 5 minutes" is just
+   that command.
 
 ### Helm
 
@@ -163,18 +165,12 @@ layout_y DOUBLE PRECISION` on `knowledge.notes`. Both nullable; backfill
 ### Frontend
 
 13. **`projects/monolith/frontend/src/lib/components/notes/KnowledgeGraph.svelte`**
-    — substantial simplification:
-    - Remove imports: `forceSimulation`, `forceLink`, `forceManyBody`,
-      `forceCollide`, `forceCenter`, `forceX`, `forceY`.
-    - Remove `settling` state, `settleLayoutAsync`, the 600-tick chunk loop.
-    - Remove `<div class="settling-overlay">` (lines 846–848 today).
-    - Remove the `simulation.alpha(0.6).restart()` re-heating effect
-      (lines 783–803). Replace with a plain `simNodes = …; rebuildQuadtree(); render()`.
-    - On mount: `simNodes = nodes.map(n => ({...n, x: n.x ?? cx + jitter(),
+    — substantial simplification: - Remove imports: `forceSimulation`, `forceLink`, `forceManyBody`,
+    `forceCollide`, `forceCenter`, `forceX`, `forceY`. - Remove `settling` state, `settleLayoutAsync`, the 600-tick chunk loop. - Remove `<div class="settling-overlay">` (lines 846–848 today). - Remove the `simulation.alpha(0.6).restart()` re-heating effect
+    (lines 783–803). Replace with a plain `simNodes = …; rebuildQuadtree(); render()`. - On mount: `simNodes = nodes.map(n => ({...n, x: n.x ?? cx + jitter(),
 y: n.y ?? cy + jitter()}))`. The fallback handles the brief window
-      where a new node arrived but layout hasn't run yet.
-    - Render loop, hover, search-dim, cluster-toggle, focus-on-select all
-      stay as-is — they were already render-only.
+    where a new node arrived but layout hasn't run yet. - Render loop, hover, search-dim, cluster-toggle, focus-on-select all
+    stay as-is — they were already render-only.
 
 14. **`projects/monolith/frontend/src/routes/private/notes/+page.svelte`** —
     strip the client-side degree computation (lines 41–50). `degree` is now
@@ -242,16 +238,21 @@ $ python scripts/preview_layout.py \
 ```
 
 Iterate, find winning params, edit `deploy/values.yaml`, push, ArgoCD syncs,
-optionally `homelab knowledge recompute-layout` to skip the 5-minute wait.
+optionally `homelab scheduler jobs run-now knowledge.reconcile` to skip the 5-minute wait.
 
 ### Path 4: Manual recompute
 
 ```
-$ homelab knowledge recompute-layout
-  └─ POST /internal/knowledge/recompute-layout
-      └─ same code path as reconcile-end layout step (without the upsert
-         prologue), holds the same lock as the scheduled handler.
+$ homelab scheduler jobs run-now knowledge.reconcile
+  └─ POST /api/scheduler/jobs/knowledge.reconcile/run-now
+      └─ marks the job for immediate run; on the next scheduler tick the
+         existing reconcile_handler runs (vault walk + upsert + layout pass).
 ```
+
+We rejected adding a layout-only endpoint: the existing scheduler
+`run-now` already triggers reconcile (which now ends with a layout
+pass), and a no-op vault walk is sub-second. A separate "layout-only"
+path was discarded as YAGNI for a homelab graph this size.
 
 ## Error handling
 
@@ -282,9 +283,10 @@ jitter`. Self-heals on next successful layout pass. Acceptable for at
    shape; new pods serve with positions (or NULLs until first reconcile).
    Frontend handles either case via the random-center fallback.
 
-7. **Concurrent reconciles / manual recompute** — existing scheduler lock
-   leases (`ttl_secs=1200`) prevent overlap. Manual recompute endpoint takes
-   the same lock.
+7. **Concurrent reconciles** — existing scheduler lock leases
+   (`ttl_secs=1200`) prevent overlap. Since manual recompute uses the same
+   `scheduler/run-now` mechanism (just marks the existing reconcile job
+   for immediate run), it's covered by the same lock.
 
 8. **Observability** — every layout pass emits one structured log line and
    metrics:

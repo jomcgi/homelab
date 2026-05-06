@@ -669,11 +669,11 @@ git commit -m "test(notes): cover position rendering and fallback in KnowledgeGr
 
 ---
 
-## Task 10: `preview_layout.py` script
+## Task 10: `preview-layout.py` script
 
 **Files:**
 
-- Create: `projects/monolith/scripts/preview_layout.py`
+- Create: `projects/monolith/scripts/preview-layout.py`
 - Create: `projects/monolith/scripts/preview_layout_test.py`
 
 **Step 1: Write the script**
@@ -682,7 +682,7 @@ git commit -m "test(notes): cover position rendering and fallback in KnowledgeGr
 """Standalone layout preview tool.
 
 Usage:
-    python preview_layout.py --snapshot graph.json \\
+    python preview-layout.py --snapshot graph.json \\
         --link-distance 0.05 --iterations 50 --seed 42 --scale 1.0 \\
         --out preview.html
 
@@ -692,7 +692,7 @@ self-contained file you open in a browser to visualize the layout. No
 force simulation runs in the browser — positions are baked in.
 
 Once you find params you like, copy them into projects/monolith/deploy/values.yaml
-and trigger `homelab knowledge recompute-layout`.
+and trigger `homelab scheduler jobs run-now knowledge.reconcile`.
 """
 
 import argparse
@@ -807,75 +807,30 @@ def test_preview_layout_writes_html_with_circles(tmp_path):
 
 ```bash
 format
-git add projects/monolith/scripts/preview_layout.py projects/monolith/scripts/preview_layout_test.py
-git commit -m "feat(knowledge): add local preview_layout.py for parameter iteration"
+git add projects/monolith/scripts/preview-layout.py projects/monolith/scripts/preview_layout_test.py
+git commit -m "feat(knowledge): add local preview-layout.py for parameter iteration"
 ```
 
 ---
 
-## Task 11: `homelab knowledge recompute-layout` CLI + endpoint
+## Task 11: ~~`homelab scheduler jobs run-now knowledge.reconcile` CLI + endpoint~~ — SKIPPED
 
-**Files:**
+**Status:** Skipped after discovering the existing scheduler infrastructure already covers this need.
 
-- Create: `tools/cli/knowledge_cmd.py` (mirror the structure of `tools/cli/scheduler_cmd.py`)
-- Modify: the homelab CLI's command-registration entry point (find by `grep -l "scheduler_cmd" tools/cli/` — register `knowledge_cmd` next to it)
-- Modify: `projects/monolith/knowledge/router.py` (add a new internal-auth-gated endpoint)
-- Modify: `projects/monolith/knowledge/router_test.py`
+The plan originally proposed adding a new `/internal/knowledge/recompute-layout` endpoint plus a `homelab scheduler jobs run-now knowledge.reconcile` CLI subcommand. While building Task 11, we found:
 
-**Step 1: Add the FastAPI endpoint**
+- `projects/monolith/scheduler/router.py` already exposes `POST /api/scheduler/jobs/{name}/run-now` — marks a registered job for immediate execution on the next scheduler tick.
+- `tools/cli/scheduler_cmd.py` already exposes `homelab scheduler jobs run-now <name>`.
 
-In `router.py`, add:
-
-```python
-@router.post("/internal/knowledge/recompute-layout", dependencies=[Depends(require_internal_auth)])
-async def recompute_layout(session: SessionDep) -> dict:
-    """Force a one-shot layout pass without going through the full reconcile.
-
-    Holds the same scheduler lock as the periodic handler to prevent races.
-    Returns counts of nodes positioned + any failures.
-    """
-    # Acquire the existing reconcile lock (mirror what register_job uses).
-    # Call _run_layout_pass(session) directly.
-    # Return {"positioned": N, "failed": 0|1}.
-    ...
-```
-
-The `require_internal_auth` dependency should be the same one used by other internal endpoints — `grep` for it in `router.py` to find the pattern.
-
-**Step 2: Add a test**
-
-```python
-def test_recompute_layout_endpoint_runs_layout_pass(client, session):
-    # Seed a small graph.
-    # POST /internal/knowledge/recompute-layout with internal auth.
-    # Assert response 200, "positioned" > 0.
-    # Assert DB has populated layout_x/layout_y.
-```
-
-**Step 3: Add the CLI command**
-
-In `tools/cli/knowledge_cmd.py`, expose:
+After Task 6, the layout pass runs as the last step of `knowledge.reconcile`. So the manual trigger path is:
 
 ```bash
-homelab knowledge recompute-layout
+homelab scheduler jobs run-now knowledge.reconcile
 ```
 
-That POSTs to the new endpoint via the existing CLI HTTP client (look at `scheduler_cmd.py` for the auth + base-URL pattern). Print the JSON response or a friendly "positioned N nodes" summary.
+A no-op reconcile (no filesystem changes) is sub-second; the layout pass at the end is a few hundred ms on a homelab graph. A separate "layout-only" path was discarded as YAGNI: invisible latency benefit, redundant code surface, no clear use case beyond what `run-now` already covers.
 
-**Step 4: Self-review**
-
-- [ ] Endpoint takes the same lock as the scheduled handler — no race window
-- [ ] CLI flow matches the existing `scheduler_cmd.py` pattern (auth, base URL, error handling)
-- [ ] Endpoint test exercises the full path through `_run_layout_pass`
-
-**Step 5: Run `format` and commit**
-
-```bash
-format
-git add tools/cli/knowledge_cmd.py projects/monolith/knowledge/router.py projects/monolith/knowledge/router_test.py
-# also stage the CLI entry point file you modified
-git commit -m "feat(cli): add 'homelab knowledge recompute-layout' for forced layout pass"
-```
+If a layout-only path becomes useful later (e.g., the graph grows large enough that the reconcile no-op is noticeable), revisit this as a follow-up. For now: nothing to build.
 
 ---
 
@@ -896,7 +851,7 @@ gh pr create --title "feat(knowledge): server-side graph layout precomputation" 
 ## Summary
 - Compute knowledge graph node positions on the server in NetworkX once per gardener reconcile cycle, persist on `knowledge.notes`, and ship them in the `/api/knowledge/graph` JSON.
 - Strip the client-side d3-force simulation; render directly from server-supplied positions. The "LOADING KNOWLEDGE GRAPH" overlay is gone.
-- Layout parameters live in Helm values; iterate locally with `projects/monolith/scripts/preview_layout.py`, force a pass without waiting for the scheduler with `homelab knowledge recompute-layout`.
+- Layout parameters live in Helm values; iterate locally with `projects/monolith/scripts/preview-layout.py`, force a pass without waiting for the scheduler with `homelab scheduler jobs run-now knowledge.reconcile`.
 
 Design: docs/plans/2026-05-06-kg-server-side-layout-design.md
 Plan: docs/plans/2026-05-06-kg-server-side-layout-plan.md
@@ -905,8 +860,8 @@ Plan: docs/plans/2026-05-06-kg-server-side-layout-plan.md
 - [ ] CI green on push (BuildBuddy runs all unit + integration tests)
 - [ ] Manual: deploy to dev, confirm graph page loads with no overlay and immediate positioned graph
 - [ ] Manual: search/cluster/hover/focus all behave identically to before
-- [ ] Manual: `homelab knowledge recompute-layout` runs successfully against dev cluster
-- [ ] Manual: `python projects/monolith/scripts/preview_layout.py --snapshot <real-graph.json>` opens a sane preview.html
+- [ ] Manual: `homelab scheduler jobs run-now knowledge.reconcile` runs successfully against dev cluster
+- [ ] Manual: `python projects/monolith/scripts/preview-layout.py --snapshot <real-graph.json>` opens a sane preview.html
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
@@ -962,7 +917,7 @@ Open `/private/notes` in the dev cluster's domain. Confirm:
 - Cluster toggle chips show/hide nodes — same.
 - Hover highlights, click-to-focus, pan/zoom — same.
 
-If the visual is meaningfully worse than today, iterate on params via `preview_layout.py` against a fresh snapshot, copy the winning values into `projects/monolith/deploy/values.yaml`, push, and run `homelab knowledge recompute-layout` to apply without waiting.
+If the visual is meaningfully worse than today, iterate on params via `preview-layout.py` against a fresh snapshot, copy the winning values into `projects/monolith/deploy/values.yaml`, push, and run `homelab scheduler jobs run-now knowledge.reconcile` to apply without waiting.
 
 **Step 3: Take before/after screenshots**
 
