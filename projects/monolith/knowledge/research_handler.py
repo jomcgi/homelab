@@ -31,10 +31,13 @@ and Sonnet may downgrade them based on full vault context.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
 from knowledge.gap_stubs import RESEARCHING_DIR
@@ -44,7 +47,8 @@ from knowledge.research_writer import quarantine, write_research_raw
 
 logger = logging.getLogger(__name__)
 
-RESEARCH_BATCH_SIZE = 3
+RESEARCH_BATCH_SIZE = 10
+RESEARCH_CONCURRENCY = 10
 RESEARCH_PARK_THRESHOLD = 3
 
 
@@ -65,7 +69,19 @@ def _delete_stub(vault_root: Path, slug: str) -> None:
 
 
 async def research_gaps_handler(*, session: Session, vault_root: Path) -> None:
-    """Run one tick of the external research pipeline."""
+    """Run one tick of the external research pipeline.
+
+    Fans out up to ``RESEARCH_CONCURRENCY`` gaps in parallel via
+    ``asyncio.gather``. Each task opens its own SQLAlchemy session from
+    the bound engine -- sync ``Session`` objects are not safe to share
+    across concurrently-awaiting tasks (the underlying psycopg
+    connection can be corrupted by interleaved execute() calls).
+
+    The passed-in ``session`` handles the recovery sweep + candidate
+    SELECT only; the parallel tasks never touch it.
+    """
+    engine = session.get_bind()
+
     # Recovery sweep: if the previous tick crashed mid-flight (between
     # the 'researching' lock and any terminal state assignment), the
     # row would be stuck forever -- the SELECT below filters
@@ -100,31 +116,89 @@ async def research_gaps_handler(*, session: Session, vault_root: Path) -> None:
         logger.info("knowledge.research-gaps: no candidates")
         return
 
-    for gap in candidates:
+    # Capture plain values up front so the parallel tasks don't depend
+    # on the original session staying open or on ORM lazy-loads.
+    gap_descriptors = [(gap.id, gap.term, gap.gap_class) for gap in candidates]
+
+    semaphore = asyncio.Semaphore(RESEARCH_CONCURRENCY)
+    results = await asyncio.gather(
+        *[
+            _claim_and_process(
+                engine=engine,
+                gap_id=gap_id,
+                term=term,
+                gap_class=gap_class,
+                vault_root=vault_root,
+                semaphore=semaphore,
+            )
+            for gap_id, term, gap_class in gap_descriptors
+        ],
+        return_exceptions=True,
+    )
+    # Per-gap try/except inside _process_one already reverts state on
+    # failure. Anything that escapes here is a bug; log loudly with the
+    # full traceback so we see it instead of silently dropping a sibling
+    # task's exception. (Can't use `exc_info=outcome` -- semgrep rule
+    # `logger-exc-info-non-boolean` flags plain-variable exc_info because
+    # the linter can't statically verify the value is an exception.)
+    for (gap_id, term, _), outcome in zip(gap_descriptors, results):
+        if isinstance(outcome, BaseException):
+            tb = "".join(
+                traceback.format_exception(
+                    type(outcome), outcome, outcome.__traceback__
+                )
+            )
+            logger.error(
+                "knowledge.research-gaps: unexpected exception for gap %s "
+                "(id=%d); other tasks unaffected:\n%s",
+                term,
+                gap_id,
+                tb,
+            )
+
+
+async def _claim_and_process(
+    *,
+    engine: Engine,
+    gap_id: int,
+    term: str,
+    gap_class: str | None,
+    vault_root: Path,
+    semaphore: asyncio.Semaphore,
+) -> None:
+    """Lock one gap row and dispatch it to ``_process_one``.
+
+    Each invocation runs on its own SQLAlchemy session (one connection
+    from the engine pool), bracketed by the semaphore so we never burst
+    above ``RESEARCH_CONCURRENCY`` open subprocesses.
+    """
+    async with semaphore:
         # Defense-in-depth privacy guard: even though the SELECT
         # filtered, re-assert before each Sonnet call. Cheap, prevents
         # future misroutes.
-        if gap.gap_class != "external":
+        if gap_class != "external":
             logger.warning(
-                "knowledge.research-gaps: skipping non-external gap %s", gap.term
+                "knowledge.research-gaps: skipping non-external gap %s", term
             )
-            continue
+            return
 
-        # Race-safe lock: only proceed if state still 'classified'.
-        result = session.execute(
-            Gap.__table__.update()
-            .where(Gap.id == gap.id, Gap.state == "classified")
-            .values(state="researching")
-        )
-        session.commit()
-        # NB: gap.state in-memory is now stale (still 'classified').
-        # The Core UPDATE bypassed the ORM identity map. Don't read
-        # gap.state below this point -- always assign explicitly.
-        if result.rowcount == 0:
-            logger.info("knowledge.research-gaps: race lost for %s", gap.term)
-            continue
+        with Session(engine) as task_session:
+            # Race-safe lock: only proceed if state still 'classified'.
+            result = task_session.execute(
+                Gap.__table__.update()
+                .where(Gap.id == gap_id, Gap.state == "classified")
+                .values(state="researching")
+            )
+            task_session.commit()
+            if result.rowcount == 0:
+                logger.info("knowledge.research-gaps: race lost for %s", term)
+                return
 
-        await _process_one(session=session, gap=gap, vault_root=vault_root)
+            # Re-fetch the gap in this session so _process_one's mutations
+            # are tracked by the ORM and committed against this connection.
+            gap = task_session.get(Gap, gap_id)
+            assert gap is not None, f"gap {gap_id} disappeared after lock"
+            await _process_one(session=task_session, gap=gap, vault_root=vault_root)
 
 
 async def _process_one(*, session: Session, gap: Gap, vault_root: Path) -> None:
