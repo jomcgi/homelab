@@ -106,6 +106,14 @@ spec:
             - name: KNOWLEDGE_GAPS_REWRITE_DISCARDABLE
               value: "1"
             {{- end }}
+            - name: KNOWLEDGE_LAYOUT_LINK_DISTANCE
+              value: {{ .Values.knowledge.layout.linkDistance | quote }}
+            - name: KNOWLEDGE_LAYOUT_ITERATIONS
+              value: {{ .Values.knowledge.layout.iterations | quote }}
+            - name: KNOWLEDGE_LAYOUT_SEED
+              value: {{ .Values.knowledge.layout.seed | quote }}
+            - name: KNOWLEDGE_LAYOUT_SCALE
+              value: {{ .Values.knowledge.layout.scale | quote }}
             {{- if .Values.knowledge.gitRemote }}
             - name: VAULT_GIT_REMOTE
               value: {{ .Values.knowledge.gitRemote | quote }}

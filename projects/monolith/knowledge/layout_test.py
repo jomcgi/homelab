@@ -133,3 +133,32 @@ class TestLayoutParamsValidation:
             ValueError, match="link_distance must be positive and finite"
         ):
             LayoutParams(link_distance=float("inf"))
+
+
+class TestLayoutParamsFromEnv:
+    def test_uses_defaults_when_env_empty(self):
+        params = LayoutParams.from_env({})
+        assert params.link_distance == 0.05
+        assert params.iterations == 50
+        assert params.seed == 42
+        assert params.scale == 1.0
+
+    def test_reads_overrides_from_env(self):
+        params = LayoutParams.from_env(
+            {
+                "KNOWLEDGE_LAYOUT_LINK_DISTANCE": "0.1",
+                "KNOWLEDGE_LAYOUT_ITERATIONS": "100",
+                "KNOWLEDGE_LAYOUT_SEED": "7",
+                "KNOWLEDGE_LAYOUT_SCALE": "2.0",
+            }
+        )
+        assert params.link_distance == 0.1
+        assert params.iterations == 100
+        assert params.seed == 7
+        assert params.scale == 2.0
+
+    def test_validates_invalid_env_values(self):
+        with pytest.raises(ValueError):
+            LayoutParams.from_env({"KNOWLEDGE_LAYOUT_ITERATIONS": "0"})
+        with pytest.raises(ValueError):
+            LayoutParams.from_env({"KNOWLEDGE_LAYOUT_LINK_DISTANCE": "-0.1"})
