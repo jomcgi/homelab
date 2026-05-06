@@ -185,3 +185,36 @@ def test_classifier_prompt_explicitly_forbids_appending_duplicate_keys():
     )
     assert CLASSIFIER_VERSION in rendered
     assert "/tmp/example.md" in rendered
+
+
+def test_classifier_prompt_routes_internal_and_hybrid_to_in_review():
+    """Drift detector: internal/hybrid must transition to in_review, not classified.
+
+    Without this the review queue (which filters state == 'in_review')
+    is silently always empty — the bug fixed by this commit. The
+    research handler only consumes external+classified, so leaving
+    internal/hybrid at status: classified strands them with no consumer.
+    """
+    rendered = _CLASSIFIER_PROMPT.format(
+        classifier_version=CLASSIFIER_VERSION,
+        stub_list="- /tmp/example.md",
+    )
+    # Both terminal statuses for the discovered → classified/in_review
+    # transition must be reachable from the prompt.
+    assert "status: classified" in rendered, (
+        "prompt must still produce status: classified for external/parked"
+    )
+    assert "status: in_review" in rendered, (
+        "prompt must produce status: in_review for internal/hybrid so the "
+        "review queue surfaces them for the user to answer"
+    )
+    # The routing must be explicit — both class names appear within the
+    # short window after `status: in_review` so Sonnet can't reasonably
+    # misroute. 200 chars covers the bullet line plus its parenthetical.
+    after_in_review = rendered.split("status: in_review", 1)[1][:200]
+    assert "internal" in after_in_review, (
+        "in_review branch must name the internal class explicitly"
+    )
+    assert "hybrid" in after_in_review, (
+        "in_review branch must name the hybrid class explicitly"
+    )

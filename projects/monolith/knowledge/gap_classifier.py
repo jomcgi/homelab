@@ -64,9 +64,14 @@ Obsidian vault — into four classes.
   replace it — do not add a new line. YAML requires unique top-level
   keys; appending a duplicate key produces an ugly stub even when YAML
   parsers tolerate it. Example:
-  - find: `status: discovered` → replace with: `status: classified`
   - find: `gap_class: null` → replace with one of: `gap_class: external`
     | `gap_class: internal` | `gap_class: hybrid` | `gap_class: parked`
+  - find: `status: discovered` → replace with the status that matches
+    the class you just chose:
+      - `status: classified` for `gap_class: external` or `parked`
+        (external flows into the research pipeline; parked is terminal)
+      - `status: in_review` for `gap_class: internal` or `hybrid`
+        (these surface in the user's review queue for them to answer)
   - find: `classified_at: null` → replace with the current ISO timestamp
     (UTC, e.g. `classified_at: '2026-04-25T08:00:00Z'`)
   - find: `classifier_version: null` → replace with
