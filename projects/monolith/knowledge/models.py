@@ -71,6 +71,8 @@ class Note(SQLModel, table=True):  # nosemgrep: sqlmodel-datetime-without-factor
     updated_at: datetime | None = None
     extra: dict[str, Any] = Field(default_factory=dict, sa_column=Column(_JSONB))
     indexed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    layout_x: float | None = None
+    layout_y: float | None = None
 
 
 class Chunk(SQLModel, table=True):

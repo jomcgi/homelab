@@ -303,6 +303,16 @@ class TestDefaultFactoryTimestamps:
         assert ri.created_at == explicit_ts
 
 
+def test_note_model_has_optional_layout_columns():
+    note = Note(note_id="n1", path="x.md", title="X", content_hash="h")
+    assert note.layout_x is None
+    assert note.layout_y is None
+    note.layout_x = 0.1
+    note.layout_y = -0.2
+    assert note.layout_x == 0.1
+    assert note.layout_y == -0.2
+
+
 def test_gap_has_note_id_unique_constraint():
     """note_id is the projection-layer identity — must be UNIQUE in the schema."""
     from sqlalchemy import UniqueConstraint
