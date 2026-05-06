@@ -2,13 +2,17 @@
 
 import logging
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 
 from dulwich import porcelain
 
+from sqlalchemy import select, update
 from sqlmodel import Session
 
+from knowledge.layout import EdgeRef, LayoutParams, NodePos, compute_layout
+from knowledge.models import Note, NoteLink
 from knowledge.reconciler import Reconciler
 from knowledge.store import KnowledgeStore
 from shared.embedding import EmbeddingClient
@@ -172,6 +176,47 @@ async def garden_handler(session: Session) -> datetime | None:
     return None
 
 
+def _run_layout_pass(session: Session) -> tuple[int, int, int]:
+    """Compute layout positions for the current graph and persist them.
+
+    Runs in its own transaction. Caller is responsible for catching
+    exceptions and translating them to structured log events. Mirrors
+    ``KnowledgeStore.get_graph``'s edge filter (only edges where both
+    endpoints map to known note_ids) so positions and degrees stay
+    coherent with what the API ships.
+    """
+    params = LayoutParams.from_env()
+
+    note_rows = session.execute(
+        select(Note.id, Note.note_id, Note.layout_x, Note.layout_y)
+    ).all()
+    fk_to_note_id: dict[int, str] = {r.id: r.note_id for r in note_rows}
+    nodes = [
+        NodePos(id=r.note_id, prior_x=r.layout_x, prior_y=r.layout_y) for r in note_rows
+    ]
+
+    edge_rows = session.execute(select(NoteLink.src_note_fk, NoteLink.target_id)).all()
+    note_id_set = set(fk_to_note_id.values())
+    edges = [
+        EdgeRef(source=fk_to_note_id[r.src_note_fk], target=r.target_id)
+        for r in edge_rows
+        if r.src_note_fk in fk_to_note_id and r.target_id in note_id_set
+    ]
+
+    positions = compute_layout(nodes, edges, params)
+
+    if positions:
+        for note_id, (x, y) in positions.items():
+            session.execute(
+                update(Note)
+                .where(Note.note_id == note_id)
+                .values(layout_x=x, layout_y=y)
+            )
+        session.commit()
+
+    return len(nodes), len(edges), len(positions)
+
+
 async def reconcile_handler(session: Session) -> datetime | None:
     """Scheduler handler: run the knowledge vault reconciler."""
     if not _vault_sync_ready():
@@ -194,6 +239,28 @@ async def reconcile_handler(session: Session) -> datetime | None:
             "skipped_locked": stats.skipped_locked,
         },
     )
+
+    # Persist reconciler upserts before the layout step so layout failure
+    # can never roll back upsert state. The scheduler will commit again on
+    # return; the second commit is a no-op.
+    session.commit()
+
+    start = time.perf_counter()
+    try:
+        node_count, edge_count, positioned = _run_layout_pass(session)
+    except Exception:  # noqa: BLE001 — layout failure must not affect reconcile result
+        logger.exception("knowledge.layout: pass failed")
+    else:
+        logger.info(
+            "knowledge.layout: pass succeeded",
+            extra={
+                "node_count": node_count,
+                "edge_count": edge_count,
+                "positioned": positioned,
+                "duration_ms": int((time.perf_counter() - start) * 1000),
+            },
+        )
+
     return None
 
 

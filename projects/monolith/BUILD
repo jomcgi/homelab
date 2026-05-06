@@ -2051,8 +2051,11 @@ py_test(
     imports = ["."],
     deps = [
         ":monolith_backend",
+        "@pip//networkx",
+        "@pip//pgvector",
         "@pip//pytest",
         "@pip//pytest_asyncio",
+        "@pip//sqlmodel",
     ],
 )
 
