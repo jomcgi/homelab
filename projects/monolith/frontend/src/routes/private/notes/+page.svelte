@@ -37,17 +37,8 @@
   );
   let indexedAt = $derived(data.graph.indexed_at);
 
-  // Compute degree once per (filtered) graph payload.
-  let nodesWithDegree = $derived.by(() => {
-    const ns = nodes;
-    const es = edges;
-    const deg = new Map(ns.map((n) => [n.id, 0]));
-    for (const e of es) {
-      deg.set(e.source, (deg.get(e.source) ?? 0) + 1);
-      deg.set(e.target, (deg.get(e.target) ?? 0) + 1);
-    }
-    return ns.map((n) => ({ ...n, degree: deg.get(n.id) ?? 0 }));
-  });
+  // Degree is supplied per-node by the server (graph payload).
+  let nodesWithDegree = $derived(nodes);
 
   // activeClusters is initialised from the *initial* graph (a one-time
   // snapshot), then mutated locally as the user toggles. Reading data
