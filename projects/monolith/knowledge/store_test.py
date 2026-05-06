@@ -551,6 +551,16 @@ def test_get_graph_returns_nodes_and_edges(session):
     assert any(e["source"] == "id-a" and e["target"] == "id-b" for e in result["edges"])
     assert result["indexed_at"] is not None
 
+    # Every node ships degree (server-side, was client-side) and x/y layout
+    # positions (None until a layout job has populated them).
+    for node in result["nodes"]:
+        assert set(node.keys()) == {"id", "title", "type", "degree", "x", "y"}
+        assert node["x"] is None
+        assert node["y"] is None
+    by_id = {n["id"]: n for n in result["nodes"]}
+    assert by_id["id-a"]["degree"] == 1
+    assert by_id["id-b"]["degree"] == 1
+
 
 def test_get_graph_drops_edges_with_unresolved_targets(session):
     store = KnowledgeStore(session)
@@ -640,3 +650,70 @@ def test_get_graph_preserves_edge_type_when_target_resolves(session):
     assert typed_edges[0]["source"] == "id-a"
     assert typed_edges[0]["target"] == "id-b"
     assert typed_edges[0]["edge_type"] == "refines"
+
+
+def test_get_graph_response_includes_degree_and_positions(session):
+    """Server now computes degree (was client-side) and ships positions on each node."""
+    store = KnowledgeStore(session)
+
+    # note-a links to both note-b and note-c; note-d is isolated. note-a
+    # also has persisted layout coordinates; the others do not.
+    _upsert(
+        store,
+        note_id="note-a",
+        path="a.md",
+        content_hash="h-a",
+        title="A",
+        metadata=_meta(title="A", type="atom"),
+        links=[
+            Link(target="note-b", display=None),
+            Link(target="note-c", display=None),
+        ],
+    )
+    _upsert(
+        store,
+        note_id="note-b",
+        path="b.md",
+        content_hash="h-b",
+        title="B",
+        metadata=_meta(title="B", type="atom"),
+    )
+    _upsert(
+        store,
+        note_id="note-c",
+        path="c.md",
+        content_hash="h-c",
+        title="C",
+        metadata=_meta(title="C", type="atom"),
+    )
+    _upsert(
+        store,
+        note_id="note-d",
+        path="d.md",
+        content_hash="h-d",
+        title="D",
+        metadata=_meta(title="D", type="atom"),
+    )
+
+    # Set layout coordinates on note-a directly — the upsert path doesn't
+    # touch layout fields (those are written by the layout job, not ingest).
+    note_a = session.execute(select(Note).where(Note.note_id == "note-a")).scalar_one()
+    note_a.layout_x = 0.3
+    note_a.layout_y = -0.4
+    session.add(note_a)
+    session.commit()
+
+    result = store.get_graph()
+    by_id = {n["id"]: n for n in result["nodes"]}
+
+    assert by_id["note-a"]["degree"] == 2
+    assert by_id["note-b"]["degree"] == 1
+    assert by_id["note-c"]["degree"] == 1
+    assert by_id["note-d"]["degree"] == 0  # isolated node
+
+    assert by_id["note-a"]["x"] == 0.3
+    assert by_id["note-a"]["y"] == -0.4
+    assert by_id["note-b"]["x"] is None
+    assert by_id["note-b"]["y"] is None
+    assert by_id["note-d"]["x"] is None
+    assert by_id["note-d"]["y"] is None
