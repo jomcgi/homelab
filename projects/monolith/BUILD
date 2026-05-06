@@ -1102,6 +1102,18 @@ py_test(
 )
 
 py_test(
+    name = "scripts_preview_layout_test",
+    srcs = ["scripts/preview_layout_test.py"],
+    data = ["scripts/preview-layout.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//networkx",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
     name = "chat_agent_helper_functions_test",
     srcs = ["chat/agent_helper_functions_test.py"],
     imports = ["."],
