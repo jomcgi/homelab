@@ -1,7 +1,7 @@
 # ADR 002: CDN-Cached Data Fetching for Monolith Public Routes
 
 **Author:** Joe McGinley
-**Status:** Draft
+**Status:** Superseded by [003-cdn-cache-hostname-rule.md](003-cdn-cache-hostname-rule.md)
 **Created:** 2026-04-26
 
 ---
