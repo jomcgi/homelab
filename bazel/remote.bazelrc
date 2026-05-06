@@ -25,10 +25,6 @@ build:ci --noexperimental_check_output_files  # Skip local stat() for remote-cac
 build:ci --remote_retries=7  # Retry transient gRPC failures (default 5)
 build:ci --grpc_keepalive_timeout=10s  # Detect dead connections faster (default 20s)
 
-# Cache Merkle tree computations across actions; cuts client CPU when
-# many actions share dep subgraphs (rules_apko / rules_oci layer trees).
-build:ci --experimental_remote_merkle_tree_cache
-
 # If BB evicts a cache entry between analysis and execution, retry the
 # action with fresh inputs instead of failing the build.
 build:ci --experimental_remote_cache_eviction_retries=5
