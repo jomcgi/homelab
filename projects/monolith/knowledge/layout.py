@@ -23,9 +23,9 @@ Instead we partition by edge membership:
   hub/leaf relationships visible. We post-scale the FA2 result so its
   bounding box fills ``core_fraction`` of the unit canvas.
 * **Orphan nodes** are placed on a perimeter ring at radius
-  ``ring_radius_fraction``. Each orphan's angle is derived from an MD5
-  hash of its note id, giving stable per-id positions that don't drift
-  when other orphans are added or removed.
+  ``ring_radius_fraction``. Each orphan's angle is derived from a
+  SHA-256 hash of its note id, giving stable per-id positions that
+  don't drift when other orphans are added or removed.
 
 This split keeps the two visual concerns separate (organic spread vs.
 deterministic placement) and makes the layout cycle-stable: an
@@ -124,12 +124,14 @@ class LayoutParams:
 def _orphan_position(note_id: NoteId, ring_radius: float) -> tuple[float, float]:
     """Place an orphan on the canvas-edge ring at a hash-determined angle.
 
-    MD5 of the note id, first 8 hex chars (32 bits), divided by
+    SHA-256 of the note id, first 8 hex chars (32 bits), divided by
     ``0xFFFFFFFF`` gives a uniform value in ``[0, 1)``. Multiply by
     ``2*pi`` for the angle. Stable per id, independent of which other
-    orphans exist in the graph.
+    orphans exist in the graph. (We use SHA-256 rather than MD5 because
+    semgrep flags MD5 even for non-cryptographic uses; the algorithm
+    choice has no functional effect here.)
     """
-    digest = hashlib.md5(note_id.encode()).hexdigest()
+    digest = hashlib.sha256(note_id.encode()).hexdigest()
     h = int(digest[:8], 16)
     angle = 2 * math.pi * (h / 0xFFFFFFFF)
     return (ring_radius * math.cos(angle), ring_radius * math.sin(angle))
@@ -178,8 +180,10 @@ def compute_layout(
             if e.source in connected_ids and e.target in connected_ids:
                 g.add_edge(e.source, e.target)
 
-        prior: dict[NoteId, tuple[float, float]] = {
-            n.id: (n.prior_x, n.prior_y)
+        # NetworkX forceatlas2_layout requires pos values to be array-like
+        # (it calls .copy() on each), not tuples — use lists.
+        prior: dict[NoteId, list[float]] = {
+            n.id: [n.prior_x, n.prior_y]
             for n in connected
             if n.prior_x is not None
             and n.prior_y is not None
