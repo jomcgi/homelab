@@ -19,6 +19,7 @@ gap gets researched indefinitely.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -34,6 +35,8 @@ from knowledge.research_agent import (
     SourceEntry,
 )
 from knowledge.research_handler import (
+    RESEARCH_BATCH_SIZE,
+    RESEARCH_CONCURRENCY,
     RESEARCH_PARK_THRESHOLD,
     research_gaps_handler,
 )
@@ -364,3 +367,51 @@ async def test_no_candidates_logs_and_returns(session: Session, tmp_path: Path) 
     with patch("knowledge.research_handler.run_research", runner):
         await research_gaps_handler(session=session, vault_root=tmp_path)
     runner.assert_not_awaited()
+
+
+def test_concurrency_constants_consistent() -> None:
+    """Batch size should not exceed concurrency, or the semaphore queues
+    work that we could just have gathered. Equal is the intended shape."""
+    assert RESEARCH_BATCH_SIZE <= RESEARCH_CONCURRENCY
+
+
+@pytest.mark.asyncio
+async def test_full_batch_processed_concurrently(
+    session: Session, tmp_path: Path
+) -> None:
+    """A tick with N gaps fans them all out via asyncio.gather and each
+    one reaches a terminal disposition.
+
+    Uses an asyncio.Event to verify concurrency: the mocked run_research
+    blocks until N parallel callers have entered, then releases all of
+    them. If the handler ran sequentially, only one caller would ever
+    enter at a time and the test would deadlock.
+    """
+    n = 5
+    gaps = [_make_gap(session, term=f"term-{i}", note_id=f"slug-{i}") for i in range(n)]
+
+    entered = asyncio.Event()
+    in_flight = 0
+
+    async def mocked_run_research(*, term: str, vault_root: Path) -> ResearchResult:
+        nonlocal in_flight
+        in_flight += 1
+        if in_flight >= n:
+            entered.set()
+        # Fail fast if the handler is sequential -- a 1s wait would
+        # multiply by N if serialized, but completes once if parallel.
+        await asyncio.wait_for(entered.wait(), timeout=2.0)
+        return _research_result_with_claims()
+
+    runner = AsyncMock(side_effect=mocked_run_research)
+    with patch("knowledge.research_handler.run_research", runner):
+        await research_gaps_handler(session=session, vault_root=tmp_path)
+    assert runner.await_count == n
+
+    for gap in gaps:
+        session.refresh(gap)
+        assert gap.state == "committed", f"{gap.term} was not committed"
+    # Every gap wrote its raw to a distinct slug -- no collision under
+    # parallel writes.
+    for i in range(n):
+        assert (tmp_path / "_inbox" / "research" / f"slug-{i}.md").exists()
