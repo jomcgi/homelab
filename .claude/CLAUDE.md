@@ -89,6 +89,8 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 **Code review cadence for multi-step plans.** When executing a multi-task implementation plan (subagent-driven, executing-plans, or any multi-commit feature), do **one comprehensive code review per merged PR** at the end of the implementation — not per sub-task or per commit. Per-task spec/quality reviewer dispatches accumulate cost disproportionate to their value when an end-of-PR review catches the same issues against the full diff. Implementer subagents should still self-review before each commit; that's where intra-task discipline lives. This overrides the per-task review steps in the `superpowers:subagent-driven-development` skill — that skill was calibrated for an autonomous setting; in our workflow the PR is the review boundary.
 
+**Plan execution handoff defaults to subagent-driven.** After saving a plan via `superpowers:writing-plans`, do **not** present the "Two execution options" choice from that skill's Execution Handoff section. Default directly to `superpowers:subagent-driven-development` in the current session, announce "starting Task 1," and dispatch the first implementer subagent. The user has consistently chosen subagent-driven and finds the recurring mode-choice prompt redundant. Only ask if the user has explicitly indicated they want a different mode for this particular plan (e.g. "run this in the background overnight"), or if the plan has unusual properties that genuinely change the trade-off (e.g. tasks needing a long-running detached session). This overrides the "Execution Handoff" section of the `superpowers:writing-plans` skill.
+
 ## Context Loading Rules
 
 - **Security changes**: Read `docs/security.md` FIRST
