@@ -51,12 +51,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bazel/tools/git/check-stale-pr.sh",
+            "command": "$CLAUDE_PROJECT_DIR/bazel/tools/git/check-stale-pr.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bazel/tools/hooks/prefer-bb-remote.sh",
+            "command": "$CLAUDE_PROJECT_DIR/bazel/tools/hooks/prefer-bb-remote.sh",
             "timeout": 5
           }
         ]
@@ -66,37 +66,37 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bazel/tools/hooks/pretooluse-write-edit.sh",
+            "command": "$CLAUDE_PROJECT_DIR/bazel/tools/hooks/pretooluse-write-edit.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bazel/tools/hooks/check-unnecessary-chart-bump.sh",
+            "command": "$CLAUDE_PROJECT_DIR/bazel/tools/hooks/check-unnecessary-chart-bump.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bazel/tools/hooks/check-python-file-shadows-package.sh",
+            "command": "$CLAUDE_PROJECT_DIR/bazel/tools/hooks/check-python-file-shadows-package.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bazel/tools/hooks/check-bdd-shared-testing-dep.sh",
+            "command": "$CLAUDE_PROJECT_DIR/bazel/tools/hooks/check-bdd-shared-testing-dep.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bazel/tools/hooks/check-deployment-component-label.sh",
+            "command": "$CLAUDE_PROJECT_DIR/bazel/tools/hooks/check-deployment-component-label.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bazel/tools/hooks/check-hardcoded-model-subprocess.sh",
+            "command": "$CLAUDE_PROJECT_DIR/bazel/tools/hooks/check-hardcoded-model-subprocess.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bazel/tools/hooks/check-allowed-tools-prompt-sync.sh",
+            "command": "$CLAUDE_PROJECT_DIR/bazel/tools/hooks/check-allowed-tools-prompt-sync.sh",
             "timeout": 10
           }
         ]
