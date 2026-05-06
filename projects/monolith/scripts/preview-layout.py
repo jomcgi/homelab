@@ -7,13 +7,20 @@ writes a single self-contained HTML file you open in a browser to visualize
 the layout. No force simulation runs in the browser — positions are baked
 in by ``compute_layout`` exactly as they would be in prod.
 
+The layout splits the graph into a connected core (laid out by
+``nx.forceatlas2_layout`` and post-scaled to ``--core-fraction``) and an
+orphan ring on the canvas perimeter at ``--ring-radius-fraction``.
+
 Usage:
     python preview-layout.py \\
         --snapshot graph.json \\
-        --link-distance 0.05 \\
-        --iterations 50 \\
+        --scaling-ratio 2.0 \\
+        --gravity 0.5 \\
+        --max-iter 100 \\
+        --linlog \\
+        --core-fraction 0.99 \\
+        --ring-radius-fraction 0.995 \\
         --seed 42 \\
-        --scale 1.0 \\
         --out preview.html
 
 Once you find params you like, copy them into
@@ -44,10 +51,25 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="Path to a graph JSON snapshot ({nodes:[...], edges:[...]}).",
     )
-    parser.add_argument("--link-distance", type=float, default=0.05)
-    parser.add_argument("--iterations", type=int, default=50)
+    parser.add_argument("--scaling-ratio", type=float, default=2.0)
+    parser.add_argument("--gravity", type=float, default=0.5)
+    parser.add_argument("--max-iter", type=int, default=100)
+    parser.add_argument(
+        "--linlog",
+        dest="linlog",
+        action="store_true",
+        default=True,
+        help="Enable FA2 logarithmic attraction (default: on).",
+    )
+    parser.add_argument(
+        "--no-linlog",
+        dest="linlog",
+        action="store_false",
+        help="Disable FA2 logarithmic attraction.",
+    )
+    parser.add_argument("--core-fraction", type=float, default=0.99)
+    parser.add_argument("--ring-radius-fraction", type=float, default=0.995)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--scale", type=float, default=1.0)
     parser.add_argument(
         "--out",
         type=Path,
@@ -67,10 +89,13 @@ def main(argv: list[str] | None = None) -> int:
     ]
     edges = [EdgeRef(source=e["source"], target=e["target"]) for e in payload["edges"]]
     params = LayoutParams(
-        link_distance=args.link_distance,
-        iterations=args.iterations,
+        scaling_ratio=args.scaling_ratio,
+        gravity=args.gravity,
+        max_iter=args.max_iter,
+        linlog=args.linlog,
+        core_fraction=args.core_fraction,
+        ring_radius_fraction=args.ring_radius_fraction,
         seed=args.seed,
-        scale=args.scale,
     )
     positions = compute_layout(nodes, edges, params)
     args.out.write_text(_render_html(payload, positions, params))
@@ -98,15 +123,16 @@ def _render_html(
     ]
     data = json.dumps({"nodes": nodes_with_pos, "edges": payload["edges"]})
     title = html.escape(
-        f"layout preview (k={params.link_distance}, iter={params.iterations}, "
-        f"seed={params.seed}, scale={params.scale})"
+        f"layout preview (sr={params.scaling_ratio}, g={params.gravity}, "
+        f"it={params.max_iter}, ll={params.linlog}, "
+        f"core={params.core_fraction}, ring={params.ring_radius_fraction}, "
+        f"seed={params.seed})"
     )
-    span = 2 * params.scale
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title}</title></head>
 <body style="margin:0;background:#111;color:#eee;font-family:sans-serif">
 <h1 style="padding:1rem;margin:0;font-size:1rem;font-weight:normal">{title}</h1>
-<svg width="100%" height="800" viewBox="-{params.scale} -{params.scale} {span} {span}" preserveAspectRatio="xMidYMid meet" style="background:#111">
+<svg width="100%" height="800" viewBox="-1.0 -1.0 2.0 2.0" preserveAspectRatio="xMidYMid meet" style="background:#111">
 <g id="g"></g>
 </svg>
 <script>
@@ -120,13 +146,13 @@ for (const e of data.edges) {{
     const line = document.createElementNS(ns, 'line');
     line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
     line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
-    line.setAttribute('stroke', '#444'); line.setAttribute('stroke-width', '0.005');
+    line.setAttribute('stroke', '#444'); line.setAttribute('stroke-width', '0.0015');
     g.appendChild(line);
 }}
 for (const n of data.nodes) {{
     const c = document.createElementNS(ns, 'circle');
     c.setAttribute('cx', n.x); c.setAttribute('cy', n.y);
-    c.setAttribute('r', '0.015'); c.setAttribute('fill', '#4af');
+    c.setAttribute('r', '0.005'); c.setAttribute('fill', '#4af');
     const t = document.createElementNS(ns, 'title');
     t.textContent = n.title || n.id;
     c.appendChild(t);

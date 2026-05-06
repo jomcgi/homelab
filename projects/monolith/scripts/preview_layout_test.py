@@ -135,21 +135,29 @@ def test_preview_layout_passes_params_to_compute_layout(tmp_path, monkeypatch):
         [
             "--snapshot",
             str(snap),
-            "--link-distance",
-            "0.1",
-            "--iterations",
-            "25",
+            "--scaling-ratio",
+            "3.0",
+            "--gravity",
+            "0.25",
+            "--max-iter",
+            "75",
+            "--no-linlog",
+            "--core-fraction",
+            "0.8",
+            "--ring-radius-fraction",
+            "0.9",
             "--seed",
             "7",
-            "--scale",
-            "2.0",
             "--out",
             str(out),
         ]
     )
     assert rc == 0
     p = captured["params"]
-    assert p.link_distance == 0.1
-    assert p.iterations == 25
+    assert p.scaling_ratio == 3.0
+    assert p.gravity == 0.25
+    assert p.max_iter == 75
+    assert p.linlog is False
+    assert p.core_fraction == 0.8
+    assert p.ring_radius_fraction == 0.9
     assert p.seed == 7
-    assert p.scale == 2.0
