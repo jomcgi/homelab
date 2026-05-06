@@ -44,7 +44,7 @@ plots them and never runs a force simulation.
 
 | Dimension              | Decision                                                                                                       |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Layout language        | Python force-directed (NetworkX `spring_layout`)                                                               |
+| Layout language        | Python force-directed (NetworkX `forceatlas2_layout` + structural split, see "Layout algorithm pivot" below)   |
 | Cadence                | At end of every reconcile cycle, post-commit                                                                   |
 | Stability              | Soft: seed prior positions, run 50–100 refine iterations                                                       |
 | Frontend behavior      | Pure render — strip d3-force, plot positions verbatim                                                          |
@@ -339,6 +339,64 @@ Per `CLAUDE.md`, frontend changes require browser verification:
 - Run dev server, confirm no loading badge, graph appears immediately positioned, search/cluster/hover work as before.
 - Capture before/after screenshots.
 - If dev server cannot be run against representative data, defer visual check to dev cluster and say so explicitly rather than claiming success.
+
+## Layout algorithm pivot (post-design)
+
+During Task 13 (manual visual verification with the real 2740-node /
+10049-edge graph), the original `nx.spring_layout` (Fruchterman-Reingold)
+choice produced a tight central blob with most of the canvas empty —
+visually much worse than the previous client-side d3-force layout. The
+algorithm cannot match d3-force's organic spread regardless of how its
+`k` parameter is tuned, because `_rescale_layout` post-normalization
+forces orphans to the bounding box and squeezes the connected core
+proportionally.
+
+**Replaced with `nx.forceatlas2_layout` (built into NetworkX 3.4+, no
+new dep) plus a structural split:**
+
+1. **Lay out the connected subgraph only** with FA2. FA2 is the
+   algorithm Gephi uses; it explicitly distributes nodes via long-range
+   pairwise repulsion, producing organic spreads similar to d3-force.
+2. **Post-scale** the connected positions so the core fills
+   `core_fraction` (0.99) of the canvas — decouples cluster shape from
+   cluster size on canvas.
+3. **Place orphans on a hash-determined perimeter ring** at
+   `ring_radius_fraction` (0.995). Each orphan's angle is
+   `2π × hash(note_id) / 0xFFFFFFFF`, so adding/removing other orphans
+   never shifts an orphan's slot. This is _strictly_ stable across
+   gardener cycles for the orphan subset — even better than the soft
+   stability we have for the connected core.
+
+**Final tuned parameters (from preview-script iteration on the real
+graph):**
+
+| Knob                   | Value | Rationale                                              |
+| ---------------------- | ----- | ------------------------------------------------------ |
+| `scaling_ratio`        | 2.0   | FA2 default — controls absolute repulsion strength     |
+| `gravity`              | 0.5   | Half-gravity lets the cluster spread to fill more area |
+| `max_iter`             | 100   | FA2 default; converges in ~15s on real graph           |
+| `linlog`               | True  | Logarithmic attraction; spreads dense middle outward   |
+| `core_fraction`        | 0.99  | Connected core fills 99% of canvas radius              |
+| `ring_radius_fraction` | 0.995 | Orphan ring just outside the core, no visible overlap  |
+| `seed`                 | 42    | Deterministic across runs                              |
+
+**Performance on the real graph:** ~15s per pass for 2740 nodes / 10049
+edges. With a 5-min reconcile cadence that's 5% overhead. If we ever
+move to a faster reconcile cadence the right knob to turn down is
+`max_iter` (50 should be acceptable, 25 likely fine).
+
+**Why FA2 over the other paths considered:**
+
+- **NetworkX `spring_layout`** with looser `k` and structural split:
+  tried; couldn't escape the spiky-cluster shape. The cluster's
+  internal density distribution is wrong regardless of post-scale.
+- **Run d3-force in a Node.js subprocess from the gardener**: would be
+  the highest-fidelity match (literal d3-force on the server), but adds
+  Node runtime to the monolith image — exactly the dep cost we
+  explicitly chose to avoid back in brainstorming Question 1. FA2
+  achieves a comparable-enough look without the dep.
+- **`forceatlas2-python` (separate pip dep)**: redundant once we
+  realized NetworkX 3.4+ ships FA2 natively.
 
 ## Followups (out of scope for this PR)
 
