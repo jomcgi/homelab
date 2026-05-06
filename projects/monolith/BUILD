@@ -78,6 +78,7 @@ py_library(
         "@pip//icalendar",
         "@pip//kubernetes_asyncio",
         "@pip//lxml_html_clean",  # explicit: overrides.txt strips lxml[html-clean] extra
+        "@pip//networkx",
         "@pip//opentelemetry_exporter_otlp_proto_http",
         "@pip//opentelemetry_instrumentation_fastapi",
         "@pip//opentelemetry_sdk",
@@ -1726,6 +1727,17 @@ py_test(
         ":monolith_backend",
         "@pip//pytest",
         "@pip//pyyaml",
+    ],
+)
+
+py_test(
+    name = "knowledge_layout_test",
+    srcs = ["knowledge/layout_test.py"],
+    imports = ["."],
+    deps = [
+        ":monolith_backend",
+        "@pip//networkx",
+        "@pip//pytest",
     ],
 )
 
