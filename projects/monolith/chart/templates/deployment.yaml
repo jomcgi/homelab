@@ -118,6 +118,8 @@ spec:
               value: {{ .Values.knowledge.layout.coreFraction | quote }}
             - name: KNOWLEDGE_LAYOUT_RING_RADIUS_FRACTION
               value: {{ .Values.knowledge.layout.ringRadiusFraction | quote }}
+            - name: KNOWLEDGE_LAYOUT_NODE_SIZE_SCALE
+              value: {{ .Values.knowledge.layout.nodeSizeScale | quote }}
             - name: KNOWLEDGE_LAYOUT_SEED
               value: {{ .Values.knowledge.layout.seed | quote }}
             {{- if .Values.knowledge.gitRemote }}

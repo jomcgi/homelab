@@ -367,8 +367,8 @@ new dep) plus a structural split:**
    gardener cycles for the orphan subset — even better than the soft
    stability we have for the connected core.
 
-**Final tuned parameters (from preview-script iteration on the real
-graph):**
+**Initial parameters (from preview-script iteration on the real
+graph; superseded by the tuning round below):**
 
 | Knob                   | Value | Rationale                                              |
 | ---------------------- | ----- | ------------------------------------------------------ |
@@ -384,6 +384,29 @@ graph):**
 edges. With a 5-min reconcile cadence that's 5% overhead. If we ever
 move to a faster reconcile cadence the right knob to turn down is
 `max_iter` (50 should be acceptable, 25 likely fine).
+
+### Tuning iteration after deploy (2026-05-06)
+
+After the first prod rollout, dense atom clusters showed visibly
+overlapping nodes — the cluster was internally well-shaped but
+individual atoms were stacking on top of each other. A second
+preview-script iteration round on the live graph dialed in:
+
+| Knob              | Before | After | Rationale                                                                                                                                       |
+| ----------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scaling_ratio`   | 2.0    | 5.0   | More pairwise repulsion to break up clumps                                                                                                      |
+| `gravity`         | 0.5    | 0.1   | Less center-pull, more radial spread                                                                                                            |
+| `linlog`          | True   | False | Linear attraction; `linlog` packs dense regions tighter, exactly the failure mode we're fixing                                                  |
+| `node_size_scale` | —      | 0.005 | NEW — passes a per-node halo dict to FA2 (`node_size=`), giving each node a degree-scaled collision-avoidance radius (the d3 `collide` analog). |
+
+The halo radius per node is `scale * (1 + log2(1 + degree))` — leaves
+get the base radius, hubs get a slightly larger personal-space bubble
+that keeps long-tail atoms from piling on top of high-degree centers.
+Setting `node_size_scale=0` is allowed and skips halo dict construction
+entirely (opt-out path for cheap layouts on tiny test fixtures).
+
+`core_fraction`, `ring_radius_fraction`, `max_iter`, and `seed` were
+unchanged.
 
 **Why FA2 over the other paths considered:**
 

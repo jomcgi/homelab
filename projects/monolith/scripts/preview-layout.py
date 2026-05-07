@@ -14,12 +14,13 @@ orphan ring on the canvas perimeter at ``--ring-radius-fraction``.
 Usage:
     python preview-layout.py \\
         --snapshot graph.json \\
-        --scaling-ratio 2.0 \\
-        --gravity 0.5 \\
+        --scaling-ratio 5.0 \\
+        --gravity 0.1 \\
         --max-iter 100 \\
-        --linlog \\
+        --no-linlog \\
         --core-fraction 0.99 \\
         --ring-radius-fraction 0.995 \\
+        --node-size-scale 0.005 \\
         --seed 42 \\
         --out preview.html
 
@@ -51,15 +52,15 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="Path to a graph JSON snapshot ({nodes:[...], edges:[...]}).",
     )
-    parser.add_argument("--scaling-ratio", type=float, default=2.0)
-    parser.add_argument("--gravity", type=float, default=0.5)
+    parser.add_argument("--scaling-ratio", type=float, default=5.0)
+    parser.add_argument("--gravity", type=float, default=0.1)
     parser.add_argument("--max-iter", type=int, default=100)
     parser.add_argument(
         "--linlog",
         dest="linlog",
         action="store_true",
-        default=True,
-        help="Enable FA2 logarithmic attraction (default: on).",
+        default=False,
+        help="Enable FA2 logarithmic attraction (default: off).",
     )
     parser.add_argument(
         "--no-linlog",
@@ -69,6 +70,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--core-fraction", type=float, default=0.99)
     parser.add_argument("--ring-radius-fraction", type=float, default=0.995)
+    parser.add_argument(
+        "--node-size-scale",
+        type=float,
+        default=0.005,
+        help="FA2 collision-avoidance halo per-node, scaled by node degree (0 disables).",
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--out",
@@ -95,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
         linlog=args.linlog,
         core_fraction=args.core_fraction,
         ring_radius_fraction=args.ring_radius_fraction,
+        node_size_scale=args.node_size_scale,
         seed=args.seed,
     )
     positions = compute_layout(nodes, edges, params)
@@ -126,7 +134,7 @@ def _render_html(
         f"layout preview (sr={params.scaling_ratio}, g={params.gravity}, "
         f"it={params.max_iter}, ll={params.linlog}, "
         f"core={params.core_fraction}, ring={params.ring_radius_fraction}, "
-        f"seed={params.seed})"
+        f"nss={params.node_size_scale}, seed={params.seed})"
     )
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title}</title></head>
