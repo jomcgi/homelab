@@ -347,7 +347,18 @@ class Gardener:
         return fresh + retriable
 
     async def run(self) -> GardenStats:
-        """Run one gardening cycle: resolve pending → move → reconcile → decompose."""
+        """Run one gardening cycle: resolve pending → move → reconcile → decompose.
+
+        All sync helpers (DB scans, filesystem walks, slug-folding loops)
+        run on a worker thread via ``asyncio.to_thread`` so the event loop
+        stays free for the FastAPI ``/healthz`` probe and other API
+        requests. Without this, a single tick can hold the loop for
+        seconds-to-minutes; the K8s liveness probe (default
+        ``timeoutSeconds: 1``) would then fire and the pod would restart
+        mid-cycle. The Claude subprocess calls (``_ingest_one`` and
+        ``_distill_completed_tasks``) are already async via
+        ``asyncio.create_subprocess_exec`` and yield naturally.
+        """
         from knowledge.raw_ingest import move_phase, reconcile_raw_phase
 
         # Run every cycle: the Gardener instance is reconstructed per scheduled
@@ -359,7 +370,7 @@ class Gardener:
         try:
             from knowledge.gap_stubs import dedupe_stub_frontmatter
 
-            cleaned = dedupe_stub_frontmatter(self.vault_root)
+            cleaned = await asyncio.to_thread(dedupe_stub_frontmatter, self.vault_root)
             if cleaned:
                 logger.info(
                     "knowledge.garden: deduped %d stub frontmatters",
@@ -370,21 +381,25 @@ class Gardener:
                 "knowledge.garden: stub frontmatter dedup failed (non-fatal)"
             )
 
-        resolved_count = self._resolve_pending_provenance()
+        resolved_count = await asyncio.to_thread(self._resolve_pending_provenance)
         if resolved_count and self.session is not None:
             self.session.commit()
 
         now = datetime.now(timezone.utc)
-        move_stats = move_phase(vault_root=self.vault_root, now=now)
+        move_stats = await asyncio.to_thread(
+            move_phase, vault_root=self.vault_root, now=now
+        )
 
         reconcile_stats = None
         if self.session is not None:
-            reconcile_stats = reconcile_raw_phase(
-                vault_root=self.vault_root, session=self.session
+            reconcile_stats = await asyncio.to_thread(
+                reconcile_raw_phase,
+                vault_root=self.vault_root,
+                session=self.session,
             )
             self.session.commit()
 
-        raws = self._raws_needing_decomposition()
+        raws = await asyncio.to_thread(self._raws_needing_decomposition)
         if self.max_files_per_run > 0 and len(raws) > self.max_files_per_run:
             logger.info(
                 "gardener: %d raws need decomposition, capping to %d",
@@ -406,9 +421,9 @@ class Gardener:
         distilled, distill_failed = await self._distill_completed_tasks()
         failed += distill_failed
 
-        consolidated = self._consolidate_task_views()
+        consolidated = await asyncio.to_thread(self._consolidate_task_views)
 
-        gaps_discovered = self._discover_gaps()
+        gaps_discovered = await asyncio.to_thread(self._discover_gaps)
 
         stats = GardenStats(
             ingested=ingested,

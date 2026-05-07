@@ -143,12 +143,22 @@ spec:
               port: api
             initialDelaySeconds: 5
             periodSeconds: 10
+            # K8s default `timeoutSeconds: 1` is unreasonable for a
+            # Python web server: any GC pause or kernel-scheduler hiccup
+            # trips it. 5s is conservative for /healthz, which is a
+            # synchronous handler returning a static dict (no DB, no
+            # work). 6 failures in a row (60s) before restart absorbs
+            # transient event-loop blips without losing the ability to
+            # recover a genuinely wedged process.
+            timeoutSeconds: 5
+            failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: api
             initialDelaySeconds: 3
             periodSeconds: 5
+            timeoutSeconds: 3
           {{- if .Values.knowledge.enabled }}
           volumeMounts:
             # Writable: the backend reconciler injects generated
