@@ -7,34 +7,10 @@
 
   let { data } = $props();
 
-  // Drop nodes without a recognised cluster type (Note.type IS NULL or
-  // an unmapped value): these are usually pre-pipeline imports that
-  // haven't been classified yet. They have no useful colour or label
-  // affordance, so excluding them keeps the legend clean and the canvas
-  // free of "what is this thing" mystery dots.
-  const KNOWN_TYPES = new Set([
-    "atom",
-    "fact",
-    "raw",
-    "gap",
-    "active",
-    "paper",
-  ]);
-  let nodes = $derived(
-    data.graph.nodes.filter((n) => n.type && KNOWN_TYPES.has(n.type)),
-  );
-  let edges = $derived(
-    (() => {
-      const ids = new Set(
-        data.graph.nodes
-          .filter((n) => n.type && KNOWN_TYPES.has(n.type))
-          .map((n) => n.id),
-      );
-      return data.graph.edges.filter(
-        (e) => ids.has(e.source) && ids.has(e.target),
-      );
-    })(),
-  );
+  // The server filters nodes by type (see GRAPH_NOTE_TYPES in store.py).
+  // We just pass through what arrives — no client-side filter needed.
+  let nodes = $derived(data.graph.nodes);
+  let edges = $derived(data.graph.edges);
   let indexedAt = $derived(data.graph.indexed_at);
 
   // Degree is supplied per-node by the server (graph payload).
@@ -45,11 +21,7 @@
   // (a $props value) inside $state() captures cleanly; reading a
   // $derived inside $state() trips state_referenced_locally.
   let activeClusters = $state(
-    new Set(
-      data.graph.nodes
-        .map((n) => n.type)
-        .filter((t) => t && KNOWN_TYPES.has(t)),
-    ),
+    new Set(data.graph.nodes.map((n) => n.type).filter(Boolean)),
   );
   let searchTerm = $state("");
   let selectedId = $state(null);

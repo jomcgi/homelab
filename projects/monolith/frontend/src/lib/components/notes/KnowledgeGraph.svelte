@@ -37,9 +37,10 @@
     onZoom = () => {},
   } = $props();
 
-  // Render-time tuning. Layout knobs (linkDistance, charge, collide) now
-  // live server-side in the gardener's LayoutParams — see
-  // `projects/monolith/backend/internal/knowledge/layout.go`.
+  // Render-time tuning only. Layout (positions, spread, edge tension)
+  // runs server-side in projects/monolith/knowledge/layout.py
+  // (FA2 + structural orphan ring). The render code does not own any
+  // layout parameters.
   const CFG = {
     baseRadius: 2.8,
     hubBoost: 0.5,
@@ -100,15 +101,11 @@
     return resolved.__other ?? "#888";
   }
 
-  // Server positions arrive in NetworkX `spring_layout` units —
-  // approximately [-scale, +scale] (default scale=1.0). The render loop,
-  // quadtree, and zoom transform all live in pixel space, so projectXY
-  // (in ./knowledge-graph-layout.js) projects server coords into pixels.
-  // We multiply by half the smaller canvas dimension (minus a margin) so
-  // the layout fills the available viewport regardless of how
-  // `params.scale` is configured server-side, then translate to canvas
-  // centre. fitToBbox() will further refine the initial zoom once the
-  // data is in.
+  // Server coords arrive normalised to ~[-1, +1] (see compute_layout in
+  // knowledge/layout.py — connected nodes scaled to core_fraction,
+  // orphans placed at ring_radius_fraction). projectXY scales them so
+  // the unit canvas fills the smaller stage dimension minus a margin;
+  // fitToBbox() later refines the initial zoom.
 
   function rebuildGraph() {
     const w = stage?.clientWidth ?? canvas?.width ?? 1200;

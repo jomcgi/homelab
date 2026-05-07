@@ -717,3 +717,90 @@ def test_get_graph_response_includes_degree_and_positions(session):
     assert by_id["note-b"]["y"] is None
     assert by_id["note-d"]["x"] is None
     assert by_id["note-d"]["y"] is None
+
+
+def test_get_graph_filters_nodes_by_type(session):
+    """Notes whose type isn't in GRAPH_NOTE_TYPES are dropped.
+
+    Locks in the server-as-source-of-truth contract: the type filter
+    used to live client-side in +page.svelte, where the server's
+    ``degree`` (computed over all visible edges) was incoherent with
+    what the user saw (since the client further dropped nodes). Now the
+    server filters first, then computes degree, so the two stay aligned.
+    """
+    store = KnowledgeStore(session)
+
+    # An in-set atom links to a paper (in-set) and a "weird" note (out-
+    # of-set). Only the atom→paper edge should survive; the atom's
+    # degree should be 1, not 2.
+    _upsert(
+        store,
+        note_id="atom-1",
+        path="atom.md",
+        content_hash="h-atom",
+        title="Atom",
+        metadata=_meta(title="Atom", type="atom"),
+        links=[
+            Link(target="paper-1", display=None),
+            Link(target="weird-1", display=None),
+        ],
+    )
+    _upsert(
+        store,
+        note_id="paper-1",
+        path="paper.md",
+        content_hash="h-paper",
+        title="Paper",
+        metadata=_meta(title="Paper", type="paper"),
+    )
+    _upsert(
+        store,
+        note_id="weird-1",
+        path="weird.md",
+        content_hash="h-weird",
+        title="Weird",
+        metadata=_meta(title="Weird", type="something-weird"),
+    )
+
+    result = store.get_graph()
+
+    node_ids = {n["id"] for n in result["nodes"]}
+    assert node_ids == {"atom-1", "paper-1"}, "weird-typed node must be dropped"
+
+    edge_pairs = {(e["source"], e["target"]) for e in result["edges"]}
+    assert edge_pairs == {("atom-1", "paper-1")}, (
+        "atom→weird edge must be dropped because weird-1 is filtered out"
+    )
+
+    by_id = {n["id"]: n for n in result["nodes"]}
+    # Degree counts the visible neighbour only (paper-1), not the
+    # filtered-out weird-1.
+    assert by_id["atom-1"]["degree"] == 1
+    assert by_id["paper-1"]["degree"] == 1
+
+
+def test_get_graph_drops_notes_with_null_type(session):
+    """A note with type=None is dropped from the graph response."""
+    store = KnowledgeStore(session)
+
+    _upsert(
+        store,
+        note_id="typed",
+        path="typed.md",
+        content_hash="h-t",
+        title="T",
+        metadata=_meta(title="T", type="atom"),
+    )
+    _upsert(
+        store,
+        note_id="untyped",
+        path="untyped.md",
+        content_hash="h-u",
+        title="U",
+        metadata=_meta(title="U", type=None),
+    )
+
+    result = store.get_graph()
+
+    node_ids = {n["id"] for n in result["nodes"]}
+    assert node_ids == {"typed"}, "untyped note must be dropped"
