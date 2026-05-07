@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import re
@@ -92,13 +93,20 @@ class Reconciler:
         self.researching_root = self.vault_root / "_researching"
 
     async def run(self) -> ReconcileStats:
-        """Reconcile the vault. Returns a ReconcileStats breakdown."""
+        """Reconcile the vault. Returns a ReconcileStats breakdown.
+
+        The pre-loop helpers (`_pre_sync_links`, `get_indexed`, `_walk`)
+        are sync and walk the entire vault + scan the full Note table.
+        Run them on a worker thread via `asyncio.to_thread` so the
+        event loop stays free for `/healthz` and other API requests.
+        Same loop-unblock pattern as the gardener handler.
+        """
         # Sync ## Links sections across all processed notes before hash
         # comparison so that notes with missing or stale sections get
         # re-ingested in this cycle via the normal hash-change path.
-        self._pre_sync_links()
-        indexed = self.store.get_indexed()
-        on_disk = self._walk(previous_indexed=indexed)
+        await asyncio.to_thread(self._pre_sync_links)
+        indexed = await asyncio.to_thread(self.store.get_indexed)
+        on_disk = await asyncio.to_thread(self._walk, previous_indexed=indexed)
 
         to_upsert = sorted(
             path for path, h in on_disk.items() if indexed.get(path) != h
