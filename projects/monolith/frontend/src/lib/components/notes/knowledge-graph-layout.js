@@ -1,5 +1,5 @@
 // Pure helpers for projecting server-supplied knowledge-graph layout
-// (NetworkX spring_layout in approx. [-scale, +scale]) into the
+// (FA2 + post-rescale to ~[-1, +1] in compute_layout) into the
 // component's pixel space, plus node-radius scaling. Extracted so the
 // arithmetic can be unit-tested without mounting the Svelte component.
 

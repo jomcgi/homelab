@@ -23,6 +23,15 @@ logger = logging.getLogger(__name__)
 MIN_SEARCH_SCORE = 0.4
 _CHUNK_LEN_RAMP = 100  # chars at which the length penalty reaches 1.0
 
+# Note types that participate in the knowledge graph. Notes whose type
+# is NULL or not in this set are dropped from the graph response — they
+# are usually pre-pipeline imports that haven't been classified yet,
+# with no useful colour or label affordance. This filter used to live
+# client-side in +page.svelte; moving it here makes the server the
+# single source of truth so degree counts and edges are coherent with
+# what the user sees.
+GRAPH_NOTE_TYPES = frozenset({"atom", "fact", "raw", "gap", "active", "paper"})
+
 
 def _resolve_edge_targets(session: Session, rows: list) -> set[str]:
     """Return the set of target_id values (for kind='edge' rows) that exist as notes."""
@@ -335,16 +344,22 @@ class KnowledgeStore:
     def get_graph(self) -> dict:
         """Return the full knowledge graph: nodes (notes) and edges (links).
 
-        Edges with unresolved targets (target_id pointing to a string that
-        doesn't match any note's note_id) are dropped — gap-promoted
-        wikilinks survive as edges into ``type='gap'`` nodes.
+        Notes whose ``type`` is NULL or not in :data:`GRAPH_NOTE_TYPES`
+        are dropped from the response. This filter used to live in the
+        Svelte client; moving it here makes the server the single source
+        of truth so server-computed ``degree`` matches the visible-edge
+        count the user sees.
+
+        Edges with unresolved or filtered-out targets (target_id pointing
+        to a string that doesn't match any in-set note's note_id) are
+        dropped — gap-promoted wikilinks survive as edges into
+        ``type='gap'`` nodes.
 
         Each node payload also ships server-computed ``degree`` (count of
-        incident visible edges, matching what the client used to compute)
-        and persisted ``x`` / ``y`` layout positions (``None`` until a
-        layout job has run).
+        incident visible edges) and persisted ``x`` / ``y`` layout
+        positions (``None`` until a layout job has run).
         """
-        note_rows = self.session.execute(
+        all_note_rows = self.session.execute(
             select(
                 Note.note_id,
                 Note.title,
@@ -354,6 +369,12 @@ class KnowledgeStore:
                 Note.layout_y,
             )
         ).all()
+        # Filter out notes whose type isn't in the graph set BEFORE we
+        # build note_ids — that way the existing edge filter
+        # (``row.target in note_ids``) automatically drops edges that
+        # point at filtered-out neighbours, keeping degree counts
+        # coherent with the visible edges.
+        note_rows = [row for row in all_note_rows if row.type in GRAPH_NOTE_TYPES]
         note_ids = {row.note_id for row in note_rows}
 
         link_rows = self.session.execute(
@@ -373,7 +394,7 @@ class KnowledgeStore:
                 "edge_type": row.edge_type,
             }
             for row in link_rows
-            if row.target in note_ids
+            if row.source in note_ids and row.target in note_ids
         ]
 
         # Compute degree from the response edges so server-side semantics
@@ -401,7 +422,10 @@ class KnowledgeStore:
                 for row in note_rows
             ],
             "edges": edges,
-            "indexed_at": max((row.indexed_at for row in note_rows), default=None),
+            # indexed_at remains the cluster-wide max — it represents the
+            # last time *any* note (visible or not) was indexed, which is
+            # what the cache headers want.
+            "indexed_at": max((row.indexed_at for row in all_note_rows), default=None),
         }
 
     def get_note_links(self, note_id: str) -> list[dict]:
