@@ -272,6 +272,10 @@ class TestLayoutParamsValidation:
         ):
             LayoutParams(ring_radius_fraction=0.0)
 
+    def test_validates_core_fraction_not_greater_than_ring(self):
+        with pytest.raises(ValueError, match="must be <= ring_radius_fraction"):
+            LayoutParams(core_fraction=0.95, ring_radius_fraction=0.5)
+
 
 class TestLayoutParamsFromEnv:
     def test_uses_defaults_when_env_empty(self):

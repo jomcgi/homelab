@@ -99,6 +99,12 @@ class LayoutParams:
             raise ValueError(
                 f"ring_radius_fraction must be in (0, 1], got {self.ring_radius_fraction}"
             )
+        if self.core_fraction > self.ring_radius_fraction:
+            raise ValueError(
+                f"core_fraction ({self.core_fraction}) must be <= "
+                f"ring_radius_fraction ({self.ring_radius_fraction}); "
+                "otherwise orphans land inside the connected core"
+            )
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "LayoutParams":
