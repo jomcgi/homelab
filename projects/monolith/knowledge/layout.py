@@ -70,12 +70,13 @@ def _is_truthy(value: str) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class LayoutParams:
-    scaling_ratio: float = 2.0
-    gravity: float = 0.5
+    scaling_ratio: float = 5.0
+    gravity: float = 0.1
     max_iter: int = 100
-    linlog: bool = True
+    linlog: bool = False
     core_fraction: float = 0.99
     ring_radius_fraction: float = 0.995
+    node_size_scale: float = 0.005
     seed: int = 42
 
     def __post_init__(self) -> None:
@@ -99,6 +100,12 @@ class LayoutParams:
             raise ValueError(
                 f"ring_radius_fraction must be in (0, 1], got {self.ring_radius_fraction}"
             )
+        # node_size_scale may legitimately be 0 (no halo / no collision-avoidance).
+        # Disallow negatives and non-finite values.
+        if not (self.node_size_scale >= 0 and math.isfinite(self.node_size_scale)):
+            raise ValueError(
+                f"node_size_scale must be non-negative and finite, got {self.node_size_scale}"
+            )
         if self.core_fraction > self.ring_radius_fraction:
             raise ValueError(
                 f"core_fraction ({self.core_fraction}) must be <= "
@@ -115,14 +122,15 @@ class LayoutParams:
         """
         env = environ if environ is not None else os.environ
         return cls(
-            scaling_ratio=float(env.get("KNOWLEDGE_LAYOUT_SCALING_RATIO", "2.0")),
-            gravity=float(env.get("KNOWLEDGE_LAYOUT_GRAVITY", "0.5")),
+            scaling_ratio=float(env.get("KNOWLEDGE_LAYOUT_SCALING_RATIO", "5.0")),
+            gravity=float(env.get("KNOWLEDGE_LAYOUT_GRAVITY", "0.1")),
             max_iter=int(env.get("KNOWLEDGE_LAYOUT_MAX_ITER", "100")),
-            linlog=_is_truthy(env.get("KNOWLEDGE_LAYOUT_LINLOG", "true")),
+            linlog=_is_truthy(env.get("KNOWLEDGE_LAYOUT_LINLOG", "false")),
             core_fraction=float(env.get("KNOWLEDGE_LAYOUT_CORE_FRACTION", "0.99")),
             ring_radius_fraction=float(
                 env.get("KNOWLEDGE_LAYOUT_RING_RADIUS_FRACTION", "0.995")
             ),
+            node_size_scale=float(env.get("KNOWLEDGE_LAYOUT_NODE_SIZE_SCALE", "0.005")),
             seed=int(env.get("KNOWLEDGE_LAYOUT_SEED", "42")),
         )
 
@@ -197,15 +205,31 @@ def compute_layout(
             and math.isfinite(n.prior_y)
         }
 
-        raw = nx.forceatlas2_layout(
-            g,
-            pos=prior or None,
-            max_iter=params.max_iter,
-            scaling_ratio=params.scaling_ratio,
-            gravity=params.gravity,
-            linlog=params.linlog,
-            seed=params.seed,
-        )
+        kwargs: dict = {
+            "pos": prior or None,
+            "max_iter": params.max_iter,
+            "scaling_ratio": params.scaling_ratio,
+            "gravity": params.gravity,
+            "linlog": params.linlog,
+            "seed": params.seed,
+        }
+        # When node_size_scale > 0, pass a per-node halo radius dict to FA2
+        # for collision-avoidance (analogous to d3-force's `collide`). The
+        # halo grows logarithmically with degree, so high-degree hubs claim
+        # a slightly larger personal-space bubble than leaf nodes. Skip the
+        # dict construction entirely when scale=0 — the param is opt-out.
+        if params.node_size_scale > 0:
+            degrees = {n.id: 0 for n in connected}
+            for e in edges:
+                if e.source in degrees:
+                    degrees[e.source] += 1
+                if e.target in degrees:
+                    degrees[e.target] += 1
+            kwargs["node_size"] = {
+                nid: params.node_size_scale * (1 + math.log2(1 + degrees.get(nid, 0)))
+                for nid in connected_ids
+            }
+        raw = nx.forceatlas2_layout(g, **kwargs)
 
         # Find FA2's bounding box across finite outputs and post-scale to
         # fill `core_fraction` of the unit canvas. Skip the rescale entirely

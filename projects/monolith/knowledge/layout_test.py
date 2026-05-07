@@ -223,6 +223,29 @@ class TestComputeLayout:
         r = math.hypot(x, y)
         assert abs(r - params.ring_radius_fraction) < 1e-9
 
+    def test_compute_layout_with_node_size_scale_changes_output(self):
+        """node_size_scale must be plumbed through to FA2 — same graph with
+        scale=0 vs scale>0 yields different positions, proving the halo dict
+        actually reaches the layout call.
+        """
+        nodes = [_node(nid) for nid in ("a", "b", "c", "d", "e")]
+        edges = [
+            EdgeRef("a", "b"),
+            EdgeRef("a", "c"),
+            EdgeRef("a", "d"),
+            EdgeRef("a", "e"),
+            EdgeRef("b", "c"),
+        ]
+
+        no_halo = compute_layout(
+            nodes, edges, LayoutParams(node_size_scale=0.0, seed=42)
+        )
+        with_halo = compute_layout(
+            nodes, edges, LayoutParams(node_size_scale=0.01, seed=42)
+        )
+
+        assert no_halo != with_halo
+
 
 class TestLayoutParamsValidation:
     def test_validates_positive_max_iter(self):
@@ -276,16 +299,30 @@ class TestLayoutParamsValidation:
         with pytest.raises(ValueError, match="must be <= ring_radius_fraction"):
             LayoutParams(core_fraction=0.95, ring_radius_fraction=0.5)
 
+    def test_node_size_scale_zero_is_allowed(self):
+        # node_size_scale=0 means "no halo" — must construct without raising.
+        params = LayoutParams(node_size_scale=0.0)
+        assert params.node_size_scale == 0.0
+
+    def test_node_size_scale_validates_negative(self):
+        with pytest.raises(ValueError, match="non-negative"):
+            LayoutParams(node_size_scale=-0.001)
+
+    def test_node_size_scale_validates_finite(self):
+        with pytest.raises(ValueError, match="non-negative and finite"):
+            LayoutParams(node_size_scale=float("inf"))
+
 
 class TestLayoutParamsFromEnv:
     def test_uses_defaults_when_env_empty(self):
         params = LayoutParams.from_env({})
-        assert params.scaling_ratio == 2.0
-        assert params.gravity == 0.5
+        assert params.scaling_ratio == 5.0
+        assert params.gravity == 0.1
         assert params.max_iter == 100
-        assert params.linlog is True
+        assert params.linlog is False
         assert params.core_fraction == 0.99
         assert params.ring_radius_fraction == 0.995
+        assert params.node_size_scale == 0.005
         assert params.seed == 42
 
     def test_reads_overrides_from_env(self):
@@ -294,18 +331,20 @@ class TestLayoutParamsFromEnv:
                 "KNOWLEDGE_LAYOUT_SCALING_RATIO": "3.5",
                 "KNOWLEDGE_LAYOUT_GRAVITY": "1.0",
                 "KNOWLEDGE_LAYOUT_MAX_ITER": "200",
-                "KNOWLEDGE_LAYOUT_LINLOG": "0",
+                "KNOWLEDGE_LAYOUT_LINLOG": "1",
                 "KNOWLEDGE_LAYOUT_CORE_FRACTION": "0.8",
                 "KNOWLEDGE_LAYOUT_RING_RADIUS_FRACTION": "0.9",
+                "KNOWLEDGE_LAYOUT_NODE_SIZE_SCALE": "0.01",
                 "KNOWLEDGE_LAYOUT_SEED": "7",
             }
         )
         assert params.scaling_ratio == 3.5
         assert params.gravity == 1.0
         assert params.max_iter == 200
-        assert params.linlog is False
+        assert params.linlog is True
         assert params.core_fraction == 0.8
         assert params.ring_radius_fraction == 0.9
+        assert params.node_size_scale == 0.01
         assert params.seed == 7
 
     @pytest.mark.parametrize("truthy", ["1", "true", "TRUE", "True", "yes", "YES"])
@@ -327,3 +366,5 @@ class TestLayoutParamsFromEnv:
             LayoutParams.from_env({"KNOWLEDGE_LAYOUT_CORE_FRACTION": "2.0"})
         with pytest.raises(ValueError):
             LayoutParams.from_env({"KNOWLEDGE_LAYOUT_RING_RADIUS_FRACTION": "0"})
+        with pytest.raises(ValueError):
+            LayoutParams.from_env({"KNOWLEDGE_LAYOUT_NODE_SIZE_SCALE": "-0.001"})

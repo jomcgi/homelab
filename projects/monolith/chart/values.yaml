@@ -85,13 +85,14 @@ knowledge:
       limits:
         memory: "384Mi"
   layout:
-    scalingRatio: 2.0
-    gravity: 0.5
+    scalingRatio: 5.0
+    gravity: 0.1
     maxIter: 100
-    linlog: true
+    linlog: false
     coreFraction: 0.99
     ringRadiusFraction: 0.995
     seed: 42
+    nodeSizeScale: 0.005
 
 chat:
   enabled: false
