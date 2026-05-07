@@ -179,7 +179,11 @@ async def garden_handler(session: Session) -> datetime | None:
 def _run_layout_pass(session: Session) -> tuple[int, int, int]:
     """Compute layout positions for the current graph and persist them.
 
-    Runs in its own transaction. Caller is responsible for catching
+    Commits via the passed-in session. Caller MUST commit any prior
+    uncommitted state first — see reconcile_handler's pre-layout
+    ``session.commit()``. Otherwise the reconciler upserts and the
+    layout writes share a transaction, and a layout failure would roll
+    back the upserts too. Caller is also responsible for catching
     exceptions and translating them to structured log events. Mirrors
     ``KnowledgeStore.get_graph``'s edge filter (only edges where both
     endpoints map to known note_ids) so positions and degrees stay
@@ -249,6 +253,7 @@ async def reconcile_handler(session: Session) -> datetime | None:
     try:
         node_count, edge_count, positioned = _run_layout_pass(session)
     except Exception:  # noqa: BLE001 — layout failure must not affect reconcile result
+        session.rollback()  # clear any aborted txn so the scheduler's commit doesn't blow up
         logger.exception("knowledge.layout: pass failed")
     else:
         logger.info(
